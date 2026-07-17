@@ -1,0 +1,6 @@
+# Copy to .dev.vars for `npx wrangler dev` (never commit .dev.vars)
+RESEND_API_KEY=
+OWNER_NOTIFY_EMAIL=you@example.com
+RESEND_FROM_EMAIL=Netie Space <onboarding@resend.dev>
+JWT_SECRET=dev-change-me-to-a-long-random-string
+DEVICE_PEPPER=netie-dev-pepper

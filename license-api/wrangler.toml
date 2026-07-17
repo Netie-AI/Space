@@ -1,0 +1,30 @@
+name = "netie-space-license"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Create with: npx wrangler d1 create netie-licenses
+# Then paste the database_id below.
+[[d1_databases]]
+binding = "DB"
+database_name = "netie-licenses"
+database_id = "REPLACE_AFTER_D1_CREATE"
+
+# Optional R2 for installer downloads (one-shot tokens)
+# [[r2_buckets]]
+# binding = "INSTALLERS"
+# bucket_name = "netie-space-installers"
+
+[vars]
+APP_NAME = "Netie Space"
+# Public CORS origins (comma-separated). Empty = allow all (dev).
+CORS_ORIGINS = ""
+# Buyer-facing app / download site base (no trailing slash)
+PUBLIC_BASE_URL = "https://netie-space-license.workers.dev"
+
+# Secrets (set via: npx wrangler secret put NAME):
+# RESEND_API_KEY
+# OWNER_NOTIFY_EMAIL
+# RESEND_FROM_EMAIL
+# JWT_SECRET
+# DEVICE_PEPPER

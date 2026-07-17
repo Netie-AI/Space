@@ -1,0 +1,29 @@
+{
+  "id": "netie-space",
+  "name": "Netie Space",
+  "version": "1.0.0",
+  "description": "Space-key Quick Look + dual-brain local memory. Proprietary embeddings stay on-device.",
+  "publisher": "Netie",
+  "type": "desktop-connector",
+  "capabilities": [
+    "preview",
+    "pdf-edit",
+    "video-edit",
+    "local-embedding-brain"
+  ],
+  "launch": {
+    "windows": {
+      "exeHint": [
+        "%LOCALAPPDATA%\\NetieSpace\\NetieSpace.exe",
+        "%ProgramFiles%\\Netie Space\\NetieSpace.exe",
+        "{NETIE_DIST}\\NetieSpace.exe"
+      ],
+      "args": ["--preview", "{file}"]
+    }
+  },
+  "privacy": {
+    "uploadsEmbeddings": false,
+    "localBrainPath": "%LOCALAPPDATA%\\NetieSpace\\.netie-brain",
+    "requiresUserConsent": true
+  }
+}

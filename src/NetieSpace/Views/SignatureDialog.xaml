@@ -1,0 +1,64 @@
+<Window x:Class="NetieSpace.Views.SignatureDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sign — NETIE SPACE"
+        Width="640" Height="520"
+        MinWidth="520" MinHeight="440"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterOwner"
+        Topmost="True"
+        ResizeMode="CanResizeWithGrip"
+        Loaded="Window_Loaded">
+
+    <Border Margin="0" Background="Transparent">
+        <Border x:Name="RootBorder" CornerRadius="18" Background="#E8141820"
+                BorderBrush="{StaticResource GlassBorder}" BorderThickness="1" ClipToBounds="True">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="52"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#1A1E28" BorderBrush="#22FFFFFF" BorderThickness="0,0,0,1"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid Margin="20,0">
+                        <TextBlock Text="Create signature" FontFamily="{StaticResource DisplayFont}"
+                                   Foreground="#F2F4F8" FontSize="17" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                        <Button Content="✕" Style="{StaticResource IconCloseButton}"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                Click="CloseButton_Click"/>
+                    </Grid>
+                </Border>
+
+                <StackPanel Grid.Row="1" Margin="24,18,24,12">
+                    <TextBlock Text="Type your name" Foreground="#A0A8B8" FontSize="12" Margin="0,0,0,8"/>
+                    <TextBox x:Name="NameBox" Height="40" FontSize="18" Padding="10,8"
+                             TextChanged="NameBox_TextChanged"/>
+                    <TextBlock Text="Font" Foreground="#A0A8B8" FontSize="12" Margin="0,16,0,8"/>
+                    <ComboBox x:Name="FontList" Height="36" SelectionChanged="FontList_SelectionChanged"/>
+                    <Border CornerRadius="14" Background="#FFFFFF" Margin="0,20,0,0" Padding="16,24"
+                            BorderBrush="#33FFFFFF" BorderThickness="1" MinHeight="140">
+                        <TextBlock x:Name="PreviewText" Text="Your name" FontSize="42"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="#10141C" Opacity="0.35"/>
+                    </Border>
+                    <TextBlock Text="After place: drag the stamp anywhere. Hold Shift near a form field to snap. Stamps stay temporary until Save."
+                               Foreground="#80A0A8B8" FontSize="11.5" TextWrapping="Wrap" Margin="0,14,0,0"/>
+                </StackPanel>
+
+                <DockPanel Grid.Row="2" Margin="20,0,20,18" LastChildFill="False">
+                    <Button DockPanel.Dock="Right" Content="Stamp onto PDF" Style="{StaticResource EditorChipPrimary}"
+                            Click="StampButton_Click" Margin="8,0,0,0"/>
+                    <Button DockPanel.Dock="Right" Content="Save PNG…" Style="{StaticResource EditorChip}"
+                            Click="SavePngButton_Click" Margin="8,0,0,0"/>
+                    <Button DockPanel.Dock="Right" Content="Cancel" Style="{StaticResource EditorChip}"
+                            IsCancel="True" Click="CloseButton_Click"/>
+                </DockPanel>
+            </Grid>
+        </Border>
+    </Border>
+</Window>

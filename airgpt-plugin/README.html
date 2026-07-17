@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/><title>Netie Space · AirGPT plugin</title>
+<style>
+body{font:14px/1.5 system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 20px;color:#111}
+code{background:#f2f2f2;padding:2px 6px;border-radius:4px}
+</style>
+</head>
+<body>
+<h1>Netie Space — AirGPT connector</h1>
+<p>This bundle registers <strong>Netie Space</strong> as the Space-key / Open-in-Space handoff for AirGPT.</p>
+<ol>
+<li>Install Netie Space (<code>Install.bat</code> or <code>NetieSpace-Setup.exe</code>).</li>
+<li>Copy <code>airgpt-plugin/manifest.json</code> into AirGPT’s connectors folder (or run <code>register-airgpt-plugin.ps1</code>).</li>
+<li>AirGPT “Open in Space” → <code>NetieSpace.exe --preview "path"</code>.</li>
+</ol>
+<p>Local dual-brain embeddings stay on the user’s PC under <code>%LOCALAPPDATA%\NetieSpace\.netie-brain</code> (hidden, consent-gated).</p>
+</body>
+</html>

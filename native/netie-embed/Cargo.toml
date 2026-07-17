@@ -1,0 +1,9 @@
+[package]
+name = "netie-embed"
+version = "0.1.0"
+edition = "2021"
+description = "Compact local sparse embedding encoder for Netie Space dual-brain (no network)"
+
+[[bin]]
+name = "netie-embed"
+path = "src/main.rs"

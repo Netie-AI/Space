@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Netie PDF</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --glass: rgba(22, 28, 38, 0.52);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --glass-hi: rgba(255, 255, 255, 0.08);
+      --accent: #5ec4b8;
+      --text: #f2f4f8;
+      --muted: #a8b0c0;
+      --chip: rgba(42, 49, 64, 0.72);
+    }
+    html, body { margin: 0; height: 100%; background: #10141c; color: var(--text);
+      font: 600 13px "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif;
+      overflow: hidden; user-select: none; }
+    /* Liquid-glass scrollbars — thumb only */
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+    *::-webkit-scrollbar-corner { background: transparent; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.22); border-radius: 999px;
+      border: 2px solid transparent; background-clip: content-box; }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.36); background-clip: content-box; }
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent; }
+    /* Liquid-glass toolbar — crisp chips, no glow halos */
+    #toolbar {
+      display: flex; gap: 6px; align-items: center; padding: 7px 12px; flex-wrap: wrap;
+      background: linear-gradient(180deg, var(--glass-hi), transparent 60%), var(--glass);
+      backdrop-filter: blur(18px) saturate(1.35); -webkit-backdrop-filter: blur(18px) saturate(1.35);
+      border-bottom: 1px solid var(--glass-border); box-shadow: none; }
+    #toolbar button, #toolbar input[type="number"], #toolbar input[type="search"] {
+      background: var(--chip); color: var(--text); border: 1px solid var(--glass-border);
+      border-radius: 12px; padding: 7px 11px; cursor: pointer;
+      font: 700 12.5px "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      letter-spacing: 0.01em; box-shadow: none; }
+    #toolbar button:hover { background: rgba(94, 196, 184, 0.22); border-color: rgba(94, 196, 184, 0.45); }
+    #toolbar input[type="number"] {
+      width: 52px; text-align: center; cursor: text; -moz-appearance: textfield;
+      padding: 6px 4px; font-weight: 700; }
+    #toolbar input[type="number"]::-webkit-outer-spin-button,
+    #toolbar input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    #toolbar input[type="search"] {
+      width: 168px; cursor: text; font-weight: 700; font-size: 13px;
+      border-radius: 12px; }
+    #pageTotal { opacity: 0.75; font-size: 12px; min-width: 36px; font-weight: 600; }
+    #toolbar button.accent { background: rgba(94, 196, 184, 0.28); border-color: rgba(94, 196, 184, 0.55); }
+    #stampBtn { display: none; }
+    #stampBtn.active { display: inline-block; }
+    #toolbar button.hot { background: var(--accent); color: #0e1218; border-color: var(--accent); }
+    #toolbar button.on { background: var(--accent); color: #0e1218; border-color: var(--accent); }
+    #searchWrap { display: flex; align-items: center; gap: 4px; margin-left: 4px; }
+    #searchPanel { display: none; align-items: center; gap: 4px; }
+    #searchPanel.open { display: flex; }
+    #searchToggle { font-weight: 800 !important; }
+    #searchToggle.on { background: var(--accent); color: #0e1218; border-color: var(--accent); }
+    #main { display: flex; height: calc(100% - 44px); min-height: 0; }
+    /* Single-column page thumbnails */
+    #thumbs { width: 112px; overflow: auto; background: rgba(10, 14, 22, 0.88);
+      border-right: 1px solid var(--glass-border); padding: 8px; box-sizing: border-box;
+      display: grid; grid-template-columns: 1fr; gap: 8px; align-content: start; }
+    #thumbs canvas { width: 100%; display: block; border-radius: 3px; aspect-ratio: 3/4; object-fit: cover;
+      border: 2px solid transparent; cursor: pointer; background: #1a1e28; }
+    #thumbs canvas.active { border-color: var(--accent); }
+    #thumbs .thumb-more { opacity: .7; font-size: 11px; text-align: center; padding: 6px 2px;
+      font-weight: 700; background: var(--chip); border: 1px solid var(--glass-border);
+      border-radius: 10px; color: var(--text); cursor: pointer; }
+    #viewer { flex: 1; overflow: auto; text-align: center; padding: 10px; position: relative;
+      cursor: default; scroll-behavior: auto; min-height: 0; }
+    #viewer.fit-mode { padding: 6px; }
+    #viewer.single .page-wrap { display: none; }
+    #viewer.single .page-wrap.active-page { display: block; }
+    #viewer.stamp-mode { cursor: grabbing; }
+    #pages { position: relative; display: inline-block; text-align: center; margin: 0 auto; }
+    .page-wrap { position: relative; margin: 0 auto 14px; display: block;
+      box-shadow: 0 6px 24px #00000066; border-radius: 10px; overflow: hidden; background: #fff; }
+    .page-wrap canvas { display: block; }
+    #stampGhost { position: absolute; pointer-events: none; display: none; z-index: 40;
+      filter: drop-shadow(0 4px 12px #0008); opacity: 0.98; }
+    #stampGhost img { max-width: 180px; max-height: 70px; display: block; }
+    .stamp-overlay { position: absolute; z-index: 30; box-sizing: border-box;
+      border: 2px solid #5ec4b8; background: #fffffff0; cursor: move;
+      border-radius: 8px; box-shadow: 0 0 0 1px #0e121866, 0 6px 18px #0005; }
+    .stamp-overlay img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: block; opacity: 1; }
+    .stamp-overlay .handle { position: absolute; width: 10px; height: 10px; background: #5ec4b8;
+      border: 1px solid #0e1218; border-radius: 2px; right: -5px; bottom: -5px; cursor: nwse-resize; }
+    .stamp-overlay.committed { border-color: #2a9a8e; background: #fffffff5; }
+    .stamp-overlay.selected { border-color: #ffd64a; z-index: 35; background: #fffffff8; }
+    .hl-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 12; }
+    .hl-box { position: absolute; background: rgba(255, 214, 74, 0.42); border: 1.5px solid rgba(255, 196, 40, 0.9);
+      border-radius: 3px; mix-blend-mode: multiply; }
+    .search-hit { position: absolute; background: rgba(94, 196, 184, 0.38);
+      border: 1.5px solid rgba(94, 196, 184, 0.95); border-radius: 3px; box-sizing: border-box;
+      pointer-events: none; z-index: 14; }
+    .search-hit.current { background: rgba(255, 214, 74, 0.55); border-color: #ffd64a; }
+    #banner { display: none; position: sticky; left: 50%; top: 12px; transform: translateX(-50%);
+      background: #5ec4b8; color: #0e1218; padding: 10px 16px; border-radius: 12px;
+      font-weight: 800; z-index: 50; box-shadow: none; white-space: nowrap;
+      width: fit-content; margin: 0 auto 12px; }
+    #status { margin-left: auto; opacity: 1; font-size: 12.5px; font-weight: 700; color: #e8ecf4;
+      max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      text-shadow: 0 1px 0 #0006; }
+    .bbox { position: absolute; border: 1px solid #5ec4b888; background: #5ec4b822;
+      border-radius: 1px; pointer-events: auto; cursor: pointer; z-index: 15; }
+    .bbox.selected { border-color: #ffd64a; background: #ffd64a33; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="prev" title="Previous page">‹</button>
+    <input id="pageInput" type="number" min="1" value="1" title="Type page number, Enter to go"/>
+    <span id="pageTotal">/ 1</span>
+    <button id="next" title="Next page">›</button>
+    <button id="modeBtn" title="Toggle one page / continuous scroll">Continuous</button>
+    <button id="zoomOut" title="Zoom out">−</button>
+    <span id="zoomLabel">100%</span>
+    <button id="zoomIn" title="Zoom in">+</button>
+    <button id="fit" title="Fit page to window (sharp, no stretch)">Fit</button>
+    <button id="stampBtn" class="accent" title="Cancel signature placement">Cancel placement</button>
+    <button id="stampConfirmBtn" class="accent hot" style="display:none" title="Legacy — auto-kept on drop">Keep stamp</button>
+    <button id="hlBtn" title="Drag to highlight">Highlight</button>
+    <div id="searchWrap">
+      <button id="searchToggle" title="Search text in document">Search</button>
+      <div id="searchPanel">
+        <input id="searchBox" type="search" placeholder="Find in PDF…" title="Search all text · Enter"/>
+        <button id="searchPrev" title="Previous match">↑</button>
+        <button id="searchNext" title="Next match">↓</button>
+      </div>
+    </div>
+    <span id="status">Loading…</span>
+  </div>
+  <div id="main">
+    <div id="thumbs"></div>
+    <div id="viewer">
+      <div id="banner">Drag signature onto the page — release to place, then drag the box</div>
+      <div id="pages"></div>
+      <div id="stampGhost"><img id="stampImg" alt="signature"/></div>
+    </div>
+  </div>
+  <script type="module">
+    import * as pdfjsLib from './build/pdf.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./build/pdf.worker.mjs', import.meta.url).href;
+
+    const params = new URLSearchParams(location.search);
+    let fileUrl = params.get('file') || '';
+    let pdf = null;
+    let pageNum = 1;
+    let scale = 1.25;
+    let fitMode = false;
+    let stampMode = false;
+    let stampPending = false;
+    let highlightMode = false;
+    let bboxMode = false;
+    let highlights = [];
+    let stampDataUrl = null;
+    let dragging = false;
+    let lastPointer = null;
+    let pendingPlacement = null;
+    let pendingOverlay = null;
+    let boxDrag = null;
+    let renderGen = 0;
+    let formFields = [];
+    /** @type {{id:string,page:number,xPt:number,yFromBottom:number,stampW:number,stampH:number,dataUrl:string,el:HTMLElement}[]} */
+    let overlays = [];
+    /** @type {Map<number,{wrap:HTMLElement,canvas:HTMLCanvasElement,widthPt:number,heightPt:number,rendered:boolean}>} */
+    const pageMap = new Map();
+    const STAMP_MAX_WIDTH_PT = 160;
+    const SNAP_RADIUS_PT = 40;
+    let continuous = true;
+    let searchHits = []; // {page, x, y, w, h} in PDF points
+    let searchIdx = -1;
+    let searchQuery = '';
+    const THUMB_BATCH = 48;
+    let thumbCursor = 0;
+    const dpr = () => Math.min(3, window.devicePixelRatio || 1);
+
+    const thumbs = document.getElementById('thumbs');
+    const viewer = document.getElementById('viewer');
+    const pagesEl = document.getElementById('pages');
+    const status = document.getElementById('status');
+    const stampGhost = document.getElementById('stampGhost');
+    const stampImg = document.getElementById('stampImg');
+    const banner = document.getElementById('banner');
+    const stampBtn = document.getElementById('stampBtn');
+    const stampConfirmBtn = document.getElementById('stampConfirmBtn');
+    const pageInput = document.getElementById('pageInput');
+    const pageTotal = document.getElementById('pageTotal');
+
+    function post(msg) {
+      try {
+        window.chrome?.webview?.postMessage(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      } catch (_) {}
+    }
+
+    function uid() { return 's' + Math.random().toString(36).slice(2, 10); }
+
+    async function load() {
+      if (!fileUrl) { status.textContent = 'No file'; return; }
+      status.textContent = 'Opening…';
+      pdf = await pdfjsLib.getDocument(fileUrl).promise;
+      pageNum = 1;
+      pageInput.max = String(pdf.numPages);
+      pageInput.value = '1';
+      pageTotal.textContent = '/ ' + pdf.numPages;
+      thumbCursor = 0;
+      thumbs.innerHTML = '';
+      await buildPageStack();
+      await applyFit(false);
+      await renderVisiblePages(true);
+      await renderThumbBatch();
+      scrollToPage(1, false);
+      post({ type: 'ready', pages: pdf.numPages });
+      status.textContent = pdf.numPages + ' pages · fit · Continuous scroll on';
+      applyViewMode();
+    }
+
+    function applyViewMode() {
+      const keep = pageNum;
+      viewer.classList.toggle('single', !continuous);
+      const modeBtn = document.getElementById('modeBtn');
+      if (modeBtn) {
+        modeBtn.textContent = continuous ? 'Continuous' : 'One page';
+        modeBtn.classList.toggle('on', continuous);
+      }
+      for (const [n, entry] of pageMap) {
+        entry.wrap.classList.toggle('active-page', n === keep);
+      }
+      // Stay on the page you were reading — never jump to page 1
+      pageNum = keep;
+      pageInput.value = String(keep);
+      goToPage(keep, false);
+      status.textContent = continuous
+        ? 'Continuous — scroll freely (stayed on page ' + keep + ')'
+        : 'One page — stayed on page ' + keep;
+    }
+
+    async function buildPageStack() {
+      pagesEl.innerHTML = '';
+      pageMap.clear();
+      // Batch page metrics so large PDFs don't stall on open
+      const batch = 12;
+      for (let start = 1; start <= pdf.numPages; start += batch) {
+        const end = Math.min(pdf.numPages, start + batch - 1);
+        const jobs = [];
+        for (let i = start; i <= end; i++) {
+          jobs.push((async (n) => {
+            const page = await pdf.getPage(n);
+            const baseVp = page.getViewport({ scale: 1 });
+            const wrap = document.createElement('div');
+            wrap.className = 'page-wrap';
+            wrap.dataset.page = String(n);
+            const canvas = document.createElement('canvas');
+            // Placeholder CSS size from CSS scale only — buffer filled on render (DPR-sharp)
+            const cssW = Math.max(1, Math.floor(baseVp.width * Math.min(scale, 1.0)));
+            const cssH = Math.max(1, Math.floor(baseVp.height * Math.min(scale, 1.0)));
+            canvas.width = cssW;
+            canvas.height = cssH;
+            canvas.style.width = cssW + 'px';
+            canvas.style.height = cssH + 'px';
+            wrap.appendChild(canvas);
+            return { n, wrap, canvas, widthPt: baseVp.width, heightPt: baseVp.height };
+          })(i));
+        }
+        const chunk = await Promise.all(jobs);
+        chunk.sort((a, b) => a.n - b.n);
+        for (const item of chunk) {
+          pagesEl.appendChild(item.wrap);
+          pageMap.set(item.n, {
+            wrap: item.wrap, canvas: item.canvas,
+            widthPt: item.widthPt, heightPt: item.heightPt, rendered: false
+          });
+        }
+      }
+    }
+
+    async function renderPageAt(n, force) {
+      const entry = pageMap.get(n);
+      if (!entry || !pdf) return;
+      if (entry.rendered && !force) return;
+      const gen = ++renderGen;
+      const page = await pdf.getPage(n);
+      if (gen !== renderGen && force !== true) return; // cancel stale zoom/travel renders
+      // Acrobat-style fit: CSS scale for layout; render buffer at scale×DPR so pixels stay sharp
+      const cssScale = Math.min(4, Math.max(0.25, scale));
+      const pixelScale = cssScale * dpr();
+      const cssVp = page.getViewport({ scale: cssScale });
+      const renderVp = page.getViewport({ scale: pixelScale });
+      let w = Math.floor(renderVp.width), h = Math.floor(renderVp.height);
+      const maxPx = 4096 * 4096;
+      if (w * h > maxPx) {
+        const f = Math.sqrt(maxPx / (w * h));
+        w = Math.floor(w * f);
+        h = Math.floor(h * f);
+      }
+      if (gen !== renderGen && force !== true) return;
+      entry.canvas.width = w;
+      entry.canvas.height = h;
+      entry.canvas.style.width = Math.floor(cssVp.width) + 'px';
+      entry.canvas.style.height = Math.floor(cssVp.height) + 'px';
+      const ctx = entry.canvas.getContext('2d');
+      const finalVp = page.getViewport({ scale: pixelScale * (w / renderVp.width) });
+      const task = page.render({ canvasContext: ctx, viewport: finalVp });
+      try {
+        await task.promise;
+      } catch (e) {
+        if (gen !== renderGen) return;
+        throw e;
+      }
+      if (gen !== renderGen && force !== true) return;
+      entry.rendered = true;
+
+      for (const hl of highlights.filter(x => x.page === n)) {
+        ctx.fillStyle = 'rgba(255, 230, 80, 0.35)';
+        ctx.fillRect(hl.x * (w / entry.widthPt), hl.y * (h / entry.heightPt),
+          hl.w * (w / entry.widthPt), hl.h * (h / entry.heightPt));
+      }
+      layoutOverlaysForPage(n);
+      paintSearchHitsForPage(n);
+    }
+
+    async function renderVisiblePages(forceAllNear) {
+      if (!pdf) return;
+      const vr = viewer.getBoundingClientRect();
+      const tasks = [];
+      for (const [n, entry] of pageMap) {
+        const r = entry.wrap.getBoundingClientRect();
+        const near = r.bottom >= vr.top - 800 && r.top <= vr.bottom + 800;
+        if (near || (forceAllNear && Math.abs(n - pageNum) <= 1))
+          tasks.push(renderPageAt(n, false));
+      }
+      await Promise.all(tasks);
+      document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+      syncPageFromScroll();
+    }
+
+    async function renderThumbBatch() {
+      if (!pdf) return;
+      const end = Math.min(pdf.numPages, thumbCursor + THUMB_BATCH);
+      for (let i = thumbCursor + 1; i <= end; i++) {
+        const page = await pdf.getPage(i);
+        const vp = page.getViewport({ scale: 0.18 });
+        const c = document.createElement('canvas');
+        c.width = vp.width; c.height = vp.height;
+        c.dataset.page = String(i);
+        if (i === pageNum) c.classList.add('active');
+        await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        c.onclick = () => goToPage(i, true);
+        thumbs.appendChild(c);
+      }
+      thumbCursor = end;
+      if (thumbCursor < pdf.numPages) {
+        const more = document.createElement('button');
+        more.className = 'thumb-more';
+        more.textContent = 'Load more… (+' + (pdf.numPages - thumbCursor) + ')';
+        more.onclick = async () => { more.remove(); await renderThumbBatch(); };
+        thumbs.appendChild(more);
+      }
+    }
+
+    function levenshtein(a, b) {
+      if (a === b) return 0;
+      if (!a.length) return b.length;
+      if (!b.length) return a.length;
+      const row = new Array(b.length + 1);
+      for (let j = 0; j <= b.length; j++) row[j] = j;
+      for (let i = 1; i <= a.length; i++) {
+        let prev = i - 1, cur = i;
+        for (let j = 1; j <= b.length; j++) {
+          const next = row[j];
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          row[j] = Math.min(row[j] + 1, cur + 1, prev + cost);
+          prev = next;
+          cur = row[j];
+        }
+      }
+      return row[b.length];
+    }
+
+    /** Strict typo match: never match short substrings inside unrelated words. */
+    function strictTokenMatch(word, needle) {
+      word = (word || '').toLowerCase();
+      needle = (needle || '').toLowerCase();
+      if (!needle || needle.length < 2) return false;
+      if (word === needle) return true;
+      if (needle.length >= 4 && word.includes(needle)) return true;
+      if (needle.length < 4) return false;
+      const maxDist = Math.min(2, Math.floor(needle.length * 0.2));
+      if (maxDist < 1) return false;
+      if (Math.abs(word.length - needle.length) > maxDist) return false;
+      return levenshtein(word, needle) <= maxDist;
+    }
+
+    function clearSearchHitEls() {
+      for (const entry of pageMap.values())
+        entry.wrap.querySelectorAll('.search-hit').forEach(n => n.remove());
+    }
+
+    function paintSearchHitsForPage(n) {
+      const entry = pageMap.get(n);
+      if (!entry) return;
+      entry.wrap.querySelectorAll('.search-hit').forEach(el => el.remove());
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const cssW = cr.width || entry.canvas.clientWidth;
+      const cssH = cr.height || entry.canvas.clientHeight;
+      searchHits.forEach((hit, i) => {
+        if (hit.page !== n) return;
+        const el = document.createElement('div');
+        el.className = 'search-hit' + (i === searchIdx ? ' current' : '');
+        el.style.left = ((cr.left - wrapR.left) + (hit.x / entry.widthPt) * cssW) + 'px';
+        el.style.top = ((cr.top - wrapR.top) + ((entry.heightPt - hit.y - hit.h) / entry.heightPt) * cssH) + 'px';
+        el.style.width = Math.max(2, (hit.w / entry.widthPt) * cssW) + 'px';
+        el.style.height = Math.max(2, (hit.h / entry.heightPt) * cssH) + 'px';
+        entry.wrap.appendChild(el);
+      });
+    }
+
+    function paintAllSearchHits() {
+      const pages = new Set(searchHits.map(h => h.page));
+      for (const n of pages) paintSearchHitsForPage(n);
+    }
+
+    function pushQuad(hits, pageIndex, it, idx, matchLen) {
+      const str = it.str || '';
+      if (!str || matchLen <= 0) return;
+      const tx = it.transform || [1, 0, 0, 1, 0, 0];
+      const fontH = Math.hypot(tx[2], tx[3]) || (it.height || 10);
+      const fontW = Math.hypot(tx[0], tx[1]) || fontH * 0.5;
+      const totalW = (it.width != null) ? it.width : fontW * str.length;
+      const charW = str.length > 0 ? totalW / str.length : fontW;
+      hits.push({
+        page: pageIndex,
+        x: tx[4] + charW * idx,
+        y: tx[5] - fontH * 0.15,
+        w: Math.max(charW * matchLen, 2),
+        h: Math.max(fontH * 1.15, 4)
+      });
+    }
+
+    /** Exact + strict fuzzy quads only — no fake full-page hits. */
+    async function findHitsOnPage(pageIndex, needle) {
+      const page = await pdf.getPage(pageIndex);
+      const tc = await page.getTextContent();
+      const hits = [];
+      const q = needle.toLowerCase().trim();
+      if (!q) return hits;
+
+      // Tier 1: exact substring inside each text item
+      for (const it of tc.items) {
+        const str = it.str || '';
+        if (!str) continue;
+        const lower = str.toLowerCase();
+        let from = 0;
+        while (from < lower.length) {
+          const idx = lower.indexOf(q, from);
+          if (idx < 0) break;
+          pushQuad(hits, pageIndex, it, idx, q.length);
+          from = idx + Math.max(1, q.length);
+        }
+      }
+      if (hits.length) return hits;
+
+      // Tier 2: multi-token — every token (≥2 chars) must appear exactly on the page
+      const tokens = q.split(/[^a-z0-9\u4e00-\u9fff]+/i).filter(t => t.length >= 2);
+      if (tokens.length > 1) {
+        const pageLower = tc.items.map(it => (it.str || '').toLowerCase()).join(' ');
+        if (tokens.every(t => pageLower.includes(t))) {
+          for (const t of tokens) {
+            for (const it of tc.items) {
+              const lower = (it.str || '').toLowerCase();
+              let from = 0;
+              while (from < lower.length) {
+                const idx = lower.indexOf(t, from);
+                if (idx < 0) break;
+                pushQuad(hits, pageIndex, it, idx, t.length);
+                from = idx + Math.max(1, t.length);
+              }
+            }
+          }
+        }
+        if (hits.length) return hits;
+      }
+
+      // Tier 3: strict edit-distance on whole words (len ≥ 4 only)
+      if (q.length >= 4) {
+        for (const it of tc.items) {
+          const str = it.str || '';
+          if (!str) continue;
+          const words = str.split(/[^a-z0-9\u4e00-\u9fff]+/i).filter(Boolean);
+          let cursor = 0;
+          const lower = str.toLowerCase();
+          for (const w of words) {
+            const wIdx = lower.indexOf(w.toLowerCase(), cursor);
+            if (wIdx < 0) continue;
+            if (strictTokenMatch(w, q))
+              pushQuad(hits, pageIndex, it, wIdx, w.length);
+            cursor = wIdx + w.length;
+          }
+        }
+      }
+      return hits;
+    }
+
+    async function runSearch(q) {
+      clearSearchHitEls();
+      searchHits = [];
+      searchIdx = -1;
+      searchQuery = (q || '').trim();
+      if (!searchQuery || !pdf) { status.textContent = 'Search cleared'; return; }
+      status.textContent = 'Searching…';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const pageHits = await findHitsOnPage(i, searchQuery);
+        if (pageHits.length) searchHits.push(...pageHits);
+      }
+      if (searchHits.length === 0) {
+        status.textContent = 'No matches';
+        return;
+      }
+      searchIdx = 0;
+      goToPage(searchHits[0].page, true);
+      paintAllSearchHits();
+      status.textContent = 'Match 1/' + searchHits.length + ' · page ' + searchHits[0].page;
+    }
+
+    function jumpSearch(dir) {
+      if (searchHits.length === 0) {
+        const box = document.getElementById('searchBox');
+        if (box?.value.trim()) runSearch(box.value);
+        return;
+      }
+      searchIdx = (searchIdx + dir + searchHits.length) % searchHits.length;
+      const hit = searchHits[searchIdx];
+      goToPage(hit.page, true);
+      paintAllSearchHits();
+      status.textContent = 'Match ' + (searchIdx + 1) + '/' + searchHits.length +
+        ' · page ' + hit.page;
+    }
+
+    function computeFitScale() {
+      const entry = pageMap.get(pageNum);
+      if (!entry) return scale;
+      const pad = continuous ? 16 : 12;
+      const availW = Math.max(40, viewer.clientWidth - pad);
+      const availH = Math.max(40, viewer.clientHeight - pad);
+      // Fit entire page in view — letterbox only (no stretch, no CSS downscale blur)
+      return Math.max(0.25, Math.min(4, Math.min(availW / entry.widthPt, availH / entry.heightPt)));
+    }
+
+    async function applyFit(recalcOnly) {
+      fitMode = true;
+      viewer.classList.add('fit-mode');
+      scale = computeFitScale();
+      if (!recalcOnly) {
+        for (const e of pageMap.values()) e.rendered = false;
+        await renderVisiblePages(true);
+        layoutAllOverlays();
+        paintAllSearchHits();
+      }
+      scrollToPage(pageNum, false);
+      document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+      status.textContent = 'Fit — full page · sharp · resizes with window';
+    }
+
+    function syncPageFromScroll() {
+      if (!pdf || pageMap.size === 0 || !continuous) return;
+      const mid = viewer.getBoundingClientRect().top + viewer.clientHeight * 0.35;
+      let best = pageNum, bestDist = Infinity;
+      for (const [n, entry] of pageMap) {
+        const r = entry.wrap.getBoundingClientRect();
+        const d = Math.abs(r.top + r.height * 0.2 - mid);
+        if (d < bestDist) { bestDist = d; best = n; }
+      }
+      if (best !== pageNum) {
+        pageNum = best;
+        pageInput.value = String(pageNum);
+        thumbs.querySelectorAll('canvas').forEach(c => {
+          c.classList.toggle('active', Number(c.dataset.page) === pageNum);
+        });
+        post({ type: 'page', page: pageNum, pages: pdf.numPages, scale });
+      }
+    }
+
+    function scrollToPage(n, smooth) {
+      const entry = pageMap.get(n);
+      if (!entry) return;
+      pageNum = n;
+      pageInput.value = String(n);
+      entry.wrap.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+      renderPageAt(n, false).then(() => layoutOverlaysForPage(n));
+      thumbs.querySelectorAll('canvas').forEach(c => {
+        c.classList.toggle('active', Number(c.dataset.page) === n);
+      });
+      post({ type: 'page', page: n, pages: pdf.numPages, scale });
+    }
+
+    function goToPage(n, smooth) {
+      if (!pdf) return;
+      n = Math.min(pdf.numPages, Math.max(1, n | 0));
+      pageNum = n;
+      pageInput.value = String(n);
+      for (const [pn, entry] of pageMap) {
+        entry.wrap.classList.toggle('active-page', pn === n);
+      }
+      scrollToPage(n, !!smooth);
+      renderVisiblePages(false);
+    }
+
+    function pageEntryFromEvent(ev) {
+      for (const [n, entry] of pageMap) {
+        const r = entry.canvas.getBoundingClientRect();
+        if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom)
+          return { n, entry, r };
+      }
+      return null;
+    }
+
+    function canvasPoint(ev) {
+      const hit = pageEntryFromEvent(ev);
+      if (!hit) return { inside: false, page: pageNum, x: 0, y: 0 };
+      const { n, entry, r } = hit;
+      const x = (ev.clientX - r.left) * (entry.canvas.width / r.width);
+      const y = (ev.clientY - r.top) * (entry.canvas.height / r.height);
+      return { inside: true, page: n, entry, x, y, r };
+    }
+
+    function stampSizePt() {
+      const natW = stampImg.naturalWidth || STAMP_MAX_WIDTH_PT;
+      const natH = stampImg.naturalHeight || Math.round(STAMP_MAX_WIDTH_PT * 0.3);
+      const s = Math.min(1, STAMP_MAX_WIDTH_PT / natW);
+      return { w: natW * s, h: natH * s };
+    }
+
+    function stampDisplaySize(entry, stampWPt, stampHPt) {
+      const cr = entry.canvas.getBoundingClientRect();
+      return {
+        w: (stampWPt / entry.widthPt) * cr.width,
+        h: (stampHPt / entry.heightPt) * cr.height
+      };
+    }
+
+    function moveGhost(ev) {
+      if (!stampMode || stampPending) return;
+      lastPointer = ev;
+      const { w: stampWPt, h: stampHPt } = stampSizePt();
+      const hit = pageEntryFromEvent(ev);
+      const entry = hit?.entry || pageMap.get(pageNum);
+      if (!entry) return;
+      const { w, h } = stampDisplaySize(entry, stampWPt, stampHPt);
+      const vr = viewer.getBoundingClientRect();
+      stampGhost.style.display = 'block';
+      stampGhost.style.left = (ev.clientX - vr.left - w / 2 + viewer.scrollLeft) + 'px';
+      stampGhost.style.top = (ev.clientY - vr.top - h / 2 + viewer.scrollTop) + 'px';
+      stampImg.style.maxWidth = w + 'px';
+      stampImg.style.maxHeight = h + 'px';
+    }
+
+    function snapPlacement(page, xPt, yFromBottom, stampW, stampH, allowSnap) {
+      if (!allowSnap) return { xPt, yFromBottom, stampW, stampH, snapped: false };
+      const fields = formFields.filter(f => f.page === page && f.w > 8 && f.h > 8);
+      let best = null, bestDist = SNAP_RADIUS_PT;
+      const cx = xPt + stampW / 2, cy = yFromBottom + stampH / 2;
+      for (const f of fields) {
+        const dist = Math.hypot(f.x + f.w / 2 - cx, f.y + f.h / 2 - cy);
+        if (dist < bestDist) { bestDist = dist; best = f; }
+      }
+      if (!best) return { xPt, yFromBottom, stampW, stampH, snapped: false };
+      const aspect = stampW / stampH;
+      let w = stampW, h = stampH;
+      const padW = best.w * 0.92, padH = best.h * 0.88;
+      if (w > padW) { w = padW; h = w / aspect; }
+      if (h > padH) { h = padH; w = h * aspect; }
+      return {
+        xPt: best.x + (best.w - w) / 2,
+        yFromBottom: best.y + (best.h - h) / 2,
+        stampW: w, stampH: h, snapped: true, field: best.name || ''
+      };
+    }
+
+    function createOverlayEl(placement, dataUrl, committed) {
+      const el = document.createElement('div');
+      el.className = 'stamp-overlay' + (committed ? ' committed' : '') + ' selected';
+      el.dataset.id = placement.id;
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = 'stamp';
+      const handle = document.createElement('div');
+      handle.className = 'handle';
+      el.appendChild(img);
+      el.appendChild(handle);
+      el.addEventListener('mousedown', (ev) => {
+        selectOverlay(placement.id);
+        const mode = ev.target === handle ? 'resize' : 'move';
+        boxDrag = {
+          mode, id: placement.id,
+          ox: ev.clientX, oy: ev.clientY,
+          left: parseFloat(el.style.left) || 0,
+          top: parseFloat(el.style.top) || 0,
+          w: el.offsetWidth, h: el.offsetHeight
+        };
+        pendingOverlay = el;
+        pendingPlacement = overlays.find(o => o.id === placement.id) || placement;
+        stampPending = !committed;
+        stampConfirmBtn.style.display = committed ? 'none' : 'inline-block';
+        ev.preventDefault();
+        ev.stopPropagation();
+      });
+      return el;
+    }
+
+    function layoutOverlay(o) {
+      const entry = pageMap.get(o.page);
+      if (!entry || !o.el) return;
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const sx = cr.width / entry.canvas.width;
+      const sy = cr.height / entry.canvas.height;
+      const drawX = (o.xPt / entry.widthPt) * entry.canvas.width;
+      const drawY = entry.canvas.height - ((o.yFromBottom + o.stampH) / entry.heightPt) * entry.canvas.height;
+      const imgW = (o.stampW / entry.widthPt) * entry.canvas.width;
+      const imgH = (o.stampH / entry.heightPt) * entry.canvas.height;
+      // Position relative to page-wrap (absolute inside wrap)
+      o.el.style.left = ((cr.left - wrapR.left) + drawX * sx) + 'px';
+      o.el.style.top = ((cr.top - wrapR.top) + drawY * sy) + 'px';
+      o.el.style.width = (imgW * sx) + 'px';
+      o.el.style.height = (imgH * sy) + 'px';
+      if (o.el.parentElement !== entry.wrap)
+        entry.wrap.appendChild(o.el);
+    }
+
+    function layoutOverlaysForPage(n) {
+      for (const o of overlays.filter(x => x.page === n)) layoutOverlay(o);
+    }
+
+    function layoutAllOverlays() {
+      for (const o of overlays) layoutOverlay(o);
+    }
+
+    function selectOverlay(id) {
+      for (const o of overlays) o.el?.classList.toggle('selected', o.id === id);
+    }
+
+    function placementFromOverlayCss(o) {
+      const entry = pageMap.get(o.page);
+      if (!entry || !o.el) return o;
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const sx = cr.width / entry.canvas.width;
+      const sy = cr.height / entry.canvas.height;
+      const leftCss = parseFloat(o.el.style.left) || 0;
+      const topCss = parseFloat(o.el.style.top) || 0;
+      const wCss = parseFloat(o.el.style.width) || 1;
+      const hCss = parseFloat(o.el.style.height) || 1;
+      const canvasLeft = cr.left - wrapR.left;
+      const canvasTop = cr.top - wrapR.top;
+      const drawX = (leftCss - canvasLeft) / sx;
+      const drawY = (topCss - canvasTop) / sy;
+      const imgW = wCss / sx, imgH = hCss / sy;
+      o.stampW = (imgW / entry.canvas.width) * entry.widthPt;
+      o.stampH = (imgH / entry.canvas.height) * entry.heightPt;
+      o.xPt = Math.max(0, (drawX / entry.canvas.width) * entry.widthPt);
+      o.yFromBottom = Math.max(0, entry.heightPt - ((drawY + imgH) / entry.canvas.height) * entry.heightPt);
+      return o;
+    }
+
+    function placeStamp(ev) {
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) {
+        status.textContent = 'Drop on the white page area';
+        return;
+      }
+      let { w: stampWPt, h: stampHPt } = stampSizePt();
+      const centerX = (p.x / p.entry.canvas.width) * p.entry.widthPt;
+      const centerY = (p.y / p.entry.canvas.height) * p.entry.heightPt;
+      let xPt = Math.max(0, centerX - stampWPt / 2);
+      let yFromBottom = Math.max(0, p.entry.heightPt - centerY - stampHPt / 2);
+      const snapped = snapPlacement(p.page, xPt, yFromBottom, stampWPt, stampHPt, !!ev.shiftKey);
+      xPt = snapped.xPt; yFromBottom = snapped.yFromBottom;
+      stampWPt = snapped.stampW; stampHPt = snapped.stampH;
+
+      const id = uid();
+      const placement = {
+        id, page: p.page, xPt, yFromBottom,
+        pageWidthPt: p.entry.widthPt, pageHeightPt: p.entry.heightPt,
+        stampW: stampWPt, stampH: stampHPt,
+        snapped: snapped.snapped, fieldName: snapped.field || '',
+        dataUrl: stampDataUrl, committed: false, el: null
+      };
+      const el = createOverlayEl(placement, stampDataUrl, false);
+      placement.el = el;
+      for (const o of [...overlays]) {
+        if (!o.committed) { o.el?.remove(); }
+      }
+      overlays = overlays.filter(o => o.committed);
+      overlays.push(placement);
+      pendingPlacement = placement;
+      pendingOverlay = el;
+      stampPending = true;
+      stampMode = false;
+      dragging = false;
+      stampGhost.style.display = 'none';
+      viewer.classList.remove('stamp-mode');
+      layoutOverlay(placement);
+      // Auto-keep: register with host immediately — Keep button is no longer required
+      keepPendingStamp();
+      banner.style.display = 'block';
+      banner.textContent = 'Drag the signature box anytime · autosaves into this PDF';
+      status.textContent = snapped.snapped
+        ? 'Snapped · drag to adjust · autosaving'
+        : 'Placed · drag to adjust · autosaving';
+    }
+
+    function keepPendingStamp() {
+      if (!pendingPlacement) return;
+      const o = placementFromOverlayCss(pendingPlacement);
+      o.committed = true;
+      o.el?.classList.add('committed');
+      o.el?.classList.add('selected');
+      post({
+        type: 'stampPending',
+        id: o.id,
+        page: o.page,
+        xPt: o.xPt,
+        yFromBottom: o.yFromBottom,
+        stampW: o.stampW,
+        stampH: o.stampH,
+        pageWidthPt: o.pageWidthPt,
+        pageHeightPt: o.pageHeightPt,
+        snapped: !!o.snapped,
+        fieldName: o.fieldName || '',
+        dataUrl: o.dataUrl || stampDataUrl || ''
+      });
+      stampPending = false;
+      pendingPlacement = null;
+      pendingOverlay = null;
+      stampConfirmBtn.style.display = 'none';
+      stampBtn.classList.remove('active', 'hot');
+      banner.style.display = 'block';
+      banner.textContent = 'Drag signature boxes · Save is optional (autosave on)';
+      status.textContent = 'Signature ready — drag anytime · writing into this file';
+    }
+
+    function enterStampMode(dataUrl) {
+      clearUncommitted();
+      if (dataUrl) {
+        stampDataUrl = dataUrl;
+        stampImg.src = dataUrl;
+      }
+      stampMode = true;
+      stampPending = false;
+      highlightMode = false;
+      dragging = true;
+      viewer.classList.add('stamp-mode');
+      banner.style.display = 'block';
+      banner.textContent = 'Drag onto page — drop where you want (Shift = snap to field)';
+      stampBtn.classList.add('active', 'hot');
+      stampBtn.textContent = 'Cancel placement';
+      stampConfirmBtn.style.display = 'none';
+      status.textContent = 'Follow cursor — scroll ok · release to place';
+    }
+
+    function clearUncommitted() {
+      for (const o of overlays.filter(x => !x.committed)) o.el?.remove();
+      overlays = overlays.filter(x => x.committed);
+      stampPending = false;
+      pendingPlacement = null;
+      pendingOverlay = null;
+      stampConfirmBtn.style.display = 'none';
+      boxDrag = null;
+    }
+
+    function exitStampMode() {
+      stampMode = false;
+      dragging = false;
+      clearUncommitted();
+      viewer.classList.remove('stamp-mode');
+      banner.style.display = 'none';
+      stampGhost.style.display = 'none';
+      stampBtn.classList.remove('active', 'hot');
+      stampBtn.textContent = 'Cancel placement';
+    }
+
+    function clearAllOverlays() {
+      for (const o of overlays) o.el?.remove();
+      overlays = [];
+      clearUncommitted();
+    }
+
+    viewer.addEventListener('mousemove', (ev) => {
+      if (stampMode && !stampPending) moveGhost(ev);
+      if (boxDrag && pendingOverlay) {
+        const dx = ev.clientX - boxDrag.ox;
+        const dy = ev.clientY - boxDrag.oy;
+        if (boxDrag.mode === 'move') {
+          pendingOverlay.style.left = (boxDrag.left + dx) + 'px';
+          pendingOverlay.style.top = (boxDrag.top + dy) + 'px';
+        } else {
+          pendingOverlay.style.width = Math.max(24, boxDrag.w + dx) + 'px';
+          pendingOverlay.style.height = Math.max(16, boxDrag.h + dy) + 'px';
+        }
+      }
+    });
+
+    viewer.addEventListener('scroll', () => {
+      if (stampMode && !stampPending && lastPointer) moveGhost(lastPointer);
+      layoutAllOverlays();
+      syncPageFromScroll();
+      // Lazy render as you scroll to the end — no mid-doc cap
+      clearTimeout(viewer._scrollTimer);
+      viewer._scrollTimer = setTimeout(() => renderVisiblePages(false), 40);
+    }, { passive: true });
+
+    viewer.addEventListener('mousedown', (ev) => {
+      if (!stampMode || stampPending) return;
+      dragging = true;
+      moveGhost(ev);
+      ev.preventDefault();
+    });
+
+    window.addEventListener('mouseup', (ev) => {
+      if (boxDrag) {
+        const o = overlays.find(x => x.id === boxDrag.id);
+        if (o) {
+          placementFromOverlayCss(o);
+          if (o.committed) {
+            post({
+              type: 'stampMoved',
+              id: o.id, page: o.page, xPt: o.xPt, yFromBottom: o.yFromBottom,
+              stampW: o.stampW, stampH: o.stampH
+            });
+          } else {
+            pendingPlacement = o;
+          }
+        }
+        boxDrag = null;
+        ev.preventDefault();
+        return;
+      }
+      if (stampMode && dragging && !stampPending) {
+        placeStamp(ev);
+        ev.preventDefault();
+      }
+    });
+
+    let hlDrag = null;
+    pagesEl.addEventListener('mousedown', (ev) => {
+      if (!highlightMode || stampMode || stampPending) return;
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) return;
+      hlDrag = { page: p.page, entry: p.entry, x0: p.x, y0: p.y, x1: p.x, y1: p.y, el: null };
+      let layer = p.entry.wrap.querySelector('.hl-layer');
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'hl-layer';
+        p.entry.wrap.appendChild(layer);
+      }
+      const box = document.createElement('div');
+      box.className = 'hl-box';
+      layer.appendChild(box);
+      hlDrag.el = box;
+      ev.preventDefault();
+      ev.stopPropagation();
+    });
+    viewer.addEventListener('mousemove', (ev) => {
+      if (!hlDrag) return;
+      const r = hlDrag.entry.canvas.getBoundingClientRect();
+      hlDrag.x1 = (ev.clientX - r.left) * (hlDrag.entry.canvas.width / r.width);
+      hlDrag.y1 = (ev.clientY - r.top) * (hlDrag.entry.canvas.height / r.height);
+      const left = Math.min(hlDrag.x0, hlDrag.x1);
+      const top = Math.min(hlDrag.y0, hlDrag.y1);
+      const w = Math.abs(hlDrag.x1 - hlDrag.x0);
+      const h = Math.abs(hlDrag.y1 - hlDrag.y0);
+      const sx = r.width / hlDrag.entry.canvas.width;
+      const sy = r.height / hlDrag.entry.canvas.height;
+      hlDrag.el.style.left = (left * sx) + 'px';
+      hlDrag.el.style.top = (top * sy) + 'px';
+      hlDrag.el.style.width = Math.max(2, w * sx) + 'px';
+      hlDrag.el.style.height = Math.max(2, h * sy) + 'px';
+    });
+    window.addEventListener('mouseup', (ev) => {
+      if (!hlDrag) return;
+      const left = Math.min(hlDrag.x0, hlDrag.x1);
+      const top = Math.min(hlDrag.y0, hlDrag.y1);
+      const w = Math.abs(hlDrag.x1 - hlDrag.x0);
+      const h = Math.abs(hlDrag.y1 - hlDrag.y0);
+      if (w > 6 && h > 4) {
+        const hit = {
+          page: hlDrag.page,
+          x: (left / hlDrag.entry.canvas.width) * hlDrag.entry.widthPt,
+          y: (top / hlDrag.entry.canvas.height) * hlDrag.entry.heightPt,
+          w: (w / hlDrag.entry.canvas.width) * hlDrag.entry.widthPt,
+          h: (h / hlDrag.entry.canvas.height) * hlDrag.entry.heightPt
+        };
+        highlights.push(hit);
+        post({ type: 'highlight', ...hit });
+        status.textContent = 'Highlight added';
+      } else if (hlDrag.el) {
+        hlDrag.el.remove();
+      }
+      hlDrag = null;
+    }, true);
+
+    document.getElementById('prev').onclick = () => goToPage(pageNum - 1, true);
+    document.getElementById('next').onclick = () => goToPage(pageNum + 1, true);
+    document.getElementById('modeBtn').onclick = () => {
+      continuous = !continuous;
+      applyViewMode();
+      if (fitMode) applyFit(false);
+    };
+    const searchBox = document.getElementById('searchBox');
+    const searchPanel = document.getElementById('searchPanel');
+    const searchToggle = document.getElementById('searchToggle');
+    searchToggle.onclick = () => {
+      const open = !searchPanel.classList.contains('open');
+      searchPanel.classList.toggle('open', open);
+      searchToggle.classList.toggle('on', open);
+      if (open) {
+        searchBox.focus();
+        searchBox.select();
+      } else {
+        clearSearchHitEls();
+        searchHits = [];
+        searchIdx = -1;
+        status.textContent = '';
+      }
+    };
+    searchBox.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        if (ev.shiftKey) jumpSearch(-1);
+        else if (searchHits.length && searchBox.value.trim() === searchQuery) jumpSearch(1);
+        else runSearch(searchBox.value);
+      } else if (ev.key === 'Escape') {
+        searchPanel.classList.remove('open');
+        searchToggle.classList.remove('on');
+        clearSearchHitEls();
+      }
+    });
+    document.getElementById('searchPrev').onclick = () => jumpSearch(-1);
+    document.getElementById('searchNext').onclick = () => {
+      if (searchHits.length === 0) runSearch(searchBox.value);
+      else jumpSearch(1);
+    };
+    async function rescaleAll() {
+      fitMode = false;
+      viewer.classList.remove('fit-mode');
+      for (const e of pageMap.values()) e.rendered = false;
+      await renderVisiblePages(true);
+      layoutAllOverlays();
+      paintAllSearchHits();
+    }
+    document.getElementById('zoomIn').onclick = async () => {
+      scale = Math.min(4, scale + 0.15);
+      await rescaleAll();
+    };
+    document.getElementById('zoomOut').onclick = async () => {
+      scale = Math.max(0.25, scale - 0.15);
+      await rescaleAll();
+    };
+    document.getElementById('fit').onclick = async () => {
+      await applyFit(false);
+    };
+
+    // Keep Fit locked to the window — expand → page grows, still fully visible
+    let fitResizeTimer = 0;
+    const ro = new ResizeObserver(() => {
+      if (!fitMode || !pdf) return;
+      clearTimeout(fitResizeTimer);
+      fitResizeTimer = setTimeout(() => applyFit(false), 80);
+    });
+    ro.observe(viewer);
+
+    pageInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        goToPage(Number(pageInput.value) || 1, true);
+        pageInput.blur();
+      }
+    });
+    pageInput.addEventListener('change', () => goToPage(Number(pageInput.value) || 1, true));
+
+    stampBtn.onclick = () => {
+      if (stampMode || stampPending) { exitStampMode(); status.textContent = 'Placement cancelled'; }
+    };
+    stampConfirmBtn.onclick = () => keepPendingStamp();
+    document.getElementById('hlBtn').onclick = () => {
+      highlightMode = !highlightMode;
+      bboxMode = false;
+      if (highlightMode) exitStampMode();
+      document.getElementById('hlBtn').classList.toggle('on', highlightMode);
+      status.textContent = highlightMode ? 'Drag across text to highlight' : '';
+    };
+
+    window.chrome?.webview?.addEventListener('message', (ev) => {
+      let msg;
+      try { msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; }
+      catch (_) { return; }
+      if (msg?.type === 'gotoPage' && pdf) goToPage(msg.page | 0, true);
+      if (msg?.type === 'setZoom' && msg.scale) {
+        fitMode = false;
+        viewer.classList.remove('fit-mode');
+        scale = Math.min(4, Math.max(0.25, Number(msg.scale) || 1.25));
+        for (const e of pageMap.values()) e.rendered = false;
+        renderVisiblePages(true).then(() => { layoutAllOverlays(); paintAllSearchHits(); });
+      }
+      if (msg?.type === 'fitPage') applyFit(false);
+      if (msg?.type === 'enterStampMode') enterStampMode(msg.dataUrl || stampDataUrl);
+      if (msg?.type === 'setFormFields' && Array.isArray(msg.fields)) {
+        formFields = msg.fields.map(f => ({
+          page: Number(f.page) || 1, x: Number(f.x) || 0, y: Number(f.y) || 0,
+          w: Number(f.w) || 0, h: Number(f.h) || 0, name: f.name || ''
+        }));
+      }
+      if (msg?.type === 'setTextBoxes' && Array.isArray(msg.boxes)) {
+        for (const entry of pageMap.values()) {
+          entry.wrap.querySelectorAll('.bbox').forEach(n => n.remove());
+        }
+        if (!bboxMode) return;
+        for (const b of msg.boxes) {
+          const entry = pageMap.get(b.page | 0);
+          if (!entry) continue;
+          const el = document.createElement('div');
+          el.className = 'bbox';
+          el.title = b.text || '';
+          const crW = entry.canvas.getBoundingClientRect().width || entry.canvas.width;
+          const crH = entry.canvas.getBoundingClientRect().height || entry.canvas.height;
+          el.style.left = ((b.x / entry.widthPt) * crW) + 'px';
+          el.style.top = (((entry.heightPt - b.y - b.h) / entry.heightPt) * crH) + 'px';
+          el.style.width = ((b.w / entry.widthPt) * crW) + 'px';
+          el.style.height = ((b.h / entry.heightPt) * crH) + 'px';
+          el.onclick = (e) => {
+            e.stopPropagation();
+            entry.wrap.querySelectorAll('.bbox').forEach(x => x.classList.remove('selected'));
+            el.classList.add('selected');
+            post({ type: 'textBoxSelected', text: b.text || '', page: b.page, x: b.x, y: b.y, w: b.w, h: b.h });
+          };
+          entry.wrap.appendChild(el);
+        }
+        status.textContent = msg.boxes.length ? `${msg.boxes.length} text boxes` : 'No text on this page (try OCR later)';
+      }
+      if (msg?.type === 'clearStamps') clearAllOverlays();
+      if (msg?.type === 'reloadPdf' && msg.fileUrl) {
+        fileUrl = msg.fileUrl;
+        const keep = !!msg.keepOverlays;
+        const savedOverlays = keep ? overlays.map(o => ({
+          id: o.id, page: o.page, xPt: o.xPt, yFromBottom: o.yFromBottom,
+          stampW: o.stampW, stampH: o.stampH, pageWidthPt: o.pageWidthPt, pageHeightPt: o.pageHeightPt,
+          dataUrl: o.dataUrl, committed: true
+        })) : [];
+        if (!keep) clearAllOverlays();
+        else for (const o of overlays) o.el?.remove();
+        load().then(() => {
+          if (!keep || !savedOverlays.length) return;
+          for (const s of savedOverlays) {
+            const el = createOverlayEl(s, s.dataUrl, true);
+            s.el = el;
+            overlays.push(s);
+            layoutOverlay(s);
+          }
+          status.textContent = 'Saved — drag signature boxes anytime';
+        }).catch(err => {
+          status.textContent = 'Reload failed: ' + err.message;
+          post({ type: 'error', message: err.message });
+        });
+      }
+    });
+
+    load().catch(err => {
+      status.textContent = 'Failed: ' + err.message;
+      post({ type: 'error', message: err.message });
+    });
+  </script>
+</body>
+</html>

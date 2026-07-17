@@ -1,0 +1,19 @@
+{
+  "name": "netie-space-license-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 execute netie-licenses --local --file=./schema.sql",
+    "db:migrate": "wrangler d1 execute netie-licenses --remote --file=./schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250620.0",
+    "typescript": "^5.8.3",
+    "wrangler": "^4.20.0"
+  },
+  "overrides": {}
+}
