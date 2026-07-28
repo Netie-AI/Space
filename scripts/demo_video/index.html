@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Netie Space — Demo</title>
+  <style>
+    @font-face {
+      font-family: Inter;
+      src: url("/fonts/Inter-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("/fonts/Inter-Medium.ttf") format("truetype");
+      font-weight: 500;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("/fonts/Inter-SemiBold.ttf") format("truetype");
+      font-weight: 600;
+    }
+    @font-face {
+      font-family: Inter;
+      src: url("/fonts/Inter-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("/fonts/JetBrainsMono-Regular.ttf") format("truetype");
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: "JetBrains Mono";
+      src: url("/fonts/JetBrainsMono-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+
+    :root {
+      --ink: #07090d;
+      --ink-2: #10141c;
+      --mint: #6efbcb;
+      --mint-dim: #3aafa3;
+      --paper: rgba(255, 255, 255, 0.92);
+      --paper-dim: rgba(255, 255, 255, 0.55);
+      --paper-faint: rgba(255, 255, 255, 0.12);
+      --sky: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: var(--ink);
+      color: var(--paper);
+      font-family: Inter, sans-serif;
+    }
+
+    .stage {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      background:
+        radial-gradient(ellipse 90% 70% at 50% 110%, rgba(110, 251, 203, 0.14), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 80% 10%, rgba(56, 189, 248, 0.08), transparent 50%),
+        radial-gradient(ellipse 40% 35% at 12% 20%, rgba(110, 251, 203, 0.07), transparent 45%),
+        linear-gradient(180deg, #05070a 0%, #0a0e14 45%, #071018 100%);
+    }
+
+    .grain {
+      pointer-events: none;
+      position: absolute;
+      inset: 0;
+      opacity: 0.045;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      mix-blend-mode: overlay;
+      z-index: 50;
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      transform: translateY(18px) scale(0.985);
+      transition: opacity 0.55s ease, transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .scene.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .scene.exit {
+      opacity: 0;
+      transform: translateY(-14px) scale(1.015);
+    }
+
+    .eyebrow {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 18px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--mint);
+      margin-bottom: 22px;
+    }
+
+    h1 {
+      font-size: 92px;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.02;
+      max-width: 1100px;
+    }
+
+    .sub {
+      margin-top: 28px;
+      font-size: 28px;
+      font-weight: 400;
+      color: var(--paper-dim);
+      max-width: 760px;
+      line-height: 1.45;
+    }
+
+    /* Scene 1 — brand */
+    .brand-wrap {
+      flex-direction: column;
+      text-align: center;
+      gap: 0;
+    }
+    .mark {
+      width: 148px;
+      height: 148px;
+      margin: 0 auto 36px;
+      border-radius: 34px;
+      background: #10141c;
+      box-shadow:
+        0 0 0 1px rgba(110, 251, 203, 0.25),
+        0 0 80px rgba(110, 251, 203, 0.28),
+        0 30px 80px rgba(0, 0, 0, 0.45);
+      overflow: hidden;
+      transform: scale(0.7);
+      opacity: 0;
+    }
+    .scene.active .mark {
+      animation: popIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+    }
+    .mark img { width: 100%; height: 100%; display: block; }
+    .brand-name {
+      font-size: 72px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    .scene.active .brand-name {
+      animation: rise 0.8s ease 0.35s forwards;
+    }
+    .brand-name span { color: var(--mint); }
+    .tagline {
+      margin-top: 18px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 16px;
+      letter-spacing: 0.34em;
+      color: var(--paper-dim);
+      opacity: 0;
+    }
+    .scene.active .tagline {
+      animation: rise 0.8s ease 0.55s forwards;
+    }
+
+    /* Scene 2 — press space */
+    .desk {
+      width: 1480px;
+      height: 820px;
+      position: relative;
+    }
+    .copy-left {
+      position: absolute;
+      left: 40px;
+      top: 120px;
+      width: 560px;
+      z-index: 2;
+    }
+    .desktop {
+      position: absolute;
+      right: 40px;
+      top: 70px;
+      width: 820px;
+      height: 680px;
+      border-radius: 22px;
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.04), transparent 40%),
+        #121820;
+      border: 1px solid var(--paper-faint);
+      box-shadow: 0 40px 100px rgba(0,0,0,0.45);
+      overflow: hidden;
+      padding: 28px;
+    }
+    .desktop-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+    }
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 22px 16px;
+      padding: 12px 8px;
+    }
+    .file {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .scene.active .file {
+      animation: rise 0.5s ease forwards;
+    }
+    .scene.active .file:nth-child(1) { animation-delay: 0.15s; }
+    .scene.active .file:nth-child(2) { animation-delay: 0.22s; }
+    .scene.active .file:nth-child(3) { animation-delay: 0.29s; }
+    .scene.active .file:nth-child(4) { animation-delay: 0.36s; }
+    .scene.active .file:nth-child(5) { animation-delay: 0.43s; }
+    .scene.active .file:nth-child(6) { animation-delay: 0.50s; }
+    .scene.active .file:nth-child(7) { animation-delay: 0.57s; }
+    .scene.active .file:nth-child(8) { animation-delay: 0.64s; }
+
+    .file.selected .icon {
+      outline: 2px solid var(--mint);
+      outline-offset: 4px;
+      box-shadow: 0 0 24px rgba(110, 251, 203, 0.35);
+    }
+    .icon {
+      width: 72px;
+      height: 88px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: #0a0a0a;
+      position: relative;
+    }
+    .icon.pdf { background: linear-gradient(160deg, #ff8a80, #e53935); }
+    .icon.docx { background: linear-gradient(160deg, #90caf9, #1e88e5); color: #fff; }
+    .icon.pptx { background: linear-gradient(160deg, #ffcc80, #fb8c00); }
+    .icon.xlsx { background: linear-gradient(160deg, #a5d6a7, #43a047); }
+    .icon.img { background: linear-gradient(160deg, #ce93d8, #8e24aa); color: #fff; }
+    .icon.code { background: linear-gradient(160deg, #80cbc4, #00897b); }
+    .icon.vid { background: linear-gradient(160deg, #b39ddb, #5e35b1); color: #fff; }
+    .icon.md { background: linear-gradient(160deg, #eceff1, #90a4ae); }
+    .fname {
+      font-size: 13px;
+      color: var(--paper-dim);
+      text-align: center;
+      max-width: 110px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .spacebar {
+      position: absolute;
+      left: 40px;
+      bottom: 80px;
+      width: 420px;
+      height: 64px;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #1c2430, #121820);
+      border: 1px solid rgba(255,255,255,0.14);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 18px;
+      letter-spacing: 0.35em;
+      color: var(--paper-dim);
+      box-shadow: 0 12px 0 #06080c, 0 18px 40px rgba(0,0,0,0.4);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, color 0.2s, border-color 0.2s;
+    }
+    .spacebar.pressed {
+      transform: translateY(8px);
+      box-shadow: 0 4px 0 #06080c, 0 8px 20px rgba(0,0,0,0.35);
+      color: var(--mint);
+      border-color: rgba(110, 251, 203, 0.55);
+      text-shadow: 0 0 18px rgba(110, 251, 203, 0.55);
+    }
+
+    /* Scene 3 — preview */
+    .preview-scene { align-items: stretch; }
+    .preview-shell {
+      width: 1180px;
+      height: 780px;
+      margin: auto;
+      border-radius: 18px;
+      background: #0e131a;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow:
+        0 0 0 1px rgba(110, 251, 203, 0.08),
+        0 50px 120px rgba(0,0,0,0.55),
+        0 0 100px rgba(110, 251, 203, 0.08);
+      display: grid;
+      grid-template-rows: 56px 1fr 64px;
+      overflow: hidden;
+      transform: scale(0.92);
+      opacity: 0;
+    }
+    .scene.active .preview-shell {
+      animation: previewIn 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+    }
+    .preview-top {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+    }
+    .preview-top .title {
+      font-size: 15px;
+      color: var(--paper-dim);
+      font-family: "JetBrains Mono", monospace;
+    }
+    .preview-top .pill {
+      margin-left: auto;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      color: var(--mint);
+      border: 1px solid rgba(110, 251, 203, 0.35);
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+    .preview-body {
+      display: grid;
+      grid-template-columns: 1.35fr 0.85fr;
+      min-height: 0;
+    }
+    .doc-pane {
+      padding: 36px 40px;
+      background:
+        linear-gradient(180deg, #f7f4ee 0%, #efe9df 100%);
+      color: #1a1a1a;
+      overflow: hidden;
+    }
+    .doc-pane h2 {
+      font-size: 34px;
+      letter-spacing: -0.03em;
+      margin-bottom: 18px;
+    }
+    .doc-pane p {
+      font-size: 16px;
+      line-height: 1.65;
+      color: #3a3a3a;
+      margin-bottom: 14px;
+      max-width: 520px;
+    }
+    .doc-pane .rule {
+      height: 1px;
+      background: rgba(0,0,0,0.1);
+      margin: 22px 0;
+    }
+    .ai-pane {
+      padding: 28px 24px;
+      background: #0b1016;
+      border-left: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .ai-label {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 12px;
+      letter-spacing: 0.22em;
+      color: var(--mint);
+    }
+    .ai-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      padding: 18px;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    .scene.active .ai-card {
+      animation: rise 0.55s ease forwards;
+    }
+    .scene.active .ai-card:nth-of-type(1) { animation-delay: 0.55s; }
+    .scene.active .ai-card:nth-of-type(2) { animation-delay: 0.85s; }
+    .ai-card strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+    .ai-card p {
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--paper-dim);
+    }
+    .typing {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: var(--mint);
+      margin-left: 4px;
+      vertical-align: -2px;
+      animation: blink 0.7s steps(1) infinite;
+    }
+    .preview-bottom {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 20px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.02);
+    }
+    .btn {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.04);
+      color: var(--paper);
+    }
+    .btn.primary {
+      background: var(--mint);
+      color: #06241c;
+      border-color: transparent;
+      font-weight: 700;
+    }
+
+    /* Scene 4 — finale */
+    .finale {
+      flex-direction: column;
+      text-align: center;
+    }
+    .finale h1 {
+      font-size: 108px;
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    .scene.active .finale h1 {
+      animation: rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+    }
+    .finale .sub {
+      margin-left: auto;
+      margin-right: auto;
+      opacity: 0;
+    }
+    .scene.active .finale .sub {
+      animation: rise 0.8s ease 0.4s forwards;
+    }
+    .cta {
+      margin-top: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 34px;
+      border-radius: 14px;
+      background: var(--mint);
+      color: #06241c;
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.01em;
+      box-shadow: 0 0 60px rgba(110, 251, 203, 0.35);
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    .scene.active .cta {
+      animation: popIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
+    }
+    .keycap {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      background: #06241c;
+      color: var(--mint);
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    @keyframes rise {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes previewIn {
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <div class="grain"></div>
+
+    <!-- Scene 1 -->
+    <section class="scene brand-wrap" data-scene="0">
+      <div class="mark">
+        <img src="brand.png" alt="Netie Space" />
+      </div>
+      <div class="brand-name">NETIE <span>SPACE</span></div>
+      <div class="tagline">PRIVATE · SECURE · EFFECTIVE</div>
+    </section>
+
+    <!-- Scene 2 -->
+    <section class="scene" data-scene="1">
+      <div class="desk">
+        <div class="copy-left">
+          <div class="eyebrow">One key</div>
+          <h1>Press Space.<br/>See everything.</h1>
+          <p class="sub">Instant Quick Look–style preview for every file on Windows — no app launch, no wait.</p>
+        </div>
+        <div class="desktop" aria-hidden="true">
+          <div class="desktop-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+          <div class="file-grid">
+            <div class="file" data-file="0"><div class="icon pdf">PDF</div><div class="fname">Q3_Report.pdf</div></div>
+            <div class="file" data-file="1"><div class="icon docx">DOC</div><div class="fname">Brief.docx</div></div>
+            <div class="file" data-file="2"><div class="icon pptx">PPT</div><div class="fname">Deck.pptx</div></div>
+            <div class="file" data-file="3"><div class="icon xlsx">XLS</div><div class="fname">Budget.xlsx</div></div>
+            <div class="file" data-file="4"><div class="icon img">IMG</div><div class="fname">Portrait.png</div></div>
+            <div class="file" data-file="5"><div class="icon code">PY</div><div class="fname">demo_main.py</div></div>
+            <div class="file" data-file="6"><div class="icon vid">MP4</div><div class="fname">Cut.mp4</div></div>
+            <div class="file" data-file="7"><div class="icon md">MD</div><div class="fname">README.md</div></div>
+          </div>
+        </div>
+        <div class="spacebar" id="spacebar">SPACE</div>
+      </div>
+    </section>
+
+    <!-- Scene 3 -->
+    <section class="scene preview-scene" data-scene="2">
+      <div class="preview-shell">
+        <div class="preview-top">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="title">Q3_Report.pdf</span>
+          <span class="pill">AI ON</span>
+        </div>
+        <div class="preview-body">
+          <div class="doc-pane">
+            <h2>Q3 Performance</h2>
+            <p>Revenue grew 18% quarter-over-quarter, led by enterprise seats and renewals across APAC.</p>
+            <div class="rule"></div>
+            <p>Highlights: faster onboarding, lower support load, and a cleaner preview-to-share loop for every file type.</p>
+            <p>Next: expand PDF workshop tools and CapCut-light video trim in the same Space preview.</p>
+          </div>
+          <div class="ai-pane">
+            <div class="ai-label">ASK YOUR FILES</div>
+            <div class="ai-card">
+              <strong>Summary</strong>
+              <p>Q3 beat plan on revenue (+18%) with strong enterprise retention. Focus areas: onboarding speed and preview workflow.</p>
+            </div>
+            <div class="ai-card">
+              <strong>Continue chat</strong>
+              <p>What shipped in the PDF workshop this quarter?<span class="typing"></span></p>
+            </div>
+          </div>
+        </div>
+        <div class="preview-bottom">
+          <span class="btn primary">↓ MD</span>
+          <span class="btn">↓ PDF</span>
+          <span class="btn">PDF ▾</span>
+          <span class="btn">Continue Chat</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Scene 4 -->
+    <section class="scene finale" data-scene="3">
+      <div class="eyebrow">Netie Space</div>
+      <h1>One key.<br/>Every file.</h1>
+      <p class="sub">Preview, ask, convert, and edit — private and local-first.</p>
+      <div class="cta"><span class="keycap">SPACE</span> Download for Windows</div>
+    </section>
+  </div>
+
+  <script>
+    const scenes = [...document.querySelectorAll(".scene")];
+    const spacebar = document.getElementById("spacebar");
+    const files = [...document.querySelectorAll(".file")];
+    let current = -1;
+
+    function showScene(i) {
+      scenes.forEach((s, idx) => {
+        s.classList.remove("active", "exit");
+        if (idx === i) s.classList.add("active");
+        else if (idx === current) s.classList.add("exit");
+      });
+      current = i;
+      if (i === 1) runDeskBeat();
+    }
+
+    function runDeskBeat() {
+      files.forEach((f) => f.classList.remove("selected"));
+      spacebar.classList.remove("pressed");
+      setTimeout(() => {
+        files[0].classList.add("selected");
+      }, 900);
+      setTimeout(() => spacebar.classList.add("pressed"), 1500);
+      setTimeout(() => spacebar.classList.remove("pressed"), 1680);
+    }
+
+    // Timeline (total ~16.5s) — driven for deterministic capture
+    const timeline = [
+      { t: 200, scene: 0 },
+      { t: 3200, scene: 1 },
+      { t: 7800, scene: 2 },
+      { t: 12500, scene: 3 },
+    ];
+
+    window.__DEMO_DURATION_MS = 16500;
+    window.__DEMO_READY = false;
+
+    function startDemo() {
+      timeline.forEach(({ t, scene }) => setTimeout(() => showScene(scene), t));
+      window.__DEMO_READY = true;
+    }
+
+    // Wait for mark image
+    const img = document.querySelector(".mark img");
+    if (img.complete) startDemo();
+    else img.onload = startDemo;
+    img.onerror = startDemo;
+  </script>
+</body>
+</html>
