@@ -67,36 +67,49 @@
                     </LinearGradientBrush>
                 </Border.Background>
 
+                <!-- Two columns: brand+name flexes and TRIMS, buttons keep their space.
+                     A long file name can never run under the buttons anymore. -->
                 <Grid Margin="22,0,18,0">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border x:Name="BrandDot" Width="10" Height="10" CornerRadius="5" Margin="0,0,12,0"
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <DockPanel Grid.Column="0" VerticalAlignment="Center" LastChildFill="True" Margin="0,0,16,0">
+                        <Border x:Name="BrandDot" DockPanel.Dock="Left" Width="10" Height="10" CornerRadius="5"
+                                Margin="0,0,12,0" VerticalAlignment="Center"
                                 Background="{StaticResource AccentBrush}" Opacity="0.95"/>
-                        <TextBlock x:Name="BrandModeText" Text="NETIE SPACE" FontFamily="{StaticResource DisplayFont}"
+                        <TextBlock x:Name="BrandModeText" DockPanel.Dock="Left" Text="NETIE SPACE"
+                                   FontFamily="{StaticResource DisplayFont}"
                                    Foreground="{StaticResource TextBrush}" FontSize="15" FontWeight="SemiBold"
-                                   Margin="0,0,14,0"/>
-                        <Border Width="1" Height="16" Background="#33FFFFFF" Margin="0,0,14,0" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="FileNameText" Text="Preview"
-                                   FontFamily="{StaticResource BodyFont}"
-                                   Foreground="{StaticResource MutedBrush}"
-                                   FontSize="13" FontWeight="Medium"
-                                   MaxWidth="340" TextTrimming="CharacterEllipsis"
-                                   VerticalAlignment="Center"
-                                   Cursor="Hand"
-                                   ToolTip="Click to rename"
-                                   MouseLeftButtonUp="FileNameText_MouseLeftButtonUp"/>
-                        <TextBox x:Name="FileNameEditBox" Visibility="Collapsed"
+                                   VerticalAlignment="Center" Margin="0,0,14,0"/>
+                        <Border DockPanel.Dock="Left" Width="1" Height="16" Background="#33FFFFFF"
+                                Margin="0,0,14,0" VerticalAlignment="Center"/>
+                        <TextBox x:Name="FileNameEditBox" DockPanel.Dock="Left" Visibility="Collapsed"
                                  FontFamily="{StaticResource BodyFont}"
                                  FontSize="13" FontWeight="Medium"
-                                 MaxWidth="340" MinWidth="120" Height="26" Padding="6,2"
-                                 VerticalContentAlignment="Center"
+                                 MaxWidth="420" MinWidth="120" Height="26" Padding="6,2"
+                                 VerticalContentAlignment="Center" VerticalAlignment="Center"
+                                 HorizontalAlignment="Left"
                                  Background="#33101820" Foreground="{StaticResource TextBrush}"
                                  BorderBrush="{StaticResource AccentBrush}" BorderThickness="1"
                                  CaretBrush="{StaticResource AccentBrush}"
                                  KeyDown="FileNameEditBox_KeyDown"
                                  LostKeyboardFocus="FileNameEditBox_LostFocus"/>
-                    </StackPanel>
+                        <!-- Fill child: takes the leftover width and ellipsises. Full name shows only on rename. -->
+                        <TextBlock x:Name="FileNameText" Text="Preview"
+                                   FontFamily="{StaticResource BodyFont}"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   FontSize="13" FontWeight="Medium"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center"
+                                   HorizontalAlignment="Left"
+                                   Cursor="Hand"
+                                   ToolTip="Click to rename"
+                                   MouseLeftButtonUp="FileNameText_MouseLeftButtonUp"/>
+                    </DockPanel>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                         <Button x:Name="EditModeButton" Content="Edit" Visibility="Collapsed"
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
@@ -117,21 +130,29 @@
                                 ToolTip="Switch AI provider instantly"/>
                         <Button x:Name="ContinueChatButton" Content="Chat"
                                 Style="{StaticResource TealButton}" Margin="0,0,8,0"
-                                Click="ContinueChatButton_Click"/>
+                                Click="ContinueChatButton_Click"
+                                ToolTip="Side panel notes &amp; chat — saved on this file"/>
                         <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="RemoveBgButton_Click"/>
-                        <Button x:Name="ConvertMenuButton" Content="📄"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,6"
-                                Click="ConvertMenuButton_Click">
-                            <Button.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="Convert to Markdown (.md)" Click="ConvertMdButton_Click"/>
-                                    <MenuItem Header="Convert to PDF (.pdf)" Click="ConvertPdfButton_Click"/>
-                                    <MenuItem Header="Edit as HTML (Word/Office)" Click="EditHtmlButton_Click"/>
-                                </ContextMenu>
-                            </Button.ContextMenu>
+                        <Button x:Name="CompressImageButton" Content="Compress" Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                Click="CompressImageButton_Click"
+                                ToolTip="Lower JPEG file size (quality picker)"/>
+                        <!-- Share replaces the old text "convert" entry: icon only, sheet does the rest -->
+                        <Button x:Name="ShareButton"
+                                Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
+                                Click="ShareButton_Click"
+                                ToolTip="Share — the whole file, a converted copy, or just what you selected">
+                            <Path Stroke="{StaticResource TextBrush}" StrokeThickness="1.7"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                  Stretch="Uniform" Width="16" Height="16"
+                                  Data="M 12,3.4 L 12,14.6 M 8.2,7.2 L 12,3.4 L 15.8,7.2 M 7.6,10 L 5.6,10 C 4.7,10 4,10.7 4,11.6 L 4,19 C 4,19.9 4.7,20.6 5.6,20.6 L 18.4,20.6 C 19.3,20.6 20,19.9 20,19 L 20,11.6 C 20,10.7 19.3,10 18.4,10 L 16.4,10"/>
                         </Button>
+                        <Button x:Name="SetupHelpButton" Content="&#xE713;"
+                                Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
+                                Click="SetupHelpButton_Click"
+                                ToolTip="Settings — Netie plan · BYO keys · vault · FreeRoute tips"/>
                         <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,8,0">
                             <Button x:Name="ZoomOutButton" Content="−" Style="{StaticResource GhostButton}"
                                     Margin="0,0,4,0" Padding="10,4" Click="ZoomOutButton_Click"/>
@@ -144,6 +165,172 @@
                         </StackPanel>
                         <Button Content="✕" Style="{StaticResource IconCloseButton}" Click="CloseButton_Click"/>
                     </StackPanel>
+
+                    <!-- Share sheet. Popups get their own HWND, so this draws cleanly over WebView2. -->
+                    <Popup x:Name="SharePopup" PlacementTarget="{Binding ElementName=ShareButton}"
+                           Placement="Bottom" HorizontalOffset="-268" VerticalOffset="10"
+                           StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+                           Focusable="False">
+                        <Border Width="326" CornerRadius="18" Padding="10"
+                                Background="#F21A1E28" BorderBrush="#3AFFFFFF" BorderThickness="1"
+                                Margin="12">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="26" ShadowDepth="6" Direction="270"
+                                                  Color="#000000" Opacity="0.5"/>
+                            </Border.Effect>
+                            <StackPanel>
+                                <DockPanel Margin="8,4,4,10">
+                                    <Button DockPanel.Dock="Right" Content="✕" Width="24" Height="24"
+                                            Style="{StaticResource MicroIconButton}"
+                                            Click="ShareClose_Click" ToolTip="Close"/>
+                                    <StackPanel>
+                                        <TextBlock Text="Share" FontFamily="{StaticResource DisplayFont}"
+                                                   Foreground="{StaticResource TextBrush}"
+                                                   FontSize="15" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="ShareSubjectText" Text="Preview"
+                                                   FontFamily="{StaticResource BodyFont}"
+                                                   Foreground="{StaticResource MutedBrush}"
+                                                   FontSize="11" Margin="0,2,0,0"
+                                                   TextTrimming="CharacterEllipsis" MaxWidth="240"
+                                                   HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <Button Style="{StaticResource ShareRowButton}" x:Name="ShareSelectionRow"
+                                        Click="ShareCopySelection_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="❝" FontSize="13" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Copy selection" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock x:Name="ShareSelectionHint" Text="Whatever you highlighted in the preview"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                                                       TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource ShareRowButton}" Click="ShareCopyFile_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="⧉" FontSize="14" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Copy file" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock Text="Paste straight into Mail, Teams or a folder"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+
+                                <Border Height="1" Background="#1FFFFFFF" Margin="10,7"/>
+
+                                <Button Style="{StaticResource ShareRowButton}" Click="ShareMailButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="✉" FontSize="14" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Email a copy" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock Text="Opens your mail app with the text prefilled"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource ShareRowButton}" Click="ShareOpenWithButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="↗" FontSize="14" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Open with…" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock Text="Hand off to any app Windows offers"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+
+                                <Button Style="{StaticResource ShareRowButton}" Click="ShareRevealButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="🗀" FontSize="13" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Show in folder" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock Text="Reveal in File Explorer"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+
+                                <Border Height="1" Background="#1FFFFFFF" Margin="10,7"/>
+
+                                <TextBlock x:Name="ShareFormatsLabel" Text="Send as a different format"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                                           FontWeight="SemiBold" Margin="12,0,0,4"/>
+
+                                <Button x:Name="ShareMdRow" Style="{StaticResource ShareRowButton}" Click="ConvertMdButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="M↓" FontSize="11" FontWeight="Bold" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Markdown (.md)" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                    </DockPanel>
+                                </Button>
+
+                                <Button x:Name="SharePdfRow" Style="{StaticResource ShareRowButton}" Click="ConvertPdfButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="PDF" FontSize="9" FontWeight="Bold" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="PDF (.pdf)" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                    </DockPanel>
+                                </Button>
+
+                                <Button x:Name="ShareHtmlRow" Style="{StaticResource ShareRowButton}" Click="EditHtmlButton_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="&lt;/&gt;" FontSize="10" FontWeight="Bold" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <TextBlock Text="Edit as HTML (Word/Office)" VerticalAlignment="Center"
+                                                   Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                    </DockPanel>
+                                </Button>
+
+                                <Border Height="1" Background="#1FFFFFFF" Margin="10,7"/>
+
+                                <TextBlock x:Name="ShareExportAsLabel" Text="Export as…"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="10.5"
+                                           FontWeight="SemiBold" Margin="12,0,0,4"/>
+
+                                <Button x:Name="ShareExportAsRow" Style="{StaticResource ShareRowButton}" Click="ShareExportAs_Click">
+                                    <DockPanel>
+                                        <Border DockPanel.Dock="Left" Style="{StaticResource ShareRowGlyph}">
+                                            <TextBlock Text="⇩" FontSize="14" FontWeight="Bold" Foreground="#D8FFF8"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Pick format &amp; save…" Foreground="{StaticResource TextBrush}" FontSize="13"/>
+                                            <TextBlock x:Name="ShareExportAsHint" Text="PDF, Word, Excel, HTML…"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="10.5"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </Button>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
                 </Grid>
             </Border>
 
@@ -152,79 +339,191 @@
                     Background="#16000000" AllowDrop="True"
                     DragOver="PdfChrome_DragOver" Drop="Window_Drop">
                 <DockPanel>
-                    <Border DockPanel.Dock="Bottom" Padding="22,6,22,10" Background="Transparent">
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="LookupClipButton" Content="Look Up" Style="{StaticResource GhostButton}"
-                                    Margin="0,0,8,0" Padding="10,4" Click="LookupClipButton_Click"/>
-                            <Button x:Name="AddChatClipButton" Content="Add to Chat" Style="{StaticResource GhostButton}"
-                                    Margin="0,0,8,0" Padding="10,4" Click="AddChatClipButton_Click"/>
-                            <Button x:Name="OpenExternallyButton" Content="Open externally" Visibility="Collapsed"
-                                    Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,4"
-                                    Click="OpenExternallyButton_Click"/>
-                            <TextBlock x:Name="StatusText" VerticalAlignment="Center"
-                                       Foreground="{StaticResource Accent2Brush}" FontSize="11.5" FontWeight="Medium"/>
-                            <TextBlock x:Name="ConvertStatusText" Margin="14,0,0,0" VerticalAlignment="Center"
-                                       Foreground="#E8ECF4" FontSize="12.5" FontWeight="SemiBold"
-                                       TextTrimming="CharacterEllipsis" MaxWidth="480"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Grid>
-                        <Border x:Name="PreviewSummaryHost" Padding="22,12,22,4" MaxHeight="96">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="72"
-                                          Style="{StaticResource GlassScrollViewer}">
-                                <TextBlock x:Name="SummaryText" Text="Generating summary..."
-                                           FontFamily="{StaticResource BodyFont}"
-                                           Foreground="{StaticResource TextBrush}"
-                                           FontSize="13" LineHeight="19" TextWrapping="Wrap" Opacity="0.94"
-                                           Cursor="Hand" MouseLeftButtonUp="SummaryText_MouseLeftButtonUp"/>
-                            </ScrollViewer>
+                    <!-- Action strip stays put when the summary collapses; the float handle rides on it -->
+                    <Grid DockPanel.Dock="Bottom">
+                        <Border Padding="22,6,22,10" Background="Transparent">
+                            <StackPanel Orientation="Horizontal">
+                                <Button x:Name="LookupClipButton" Content="Look Up" Style="{StaticResource GhostButton}"
+                                        Margin="0,0,8,0" Padding="10,4" Click="LookupClipButton_Click"/>
+                                <Button x:Name="AddChatClipButton" Content="Add to Chat" Style="{StaticResource GhostButton}"
+                                        Margin="0,0,8,0" Padding="10,4" Click="AddChatClipButton_Click"
+                                        ToolTip="Stage this file (parsed) as an attachment — nothing sends until you press Send"/>
+                                <Button x:Name="RegionSelectButton" Content="Select area" Style="{StaticResource GhostButton}"
+                                        Margin="0,0,8,0" Padding="10,4" Click="RegionSelectButton_Click"
+                                        ToolTip="Drag a box over text or a figure — it parses first, then stages as an attachment"/>
+                                <Button x:Name="OpenExternallyButton" Content="Open externally" Visibility="Collapsed"
+                                        Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,4"
+                                        Click="OpenExternallyButton_Click"/>
+                                <TextBlock x:Name="StatusText" VerticalAlignment="Center"
+                                           Foreground="{StaticResource Accent2Brush}" FontSize="11.5" FontWeight="Medium"/>
+                                <TextBlock x:Name="ConvertStatusText" Margin="14,0,0,0" VerticalAlignment="Center"
+                                           Foreground="#E8ECF4" FontSize="12.5" FontWeight="SemiBold"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="330"/>
+                            </StackPanel>
                         </Border>
 
-                        <Border x:Name="PdfEditorRibbon" Visibility="Collapsed" Padding="18,12,18,4"
-                                Background="#1A5EC4B8" BorderBrush="#335EC4B8" BorderThickness="0,0,0,0"
-                                CornerRadius="0">
+                        <!-- Floating handle: hides and shows the summary from the middle of the band -->
+                        <Button x:Name="SummaryFloatChip" Content="⌃ Summary"
+                                Style="{StaticResource FloatingHandleButton}"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Click="SummaryFloatChip_Click"
+                                ToolTip="Hide or show the summary panel"/>
+                    </Grid>
+
+                    <Grid>
+                        <Border x:Name="PreviewSummaryHost" Padding="22,10,14,4" MaxHeight="104">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="SummaryDockButton" Grid.Column="0" Content="⇤"
+                                        Style="{StaticResource MicroIconButton}"
+                                        VerticalAlignment="Top" Margin="0,1,10,0"
+                                        Click="SummaryDockButton_Click"
+                                        ToolTip="Pull the summary to a rail on the left"/>
+
+                                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" MaxHeight="76"
+                                              Style="{StaticResource GlassScrollViewer}">
+                                    <TextBlock x:Name="SummaryText" Text="Generating summary..."
+                                               FontFamily="{StaticResource BodyFont}"
+                                               Foreground="{StaticResource TextBrush}"
+                                               FontSize="13" LineHeight="19" TextWrapping="Wrap" Opacity="0.94"
+                                               Cursor="Hand" MouseLeftButtonUp="SummaryText_MouseLeftButtonUp"/>
+                                </ScrollViewer>
+
+                                <Button x:Name="SummaryCollapseButton" Grid.Column="2" Content="⌃"
+                                        Style="{StaticResource MicroIconButton}"
+                                        VerticalAlignment="Top" Margin="10,1,0,0"
+                                        Click="SummaryCollapseButton_Click"
+                                        ToolTip="Collapse the summary panel"/>
+                            </Grid>
+                        </Border>
+
+                        <Border x:Name="PdfEditorRibbon" Visibility="Collapsed" Padding="18,10,18,8"
+                                Background="#1A5EC4B8" CornerRadius="0">
                             <StackPanel>
-                                <DockPanel Margin="0,0,0,10">
-                                    <TextBlock Text="All PDF tools" FontFamily="{StaticResource DisplayFont}"
+                                <DockPanel Margin="0,0,0,8">
+                                    <TextBlock x:Name="PdfRibbonTitle" Text="PDF tools"
+                                               FontFamily="{StaticResource DisplayFont}"
                                                FontSize="12" FontWeight="SemiBold" Foreground="#D8FFF8"
-                                               Opacity="0.9"/>
-                                    <TextBlock DockPanel.Dock="Right" Text="Acrobat-class · drag to stamp"
+                                               Opacity="0.95"/>
+                                    <TextBlock x:Name="PdfRibbonHint" DockPanel.Dock="Right"
+                                               Text="Pick a mode · tweaks appear below"
                                                Foreground="#80A0A8B8" FontSize="11" VerticalAlignment="Center"/>
                                 </DockPanel>
-                                <WrapPanel Orientation="Horizontal">
-                                    <Button Content="Merge" Style="{StaticResource EditorChip}" Click="PdfMerge_Click"/>
-                                    <Button Content="Organize" Style="{StaticResource EditorChip}" Click="PdfOrganize_Click"/>
-                                    <Button Content="Extract" Style="{StaticResource EditorChip}" Click="PdfExtract_Click"/>
-                                    <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,12,0" VerticalAlignment="Center"/>
-                                    <Button Content="Sign" Style="{StaticResource EditorChipPrimary}" Click="PdfSignType_Click"/>
-                                    <Button Content="My signatures" Style="{StaticResource EditorChip}" Click="PdfSignLibrary_Click"
-                                            ToolTip="Reuse, delete, or restyle saved signatures"/>
-                                    <Button Content="Stamp image" Style="{StaticResource EditorChip}" Click="PdfSignStamp_Click"/>
+
+                                <!-- Primary: modes only -->
+                                <WrapPanel x:Name="PdfPrimaryRow" Orientation="Horizontal">
+                                    <Button x:Name="PdfModeOrganizeBtn" Content="Organize" Style="{StaticResource EditorChip}"
+                                            Click="PdfModeOrganize_Click" ToolTip="Pages: reorder, extract, split, rotate, merge"/>
+                                    <Button x:Name="PdfModeSignBtn" Content="Sign" Style="{StaticResource EditorChip}"
+                                            Click="PdfModeSign_Click" ToolTip="Place a signature — font &amp; library below"/>
+                                    <Button x:Name="PdfModeFillBtn" Content="Fill" Style="{StaticResource EditorChip}"
+                                            Click="PdfModeFill_Click" ToolTip="Type into table cells and blank lines"/>
+                                    <Button x:Name="PdfModeCommentBtn" Content="Comment" Style="{StaticResource EditorChip}"
+                                            Click="PdfModeComment_Click" ToolTip="Highlight markup"/>
+                                    <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,10,6" VerticalAlignment="Center"/>
                                     <Button x:Name="PdfSaveStampsButton" Content="Save" Style="{StaticResource EditorChipPrimary}"
-                                            Click="PdfSaveStamps_Click" ToolTip="Save pending stamps / edits to a new PDF"/>
-                                    <Button x:Name="PdfToolsButton" Content="Edit ▾" Style="{StaticResource EditorChip}"
-                                            Click="PdfToolsButton_Click"
-                                            ToolTip="Acrobat-style: Comment · Fill &amp; Sign · Edit text · Pages">
+                                            Click="PdfSaveStamps_Click" ToolTip="Write signatures &amp; typed text into this PDF"/>
+                                    <Button x:Name="PdfMoreButton" Content="More" Style="{StaticResource EditorChip}"
+                                            Click="PdfMoreButton_Click" ToolTip="Less-used tools">
                                         <Button.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="Comment — Highlight" Click="PdfCommentHighlight_Click"/>
-                                                <MenuItem Header="Fill &amp; Sign — place signature" Click="PdfSignType_Click"/>
-                                                <MenuItem Header="Edit text / OCR boxes…" Click="PdfEditTextMode_Click"
-                                                          ToolTip="Show native text bounding boxes (OCR for scans next)"/>
-                                                <MenuItem Header="Fill form fields…" Click="PdfFillForm_Click"/>
+                                                <MenuItem Header="Edit text boxes (preview)" Click="PdfEditTextMode_Click"
+                                                          ToolTip="Show native PDF text boxes — full edit later"/>
                                                 <Separator/>
-                                                <MenuItem Header="Organize pages…" Click="PdfOrganize_Click"/>
-                                                <MenuItem Header="Split pages…" Click="PdfSplit_Click"/>
-                                                <MenuItem Header="Rotate 90°…" Click="PdfRotate90_Click"/>
-                                                <MenuItem Header="Reverse pages" Click="PdfReverse_Click"/>
+                                                <MenuItem Header="Compress…" IsEnabled="False"
+                                                          ToolTip="Coming soon — not a fake rewrite"/>
+                                                <MenuItem Header="Export as…" Click="PdfExportAsMenu_Click"
+                                                          ToolTip="Pick another format via the Share export picker"/>
                                                 <Separator/>
-                                                <MenuItem Header="Compress rewrite…" Click="PdfCompress_Click"/>
-                                                <MenuItem Header="Save edits" Click="PdfSaveStamps_Click"/>
+                                                <MenuItem Header="Watermark…" Click="PdfWatermark_Click"
+                                                          ToolTip="Stamp text across pages (pymupdf)"/>
+                                                <MenuItem Header="Protect…" Click="PdfProtect_Click"
+                                                          ToolTip="AES-256 password lock"/>
+                                                <MenuItem Header="Unlock…" Click="PdfUnlock_Click"
+                                                          ToolTip="Remove password (needs the password)"/>
+                                                <MenuItem Header="Scan &amp; OCR…" Click="PdfOcr_Click"
+                                                          ToolTip="Make a scanned PDF searchable (needs Tesseract)"/>
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                     </Button>
                                 </WrapPanel>
+
+                                <!-- Organize secondary -->
+                                <Border x:Name="PdfOrganizePanel" Visibility="Collapsed" Margin="0,4,0,0"
+                                        Background="#14000000" CornerRadius="10" Padding="10,8">
+                                    <StackPanel>
+                                        <TextBlock Text="Pages" FontSize="11" Foreground="#A8FFF8" Margin="0,0,0,6" FontWeight="SemiBold"/>
+                                        <WrapPanel>
+                                            <Button Content="Reorder…" Style="{StaticResource EditorChip}" Click="PdfOrganize_Click"
+                                                    ToolTip="Drag pages · rotate · delete"/>
+                                            <Button Content="Merge…" Style="{StaticResource EditorChip}" Click="PdfMerge_Click"/>
+                                            <Button Content="Extract…" Style="{StaticResource EditorChip}" Click="PdfExtract_Click"/>
+                                            <Button Content="Split" Style="{StaticResource EditorChip}" Click="PdfSplit_Click"/>
+                                            <Button Content="Rotate 90°" Style="{StaticResource EditorChip}" Click="PdfRotate90_Click"/>
+                                            <Button Content="Reverse" Style="{StaticResource EditorChip}" Click="PdfReverse_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Sign secondary -->
+                                <Border x:Name="PdfSignPanel" Visibility="Collapsed" Margin="0,4,0,0"
+                                        Background="#14000000" CornerRadius="10" Padding="10,8">
+                                    <StackPanel>
+                                        <TextBlock Text="Signature" FontSize="11" Foreground="#A8FFF8" Margin="0,0,0,6" FontWeight="SemiBold"/>
+                                        <WrapPanel>
+                                            <Button Content="New signature" Style="{StaticResource EditorChipPrimary}"
+                                                    Click="PdfSignType_Click" ToolTip="Type name · pick font · place on page"/>
+                                            <Button Content="My signatures" Style="{StaticResource EditorChip}"
+                                                    Click="PdfSignLibrary_Click"/>
+                                            <Button Content="Stamp image…" Style="{StaticResource EditorChip}"
+                                                    Click="PdfSignStamp_Click"/>
+                                            <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,10,6" VerticalAlignment="Center"/>
+                                            <TextBlock Text="Font" VerticalAlignment="Center" Foreground="#C0C8D4"
+                                                       Margin="0,0,6,6" FontSize="12"/>
+                                            <ComboBox x:Name="PdfSignFontCombo" Width="160" Height="34" Margin="0,0,8,6"
+                                                      VerticalContentAlignment="Center"
+                                                      SelectionChanged="PdfSignFontCombo_SelectionChanged"/>
+                                            <Button Content="A−" Style="{StaticResource EditorChip}" Click="PdfSizeDown_Click"
+                                                    ToolTip="Smaller selected signature / text" MinWidth="40"/>
+                                            <Button Content="A+" Style="{StaticResource EditorChip}" Click="PdfSizeUp_Click"
+                                                    ToolTip="Larger selected signature / text" MinWidth="40"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Fill secondary -->
+                                <Border x:Name="PdfFillPanel" Visibility="Collapsed" Margin="0,4,0,0"
+                                        Background="#14000000" CornerRadius="10" Padding="10,8">
+                                    <StackPanel>
+                                        <TextBlock Text="Fill &amp; type" FontSize="11" Foreground="#A8FFF8" Margin="0,0,0,6" FontWeight="SemiBold"/>
+                                        <WrapPanel>
+                                            <TextBlock Text="Click a table cell or blank line, then type. Press Save when done."
+                                                       Foreground="#C0C8D4" FontSize="12" VerticalAlignment="Center"
+                                                       Margin="0,0,12,6" TextWrapping="Wrap" MaxWidth="420"/>
+                                            <Button Content="A−" Style="{StaticResource EditorChip}" Click="PdfSizeDown_Click" MinWidth="40"/>
+                                            <Button Content="A+" Style="{StaticResource EditorChip}" Click="PdfSizeUp_Click" MinWidth="40"/>
+                                            <Button Content="Exit Fill" Style="{StaticResource EditorChip}" Click="PdfExitFill_Click"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Comment secondary -->
+                                <Border x:Name="PdfCommentPanel" Visibility="Collapsed" Margin="0,4,0,0"
+                                        Background="#14000000" CornerRadius="10" Padding="10,8">
+                                    <StackPanel>
+                                        <TextBlock Text="Comment" FontSize="11" Foreground="#A8FFF8" Margin="0,0,0,6" FontWeight="SemiBold"/>
+                                        <WrapPanel>
+                                            <Button Content="Highlight" Style="{StaticResource EditorChip}"
+                                                    Click="PdfCommentHighlight_Click"
+                                                    ToolTip="Drag on the page to mark (session only for now)"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 
@@ -271,11 +570,38 @@
             <!-- Body — opaque content well (hero), chrome yields -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="SummaryRailColumn" Width="0"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition x:Name="ChatColumn" Width="0"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Grid.Column="0" Background="{StaticResource ContentWellBrush}"
+                <!-- Summary docked left: same text, out of the way of the page -->
+                <Border x:Name="SummaryRail" Grid.Column="0" Visibility="Collapsed"
+                        Background="#1A000000" BorderBrush="{StaticResource GlassHighlight}"
+                        BorderThickness="0,0,1,0" Padding="14,12,10,12" ClipToBounds="True">
+                    <DockPanel>
+                        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                            <Button DockPanel.Dock="Right" Content="⇥" Style="{StaticResource MicroIconButton}"
+                                    Click="SummaryUndockButton_Click"
+                                    ToolTip="Put the summary back on top"/>
+                            <TextBlock Text="Summary" FontFamily="{StaticResource DisplayFont}"
+                                       Foreground="{StaticResource Accent2Brush}"
+                                       FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      Style="{StaticResource GlassScrollViewer}">
+                            <!-- Mirrors the top strip so every existing summary write reaches both -->
+                            <TextBlock x:Name="SummaryRailText"
+                                       Text="{Binding Text, ElementName=SummaryText, Mode=OneWay}"
+                                       FontFamily="{StaticResource BodyFont}"
+                                       Foreground="{StaticResource TextBrush}"
+                                       FontSize="12.5" LineHeight="18.5" TextWrapping="Wrap" Opacity="0.94"
+                                       Cursor="Hand" MouseLeftButtonUp="SummaryText_MouseLeftButtonUp"/>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+                <Border Grid.Column="1" Background="{StaticResource ContentWellBrush}"
                         CornerRadius="0,0,22,22" ClipToBounds="True" Margin="1,0,1,1">
                 <Grid ClipToBounds="True" x:Name="ContentHost">
                     <Border CornerRadius="0,0,21,21" ClipToBounds="True">
@@ -580,7 +906,7 @@
                 </Grid>
                 </Border>
 
-                <controls:ChatPanel x:Name="ChatPanel" Grid.Column="1" Visibility="Collapsed"/>
+                <controls:ChatPanel x:Name="ChatPanel" Grid.Column="2" Visibility="Collapsed"/>
             </Grid>
         </Grid>
             </Grid>

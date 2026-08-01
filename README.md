@@ -1,11 +1,11 @@
 # Netie Space
 
-Press **Space** in File Explorer or on the **Desktop** to preview any file — PDF, Word, PowerPoint, Excel, images, code — with optional AI summary, chat, and one-click conversion.
+Press **Space** in File Explorer or on the **Desktop** to preview any file — PDF, Word, PowerPoint, Excel, images, code — with optional AI summary, chat, and one-click conversion. 
 
 ## Quick Start (this PC)
 
 ```powershell
-cd "c:\Users\OoiJianHong\Netie Space"
+cd "D:\Netie Space"
 .\install.bat
 ```
 

@@ -1,7 +1,9 @@
 mammoth>=1.8.0
 markitdown>=0.0.2
 pdfmd>=1.6.0
+pymupdf>=1.24
 pymupdf4llm>=1.28.0
+# ocrmypdf>=16  # optional — pdf-ocr; requires system Tesseract
 pptx2md>=2.0.6
 openai>=2.0.0
 markdown>=3.5

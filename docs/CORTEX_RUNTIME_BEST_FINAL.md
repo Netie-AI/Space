@@ -3,9 +3,10 @@
 **Purpose:** Implement against this file next session. Covers DeepSeek-style context ditching, WASM safety, hosting, dual-brain, and Space↔AirGPT↔Cortex.
 
 **Repos:**  
-- Space: `c:\Users\OoiJianHong\Netie Space`  
-- Cortex: `c:\Users\OoiJianHong\Cortex\Cortex` (`dms-v2`)  
+- Space: `D:\Netie Space`  
+- Cortex: `D:\Cortex` (or peer Cortex tree)  
 - AirGPT: `D:\AirGPT`
+- OpenVault: `D:\OpenVault`
 
 **Loop gates:** Grok 4.5 + Composer (not Fable).
 

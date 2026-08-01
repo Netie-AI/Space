@@ -51,7 +51,47 @@ public sealed class ConversionService
     public Task<ConversionResult> PreviewPptxHtmlAsync(string filePath, CancellationToken ct = default) =>
         RunAsync("preview-pptx-html", filePath, ct);
 
-    private async Task<ConversionResult> RunAsync(string action, string filePath, CancellationToken ct)
+    /// <summary>Export to an explicit path (Share sheet Export as…).</summary>
+    public Task<ConversionResult> ExportAsAsync(string filePath, string outputPath, CancellationToken ct = default) =>
+        RunAsync("export-as", filePath, ct, outputPath);
+
+    public Task<ConversionResult> PdfWatermarkAsync(
+        string filePath, string outputPath, string text,
+        double opacity = 0.25, int angle = 45, string pages = "all",
+        CancellationToken ct = default) =>
+        RunAsync("pdf-watermark", filePath, ct, outputPath,
+            "--text", text, "--opacity", opacity.ToString("0.###"),
+            "--angle", angle.ToString(), "--pages", pages);
+
+    public Task<ConversionResult> PdfProtectAsync(
+        string filePath, string outputPath, string password, string? owner = null,
+        CancellationToken ct = default)
+    {
+        var args = new List<string> { "--password", password };
+        if (!string.IsNullOrWhiteSpace(owner))
+        {
+            args.Add("--owner");
+            args.Add(owner);
+        }
+        return RunAsync("pdf-protect", filePath, ct, outputPath, args.ToArray());
+    }
+
+    public Task<ConversionResult> PdfUnlockAsync(
+        string filePath, string outputPath, string password, CancellationToken ct = default) =>
+        RunAsync("pdf-unlock", filePath, ct, outputPath, "--password", password);
+
+    public Task<ConversionResult> PdfOcrAsync(
+        string filePath, string outputPath, string lang = "eng", bool force = false,
+        CancellationToken ct = default)
+    {
+        var args = new List<string> { "--lang", lang };
+        if (force) args.Add("--force");
+        return RunAsync("pdf-ocr", filePath, ct, outputPath, args.ToArray());
+    }
+
+    private async Task<ConversionResult> RunAsync(
+        string action, string filePath, CancellationToken ct,
+        string? outputPath = null, params string[] extraArgs)
     {
         if (!IsAvailable)
         {
@@ -62,16 +102,29 @@ public sealed class ConversionService
             };
         }
 
+        var argParts = new List<string> { $"\"{_enginePath}\"", action, $"\"{filePath}\"" };
+        if (outputPath is not null)
+            argParts.Add($"\"{outputPath}\"");
+        foreach (var a in extraArgs)
+        {
+            // Quote values that look like paths or contain spaces; leave flags bare.
+            if (a.StartsWith("--", StringComparison.Ordinal) || a is "true" or "false")
+                argParts.Add(a);
+            else
+                argParts.Add($"\"{a}\"");
+        }
+
         var psi = new ProcessStartInfo
         {
             FileName = _pythonPath,
-            Arguments = $"\"{_enginePath}\" {action} \"{filePath}\"",
+            Arguments = string.Join(' ', argParts),
             WorkingDirectory = _projectRoot,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
         };
+        PrependTesseractToPath(psi);
 
         using var process = new Process { StartInfo = psi };
         process.Start();
@@ -138,6 +191,29 @@ public sealed class ConversionService
         }
 
         return root;
+    }
+
+    /// <summary>
+    /// ocrmypdf/pdf-ocr in convert_engine call <c>tesseract</c> via PATH — Windows default install is not always on PATH.
+    /// </summary>
+    private static void PrependTesseractToPath(ProcessStartInfo psi)
+    {
+        const string tesseractDir = @"C:\Program Files\Tesseract-OCR";
+        var tesseractExe = IoPath.Combine(tesseractDir, "tesseract.exe");
+        if (!IoFile.Exists(tesseractExe))
+            return;
+
+        var existing = Environment.GetEnvironmentVariable("PATH") ?? "";
+        if (existing.Contains(tesseractDir, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (psi.Environment.Count == 0)
+        {
+            foreach (System.Collections.DictionaryEntry entry in Environment.GetEnvironmentVariables())
+                psi.Environment[entry.Key.ToString()!] = entry.Value?.ToString() ?? "";
+        }
+
+        psi.Environment["PATH"] = tesseractDir + IoPath.PathSeparator + existing;
     }
 
     private static string ResolvePython(string projectRoot)

@@ -31,6 +31,11 @@ public sealed record PdfFormFieldRect(int Page, double X, double Y, double Width
 /// <summary>Text word/line box in PDF user space (origin bottom-left) for bbox editing.</summary>
 public sealed record PdfTextBox(int Page, double X, double Y, double Width, double Height, string Text);
 
+/// <summary>One Fill &amp; Sign typed-text box in PDF points, origin bottom-left (viewer convention).</summary>
+public sealed record PdfFillTextItem(
+    int Page, double XPt, double YFromBottom, double WidthPt, double HeightPt,
+    double FontPt, string Text);
+
 /// <summary>
 /// Compose slot: either import a source page or insert a new page from an image file.
 /// </summary>
@@ -388,14 +393,17 @@ public sealed class PdfEditService
         }
 
         var margin = 36.0;
-        // PdfSharp Y origin is bottom-left
+        // XGraphics world space is top-left origin, y down (its WorldToView emits
+        // y_pdf = pageHeight - y). Callers pass y measured from the page BOTTOM,
+        // so convert here — passing it straight through mirrors the stamp vertically.
         var x = xPt ?? (page.Width - w - margin);
-        var y = yPtFromBottom ?? margin;
+        var yFromBottom = yPtFromBottom ?? margin;
         x = Math.Clamp(x, 0, Math.Max(0, page.Width - w));
-        y = Math.Clamp(y, 0, Math.Max(0, page.Height - h));
+        yFromBottom = Math.Clamp(yFromBottom, 0, Math.Max(0, page.Height - h));
+        var yTop = page.Height - h - yFromBottom;
 
         using (var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append))
-            gfx.DrawImage(img, x, y, w, h);
+            gfx.DrawImage(img, x, yTop, w, h);
 
         // Always write via temp then replace original so Sign edits the same file (not a sibling).
         var temp = IoPath.Combine(IoPath.GetTempPath(), $"netie_signed_{Guid.NewGuid():N}.pdf");
@@ -405,7 +413,7 @@ public sealed class PdfEditService
             // Prefer in-place overwrite of the opened document
             IoFile.Copy(temp, pdfPath, overwrite: true);
             try { IoFile.Delete(temp); } catch { /* ignore */ }
-            AppLogger.Info($"Stamped signature image → {pdfPath} @ ({x:0},{y:0}) {w:0}x{h:0}pt page {idx + 1}");
+            AppLogger.Info($"Stamped signature image → {pdfPath} @ ({x:0},{yFromBottom:0} from bottom) {w:0}x{h:0}pt page {idx + 1}");
             return pdfPath;
         }
         catch (Exception ex)
@@ -414,6 +422,124 @@ public sealed class PdfEditService
             AppLogger.Warn($"In-place stamp deferred (locked): {ex.Message}");
             AppLogger.Info($"Stamped signature image → {temp} (pending replace into {pdfPath})");
             return temp;
+        }
+    }
+
+    /// <summary>
+    /// Bake Fill &amp; Sign typed text into page content (Acrobat-style flatten).
+    /// Coordinates arrive in PDF points with origin bottom-left; converted to
+    /// XGraphics' top-left space here. Prefers vector text, falls back to a
+    /// supersampled transparent PNG when the font cannot be resolved.
+    /// </summary>
+    public string DrawFillTexts(string pdfPath, IReadOnlyList<PdfFillTextItem> items)
+    {
+        var valid = (items ?? []).Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToList();
+        if (valid.Count == 0)
+            return pdfPath;
+
+        using var doc = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Modify);
+        foreach (var group in valid.GroupBy(t => t.Page))
+        {
+            var idx = group.Key - 1;
+            if (idx < 0 || idx >= doc.PageCount)
+                continue;
+
+            var page = doc.Pages[idx];
+            using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+            foreach (var t in group)
+            {
+                var hPt = Math.Max(6, t.HeightPt);
+                var wPt = Math.Max(8, t.WidthPt);
+                var fontPt = Math.Clamp(t.FontPt <= 0 ? hPt * 0.58 : t.FontPt, 4, 96);
+                var yTop = Math.Clamp(page.Height - t.YFromBottom - hPt, 0, Math.Max(0, page.Height - hPt));
+                var rect = new XRect(Math.Clamp(t.XPt, 0, Math.Max(0, page.Width - 8)) + 2, yTop, wPt - 4, hPt);
+                if (!TryDrawVectorText(gfx, t.Text, fontPt, rect))
+                    DrawTextAsImage(gfx, t.Text, fontPt, rect);
+            }
+        }
+
+        var temp = IoPath.Combine(IoPath.GetTempPath(), $"netie_fill_{Guid.NewGuid():N}.pdf");
+        doc.Save(temp);
+        try
+        {
+            IoFile.Copy(temp, pdfPath, overwrite: true);
+            try { IoFile.Delete(temp); } catch { /* ignore */ }
+            AppLogger.Info($"Baked {valid.Count} fill text(s) → {pdfPath}");
+            return pdfPath;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"In-place fill text deferred (locked): {ex.Message}");
+            return temp;
+        }
+    }
+
+    private static readonly XStringFormat FillTextFormat = new()
+    {
+        Alignment = XStringAlignment.Near,
+        LineAlignment = XLineAlignment.Center
+    };
+
+    private static bool TryDrawVectorText(XGraphics gfx, string text, double fontPt, XRect rect)
+    {
+        foreach (var family in new[] { "Segoe UI", "Arial", "Helvetica" })
+        {
+            try
+            {
+                var font = new XFont(family, fontPt, XFontStyle.Regular);
+                gfx.DrawString(text, font, new XSolidBrush(XColor.FromArgb(255, 26, 26, 26)), rect, FillTextFormat);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn($"Fill text font '{family}' failed: {ex.Message}");
+            }
+        }
+        return false;
+    }
+
+    /// <summary>GDI fallback: render at 4× and place at 1/4 size so text stays sharp.</summary>
+    private static void DrawTextAsImage(XGraphics gfx, string text, double fontPt, XRect rect)
+    {
+        const float ss = 4f;
+        var tmp = IoPath.Combine(IoPath.GetTempPath(), $"netie_filltx_{Guid.NewGuid():N}.png");
+        try
+        {
+            using (var font = new Font("Segoe UI", (float)(fontPt * ss), FontStyle.Regular, GraphicsUnit.Pixel))
+            {
+                SizeF measured;
+                using (var mb = new Bitmap(1, 1))
+                using (var mg = Graphics.FromImage(mb))
+                {
+                    mg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                    measured = mg.MeasureString(text, font);
+                }
+
+                var wPx = Math.Max(4, (int)Math.Ceiling(measured.Width));
+                var hPx = Math.Max(4, (int)Math.Ceiling(measured.Height));
+                using var bmp = new Bitmap(wPx, hPx, PixelFormat.Format32bppArgb);
+                using (var g = Graphics.FromImage(bmp))
+                {
+                    g.Clear(Color.Transparent);
+                    g.SmoothingMode = SmoothingMode.AntiAlias;
+                    g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                    using var brush = new SolidBrush(Color.FromArgb(255, 26, 26, 26));
+                    g.DrawString(text, font, brush, 0, 0);
+                }
+
+                bmp.Save(tmp, ImageFormat.Png);
+            }
+
+            using var img = XImage.FromFile(tmp);
+            // GraphicsUnit.Pixel at ss× ⇒ 1/ss pt per px puts the em back at fontPt.
+            var drawW = Math.Min(rect.Width, img.PixelWidth / ss);
+            var drawH = img.PixelHeight / ss;
+            var top = rect.Y + Math.Max(0, (rect.Height - drawH) / 2);
+            gfx.DrawImage(img, rect.X, top, drawW, drawH);
+        }
+        finally
+        {
+            try { if (IoFile.Exists(tmp)) IoFile.Delete(tmp); } catch { /* ignore */ }
         }
     }
 

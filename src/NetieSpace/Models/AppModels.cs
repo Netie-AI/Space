@@ -35,6 +35,40 @@ public sealed class ChatMessage
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }
 
+public enum ChatAssetKind
+{
+    /// <summary>Text the user highlighted in the preview.</summary>
+    Selection,
+
+    /// <summary>Marquee crop of the page — pixels plus whatever text sat under the box.</summary>
+    Region,
+
+    /// <summary>A whole image (screenshot or the previewed file itself).</summary>
+    Image,
+
+    /// <summary>Whole-file parse — the "README parsed" case.</summary>
+    File
+}
+
+/// <summary>One staged attachment in the chat composer. Nothing is sent until the user presses Send.</summary>
+public sealed class ChatAsset
+{
+    public string Id { get; init; } = Guid.NewGuid().ToString("N");
+    public ChatAssetKind Kind { get; init; }
+
+    /// <summary>Chip headline — file name, "Selection", "Page 3 clip".</summary>
+    public required string Title { get; init; }
+
+    /// <summary>Chip second line — "1,240 chars parsed", "PNG · page 3".</summary>
+    public string Detail { get; init; } = string.Empty;
+
+    /// <summary>Text handed to the model. Empty for pixels-only assets.</summary>
+    public string Text { get; init; } = string.Empty;
+
+    /// <summary>On-disk PNG for image / region assets.</summary>
+    public string? ImagePath { get; init; }
+}
+
 public sealed class AiProviderSettings
 {
     public string Name { get; set; } = string.Empty;

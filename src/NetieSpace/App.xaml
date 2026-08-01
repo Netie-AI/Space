@@ -298,6 +298,7 @@
             <Setter Property="BorderBrush" Value="#38FFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="MinHeight" Value="36"/>
             <Setter Property="FontSize" Value="12.5"/>
             <Setter Property="FontWeight" Value="Medium"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -307,7 +308,11 @@
                         <Border x:Name="bd" CornerRadius="12" Padding="{TemplateBinding Padding}"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform x:Name="pressScale" ScaleX="1" ScaleY="1"/>
+                            </Border.RenderTransform>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -315,9 +320,33 @@
                                 <Setter TargetName="bd" Property="Background" Value="#2EFFFFFF"/>
                                 <Setter TargetName="bd" Property="BorderBrush" Value="#55FFFFFF"/>
                             </Trigger>
+                            <!-- Instant press feedback (Apple: respond on pointer-down) -->
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="bd" Property="Background" Value="#14FFFFFF"/>
-                                <Setter TargetName="bd" Property="Opacity" Value="0.92"/>
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="pressScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="0.97" Duration="0:0:0.09"/>
+                                            <DoubleAnimation Storyboard.TargetName="pressScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="0.97" Duration="0:0:0.09"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetName="pressScale"
+                                                             Storyboard.TargetProperty="ScaleX"
+                                                             To="1" Duration="0:0:0.12"/>
+                                            <DoubleAnimation Storyboard.TargetName="pressScale"
+                                                             Storyboard.TargetProperty="ScaleY"
+                                                             To="1" Duration="0:0:0.12"/>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.4"/>
@@ -334,6 +363,7 @@
             <Setter Property="Background" Value="#405EC4B8"/>
             <Setter Property="BorderBrush" Value="#665EC4B8"/>
             <Setter Property="Foreground" Value="White"/>
+            <Setter Property="MinHeight" Value="44"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="#555EC4B8"/>
@@ -393,6 +423,127 @@
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- Square glyph button — icon carries the meaning, no text label -->
+        <Style x:Key="IconGhostButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <!-- Small, quiet affordance for chrome corners (dock / collapse handles) -->
+        <Style x:Key="MicroIconButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Background" Value="#12FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#26FFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="7"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#2EFFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#0AFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Floating pill that hangs in the empty chrome band and toggles the summary -->
+        <Style x:Key="FloatingHandleButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+            <Setter Property="Padding" Value="14,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#2AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#4AFFFFFF"/>
+            <Setter Property="Foreground" Value="{StaticResource MutedBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="11" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="14" ShadowDepth="1" Direction="270"
+                                                  Color="#000000" Opacity="0.35"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#42FFFFFF"/>
+                                <Setter TargetName="bd" Property="BorderBrush" Value="#70FFFFFF"/>
+                                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#1EFFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- One row of the share sheet: glyph tile on the left, label filling the rest -->
+        <Style x:Key="ShareRowButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Padding" Value="10,9"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="10" Padding="{TemplateBinding Padding}"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#3A5EC4B8"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.38"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ShareRowGlyph" TargetType="Border">
+            <Setter Property="Width" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Background" Value="#2A5EC4B8"/>
+            <Setter Property="BorderBrush" Value="#505EC4B8"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Margin" Value="0,0,11,0"/>
         </Style>
 
     </Application.Resources>

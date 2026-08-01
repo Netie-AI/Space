@@ -1,0 +1,6 @@
+﻿CANONICAL TREE = D:\Netie Space  (from 2026-07-24 onwards)
+
+Do NOT edit C:\Users\OoiJianHong\Netie Space for Netie work.
+Claude / Cursor agents: open folder D:\Netie Space only.
+If you wrote to C by mistake: robocopy "D:\Netie Space" "C:\Users\OoiJianHong\Netie Space" /MIR /XD .cursor bin obj
+OR pull the other way only when intentionally promoting.

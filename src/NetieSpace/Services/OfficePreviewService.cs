@@ -191,15 +191,17 @@ public sealed class OfficePreviewService
             sheetIndex++;
             var sheetName = sheet.Name?.Value ?? $"Sheet {sheetIndex}";
             var wrapDetails = sheetIndex > 1;
+            var encName = System.Net.WebUtility.HtmlEncode(sheetName);
             if (wrapDetails)
-                sb.Append($"<details class='xlsx-sheet'><summary>{System.Net.WebUtility.HtmlEncode(sheetName)}</summary>");
+                sb.Append($"<details class='xlsx-sheet' data-sheet='{encName}'><summary>{encName}</summary>");
             else
-                sb.Append($"<h2>{System.Net.WebUtility.HtmlEncode(sheetName)}</h2>");
+                sb.Append($"<section class='xlsx-sheet' data-sheet='{encName}' open><h2>{encName}</h2>");
 
             if (sheet.Id?.Value is null)
             {
                 sb.Append("<p><em>Missing sheet data</em></p>");
                 if (wrapDetails) sb.Append("</details>");
+                else sb.Append("</section>");
                 continue;
             }
 
@@ -209,6 +211,7 @@ public sealed class OfficePreviewService
             {
                 sb.Append("<p><em>Empty sheet</em></p>");
                 if (wrapDetails) sb.Append("</details>");
+                else sb.Append("</section>");
                 continue;
             }
 
@@ -237,6 +240,8 @@ public sealed class OfficePreviewService
 
             if (wrapDetails)
                 sb.Append("</details>");
+            else
+                sb.Append("</section>");
         }
 
         return sb.ToString();
@@ -260,33 +265,12 @@ public sealed class OfficePreviewService
             sb.AppendLine();
 
             var index = 0;
-            foreach (var sheet in sheets.Take(6))
+            foreach (var sheet in sheets.Take(8))
             {
                 index++;
                 if (sheet.Id?.Value is null) continue;
-                var part = (WorksheetPart)workbook.GetPartById(sheet.Id.Value);
-                var rows = part.Worksheet.Descendants<Row>().Take(headerRows + sampleRows).ToList();
-                sb.AppendLine($"## {sheet.Name?.Value ?? $"Sheet {index}"}");
-                if (rows.Count == 0)
-                {
-                    sb.AppendLine("(empty)");
-                    continue;
-                }
-
-                var matrix = rows.Select(r => ExpandRow(r, shared, maxCols)).ToList();
-                var width = Math.Min(maxCols, Math.Max(1, matrix.Max(r => r.Count)));
-                foreach (var row in matrix)
-                    while (row.Count < width) row.Add("");
-
-                sb.AppendLine("Headers: " + string.Join(" | ", matrix[0].Take(width).Where(c => !string.IsNullOrWhiteSpace(c))));
-                foreach (var row in matrix.Skip(1).Take(sampleRows))
-                {
-                    var cells = row.Take(width).Where(c => !string.IsNullOrWhiteSpace(c)).Take(8);
-                    var line = string.Join(" · ", cells);
-                    if (!string.IsNullOrWhiteSpace(line))
-                        sb.AppendLine("- " + line);
-                }
-                sb.AppendLine();
+                AppendSheetDigest(sb, sheet.Name?.Value ?? $"Sheet {index}",
+                    (WorksheetPart)workbook.GetPartById(sheet.Id.Value), shared, headerRows, sampleRows, maxCols);
             }
 
             return sb.ToString().Trim();
@@ -296,6 +280,91 @@ public sealed class OfficePreviewService
             return $"{IoPath.GetFileName(path)}\n(Excel digest failed: {ex.Message})";
         }
     }
+
+    /// <summary>Single-sheet digest for Look Up when an active sheet is known.</summary>
+    public static string XlsxSheetDigest(string path, string sheetName, int headerRows = 4, int sampleRows = 40, int maxCols = 16)
+    {
+        try
+        {
+            using var doc = SpreadsheetDocument.Open(path, false);
+            var workbook = doc.WorkbookPart;
+            if (workbook is null)
+                return sheetName;
+
+            var shared = workbook.SharedStringTablePart?.SharedStringTable;
+            var sheets = workbook.Workbook.Sheets?.Elements<Sheet>()?.ToList() ?? [];
+            var sheet = sheets.FirstOrDefault(s =>
+                string.Equals(s.Name?.Value, sheetName, StringComparison.OrdinalIgnoreCase));
+            if (sheet?.Id?.Value is null)
+                return XlsxDigest(path);
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Workbook: {IoPath.GetFileNameWithoutExtension(path)}");
+            sb.AppendLine($"Active sheet: {sheet.Name?.Value}");
+            sb.AppendLine();
+            AppendSheetDigest(sb, sheet.Name!.Value!,
+                (WorksheetPart)workbook.GetPartById(sheet.Id.Value), shared, headerRows, sampleRows, maxCols);
+            return sb.ToString().Trim();
+        }
+        catch (Exception ex)
+        {
+            return $"{sheetName}\n(Excel sheet digest failed: {ex.Message})";
+        }
+    }
+
+    private static void AppendSheetDigest(
+        StringBuilder sb,
+        string sheetName,
+        WorksheetPart part,
+        SharedStringTable? shared,
+        int headerRows,
+        int sampleRows,
+        int maxCols)
+    {
+        var rows = part.Worksheet.Descendants<Row>().Take(headerRows + sampleRows).ToList();
+        sb.AppendLine($"## {sheetName}");
+        if (rows.Count == 0)
+        {
+            sb.AppendLine("(empty)");
+            sb.AppendLine();
+            return;
+        }
+
+        var matrix = rows.Select(r => ExpandRow(r, shared, maxCols)).ToList();
+        var width = Math.Min(maxCols, Math.Max(1, matrix.Max(r => r.Count)));
+        foreach (var row in matrix)
+            while (row.Count < width) row.Add("");
+
+        // Markdown table with column letters for positional fidelity
+        var cols = Enumerable.Range(0, width).Select(ColLetter).ToList();
+        sb.Append("| row | ").Append(string.Join(" | ", cols)).AppendLine(" |");
+        sb.Append("| --- | ").Append(string.Join(" | ", cols.Select(_ => "---"))).AppendLine(" |");
+
+        for (var r = 0; r < matrix.Count; r++)
+        {
+            var rowNum = (int)(rows[r].RowIndex?.Value ?? (uint)(r + 1));
+            var cells = matrix[r].Take(width).Select(c => EscapeMdCell(c));
+            sb.Append("| ").Append(rowNum).Append(" | ").Append(string.Join(" | ", cells)).AppendLine(" |");
+        }
+
+        sb.AppendLine($"<!-- refs like {sheetName}!A1 -->");
+        sb.AppendLine();
+    }
+
+    private static string ColLetter(int index)
+    {
+        var n = index;
+        var s = "";
+        do
+        {
+            s = (char)('A' + n % 26) + s;
+            n = n / 26 - 1;
+        } while (n >= 0);
+        return s;
+    }
+
+    private static string EscapeMdCell(string c) =>
+        (c ?? "").Replace("|", "\\|").Replace("\n", " ").Trim();
 
     /// <summary>Legacy markdown export (chat / convert paths).</summary>
     public static string XlsxToMarkdown(string path)
@@ -547,6 +616,28 @@ public sealed class OfficePreviewService
         }
         document.addEventListener('DOMContentLoaded',netieRenderMath);
         window.addEventListener('load',netieRenderMath);
+        function netiePostActiveSheet(name){
+          try{
+            if(window.chrome&&chrome.webview)
+              chrome.webview.postMessage(JSON.stringify({type:'activeSheet',name:name||''}));
+          }catch(e){}
+        }
+        function netieWireSheets(){
+          var sheets=document.querySelectorAll('.xlsx-sheet[data-sheet]');
+          if(!sheets.length)return;
+          var first=sheets[0].getAttribute('data-sheet');
+          if(first) netiePostActiveSheet(first);
+          sheets.forEach(function(el){
+            el.addEventListener('toggle',function(){
+              if(el.open) netiePostActiveSheet(el.getAttribute('data-sheet'));
+            });
+            el.addEventListener('click',function(){
+              netiePostActiveSheet(el.getAttribute('data-sheet'));
+            });
+          });
+        }
+        document.addEventListener('DOMContentLoaded',netieWireSheets);
+        window.addEventListener('load',netieWireSheets);
         </script>
         </head><body>{{body}}</body></html>
         """;

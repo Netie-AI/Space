@@ -178,7 +178,18 @@ internal static class Win32Api
     }
 
     public static bool IsExplorerShellClass(string className) =>
-        className is "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW";
+        className is "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW"
+            or "ShellTabWindowClass"; // Win11 tabbed Explorer host
+
+    /// <summary>Win11 File Explorer / Desktop chrome that lives under explorer.exe.</summary>
+    public static bool IsExplorerViewClass(string className) =>
+        className is "SysListView32" or "SHELLDLL_DefView" or "DirectUIHWND"
+            or "CabinetWClass" or "ExploreWClass" or "Progman" or "WorkerW"
+            or "ShellTabWindowClass"
+            or "Microsoft.UI.Content.DesktopChildSiteBridge"
+            or "InputSiteWindowClass"
+            or "UIXamlHostWindowClass"
+            or "XamlExplorerHostIslandWindow";
 
     public static bool TryFindExplorerShellWindow(IntPtr hwnd, out IntPtr shellHwnd, out string className)
     {
@@ -186,7 +197,7 @@ internal static class Win32Api
         className = string.Empty;
 
         var current = hwnd;
-        for (var i = 0; i < 12 && current != IntPtr.Zero; i++)
+        for (var i = 0; i < 24 && current != IntPtr.Zero; i++)
         {
             var cls = GetWindowClass(current);
             if (IsExplorerShellClass(cls))
@@ -196,9 +207,14 @@ internal static class Win32Api
                 return true;
             }
 
-            var parent = GetParent(current);
+            // Prefer GA_PARENT over GetParent — Win11 islands often break GetParent chains
+            var parent = GetAncestor(current, GaParent);
             if (parent == IntPtr.Zero || parent == current)
-                break;
+            {
+                parent = GetParent(current);
+                if (parent == IntPtr.Zero || parent == current)
+                    break;
+            }
             current = parent;
         }
 

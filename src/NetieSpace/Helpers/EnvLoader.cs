@@ -93,6 +93,17 @@ public static class EnvLoader
         return (gemini, groq, openRouter, seaLion);
     }
 
+    /// <summary>Display form: first 4 + … + last 4. Never log the return as a secret.</summary>
+    public static string MaskSecret(string? secret)
+    {
+        if (string.IsNullOrWhiteSpace(secret))
+            return "";
+        var s = secret.Trim();
+        if (s.Length <= 8)
+            return new string('•', Math.Min(s.Length, 8));
+        return $"{s[..4]}…{s[^4..]}";
+    }
+
     public static string FindProjectRoot()
     {
         var baseDir = AppContext.BaseDirectory;

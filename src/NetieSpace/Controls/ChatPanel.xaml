@@ -3,7 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <Border BorderBrush="{StaticResource GlassHighlight}" BorderThickness="1,0,0,0"
-            Background="#14000000">
+            Background="#1A10141C">
+        <!-- Translucent sheet material: content scrolls under chrome -->
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -12,51 +13,100 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <Border Grid.Row="0" Padding="20,18" BorderBrush="{StaticResource GlassHighlight}" BorderThickness="0,0,0,1">
-                <StackPanel>
-                    <TextBlock Text="AI Chat"
-                               FontFamily="{StaticResource DisplayFont}"
-                               Foreground="{StaticResource TextBrush}"
-                               FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="PDF: Ctrl+C → Look Up · other: right-click"
-                               FontFamily="{StaticResource BodyFont}"
-                               Foreground="{StaticResource MutedBrush}"
-                               FontSize="11.5" Margin="0,5,0,0"/>
-                </StackPanel>
-            </Border>
-
-            <ScrollViewer x:Name="MessagesScroll" Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto" Padding="18,14">
-                <StackPanel x:Name="MessagesPanel"/>
-            </ScrollViewer>
-
-            <Border Grid.Row="2" Margin="16,0,16,8" Padding="12" CornerRadius="14"
-                    Background="#1AFFFFFF" BorderBrush="#38FFFFFF" BorderThickness="1"
-                    Visibility="Collapsed" x:Name="SelectionBanner">
+            <Border Grid.Row="0" Padding="14,12,12,12"
+                    BorderBrush="{StaticResource GlassHighlight}" BorderThickness="0,0,0,1"
+                    Background="#33FFFFFF">
                 <DockPanel LastChildFill="True">
-                    <Button Content="Ask" DockPanel.Dock="Right" Margin="10,0,0,0"
-                            Style="{StaticResource AccentButton}" Click="AskSelection_Click"/>
-                    <TextBlock x:Name="SelectionText" TextWrapping="Wrap"
-                               FontFamily="{StaticResource BodyFont}"
-                               Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                    <Button DockPanel.Dock="Right" Content="✕" Width="36" Height="36" Margin="6,0,0,0"
+                            Style="{StaticResource IconCloseButton}" Click="CloseButton_Click"
+                            ToolTip="Close panel (chat stays saved on this file)"/>
+                    <StackPanel>
+                        <TextBlock x:Name="TitleText" Text="Notes &amp; chat"
+                                   FontFamily="{StaticResource DisplayFont}"
+                                   Foreground="{StaticResource TextBrush}"
+                                   FontSize="16" FontWeight="SemiBold"/>
+                        <TextBlock x:Name="SubtitleText" Text="Saved with this file · works offline as notes"
+                                   FontFamily="{StaticResource BodyFont}"
+                                   Foreground="{StaticResource MutedBrush}"
+                                   FontSize="11.5" Margin="0,3,0,8" TextWrapping="Wrap"
+                                   LineHeight="16"/>
+                        <WrapPanel>
+                            <Button Content="New" Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="NewChat_Click" ToolTip="Start a fresh thread (archives the current one)"/>
+                            <Button Content="History" Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="History_Click" ToolTip="Browse previous chats and notes for this file"/>
+                            <Button Content="Clear" Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="ClearChat_Click" ToolTip="Delete this file's saved chat"/>
+                            <Button x:Name="NotesOnlyButton" Content="Notes" Style="{StaticResource GhostButton}"
+                                    Padding="12,6" MinHeight="32" Margin="0,0,0,4" Click="NotesOnly_Click"
+                                    ToolTip="Save ideas without calling AI"/>
+                        </WrapPanel>
+                    </StackPanel>
                 </DockPanel>
             </Border>
 
-            <Border Grid.Row="3" Padding="16,12,16,16" BorderBrush="{StaticResource GlassHighlight}" BorderThickness="0,1,0,0">
+            <ScrollViewer x:Name="MessagesScroll" Grid.Row="1"
+                          VerticalScrollBarVisibility="Auto" Padding="14,12"
+                          Style="{StaticResource GlassScrollViewer}">
+                <StackPanel x:Name="MessagesPanel"/>
+            </ScrollViewer>
+
+            <!-- Staged assets: selections, region clips, parsed files. Nothing is sent until Send. -->
+            <Border Grid.Row="2" x:Name="AssetTray" Visibility="Collapsed"
+                    Margin="14,0,14,8" Padding="10,9,10,7" CornerRadius="14"
+                    Background="#1AFFFFFF" BorderBrush="#38FFFFFF" BorderThickness="1">
+                <StackPanel>
+                    <DockPanel Margin="2,0,2,7">
+                        <Button DockPanel.Dock="Right" x:Name="AssetClearButton" Content="Clear all"
+                                Style="{StaticResource GhostButton}" Padding="8,2" FontSize="11"
+                                Click="AssetClear_Click" ToolTip="Remove every staged attachment"/>
+                        <Button DockPanel.Dock="Right" x:Name="AssetLookupButton" Content="Look up"
+                                Style="{StaticResource GhostButton}" Padding="8,2" FontSize="11" Margin="0,0,6,0"
+                                Click="AssetLookup_Click" ToolTip="Define / explain the first text attachment now"/>
+                        <TextBlock x:Name="AssetTrayTitle" Text="Attachments"
+                                   FontFamily="{StaticResource DisplayFont}"
+                                   Foreground="{StaticResource Accent2Brush}"
+                                   FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </DockPanel>
+
+                    <ScrollViewer MaxHeight="150" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Style="{StaticResource GlassScrollViewer}">
+                        <WrapPanel x:Name="AssetStrip"/>
+                    </ScrollViewer>
+
+                    <TextBlock x:Name="AssetHint" Margin="2,4,2,0"
+                               Text="Add a question below, then Send — attachments go with it."
+                               FontFamily="{StaticResource BodyFont}"
+                               Foreground="{StaticResource MutedBrush}"
+                               FontSize="11" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Row="3" Padding="14,10,14,14" BorderBrush="{StaticResource GlassHighlight}" BorderThickness="0,1,0,0"
+                    Background="#28FFFFFF">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="InputBox" MinHeight="44" Padding="14,12"
+                    <TextBox x:Name="InputBox" MinHeight="44" MaxHeight="132" Padding="12,10"
                              Background="#1AFFFFFF" Foreground="{StaticResource TextBrush}"
                              BorderBrush="#38FFFFFF" BorderThickness="1"
+                             CaretBrush="{StaticResource AccentBrush}"
                              FontFamily="{StaticResource BodyFont}" FontSize="13.5"
                              TextWrapping="Wrap" AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto" KeyDown="InputBox_KeyDown"/>
-                    <Button x:Name="SendButton" Grid.Column="1" Content="Send"
-                            Margin="10,0,0,0" Style="{StaticResource AccentButton}"
-                            Click="SendButton_Click"/>
+                             VerticalScrollBarVisibility="Auto" KeyDown="InputBox_KeyDown"
+                             PreviewKeyDown="InputBox_PreviewKeyDown"
+                             ToolTip="Enter = send · Ctrl+Enter = new line · Notes mode saves without AI"/>
+                    <StackPanel Grid.Column="1" Orientation="Vertical" Margin="8,0,0,0">
+                        <Button x:Name="SendButton" Content="Send" MinHeight="44" MinWidth="88"
+                                Style="{StaticResource AccentButton}" Margin="0,0,0,6"
+                                Click="SendButton_Click"/>
+                        <Button x:Name="NoteButton" Content="Pin note" MinHeight="36"
+                                Style="{StaticResource GhostButton}" Padding="10,6"
+                                Click="PinNote_Click" ToolTip="Save as a note (no AI)"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
