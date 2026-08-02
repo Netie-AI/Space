@@ -8,7 +8,7 @@ file-type picker** so users can actually pick image/media targets.
 Run the suite any time:
 
 ```
-"D:\Netie Space\.venv\Scripts\python.exe" "D:\Netie Space\scripts\convert-stress\test_matrix.py"
+"D:\Space\.venv\Scripts\python.exe" "D:\Space\scripts\convert-stress\test_matrix.py"
 ```
 
 ## What the engine now supports (all tested)
@@ -22,7 +22,7 @@ Run the suite any time:
 | Audio | any audio container |
 
 `*` HEIC read/write needs `pillow-heif` — **not installed on D**. To enable:
-`"D:\Netie Space\.venv\Scripts\python.exe" -m pip install pillow-heif`. Without it, HEIC sources fail
+`"D:\Space\.venv\Scripts\python.exe" -m pip install pillow-heif`. Without it, HEIC sources fail
 cleanly (no crash); every other format works.
 
 Engine edges handled: src==dst is a no-op (not `SameFileError`); unsupported target returns
