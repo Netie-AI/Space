@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -21,22 +22,53 @@ public static class ImageOcrService
         if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
             return new OcrResult(false, "", "none", "Image missing");
 
-        var local = await TryTesseractAsync(imagePath, ct).ConfigureAwait(false);
-        if (local.Ok && local.Text.Trim().Length >= 20)
-            return local;
+        // Try several page-segmentation modes before giving up locally. The old code ran
+        // only --psm 3 (fully automatic), which is weak on the two shapes people
+        // actually photograph: a single uniform block, and sparse text such as a
+        // receipt or a form. A poor psm-3 read used to send the image to the cloud;
+        // now it just means we have not tried the right mode yet.
+        //
+        //   3  fully automatic (default)
+        //   6  a single uniform block of text
+        //  11  sparse text, find as much as possible in no particular order
+        var local = new OcrResult(false, "", "none", "Tesseract not installed");
+        foreach (var psm in new[] { 3, 6, 11 })
+        {
+            var attempt = await TryTesseractAsync(imagePath, ct, psm).ConfigureAwait(false);
+            if (attempt.Ok && attempt.Text.Trim().Length > local.Text.Trim().Length)
+                local = attempt;
+            if (local.Text.Trim().Length >= 20)
+                return local;
+        }
 
-        var baidu = await TryBaiduAsync(imagePath, ct).ConfigureAwait(false);
-        if (baidu.Ok)
-            return baidu;
+        // Cloud OCR is opt-in and off by default (Space#3). It used to fire whenever the
+        // local read returned under 20 characters, which inverted the risk: the fainter
+        // and more sensitive the document, the more likely it left the machine - with no
+        // prompt. NETIE.md promises the customer their data does not leave unless they
+        // say it can, so this now requires them to have said so.
+        if (CloudOcrEnabled())
+        {
+            var baidu = await TryBaiduAsync(imagePath, ct).ConfigureAwait(false);
+            if (baidu.Ok)
+                return baidu;
+        }
 
         if (local.Ok && local.Text.Trim().Length > 0)
             return local;
 
-        return new OcrResult(false, "", baidu.Engine != "none" ? baidu.Engine : local.Engine,
-            baidu.Error ?? local.Error ?? "OCR unavailable");
+        return new OcrResult(false, "", local.Engine,
+            local.Error ?? "OCR unavailable - install Tesseract, or enable cloud OCR in settings");
     }
 
-    private static async Task<OcrResult> TryTesseractAsync(string imagePath, CancellationToken ct)
+    /// <summary>Cloud OCR sends the image off the machine, so it is opt-in.</summary>
+    private static bool CloudOcrEnabled()
+    {
+        var v = Environment.GetEnvironmentVariable("NETIE_SPACE_OCR_CLOUD");
+        return string.Equals(v, "1", StringComparison.Ordinal)
+            || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<OcrResult> TryTesseractAsync(string imagePath, CancellationToken ct, int psm = 3)
     {
         var exe = FindTesseract();
         if (exe is null)
@@ -47,7 +79,7 @@ public static class ImageOcrService
             var psi = new ProcessStartInfo
             {
                 FileName = exe,
-                Arguments = $"\"{imagePath}\" stdout -l eng --psm 3",
+                Arguments = $"\"{imagePath}\" stdout -l eng --psm {psm}",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

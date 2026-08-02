@@ -265,31 +265,18 @@ public static class OpenVaultKeySync
             }
         }
 
-        // 2) Local password vault entries pointing at netie.space / license
-        if (string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(email))
-        {
-            try
-            {
-                var vault = new PasswordVaultService();
-                foreach (var e in vault.List())
-                {
-                    var hay = $"{e.Title} {e.Url} {e.Notes}".ToLowerInvariant();
-                    if (!hay.Contains("netie", StringComparison.Ordinal))
-                        continue;
-                    if (string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(e.Username))
-                        email = e.Username.Trim();
-                    if (string.IsNullOrWhiteSpace(password) && !string.IsNullOrWhiteSpace(e.Password))
-                        password = e.Password;
-                    if (!string.IsNullOrWhiteSpace(email) && !string.IsNullOrWhiteSpace(password))
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Warn($"password-vault login creds: {ex.Message}");
-            }
-        }
-
+        // There used to be a second step here that scanned the user's local password
+        // vault for ANY entry whose title, url or notes merely contained "netie" and
+        // took its username and password. Removed 2026-08-03 (Space#3).
+        //
+        // Two reasons. It is a materially different security posture from failing
+        // closed - the app was reading credentials the user stored for something else
+        // and never consented to share with it - and it was documented nowhere. And it
+        // is unnecessary: OpenVault owns credentials for this estate, so if the key is
+        // not there, the answer is to put it there, not to go looking.
+        //
+        // Fail closed. A missing credential returns (null, null) and auto-login is
+        // skipped, which the caller already handles.
         return (email?.Trim(), password);
     }
 
