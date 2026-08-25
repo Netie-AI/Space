@@ -1,0 +1,78 @@
+"""Contract checks for multi-source V1 polish (PARKING_LOT P5 + Clip)."""
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SESSION = ROOT / "src/NetieSpace/Services/VideoEditSession.cs"
+TIMELINE = ROOT / "src/NetieSpace/Services/Timeline/TimelineProject.cs"
+FFMPEG = ROOT / "src/NetieSpace/Services/FfmpegService.cs"
+PREVIEW = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs"
+PREVIEW_XAML = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml"
+PARKING = ROOT / "PARKING_LOT.md"
+
+
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def test_append_and_import_pack_without_overlap():
+    session = _read(SESSION)
+    timeline = _read(TIMELINE)
+    assert "public int AppendClip(" in session
+    assert "pack on the end (no overlap)" in session.lower() or "Pack a second/third video" in session
+    assert "HasMultipleSources" in session
+    assert "ApplyTo(TimelineProject" in session
+    assert "SplitAtPacked" in session
+    assert "ClipSourceEquals" in session
+    assert "public TimelineClip? ImportClip(" in timeline
+    assert "never lands on top" in timeline
+    assert "PackLinkedVideoAudio()" in timeline
+    assert "HasMultipleVideoSources" in timeline
+    assert "IReadOnlyList<(TimeSpan Start, TimeSpan End, string SourcePath)>" in timeline
+
+
+def test_export_keeps_fade_wipe_and_skips_primary_only_concat():
+    ffmpeg = _read(FFMPEG)
+    assert "HasMultipleVideoSources" in ffmpeg
+    assert "so a second/third V1 clip is not exported from the primary path" in ffmpeg
+    assert "xfade=transition=" in ffmpeg
+    assert "XfadeWipeName" in ffmpeg
+    assert "ProbeDurationAsync" in ffmpeg
+    assert "fade=t=in" in ffmpeg
+    assert "fade=t=out" in ffmpeg
+    # Simple concat must not run when mixed sources are on V1.
+    idx = ffmpeg.index("hasMultipleSources")
+    simple = ffmpeg.index("ExportKeptSegmentsAsync", idx)
+    assert "!hasMultipleSources" in ffmpeg[idx:simple]
+
+
+def test_add_clip_button_packs_on_v1_not_file_merge():
+    preview = _read(PREVIEW)
+    xaml = _read(PREVIEW_XAML)
+    start = preview.index("private async void AddVideoButton_Click")
+    end = preview.index("private async void RemoveBgButton_Click")
+    body = preview[start:end]
+    assert "AppendClip" in body
+    assert "ProbeDurationAsync" in body
+    assert "Add clip onto V1" in body
+    assert "MergeAsync" not in body
+    assert "PromptVideoSavePath(\"merged\")" not in body
+    assert 'Content="+ Clip"' in xaml
+    assert "packs after existing clips" in xaml
+    assert "WipeButton_Click" in preview
+    assert "TransitionKind.Wipe" in preview
+
+
+def test_parking_lot_p5_checked():
+    text = _read(PARKING)
+    assert "- [x] Multi-source V1 polish (+ Clip)" in text
+    assert "- [x] Transitions beyond fade; overlay text on canvas" in text
+
+
+if __name__ == "__main__":
+    test_append_and_import_pack_without_overlap()
+    test_export_keeps_fade_wipe_and_skips_primary_only_concat()
+    test_add_clip_button_packs_on_v1_not_file_merge()
+    test_parking_lot_p5_checked()
+    print("PASS test_video_multisource_v1")

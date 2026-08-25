@@ -563,7 +563,8 @@
                                             Click="ExportEditButton_Click"
                                             ToolTip="CapCut: export full packed timeline (all clips)"/>
                                     <Button x:Name="AddVideoButton" Content="+ Clip" Style="{StaticResource EditorChip}"
-                                            Click="AddVideoButton_Click"/>
+                                            Click="AddVideoButton_Click"
+                                            ToolTip="Add a second/third video onto V1 — packs after existing clips (no overlap). Drag to reorder. Fade/Wipe still burn on Export."/>
                                     <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,12,0" VerticalAlignment="Center"/>
                                     <!-- Buttons instead of ComboBox — custom ComboBox template crashed PreviewWindow XAML load -->
                                     <Button x:Name="ExportMatchButton" Content="Match" Style="{StaticResource EditorChip}"

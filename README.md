@@ -67,7 +67,7 @@ Keys load from `.env` and from **tray → API Keys…** (`%LOCALAPPDATA%\NetieSp
 | Preview | Select file in Explorer **or Desktop** → **Space** |
 | Close | **Space** again or **Esc** |
 | Next / prev file | While preview is open → **↓ / ↑** (or **→ / ←**) — Mac Quick Look style |
-| Video | Preview · **Mark In/Out** · **Trim** · **Cut Mid** · **+ Video** merge |
+| Video | Preview · **Mark In/Out** · **Trim** · **Cut Mid** · **+ Clip** onto V1 |
 | PDF tools | While viewing a PDF → **PDF ▾** merge / split / extract / rotate / reverse / sign stamp |
 | Convert to MD | **↓ MD** — saves next to original |
 | Convert to PDF | **↓ PDF** — saves next to original |

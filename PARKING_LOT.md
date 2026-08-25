@@ -70,7 +70,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Export progress + background toast (Space-safe)
 - [x] Delete UX: timeline toolbar + merge/black dialog
 - [ ] User-validated Select→Split→Drag→Delete→Fade→Export (gate to leave Pillar 1)
-- [ ] Multi-source V1 polish (+ Clip)
+- [x] Multi-source V1 polish (+ Clip)
 - [x] Transitions beyond fade; overlay text on canvas
 - [ ] Phase 3: richer ordered multi-clip merge UX
 

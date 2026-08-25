@@ -68,7 +68,6 @@ public partial class PreviewWindow : Window
     /// <summary>Clean PDF before any stamps — restamp from this so move+save never doubles.</summary>
     private string? _pdfStampBasePath;
     private CancellationTokenSource? _stampAutosaveCts;
-    private readonly Stack<List<(TimeSpan Start, TimeSpan End)>> _videoUndo = new();
     private bool _allowClose;
     private bool _bladeMode;
     private TimelineDragMode _timelineDrag = TimelineDragMode.None;
@@ -1413,9 +1412,10 @@ public partial class PreviewWindow : Window
 
         var dur = PreviewVideo.NaturalDuration.TimeSpan;
         VideoSlider.Maximum = Math.Max(0.001, dur.TotalSeconds);
-        _videoEdit.Reset(dur);
+        _videoEdit.Reset(dur, _currentFilePath);
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.ResetFromSource(_currentFilePath, dur);
+            _timeline.ResetFromSource(
+                _currentFilePath, dur, PreviewVideo.NaturalVideoWidth, PreviewVideo.NaturalVideoHeight);
         // Full-clip keep range so CapCut-light handles are usable immediately
         _markIn = TimeSpan.Zero;
         _markOut = dur;
@@ -1456,18 +1456,21 @@ public partial class PreviewWindow : Window
 
         PushVideoUndo();
         var pos = GetPlayhead();
-        if (!_videoEdit.SplitAt(pos))
+        var split = _videoEdit.HasMultipleSources
+            ? _videoEdit.SplitAtPacked(TimeSpan.FromSeconds(VideoSlider.Value))
+            : _videoEdit.SplitAt(pos);
+        if (!split)
         {
             ConvertStatusText.Text = "Split needs playhead inside a clip (not on an edge).";
             return;
         }
 
-        _timeline.SplitAt(pos);
-        if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+        SyncTimelineFromSession();
 
         // Reflect nearest kept edges on In/Out for trim handles
-        var idx = _videoEdit.IndexAt(pos);
+        var idx = _videoEdit.HasMultipleSources
+            ? _videoEdit.IndexAtPacked(TimeSpan.FromSeconds(VideoSlider.Value), fillGaps: false)
+            : _videoEdit.IndexAt(pos);
         if (idx >= 0)
         {
             var kept = _videoEdit.Kept;
@@ -1535,8 +1538,8 @@ public partial class PreviewWindow : Window
             : TimeSpan.FromSeconds(1);
 
         var ok = _videoEdit.DeleteSelectedOrAt(GetPlayhead());
-        if (ok && !string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+        if (ok)
+            SyncTimelineFromSession();
 
         if (ok && choice == "black")
         {
@@ -1598,7 +1601,7 @@ public partial class PreviewWindow : Window
         if (output is null)
             return;
 
-        _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath!);
+        SyncTimelineFromSession();
         _timeline.ExportPreset = ReadExportPreset();
         _timeline.FillGapsWithBlack = _videoEdit.FillGapsWithBlack;
 
@@ -2861,7 +2864,7 @@ public partial class PreviewWindow : Window
             };
             var label = new TextBlock
             {
-                Text = seg.IsBlack ? "Black" : selected ? $"▸ {seg.ClipIndex + 1}" : $"{seg.ClipIndex + 1}",
+                Text = ClipBlockLabel(seg, selected),
                 Foreground = Brushes.White,
                 FontSize = selected ? 12 : 11,
                 FontWeight = FontWeights.SemiBold,
@@ -2964,7 +2967,7 @@ public partial class PreviewWindow : Window
         if (parts.Length != 2 || !int.TryParse(parts[1], out var idx))
             return;
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+            SyncTimelineFromSession();
         var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(idx);
         if (clip is null) return;
 
@@ -3267,7 +3270,7 @@ public partial class PreviewWindow : Window
             if (_videoEdit.MoveClip(_dragClipIndex, target))
             {
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
-                    _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+                    SyncTimelineFromSession();
                 ConvertStatusText.Text = $"Moved clip → position {target + 1}. A1 audio rebuilt to stay locked.";
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
                     _timeline.EnsureAudioLinkedToVideo();
@@ -3315,12 +3318,12 @@ public partial class PreviewWindow : Window
 
         if (!_videoEdit.CanJoinToNext)
         {
-            ConvertStatusText.Text = "Wipe joins to the next clip — Split first, then select a clip that is not last.";
+            ConvertStatusText.Text = "Wipe joins to the next clip — Split or + Clip, then select a clip that is not last.";
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+            SyncTimelineFromSession();
         var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
         if (clip is null)
         {
@@ -3350,7 +3353,7 @@ public partial class PreviewWindow : Window
     private void ApplyFadeToSelected(TimeSpan? fadeIn, TimeSpan? fadeOut)
     {
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+            SyncTimelineFromSession();
         var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
         if (clip is null)
         {
@@ -3573,9 +3576,12 @@ public partial class PreviewWindow : Window
             if (track.Clips.Count == 0 && _videoEdit.HasSelection)
             {
                 var (a, b) = _videoEdit.Kept[_videoEdit.SelectedIndex];
+                var src = _videoEdit.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex).SourcePath;
+                if (string.IsNullOrWhiteSpace(src))
+                    src = _currentFilePath;
                 track.Clips.Add(new TimelineClip
                 {
-                    SourcePath = _currentFilePath,
+                    SourcePath = src,
                     SourceIn = a,
                     SourceOut = b,
                     TimelineStart = a,
@@ -3652,7 +3658,7 @@ public partial class PreviewWindow : Window
         {
             // Sync project then apply
             if (!string.IsNullOrWhiteSpace(_currentFilePath))
-                _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+                SyncTimelineFromSession();
             clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
         }
 
@@ -3674,7 +3680,7 @@ public partial class PreviewWindow : Window
     private void ApplySpeedToSelected(double speed)
     {
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+            SyncTimelineFromSession();
         var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
         if (clip is null)
             return;
@@ -3852,18 +3858,36 @@ public partial class PreviewWindow : Window
 
         var dlg = new OpenFileDialog
         {
-            Title = "Add video to merge",
+            Title = "Add clip onto V1",
             Filter = "Video|*.mp4;*.webm;*.mkv;*.mov;*.avi;*.m4v;*.wmv|All|*.*"
         };
         if (dlg.ShowDialog(this) != true)
             return;
 
-        var output = PromptVideoSavePath("merged");
-        if (output is null)
+        ConvertStatusText.Text = "Reading clip duration…";
+        var dur = await _ffmpeg.ProbeDurationAsync(dlg.FileName);
+        if (dur is null || dur <= TimeSpan.Zero)
+        {
+            ConvertStatusText.Text =
+                "Could not read that video’s duration (need FFmpeg). Run scripts/download-ffmpeg.ps1.";
             return;
+        }
 
-        await RunFfmpegAsync("Merging videos...", () =>
-            _ffmpeg.MergeAsync([_currentFilePath, dlg.FileName], output));
+        PushVideoUndo();
+        var idx = _videoEdit.AppendClip(dlg.FileName, dur.Value);
+        if (idx < 0)
+        {
+            ConvertStatusText.Text = "Clip too short to add.";
+            return;
+        }
+
+        SyncTimelineFromSession();
+        RefreshDeleteVisibility();
+        ScheduleTimelineLayout();
+        if (TimelineHintText is not null)
+            TimelineHintText.Text = _videoEdit.Describe();
+        ConvertStatusText.Text =
+            $"Added clip {idx + 1} on V1 ({IoPath.GetFileName(dlg.FileName)}) — packed after existing clips. Drag to reorder. Fade/Wipe still join on Export.";
     }
 
     private async void RemoveBgButton_Click(object sender, RoutedEventArgs e)
@@ -4466,29 +4490,46 @@ public partial class PreviewWindow : Window
         return dlg.ShowDialog(this) == true ? dlg.FileName : null;
     }
 
-    private void PushVideoUndo()
+    private void SyncTimelineFromSession()
     {
-        _videoUndo.Push(_videoEdit.Kept.Select(k => (k.Start, k.End)).ToList());
-        if (_videoUndo.Count <= 40)
+        if (string.IsNullOrWhiteSpace(_currentFilePath))
             return;
-        var keep = _videoUndo.Take(30).Reverse().ToList();
-        _videoUndo.Clear();
-        foreach (var s in keep.AsEnumerable().Reverse())
-            _videoUndo.Push(s);
+        _videoEdit.ApplyTo(_timeline, _currentFilePath);
     }
+
+    private string ClipBlockLabel(TimelineSegment seg, bool selected)
+    {
+        if (seg.IsBlack)
+            return "Black";
+        var name = "";
+        if (_videoEdit.HasMultipleSources &&
+            seg.ClipIndex >= 0 &&
+            seg.ClipIndex < _videoEdit.Clips.Count)
+        {
+            var path = _videoEdit.Clips[seg.ClipIndex].SourcePath;
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                var stem = IoPath.GetFileNameWithoutExtension(path);
+                if (stem.Length > 14)
+                    stem = stem[..12] + "…";
+                name = " " + stem;
+            }
+        }
+
+        return selected ? $"▸ {seg.ClipIndex + 1}{name}" : $"{seg.ClipIndex + 1}{name}";
+    }
+
+    private void PushVideoUndo() => _videoEdit.PushUndo();
 
     private void UndoVideoEdit()
     {
-        if (_videoUndo.Count == 0)
+        if (!_videoEdit.TryUndo())
         {
             ConvertStatusText.Text = "Nothing to undo";
             return;
         }
 
-        var prev = _videoUndo.Pop();
-        _videoEdit.RestoreKept(prev);
-        if (!string.IsNullOrWhiteSpace(_currentFilePath))
-            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath!);
+        SyncTimelineFromSession();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         ConvertStatusText.Text = "Undid last timeline edit";

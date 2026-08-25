@@ -243,12 +243,17 @@ public sealed class FfmpegService
             ? SiblingOutput(project.PrimarySourcePath, "timeline")
             : outputPath;
 
-        var estDuration = project.SourceDuration.TotalSeconds;
+        var estDuration = vTrack?.Clips.Sum(c => c.Duration.TotalSeconds) ?? 0;
+        if (estDuration <= 0)
+            estDuration = project.SourceDuration.TotalSeconds;
         if (estDuration <= 0 && kept.Count > 0)
             estDuration = kept.Sum(r => (r.End - r.Start).TotalSeconds);
         progress?.Report(new ExportProgressReport { Percent = 2, Message = "Preparing export…" });
 
-        if (!hasEffects && !hasOverlay && !hasLut && !hasA2 && kept.Count > 0)
+        var hasMultipleSources = project.HasMultipleVideoSources;
+        // Single-source keep list can stream-copy/concat. Mixed files must use per-clip sources
+        // so a second/third V1 clip is not exported from the primary path.
+        if (!hasEffects && !hasOverlay && !hasLut && !hasA2 && !hasMultipleSources && kept.Count > 0)
         {
             var simple = await ExportKeptSegmentsAsync(
                 project.PrimarySourcePath, kept, output, progress, estDuration, ct,
@@ -282,10 +287,20 @@ public sealed class FfmpegService
                     continue;
 
                 var src = string.IsNullOrWhiteSpace(clip.SourcePath) ? project.PrimarySourcePath : clip.SourcePath;
+                if (string.IsNullOrWhiteSpace(src) || !IoFile.Exists(src))
+                    return Fail($"Missing source for V1 clip: {src}");
                 var part = IoPath.Combine(dir, $"_ns_tlseg_{Guid.NewGuid():N}.mp4");
                 var vf = new StringBuilder();
                 if (clip.Speed > 0 && Math.Abs(clip.Speed - 1.0) > 0.01)
                     vf.Append($"setpts={1.0 / clip.Speed:0.####}*PTS");
+                // Mixed files often differ in size; normalize so concat/xfade wipe still joins.
+                if (hasMultipleSources)
+                {
+                    var nw = project.Width > 0 ? project.Width : 1920;
+                    var nh = project.Height > 0 ? project.Height : 1080;
+                    if (vf.Length > 0) vf.Append(',');
+                    vf.Append($"scale={nw}:{nh}:force_original_aspect_ratio=decrease,pad={nw}:{nh}:(ow-iw)/2:(oh-ih)/2,setsar=1");
+                }
                 // Wipe joins use xfade; skip per-clip fade on that edge so we do not double-darken.
                 if (clip.FadeIn > TimeSpan.Zero && clip.TransitionIn != Timeline.TransitionKind.Wipe)
                 {
@@ -721,6 +736,46 @@ public sealed class FfmpegService
         return result.Success ? output : null;
     }
 
+    /// <summary>Read media duration for packing a second/third clip onto V1.</summary>
+    public async Task<TimeSpan?> ProbeDurationAsync(string input, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(input) || !IoFile.Exists(input))
+            return null;
+
+        var probe = ResolveFfprobe();
+        if (!string.IsNullOrWhiteSpace(probe))
+        {
+            var secondsText = await RunTextAsync(
+                probe,
+                $"-v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"{input}\"",
+                ct);
+            if (double.TryParse(
+                    secondsText?.Trim(),
+                    System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var sec) &&
+                sec > 0 && !double.IsNaN(sec) && !double.IsInfinity(sec))
+                return TimeSpan.FromSeconds(sec);
+        }
+
+        if (!IsAvailable)
+            return null;
+
+        var stderr = await RunTextAsync(_ffmpegPath!, $"-hide_banner -i \"{input}\"", ct);
+        if (string.IsNullOrWhiteSpace(stderr))
+            return null;
+        var idx = stderr.IndexOf("Duration:", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0)
+            return null;
+        var rest = stderr[(idx + 9)..].TrimStart();
+        var end = rest.IndexOfAny([',', ' ', '\r', '\n']);
+        var token = end > 0 ? rest[..end] : rest;
+        if (TimeSpan.TryParse(token, System.Globalization.CultureInfo.InvariantCulture, out var ts) &&
+            ts > TimeSpan.Zero)
+            return ts;
+        return null;
+    }
+
     /// <summary>Public ffmpeg runner for helpers (whisper audio extract, etc.).</summary>
     public async Task<bool> RunPublicAsync(string args, string outputPath, CancellationToken ct = default)
     {
@@ -867,6 +922,63 @@ public sealed class FfmpegService
     private static void TryDelete(string path)
     {
         try { if (IoFile.Exists(path)) IoFile.Delete(path); } catch { /* ignore */ }
+    }
+
+    private static string? ResolveFfprobe()
+    {
+        static string? SiblingProbe(string ffmpegPath)
+        {
+            var dir = IoPath.GetDirectoryName(ffmpegPath);
+            if (string.IsNullOrWhiteSpace(dir))
+                return null;
+            foreach (var name in new[] { "ffprobe.exe", "ffprobe" })
+            {
+                var p = IoPath.Combine(dir, name);
+                if (IoFile.Exists(p))
+                    return p;
+            }
+
+            return null;
+        }
+
+        var root = EnvLoader.FindProjectRoot();
+        var bundled = SiblingProbe(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg.exe"))
+                      ?? SiblingProbe(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg"));
+        if (bundled is not null)
+            return bundled;
+
+        var baseBundled = SiblingProbe(IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", "ffmpeg.exe"))
+                          ?? SiblingProbe(IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", "ffmpeg"));
+        return baseBundled;
+    }
+
+    private static async Task<string?> RunTextAsync(string fileName, string args, CancellationToken ct)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = fileName,
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var process = Process.Start(psi);
+            if (process is null)
+                return null;
+            var stdout = process.StandardOutput.ReadToEndAsync(ct);
+            var stderr = process.StandardError.ReadToEndAsync(ct);
+            await process.WaitForExitAsync(ct);
+            var outText = await stdout;
+            var errText = await stderr;
+            return string.IsNullOrWhiteSpace(outText) ? errText : outText;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static string? ResolveFfmpeg()
