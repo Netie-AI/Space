@@ -51,14 +51,14 @@ DeepSeek-V4 compresses **KV along sequence** (CSA ~4, HCA ~128, SWA recent full)
 
 ## 3. WASM safety contract
 
-**Today:** `CortexOS/execution/wasm_isolate.py` — fuel + 4MiB, no FS/net, returns 42 (scaffold).
+**Today:** Space stub `scripts/cortex_wasm_isolate.py` + `CortexWasmPolicy.cs` (fuel + 4MiB, no FS/net, scaffold 42). CortexOS `wasm_isolate.py` still owns wasmtime when that repo is in play.
 
 **Ship stubs:**
-1. Deny-by-default imports (no WASI FS/network)
-2. Pack-policy fuel/memory ceilings
+1. Deny-by-default imports (no WASI FS/network) — done in Space stub
+2. Pack-policy fuel/memory ceilings — 50k fuel / 64 pages (4MiB)
 3. Hard timeout + kill; audit every run
-4. Tests: fuel exhaust, OOM pages, missing export, disabled via `CORTEX_WASM_DISABLED`
-5. Demo may disable; production default ON
+4. Tests: fuel exhaust, OOM pages, missing export, disabled via `CORTEX_WASM_DISABLED` (`tests/test_cortex_wasm_stubs.py`)
+5. Demo may disable; production default ON (env unset)
 
 Firecracker / full isolate stays in `PARKING_LOT` until enterprise client.
 

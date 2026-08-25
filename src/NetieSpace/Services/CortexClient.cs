@@ -53,7 +53,9 @@ public static class CortexClient
                 ["architecture_preset"] = "rag",
                 ["prompt"] = question,
                 ["rag_corpus"] = rag,
-                ["session_id"] = sessionId ?? Guid.NewGuid().ToString("N")
+                ["session_id"] = sessionId ?? Guid.NewGuid().ToString("N"),
+                ["wasm_policy"] = CortexWasmPolicy.ToPayload(),
+                ["ditch_budget_chars"] = DitchContext.DefaultBudgetChars
             };
 
             using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/api/engine/run");
@@ -97,8 +99,9 @@ public static class CortexClient
                 {
                     ["question"] = question,
                     ["pages"] = pages,
-                    ["budget_chars"] = 12_000
-                }
+                    ["budget_chars"] = DitchContext.DefaultBudgetChars
+                },
+                ["wasm_policy"] = CortexWasmPolicy.ToPayload()
             };
 
             using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/api/workflows/run");

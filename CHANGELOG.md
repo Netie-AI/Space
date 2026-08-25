@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- Cortex: Space sends WASM pack policy (deny WASI FS/net, 50k fuel, 4MiB, 2s kill) on sidecar calls; `CORTEX_WASM_DISABLED` skips isolate. Python stub + ditch-tier sidecar in `scripts/` with tests (fuel/OOM/missing export/timeout/disabled).
 - Video: **+ Clip** packs a second/third source onto V1 (no overlap; drag to reorder). Export uses per-clip sources so Fade/Wipe xfade still join mixed files.
 - Word/HTML: contenteditable preview editor with autosave. `.html`/`.htm` writes HTML; existing local `.docx` is rewritten via OpenXML (no new NuGet / no iText).
 - PPTX: Send slide chip (and Add to Chat on a deck) stages the visible slide PNG into ChatPanel — not a whole-deck screenshot.
