@@ -128,9 +128,14 @@ public sealed class GlobalKeyboardHook : IDisposable
             if (Win32Api.TryFindExplorerShellWindow(hwnd, out _, out _))
                 return true;
 
-            // Desktop listview / DefView child
+            // Win11 XAML islands / DirectUI: class alone is enough under explorer.exe
             var cls = Win32Api.GetWindowClass(hwnd);
-            if (cls is "SysListView32" or "SHELLDLL_DefView" or "Progman" or "WorkerW")
+            if (Win32Api.IsExplorerViewClass(cls))
+                return true;
+
+            // Root of an explorer window even when leaf class is unfamiliar
+            var root = Win32Api.GetRootWindow(hwnd);
+            if (root != IntPtr.Zero && Win32Api.IsExplorerViewClass(Win32Api.GetWindowClass(root)))
                 return true;
         }
 

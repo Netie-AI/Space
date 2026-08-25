@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using NetieSpace.Helpers;
 using NetieSpace.Services;
+using NetieSpace.Services.Licensing;
 
 namespace NetieSpace.Views;
 
@@ -10,53 +12,300 @@ public partial class ApiSetupWindow : Window
     private readonly AiService _ai;
     private readonly Action? _onSaved;
 
+    // In-memory copies for delete/add without ever showing full secrets in TextBoxes
+    private string _gemini = "";
+    private string _groq = "";
+    private string _seaLion = "";
+    private string _openRouter = "";
+
     public ApiSetupWindow(AiService ai, Action? onSaved = null)
     {
         InitializeComponent();
         _ai = ai;
         _onSaved = onSaved;
 
-        var (gemini, groq, openRouter, seaLion) = EnvLoader.ReadUserApiKeys();
-        GeminiKeyBox.Text = gemini;
-        GroqKeyBox.Text = groq;
-        SeaLionKeyBox.Text = seaLion;
-        OpenRouterKeyBox.Text = openRouter;
-        StatusText.Text = _ai.IsConfigured
-            ? $"Active provider: {_ai.ActiveProvider}"
-            : "No API key yet — preview still works; local free summary is used.";
+        ReloadMaskedFromEnv();
+        RefreshStatus();
 
-        BuyApiButton.IsEnabled = false;
-        BuyApiButton.ToolTip = "Currently unavailable";
+        LicenseStatusText.Text = LicenseStore.IsLicensedOffline()
+            ? "This device is licensed. You’re on the Netie path — BYO keys below are optional until Ult ships."
+            : "Not licensed yet on this device. Get a Netie plan first for the full product; keys below are the free FreeRoute/BYO path.";
+
         GlassHelper.ApplyGlass(this, 0.90);
+        _ = RefreshVaultStatusAsync();
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e) =>
-        AnimationHelper.AnimateOpen(RootBorder, 260);
+        AppleMotion.Materialize(RootBorder, AppleMotion.ResponseMs);
 
     private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
 
     private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
-    private void SaveButton_Click(object sender, RoutedEventArgs e)
+    private void ReloadMaskedFromEnv()
     {
-        EnvLoader.SaveUserApiKeys(
-            GroqKeyBox.Text,
-            OpenRouterKeyBox.Text,
-            GeminiKeyBox.Text,
-            SeaLionKeyBox.Text);
+        var keys = EnvLoader.ReadUserApiKeys();
+        _gemini = keys.Gemini?.Trim() ?? "";
+        _groq = keys.Groq?.Trim() ?? "";
+        _seaLion = keys.SeaLion?.Trim() ?? "";
+        _openRouter = keys.OpenRouter?.Trim() ?? "";
+        ApplyMaskUi();
+    }
+
+    private void ApplyMaskUi()
+    {
+        SetSlotUi(GeminiMaskText, GeminiDeleteBtn, GeminiAddBtn, GeminiAddRow, _gemini);
+        SetSlotUi(GroqMaskText, GroqDeleteBtn, GroqAddBtn, GroqAddRow, _groq);
+        SetSlotUi(SeaLionMaskText, SeaLionDeleteBtn, SeaLionAddBtn, SeaLionAddRow, _seaLion);
+        SetSlotUi(OpenRouterMaskText, OpenRouterDeleteBtn, OpenRouterAddBtn, OpenRouterAddRow, _openRouter);
+    }
+
+    private static void SetSlotUi(
+        System.Windows.Controls.TextBlock mask,
+        System.Windows.Controls.Button deleteBtn,
+        System.Windows.Controls.Button addBtn,
+        System.Windows.Controls.DockPanel addRow,
+        string value)
+    {
+        var has = !string.IsNullOrWhiteSpace(value);
+        mask.Text = has ? EnvLoader.MaskSecret(value) : "Not set";
+        mask.Foreground = has
+            ? (System.Windows.Media.Brush)Application.Current.FindResource("TextBrush")
+            : (System.Windows.Media.Brush)Application.Current.FindResource("MutedBrush");
+        deleteBtn.IsEnabled = has;
+        addBtn.IsEnabled = true;
+        addBtn.Content = has ? "Replace" : "Add new";
+    }
+
+    private void PersistKeys()
+    {
+        EnvLoader.SaveUserApiKeys(_groq, _openRouter, _gemini, _seaLion);
         _ai.ReloadProviders();
-        StatusText.Text = _ai.IsConfigured
-            ? $"Saved. Active provider: {_ai.ActiveProvider}"
-            : "Saved. No valid key detected — check the key and try again.";
+        ApplyMaskUi();
+        RefreshStatus();
         _onSaved?.Invoke();
     }
 
-    private void BuyApiButton_Click(object sender, RoutedEventArgs e)
+    private void RefreshStatus()
     {
+        StatusText.Text = _ai.IsConfigured
+            ? $"Active provider: {_ai.ActiveProvider}"
+            : "No BYO key yet — preview + notes still work.";
+    }
+
+    private async Task RefreshVaultStatusAsync()
+    {
+        try
+        {
+            VaultStatusText.Text = "Checking OpenVault…";
+            var ok = await OpenVaultKeySync.IsHealthyAsync().ConfigureAwait(true);
+            VaultStatusText.Text = ok
+                ? $"OpenVault online · {OpenVaultKeySync.OpenVaultBaseUrl}"
+                : $"OpenVault offline ({OpenVaultKeySync.OpenVaultBaseUrl}) — using local masked cache only.";
+        }
+        catch (Exception ex)
+        {
+            VaultStatusText.Text = $"OpenVault check failed: {ex.Message}";
+        }
+    }
+
+    // ── Per-slot delete / add ─────────────────────────────────────────────────
+
+    private void GeminiDelete_Click(object sender, RoutedEventArgs e)
+    {
+        _gemini = "";
+        GeminiAddRow.Visibility = Visibility.Collapsed;
+        GeminiNewBox.Password = "";
+        PersistKeys();
+        StatusText.Text = "Gemini key deleted.";
+    }
+
+    private void GeminiAdd_Click(object sender, RoutedEventArgs e)
+    {
+        GeminiAddRow.Visibility = Visibility.Visible;
+        GeminiNewBox.Password = "";
+        GeminiNewBox.Focus();
+    }
+
+    private void GeminiSaveNew_Click(object sender, RoutedEventArgs e)
+    {
+        var v = GeminiNewBox.Password?.Trim() ?? "";
+        if (v.Length < 8)
+        {
+            StatusText.Text = "Paste a full Gemini key, then Save.";
+            return;
+        }
+        _gemini = v;
+        GeminiNewBox.Password = "";
+        GeminiAddRow.Visibility = Visibility.Collapsed;
+        PersistKeys();
+        StatusText.Text = "Gemini key saved (masked).";
+    }
+
+    private void GroqDelete_Click(object sender, RoutedEventArgs e)
+    {
+        _groq = "";
+        GroqAddRow.Visibility = Visibility.Collapsed;
+        GroqNewBox.Password = "";
+        PersistKeys();
+        StatusText.Text = "Groq key deleted.";
+    }
+
+    private void GroqAdd_Click(object sender, RoutedEventArgs e)
+    {
+        GroqAddRow.Visibility = Visibility.Visible;
+        GroqNewBox.Password = "";
+        GroqNewBox.Focus();
+    }
+
+    private void GroqSaveNew_Click(object sender, RoutedEventArgs e)
+    {
+        var v = GroqNewBox.Password?.Trim() ?? "";
+        if (v.Length < 8)
+        {
+            StatusText.Text = "Paste a full Groq key, then Save.";
+            return;
+        }
+        _groq = v;
+        GroqNewBox.Password = "";
+        GroqAddRow.Visibility = Visibility.Collapsed;
+        PersistKeys();
+        StatusText.Text = "Groq key saved (masked).";
+    }
+
+    private void SeaLionDelete_Click(object sender, RoutedEventArgs e)
+    {
+        _seaLion = "";
+        SeaLionAddRow.Visibility = Visibility.Collapsed;
+        SeaLionNewBox.Password = "";
+        PersistKeys();
+        StatusText.Text = "SEA-LION key deleted.";
+    }
+
+    private void SeaLionAdd_Click(object sender, RoutedEventArgs e)
+    {
+        SeaLionAddRow.Visibility = Visibility.Visible;
+        SeaLionNewBox.Password = "";
+        SeaLionNewBox.Focus();
+    }
+
+    private void SeaLionSaveNew_Click(object sender, RoutedEventArgs e)
+    {
+        var v = SeaLionNewBox.Password?.Trim() ?? "";
+        if (v.Length < 8)
+        {
+            StatusText.Text = "Paste a full SEA-LION key, then Save.";
+            return;
+        }
+        _seaLion = v;
+        SeaLionNewBox.Password = "";
+        SeaLionAddRow.Visibility = Visibility.Collapsed;
+        PersistKeys();
+        StatusText.Text = "SEA-LION key saved (masked).";
+    }
+
+    private void OpenRouterDelete_Click(object sender, RoutedEventArgs e)
+    {
+        _openRouter = "";
+        OpenRouterAddRow.Visibility = Visibility.Collapsed;
+        OpenRouterNewBox.Password = "";
+        PersistKeys();
+        StatusText.Text = "OpenRouter key deleted.";
+    }
+
+    private void OpenRouterAdd_Click(object sender, RoutedEventArgs e)
+    {
+        OpenRouterAddRow.Visibility = Visibility.Visible;
+        OpenRouterNewBox.Password = "";
+        OpenRouterNewBox.Focus();
+    }
+
+    private void OpenRouterSaveNew_Click(object sender, RoutedEventArgs e)
+    {
+        var v = OpenRouterNewBox.Password?.Trim() ?? "";
+        if (v.Length < 8)
+        {
+            StatusText.Text = "Paste a full OpenRouter key, then Save.";
+            return;
+        }
+        _openRouter = v;
+        OpenRouterNewBox.Password = "";
+        OpenRouterAddRow.Visibility = Visibility.Collapsed;
+        PersistKeys();
+        StatusText.Text = "OpenRouter key saved (masked).";
+    }
+
+    private void BuyNetieButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://netie.space",
+                UseShellExecute = true
+            });
+        }
+        catch { /* ignore */ }
+
+        StatusText.Text =
+            "Opened netie.space — subscribe / activate, then return here. Tray → account login if you already have a code.";
         MessageBox.Show(
-            "Buy API is currently unavailable.\n\nPaste a free Google AI Studio, Groq, or SEA-LION key above.",
-            "Netie Space",
+            "Step 1: Get a Netie Space plan (recommended).\n" +
+            "Step 2: Activate this device (login / license).\n" +
+            "Step 3 (optional): Connect OpenVault or Add a free Gemini/Groq key for FreeRoute/BYO until Ult hosted AI is live.\n\n" +
+            "OpenVault is the custody SoT for keys and high-security secrets.",
+            "Netie subscription first",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
+    }
+
+    private void OpenGeminiSite_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://aistudio.google.com/apikey",
+                UseShellExecute = true
+            });
+            StatusText.Text = "Opened Google AI Studio — create a key, then Add new under Gemini.";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = ex.Message;
+        }
+    }
+
+    private async void ConnectOpenVault_Click(object sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Connecting to OpenVault…";
+        VaultStatusText.Text = "Syncing…";
+        try
+        {
+            var result = await OpenVaultKeySync.SyncApiKeysAsync().ConfigureAwait(true);
+            VaultStatusText.Text = result.Message;
+            ReloadMaskedFromEnv();
+            StatusText.Text = result.Synced
+                ? $"Synced {result.KeysPulled} key(s) from OpenVault (masked)."
+                : result.Message;
+            _onSaved?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            VaultStatusText.Text = ex.Message;
+            StatusText.Text = $"OpenVault: {ex.Message}";
+        }
+    }
+
+    private void OpenLocalVault_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            PasswordVaultWindow.ShowVault();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Local vault: {ex.Message}";
+        }
     }
 }

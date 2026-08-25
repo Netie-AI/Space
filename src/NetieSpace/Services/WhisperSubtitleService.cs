@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using NetieSpace.Helpers;
 
@@ -51,7 +52,25 @@ public sealed class WhisperSubtitleService
         return candidates.FirstOrDefault(IoFile.Exists);
     }
 
-    public async Task<string?> GenerateSrtAsync(string videoPath, CancellationToken ct = default)
+    public static int CountCues(string srtPath)
+    {
+        try
+        {
+            var text = IoFile.ReadAllText(srtPath);
+            return System.Text.RegularExpressions.Regex
+                .Split(text.Trim(), @"\r?\n\r?\n")
+                .Count(block => block.Contains("-->", StringComparison.Ordinal));
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    public async Task<string?> GenerateSrtAsync(
+        string videoPath,
+        IProgress<ExportProgressReport>? progress = null,
+        CancellationToken ct = default)
     {
         LastError = null;
         var cli = FindWhisperCli();
@@ -76,6 +95,7 @@ public sealed class WhisperSubtitleService
 
         try
         {
+            progress?.Report(new ExportProgressReport { Percent = 8, Message = "Extracting audio…" });
             var extract = await _ffmpeg.RunPublicAsync(
                 $"-y -i \"{videoPath}\" -vn -acodec pcm_s16le -ar 16000 -ac 1 \"{wav}\"",
                 wav, ct);
@@ -85,8 +105,10 @@ public sealed class WhisperSubtitleService
                 return null;
             }
 
+            progress?.Report(new ExportProgressReport { Percent = 28, Message = "Transcribing (whisper.cpp)…" });
+
             var threads = Math.Clamp(Environment.ProcessorCount, 2, 8);
-            var psi = new System.Diagnostics.ProcessStartInfo
+            var psi = new ProcessStartInfo
             {
                 FileName = cli,
                 Arguments =
@@ -97,13 +119,28 @@ public sealed class WhisperSubtitleService
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
-            using var p = System.Diagnostics.Process.Start(psi)
+            using var p = Process.Start(psi)
                           ?? throw new InvalidOperationException("Failed to start whisper-cli");
-            var stdoutTask = p.StandardOutput.ReadToEndAsync(ct);
-            var stderrTask = p.StandardError.ReadToEndAsync(ct);
+
+            var stderr = new System.Text.StringBuilder();
+            var whisperPercent = 28.0;
+            p.ErrorDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrEmpty(e.Data))
+                    return;
+                stderr.AppendLine(e.Data);
+                whisperPercent = Math.Min(88, whisperPercent + 0.35);
+                progress?.Report(new ExportProgressReport
+                {
+                    Percent = whisperPercent,
+                    Message = "Transcribing (whisper.cpp)…"
+                });
+            };
+            p.BeginErrorReadLine();
+
+            var stdout = await p.StandardOutput.ReadToEndAsync(ct);
             await p.WaitForExitAsync(ct);
-            var stdout = await stdoutTask;
-            var stderr = await stderrTask;
+            var stderrText = stderr.ToString();
 
             // Prefer exact path; also accept whisper writing into cwd
             if (!IoFile.Exists(srt))
@@ -118,7 +155,7 @@ public sealed class WhisperSubtitleService
 
             if (!IoFile.Exists(srt))
             {
-                var detail = string.IsNullOrWhiteSpace(stderr) ? stdout.Trim() : stderr.Trim();
+                var detail = string.IsNullOrWhiteSpace(stderrText) ? stdout.Trim() : stderrText.Trim();
                 if (detail.Length > 280) detail = detail[^280..];
                 LastError = string.IsNullOrWhiteSpace(detail)
                     ? $"whisper exited {p.ExitCode} — no SRT written."
@@ -126,8 +163,9 @@ public sealed class WhisperSubtitleService
                 return null;
             }
 
-            // Light timing normalize: clamp overlapping cues so burns look precise
+            progress?.Report(new ExportProgressReport { Percent = 92, Message = "Normalizing timings…" });
             NormalizeSrtTimings(srt);
+            progress?.Report(new ExportProgressReport { Percent = 100, Message = "Captions ready" });
 
             AppLogger.Info($"Captions → {srt}");
             return srt;

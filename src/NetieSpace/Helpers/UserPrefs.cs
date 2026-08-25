@@ -12,6 +12,20 @@ public static class UserPrefs
         set => Write("SummaryBarEnabled", value ? "1" : "0");
     }
 
+    /// <summary>Summary strip hidden by the collapse handle — purely visual, AI calls continue.</summary>
+    public static bool SummaryCollapsed
+    {
+        get => ReadBool("SummaryCollapsed", defaultValue: false);
+        set => Write("SummaryCollapsed", value ? "1" : "0");
+    }
+
+    /// <summary>Summary pulled into the left rail instead of the top strip.</summary>
+    public static bool SummaryDocked
+    {
+        get => ReadBool("SummaryDocked", defaultValue: false);
+        set => Write("SummaryDocked", value ? "1" : "0");
+    }
+
     public static bool StartupHudSeen
     {
         get => ReadBool("StartupHudSeen", defaultValue: false);

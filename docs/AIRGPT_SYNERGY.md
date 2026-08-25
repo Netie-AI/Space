@@ -1,6 +1,6 @@
 # Netie Space × AirGPT synergy
 
-**Netie** (`c:\Users\OoiJianHong\Netie Space`) = Space-key Quick Look + multi-track NLE + Acrobat-class PDF + Office fidelity.  
+**Netie** (`D:\Netie Space`) = Space-key Quick Look + multi-track NLE + Acrobat-class PDF + Office fidelity.  
 **AirGPT** (`D:\AirGPT`) = local-first AI clipboard/chat, vault, KaTeX reasoning, phone tunnel.
 
 Already aligned in `docs/ESUITE_VISION.md` and AirGPT `README.md` (Netie = control plane).

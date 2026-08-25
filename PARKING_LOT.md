@@ -47,7 +47,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Friendlier chat/summary errors
 - [x] SEA-LION in API Keys UI + `user.env`
 - [x] Token savings — see `docs/TOKEN_SAVINGS.md`
-- [ ] Port AirGPT `ditch_context` tiers into Netie conversation cache (loop Pillar 3)
+- [x] Port AirGPT `ditch_context` tiers into Netie conversation cache (`DitchContext.cs`)
 
 ## P2 — API product
 
@@ -83,7 +83,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] PDF toolkit menu
 - [x] Acrobat-class pdf.js viewer in WebView2 (ACTIVE — see P3)
 - [x] AirGPT `--preview "path"` CLI handoff
-- [ ] Vault ↔ Space bridge
+- [x] Vault ↔ Space bridge (`OpenVaultKeySync`)
 - [ ] Cortex sidecar ditch tiers + WASM stubs (parallel track)
 
 ## P3 — Acrobat-class PDF (ACTIVE · Loop Pillar 2 next)
@@ -109,7 +109,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 ## P4 — Image tools
 
 - [x] rembg Remove BG
-- [ ] Copy / drag-out cleaned image
+- [x] Copy / drag-out cleaned image
 - [ ] ComfyUI / Windows AI — park
 
 ## P6 — Product / Mac Space (Loop Pillar 3)

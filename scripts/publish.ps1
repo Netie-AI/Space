@@ -75,7 +75,7 @@ $publishArgs = @(
     '-c', 'Release',
     '-r', 'win-x64',
     '--self-contained', 'true',
-    '-p:PublishReadyToRun=true',
+    '-p:PublishReadyToRun=false',
     '-o', $dist
 )
 

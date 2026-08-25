@@ -155,26 +155,89 @@ public sealed class AiService
             return cachedChat!;
         }
 
-        var slim = history.Count > 0;
+        // Submit() already appended the user turn into history — do not duplicate it.
+        var historyForApi = history;
+        if (history.Count > 0 &&
+            string.Equals(history[^1].Role, "user", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(history[^1].Content, userMessage, StringComparison.Ordinal))
+        {
+            historyForApi = history.Take(history.Count - 1).ToList();
+        }
+
+        // Soft-fail Cortex escalation for long PDF / cross-page asks
+        if (PdfPageMaterializer.ShouldEscalateToCortex(content, userMessage) &&
+            !string.IsNullOrWhiteSpace(content.FilePath) &&
+            content.Kind == PreviewKind.Pdf &&
+            await CortexClient.IsHealthyAsync(ct).ConfigureAwait(false))
+        {
+            try
+            {
+                var pages = PdfPageMaterializer.ExtractPages(content.FilePath!);
+                var corpus = PdfPageMaterializer.ToRagCorpus(pages, userMessage);
+                if (corpus.Count > 0)
+                {
+                    var cortex = await CortexClient.AskWithRagAsync(userMessage, corpus, ct: ct)
+                        .ConfigureAwait(false);
+                    if (cortex.Ok && !string.IsNullOrWhiteSpace(cortex.Answer) &&
+                        !LocalSummaryService.LooksLikeProviderFailure(cortex.Answer))
+                    {
+                        AppLogger.Info($"Cortex RAG hit · run={cortex.RunId}");
+                        _memory.MarkDocumentPrimed(fp);
+                        return cortex.Answer;
+                    }
+
+                    // V2 soft try: document_qa workflow when template is registered
+                    var pagePayload = corpus.Select(c => new Dictionary<string, object?>
+                    {
+                        ["page"] = c.Page,
+                        ["text"] = c.Text,
+                        ["page_text"] = c.Text
+                    }).ToList();
+                    var qa = await CortexClient.AskDocumentQaAsync(userMessage, pagePayload, ct)
+                        .ConfigureAwait(false);
+                    if (qa.Ok && !string.IsNullOrWhiteSpace(qa.Answer) &&
+                        !LocalSummaryService.LooksLikeProviderFailure(qa.Answer))
+                    {
+                        AppLogger.Info($"Cortex document_qa hit · run={qa.RunId}");
+                        _memory.MarkDocumentPrimed(fp);
+                        return qa.Answer;
+                    }
+
+                    AppLogger.Warn($"Cortex soft-fail: {cortex.Error ?? qa.Error}");
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn($"Cortex escalation: {ex.Message}");
+            }
+        }
+
+        var slim = historyForApi.Count > 0;
+        var hasAttachmentPayload = userMessage.Contains("Attached context (", StringComparison.Ordinal);
         var messages = new List<ChatMessage>
         {
             new()
             {
                 Role = "system",
                 Content = "You are a helpful assistant answering questions about the currently previewed file. " +
-                          "Be concise and accurate.\n\n" +
-                          BuildDocumentPrompt(content, slim: slim)
+                          "Be concise and accurate. Prefer short markdown (bold for key terms). " +
+                          "Use a mermaid fenced block only when a diagram clearly helps.\n\n" +
+                          BuildDocumentPrompt(content, slim: slim || hasAttachmentPayload)
             }
         };
-        messages.AddRange(history);
+
+        messages.AddRange(historyForApi);
         messages.Add(new ChatMessage { Role = "user", Content = userMessage });
+        messages = DitchContext.Apply(messages);
 
         var huge = (content.RawText?.Length ?? 0) > HugeDocChars;
+        var visionContent = TryHydrateVisionFromMessage(content, userMessage);
+        var useVision = visionContent is not null && !string.IsNullOrWhiteSpace(visionContent.ImageBase64);
         // Prefer small model when doc is huge or follow-up (slim remnant) turn
         var reply = await CompleteAsync(
             messages,
-            useVision: false,
-            content,
+            useVision,
+            visionContent ?? content,
             ct,
             preferSmallModel: huge || slim);
 
@@ -203,18 +266,21 @@ public sealed class AiService
 
         var prompt = string.IsNullOrWhiteSpace(surroundingContext)
             ? $"Define and explain the word or phrase \"{word}\" clearly and concisely."
-            : $"Define and explain \"{word}\" in this context:\n\n\"{surroundingContext}\"";
+            : $"Look up \"{word}\" using this document context. Prefer the in-document sense " +
+              $"(location, nearby tokens, summary). If the selection looks truncated or misspelled, " +
+              $"correct it from the neighbors and briefly note the correction.\n\n{surroundingContext}";
 
         var answer = await CompleteAsync(
         [
             new ChatMessage
             {
                 Role = "system",
-                Content = "You are a concise dictionary and reference assistant. Provide a short definition, " +
-                          "part of speech if applicable, and one usage example."
+                Content = "You are a concise document-aware reference assistant. Give a short definition " +
+                          "tied to the provided context when present, part of speech if applicable, " +
+                          "and one usage example that fits the document."
             },
             new ChatMessage { Role = "user", Content = prompt }
-        ], useVision: false, null, ct, maxTokensOverride: 280, preferSmallModel: true);
+        ], useVision: false, null, ct, maxTokensOverride: 320, preferSmallModel: true);
 
         if (!string.IsNullOrWhiteSpace(answer) &&
             !LocalSummaryService.LooksLikeProviderFailure(answer))
@@ -534,6 +600,56 @@ public sealed class AiService
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// If the chat payload staged an image path (`[image] C:\...`), load bytes for vision models.
+    /// </summary>
+    private static PreviewContent? TryHydrateVisionFromMessage(PreviewContent content, string userMessage)
+    {
+        if (content.Kind == PreviewKind.Image && !string.IsNullOrWhiteSpace(content.ImageBase64))
+            return content;
+
+        var idx = userMessage.IndexOf("[image]", StringComparison.OrdinalIgnoreCase);
+        if (idx < 0) return content.Kind == PreviewKind.Image ? content : null;
+
+        var line = userMessage[idx..].Split('\n', 2)[0];
+        var path = line.Replace("[image]", "", StringComparison.OrdinalIgnoreCase).Trim();
+        if (string.IsNullOrWhiteSpace(path) || !System.IO.File.Exists(path))
+            return content.Kind == PreviewKind.Image ? content : null;
+
+        try
+        {
+            var bytes = System.IO.File.ReadAllBytes(path);
+            if (bytes.Length > 4_000_000)
+            {
+                var trimmed = new byte[4_000_000];
+                Buffer.BlockCopy(bytes, 0, trimmed, 0, trimmed.Length);
+                bytes = trimmed;
+            }
+            var ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            var mime = ext switch
+            {
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => "image/jpeg"
+            };
+            return new PreviewContent
+            {
+                FilePath = content.FilePath ?? path,
+                FileName = content.FileName ?? System.IO.Path.GetFileName(path),
+                Kind = PreviewKind.Image,
+                FileSizeBytes = content.FileSizeBytes,
+                RawText = content.RawText,
+                ImageBase64 = Convert.ToBase64String(bytes),
+                MimeType = mime
+            };
+        }
+        catch
+        {
+            return content.Kind == PreviewKind.Image ? content : null;
+        }
     }
 
     private static ApiMessage ToApiMessage(ChatMessage message, bool attachVision, PreviewContent? content)

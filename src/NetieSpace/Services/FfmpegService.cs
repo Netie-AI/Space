@@ -50,7 +50,7 @@ public sealed class FfmpegService
         TryDelete(output);
         var reencode = await RunAsync(
             $"-y -ss {FormatTs(start)} -to {FormatTs(end)} -i \"{input}\" " +
-            $"-c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{output}\"",
+            $"{ReencodeArgsFor(output)} \"{output}\"",
             output, ct);
         if (reencode.Success)
             return reencode;
@@ -119,7 +119,7 @@ public sealed class FfmpegService
 
             // Re-encode for safer merges across different codecs
             return await RunAsync(
-                $"-y -f concat -safe 0 -i \"{list}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
+                $"-y -f concat -safe 0 -i \"{list}\" {ReencodeArgsFor(outputPath)} \"{outputPath}\"",
                 outputPath, ct);
         }
         finally
@@ -204,7 +204,7 @@ public sealed class FfmpegService
 
             progress?.Report(new ExportProgressReport { Percent = 85, Message = "Merging clips…" });
             return await RunAsync(
-                $"-y -f concat -safe 0 -i \"{list}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{output}\"",
+                $"-y -f concat -safe 0 -i \"{list}\" {ReencodeArgsFor(output)} \"{output}\"",
                 output, progress, estDurationSec > 0 ? estDurationSec : null, ct);
         }
         finally
@@ -269,6 +269,7 @@ public sealed class FfmpegService
         IoDirectory.CreateDirectory(dir);
         var parts = new List<string>();
         var list = IoPath.Combine(dir, $"_ns_tl_{Guid.NewGuid():N}.txt");
+        string? concatTempPath = null;
 
         try
         {
@@ -330,6 +331,7 @@ public sealed class FfmpegService
             else
             {
                 concatPath = IoPath.Combine(dir, $"_ns_tlcat_{Guid.NewGuid():N}.mp4");
+                concatTempPath = concatPath;
                 var sb = new StringBuilder();
                 foreach (var p in parts)
                     sb.AppendLine($"file '{p.Replace("'", "'\\''")}'");
@@ -392,11 +394,12 @@ public sealed class FfmpegService
                 current = lutOut;
             }
 
-            // Move/copy to final then apply preset scale
+            // Move/transcode to final container then apply preset scale
             if (!string.Equals(current, output, StringComparison.OrdinalIgnoreCase))
             {
-                TryDelete(output);
-                IoFile.Copy(current, output, overwrite: true);
+                var finalize = await FinalizeToOutputAsync(current, output, ct);
+                if (!finalize.Success)
+                    return finalize;
                 if (current != concatPath && (parts.Count == 0 || current != parts[0]))
                     TryDelete(current);
             }
@@ -412,6 +415,8 @@ public sealed class FfmpegService
             foreach (var p in parts)
                 TryDelete(p);
             TryDelete(list);
+            if (concatTempPath is not null)
+                TryDelete(concatTempPath);
         }
     }
 
@@ -437,11 +442,10 @@ public sealed class FfmpegService
             return r;
 
         TryDelete(videoPath);
-        try { IoFile.Move(burned, videoPath); }
-        catch
-        {
-            return new FfmpegResult { Success = true, OutputPath = burned };
-        }
+        var finalize = await FinalizeToOutputAsync(burned, videoPath, ct);
+        TryDelete(burned);
+        if (!finalize.Success)
+            return finalize;
 
         AppLogger.Info($"Burned subtitles → {videoPath}");
         return new FfmpegResult { Success = true, OutputPath = videoPath };
@@ -465,11 +469,10 @@ public sealed class FfmpegService
             return r;
 
         TryDelete(inputPath);
-        try { IoFile.Move(scaled, inputPath); }
-        catch
-        {
-            return new FfmpegResult { Success = true, OutputPath = scaled };
-        }
+        var finalize = await FinalizeToOutputAsync(scaled, inputPath, ct);
+        TryDelete(scaled);
+        if (!finalize.Success)
+            return finalize;
 
         return new FfmpegResult { Success = true, OutputPath = inputPath };
     }
@@ -605,6 +608,45 @@ public sealed class FfmpegService
     }
 
     private static FfmpegResult Fail(string error) => new() { Success = false, Error = error };
+
+    /// <summary>Re-encode flags matched to the destination file extension (muxer + codecs).</summary>
+    private static string ReencodeArgsFor(string outputPath)
+    {
+        return IoPath.GetExtension(outputPath).ToLowerInvariant() switch
+        {
+            ".webm" => "-c:v libvpx-vp9 -crf 31 -b:v 0 -c:a libopus",
+            ".mkv" => "-c:v libx264 -preset veryfast -crf 23 -c:a aac",
+            ".mov" => "-c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart",
+            ".avi" => "-c:v libx264 -preset veryfast -crf 23 -c:a mp3",
+            _ => "-c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart"
+        };
+    }
+
+    /// <summary>Write intermediate H.264 MP4 to the user-chosen output path (copy or transcode).</summary>
+    private async Task<FfmpegResult> FinalizeToOutputAsync(
+        string intermediatePath,
+        string outputPath,
+        CancellationToken ct)
+    {
+        TryDelete(outputPath);
+        var ext = IoPath.GetExtension(outputPath).ToLowerInvariant();
+        if (ext is ".mp4" or ".m4v")
+        {
+            IoFile.Copy(intermediatePath, outputPath, overwrite: true);
+            return new FfmpegResult { Success = true, OutputPath = outputPath };
+        }
+
+        if (ext is ".mkv" or ".mov")
+        {
+            return await RunAsync(
+                $"-y -i \"{intermediatePath}\" -c copy \"{outputPath}\"",
+                outputPath, ct);
+        }
+
+        return await RunAsync(
+            $"-y -i \"{intermediatePath}\" {ReencodeArgsFor(outputPath)} \"{outputPath}\"",
+            outputPath, ct);
+    }
 
     private static string SiblingOutput(string input, string tag)
     {

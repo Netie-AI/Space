@@ -1,0 +1,13 @@
+{
+  "name": "netie-pdf-stress",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node stress.mjs all",
+    "phase1": "node stress.mjs phase1",
+    "fill": "node stress.mjs fill"
+  },
+  "devDependencies": {
+    "puppeteer-core": "^23.0.0"
+  }
+}

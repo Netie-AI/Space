@@ -28,6 +28,16 @@
       border: 2px solid transparent; background-clip: content-box; }
     *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.36); background-clip: content-box; }
     * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent; }
+    @media (prefers-reduced-motion: reduce) {
+      #toolbar button:active { transform: none !important; }
+      #viewer { scroll-behavior: auto !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      #toolbar {
+        background: #161c26 !important;
+        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+      }
+    }
     /* Liquid-glass toolbar — crisp chips, no glow halos */
     #toolbar {
       display: flex; gap: 6px; align-items: center; padding: 7px 12px; flex-wrap: wrap;
@@ -38,7 +48,10 @@
       background: var(--chip); color: var(--text); border: 1px solid var(--glass-border);
       border-radius: 12px; padding: 7px 11px; cursor: pointer;
       font: 700 12.5px "Segoe UI Variable Display", "Segoe UI", sans-serif;
-      letter-spacing: 0.01em; box-shadow: none; }
+      letter-spacing: 0.01em; box-shadow: none;
+      transition: transform 90ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    #toolbar button:active { transform: scale(0.97); }
     #toolbar button:hover { background: rgba(94, 196, 184, 0.22); border-color: rgba(94, 196, 184, 0.45); }
     #toolbar input[type="number"] {
       width: 52px; text-align: center; cursor: text; -moz-appearance: textfield;
@@ -70,14 +83,15 @@
     #thumbs .thumb-more { opacity: .7; font-size: 11px; text-align: center; padding: 6px 2px;
       font-weight: 700; background: var(--chip); border: 1px solid var(--glass-border);
       border-radius: 10px; color: var(--text); cursor: pointer; }
-    #viewer { flex: 1; overflow: auto; text-align: center; padding: 10px; position: relative;
-      cursor: default; scroll-behavior: auto; min-height: 0; }
-    #viewer.fit-mode { padding: 6px; }
+    #viewer { flex: 1; overflow: auto; text-align: center; padding: 14px 12px; position: relative;
+      cursor: default; scroll-behavior: auto; min-height: 0; background: #10141c; }
+    #viewer.fit-mode { padding: 14px 12px; }
     #viewer.single .page-wrap { display: none; }
-    #viewer.single .page-wrap.active-page { display: block; }
+    #viewer.single .page-wrap.active-page { display: block; margin: 0 auto; }
     #viewer.stamp-mode { cursor: grabbing; }
-    #pages { position: relative; display: inline-block; text-align: center; margin: 0 auto; }
-    .page-wrap { position: relative; margin: 0 auto 14px; display: block;
+    #pages { position: relative; display: inline-block; text-align: center; margin: 0 auto;
+      max-width: 100%; }
+    .page-wrap { position: relative; margin: 0 auto 16px; display: block; width: fit-content;
       box-shadow: 0 6px 24px #00000066; border-radius: 10px; overflow: hidden; background: #fff; }
     .page-wrap canvas { display: block; }
     #stampGhost { position: absolute; pointer-events: none; display: none; z-index: 40;
@@ -91,17 +105,61 @@
       border: 1px solid #0e1218; border-radius: 2px; right: -5px; bottom: -5px; cursor: nwse-resize; }
     .stamp-overlay.committed { border-color: #2a9a8e; background: #fffffff5; }
     .stamp-overlay.selected { border-color: #ffd64a; z-index: 35; background: #fffffff8; }
+    /* Acrobat Fill & Sign-style floating bar (A− / A+ / trash) */
+    #stampFloatBar {
+      display: none; position: fixed; z-index: 80; gap: 2px; align-items: center;
+      background: #2b6cb0; border-radius: 4px; padding: 3px 4px;
+      box-shadow: 0 2px 10px #0006; pointer-events: auto; }
+    #stampFloatBar button {
+      background: transparent; color: #fff; border: 0; border-radius: 3px;
+      width: 28px; height: 26px; cursor: pointer; font: 700 13px "Segoe UI", sans-serif;
+      line-height: 1; padding: 0; }
+    #stampFloatBar button:hover { background: rgba(255,255,255,0.18); }
+    #stampFloatBar button.sm { font-size: 11px; }
+    #stampFloatBar button.lg { font-size: 16px; }
+    #stampFloatBar button.trash { font-size: 14px; }
+    /* Fill & Sign typed-text boxes (Acrobat blue) */
+    #viewer.fill-mode { cursor: text; }
+    .fill-text { position: absolute; z-index: 32; box-sizing: border-box;
+      border: 1.5px solid #2b6cb0; background: rgba(219, 234, 254, 0.30);
+      color: #10141a; font-family: Helvetica, Arial, "Segoe UI", sans-serif;
+      padding: 0 3px; outline: none; cursor: text; white-space: pre;
+      overflow: visible; border-radius: 2px; user-select: text; }
+    .fill-text.active { border-color: #1a56a8; background: rgba(219, 234, 254, 0.45);
+      box-shadow: 0 0 0 1px #2b6cb055, 0 4px 14px #0004; }
+    .fill-cell-flash { position: absolute; z-index: 28; pointer-events: none;
+      background: rgba(43, 108, 176, 0.18); border: 1.5px solid #2b6cb0;
+      border-radius: 2px; transition: opacity 0.45s ease; }
+    #fillFloatBar {
+      display: none; position: fixed; z-index: 80; gap: 2px; align-items: center;
+      background: #2b6cb0; border-radius: 4px; padding: 3px 4px;
+      box-shadow: 0 2px 10px #0006; pointer-events: auto; }
+    #fillFloatBar button {
+      background: transparent; color: #fff; border: 0; border-radius: 3px;
+      width: 28px; height: 26px; cursor: pointer; font: 700 13px "Segoe UI", sans-serif;
+      line-height: 1; padding: 0; }
+    #fillFloatBar button:hover { background: rgba(255,255,255,0.18); }
+    #fillFloatBar button.sm { font-size: 11px; }
+    #fillFloatBar button.lg { font-size: 16px; }
+    #fillFloatBar button.trash { font-size: 14px; }
     .hl-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 12; }
     .hl-box { position: absolute; background: rgba(255, 214, 74, 0.42); border: 1.5px solid rgba(255, 196, 40, 0.9);
       border-radius: 3px; mix-blend-mode: multiply; }
+    /* Region marquee — Word-style "select area", crops + parses before AI */
+    .region-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 13; }
+    .region-box { position: absolute; background: rgba(94, 196, 184, 0.16);
+      border: 1.6px dashed rgba(94, 196, 184, 0.95); border-radius: 5px; box-sizing: border-box;
+      box-shadow: 0 2px 10px rgba(8, 12, 18, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
     .search-hit { position: absolute; background: rgba(94, 196, 184, 0.38);
       border: 1.5px solid rgba(94, 196, 184, 0.95); border-radius: 3px; box-sizing: border-box;
       pointer-events: none; z-index: 14; }
     .search-hit.current { background: rgba(255, 214, 74, 0.55); border-color: #ffd64a; }
-    #banner { display: none; position: sticky; left: 50%; top: 12px; transform: translateX(-50%);
+    /* Overlay, never in-flow: toggling the banner must not shift the pages
+       under the cursor (Acrobat's hint bar overlays the document too). */
+    #banner { display: none; position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
       background: #5ec4b8; color: #0e1218; padding: 10px 16px; border-radius: 12px;
-      font-weight: 800; z-index: 50; box-shadow: none; white-space: nowrap;
-      width: fit-content; margin: 0 auto 12px; }
+      font-weight: 800; z-index: 50; box-shadow: 0 4px 16px #0006; white-space: nowrap;
+      width: fit-content; }
     #status { margin-left: auto; opacity: 1; font-size: 12.5px; font-weight: 700; color: #e8ecf4;
       max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       text-shadow: 0 1px 0 #0006; }
@@ -123,7 +181,9 @@
     <button id="fit" title="Fit page to window (sharp, no stretch)">Fit</button>
     <button id="stampBtn" class="accent" title="Cancel signature placement">Cancel placement</button>
     <button id="stampConfirmBtn" class="accent hot" style="display:none" title="Legacy — auto-kept on drop">Keep stamp</button>
+    <button id="fillBtn" title="Fill &amp; type — click a table cell or line, then type">Fill text</button>
     <button id="hlBtn" title="Drag to highlight">Highlight</button>
+    <button id="regionBtn" title="Select area — drag a box over a table or figure to send it to chat">Select area</button>
     <div id="searchWrap">
       <button id="searchToggle" title="Search text in document">Search</button>
       <div id="searchPanel">
@@ -141,6 +201,16 @@
       <div id="pages"></div>
       <div id="stampGhost"><img id="stampImg" alt="signature"/></div>
     </div>
+  </div>
+  <div id="stampFloatBar" title="Resize or delete signature">
+    <button type="button" class="sm" id="stampSizeDown" title="Smaller">A</button>
+    <button type="button" class="lg" id="stampSizeUp" title="Larger">A</button>
+    <button type="button" class="trash" id="stampDeleteBtn" title="Delete">✕</button>
+  </div>
+  <div id="fillFloatBar" title="Resize text or delete box">
+    <button type="button" class="sm" id="fillSizeDown" title="Smaller text">A</button>
+    <button type="button" class="lg" id="fillSizeUp" title="Larger text">A</button>
+    <button type="button" class="trash" id="fillDeleteBtn" title="Delete text box">🗑</button>
   </div>
   <script type="module">
     import * as pdfjsLib from './build/pdf.mjs';
@@ -163,8 +233,13 @@
     let pendingPlacement = null;
     let pendingOverlay = null;
     let boxDrag = null;
-    let renderGen = 0;
+    let loadGen = 0;
     let formFields = [];
+    let fillMode = false;
+    /** @type {{id:string,page:number,xPt:number,yFromBottom:number,wPt:number,hPt:number,fontPt:number,text:string,snapped:string,el:HTMLElement|null}[]} */
+    let fillFields = [];
+    let activeFillId = null;
+    let fillPostTimer = 0;
     /** @type {{id:string,page:number,xPt:number,yFromBottom:number,stampW:number,stampH:number,dataUrl:string,el:HTMLElement}[]} */
     let overlays = [];
     /** @type {Map<number,{wrap:HTMLElement,canvas:HTMLCanvasElement,widthPt:number,heightPt:number,rendered:boolean}>} */
@@ -185,6 +260,7 @@
     const status = document.getElementById('status');
     const stampGhost = document.getElementById('stampGhost');
     const stampImg = document.getElementById('stampImg');
+    const stampFloatBar = document.getElementById('stampFloatBar');
     const banner = document.getElementById('banner');
     const stampBtn = document.getElementById('stampBtn');
     const stampConfirmBtn = document.getElementById('stampConfirmBtn');
@@ -192,6 +268,7 @@
     const pageTotal = document.getElementById('pageTotal');
 
     function post(msg) {
+      if (window.__netie) window.__netie.sent.push(typeof msg === 'string' ? { raw: msg } : msg);
       try {
         window.chrome?.webview?.postMessage(typeof msg === 'string' ? msg : JSON.stringify(msg));
       } catch (_) {}
@@ -199,24 +276,149 @@
 
     function uid() { return 's' + Math.random().toString(36).slice(2, 10); }
 
+    /** Selection + nearby tokens + page for Netie Look Up (host calls via ExecuteScript). */
+    window.netieGetLookupContext = function (radius) {
+      const r = Math.max(40, Math.min(200, radius | 0 || 100));
+      let word = '';
+      try { word = (window.getSelection && window.getSelection().toString()) || ''; } catch (_) {}
+      word = (word || '').trim();
+      let page = pageNum || 1;
+      let pageText = '';
+      try {
+        const sel = window.getSelection && window.getSelection();
+        const node = sel && sel.anchorNode;
+        const wrap = node && (node.nodeType === 1 ? node : node.parentElement)?.closest?.('.page-wrap');
+        if (wrap) {
+          const n = parseInt(wrap.dataset.page || wrap.getAttribute('data-page') || '0', 10);
+          if (n > 0) page = n;
+          const layer = wrap.querySelector('.textLayer') || wrap;
+          pageText = (layer.innerText || layer.textContent || '').replace(/\s+/g, ' ').trim();
+        }
+      } catch (_) {}
+      if (!pageText && pageMap.has(page)) {
+        try {
+          const entry = pageMap.get(page);
+          const layer = entry?.wrap?.querySelector?.('.textLayer') || entry?.wrap;
+          pageText = (layer?.innerText || layer?.textContent || '').replace(/\s+/g, ' ').trim();
+        } catch (_) {}
+      }
+      // Canvas-only PDF: use last search/extract cache if present
+      if (!pageText && window.__netiePageText && window.__netiePageText[page])
+        pageText = window.__netiePageText[page];
+      let nearby = '';
+      if (word && pageText) {
+        const lower = pageText.toLowerCase();
+        const needle = word.toLowerCase();
+        let idx = lower.indexOf(needle);
+        if (idx < 0 && needle.length >= 4) {
+          const tokens = pageText.split(/\s+/);
+          let best = -1, bestDist = 99, bestIdx = -1;
+          let cursor = 0;
+          for (let i = 0; i < tokens.length; i++) {
+            const t = tokens[i];
+            const pos = pageText.indexOf(t, cursor);
+            const dist = typeof levenshtein === 'function' ? levenshtein(t.toLowerCase(), needle) : 99;
+            const maxDist = Math.min(2, Math.floor(Math.max(needle.length, t.length) * 0.25));
+            if (dist <= maxDist && dist < bestDist) {
+              bestDist = dist; best = i; bestIdx = pos >= 0 ? pos : bestIdx;
+            }
+            if (pos >= 0) cursor = pos + t.length;
+          }
+          if (bestIdx >= 0) idx = bestIdx;
+          else if (best >= 0)
+            idx = pageText.toLowerCase().indexOf(tokens[best].toLowerCase());
+        }
+        if (idx >= 0) {
+          const start = Math.max(0, idx - r);
+          const end = Math.min(pageText.length, idx + word.length + r);
+          nearby = pageText.slice(start, end).trim();
+        }
+      }
+      if (!nearby && pageText)
+        nearby = pageText.slice(0, Math.min(pageText.length, r * 2)).trim();
+      return JSON.stringify({
+        word: word,
+        page: page,
+        nearby: nearby,
+        location: 'page ' + page
+      });
+    };
+
+    /** Async enrich: pull pdf.js text for current page into cache, then return lookup context. */
+    window.netieGetLookupContextAsync = async function (radius, fallbackWord) {
+      const page = pageNum || 1;
+      try {
+        if (pdf && (!window.__netiePageText || !window.__netiePageText[page])) {
+          window.__netiePageText = window.__netiePageText || {};
+          const p = await pdf.getPage(page);
+          const tc = await p.getTextContent();
+          window.__netiePageText[page] = (tc.items || []).map(i => i.str || '').join(' ').replace(/\s+/g, ' ').trim();
+        }
+      } catch (_) {}
+      let raw = window.netieGetLookupContext(radius);
+      try {
+        const obj = JSON.parse(raw);
+        if ((!obj.word || !obj.word.trim()) && fallbackWord)
+          obj.word = String(fallbackWord).trim();
+        if (obj.word && (!obj.nearby || !obj.nearby.trim()) && window.__netiePageText?.[page]) {
+          const pageText = window.__netiePageText[page];
+          const r = Math.max(40, Math.min(200, radius | 0 || 100));
+          const needle = obj.word.toLowerCase();
+          let idx = pageText.toLowerCase().indexOf(needle);
+          if (idx < 0 && needle.length >= 4) {
+            const tokens = pageText.split(/\s+/);
+            for (const t of tokens) {
+              if (typeof strictTokenMatch === 'function' && strictTokenMatch(t, needle)) {
+                idx = pageText.toLowerCase().indexOf(t.toLowerCase());
+                break;
+              }
+            }
+          }
+          if (idx >= 0) {
+            obj.nearby = pageText.slice(Math.max(0, idx - r), Math.min(pageText.length, idx + obj.word.length + r)).trim();
+          } else {
+            obj.nearby = pageText.slice(0, Math.min(pageText.length, r * 2)).trim();
+          }
+          obj.page = page;
+          obj.location = 'page ' + page;
+        }
+        return JSON.stringify(obj);
+      } catch (_) {
+        return raw;
+      }
+    };
+
     async function load() {
       if (!fileUrl) { status.textContent = 'No file'; return; }
+      const myLoad = ++loadGen;
       status.textContent = 'Opening…';
-      pdf = await pdfjsLib.getDocument(fileUrl).promise;
-      pageNum = 1;
+      // Cancel in-flight page renders before swapping documents
+      for (const e of pageMap.values()) { try { e.renderTask?.cancel(); } catch (_) {} }
+      const oldPdf = pdf;
+      const newPdf = await pdfjsLib.getDocument(fileUrl).promise;
+      if (myLoad !== loadGen) { try { newPdf.destroy(); } catch (_) {} return; }
+      pdf = newPdf;
+      if (oldPdf) { try { oldPdf.destroy(); } catch (_) {} }
+      // Reload (autosave, organize, …) must not steal the reading position
+      const returnTo = Math.min(Math.max(1, pageNum || 1), pdf.numPages);
+      pageNum = returnTo;
       pageInput.max = String(pdf.numPages);
-      pageInput.value = '1';
+      pageInput.value = String(returnTo);
       pageTotal.textContent = '/ ' + pdf.numPages;
       thumbCursor = 0;
       thumbs.innerHTML = '';
       await buildPageStack();
+      if (myLoad !== loadGen) return;
       await applyFit(false);
       await renderVisiblePages(true);
-      await renderThumbBatch();
-      scrollToPage(1, false);
+      if (myLoad !== loadGen) return;
+      scrollToPage(returnTo, false);
+      // Report ready as soon as the reading page is up — do NOT gate on 48 serial thumbnail
+      // rasterizations. Thumbnails fill in afterwards without holding time-to-interactive.
       post({ type: 'ready', pages: pdf.numPages });
       status.textContent = pdf.numPages + ' pages · fit · Continuous scroll on';
       applyViewMode();
+      Promise.resolve().then(() => { if (myLoad === loadGen) renderThumbBatch(); });
     }
 
     function applyViewMode() {
@@ -282,9 +484,18 @@
       const entry = pageMap.get(n);
       if (!entry || !pdf) return;
       if (entry.rendered && !force) return;
-      const gen = ++renderGen;
+      // Per-page generation + task handle: concurrent calls must never race one
+      // canvas ("Cannot use the same canvas during multiple render() operations"
+      // used to kill load()/reload and leave stale pixels on screen).
+      const myGen = entry.gen = (entry.gen || 0) + 1;
+      const myLoad = loadGen;
+      if (entry.renderTask) {
+        try { entry.renderTask.cancel(); } catch (_) {}
+        try { await entry.renderTask.promise; } catch (_) {}
+      }
+      if (myGen !== entry.gen || myLoad !== loadGen || !pdf) return;
       const page = await pdf.getPage(n);
-      if (gen !== renderGen && force !== true) return; // cancel stale zoom/travel renders
+      if (myGen !== entry.gen || myLoad !== loadGen) return;
       // Acrobat-style fit: CSS scale for layout; render buffer at scale×DPR so pixels stay sharp
       const cssScale = Math.min(4, Math.max(0.25, scale));
       const pixelScale = cssScale * dpr();
@@ -297,7 +508,6 @@
         w = Math.floor(w * f);
         h = Math.floor(h * f);
       }
-      if (gen !== renderGen && force !== true) return;
       entry.canvas.width = w;
       entry.canvas.height = h;
       entry.canvas.style.width = Math.floor(cssVp.width) + 'px';
@@ -305,13 +515,16 @@
       const ctx = entry.canvas.getContext('2d');
       const finalVp = page.getViewport({ scale: pixelScale * (w / renderVp.width) });
       const task = page.render({ canvasContext: ctx, viewport: finalVp });
+      entry.renderTask = task;
       try {
         await task.promise;
       } catch (e) {
-        if (gen !== renderGen) return;
+        if (entry.renderTask === task) entry.renderTask = null;
+        if (e?.name === 'RenderingCancelledException' || /destroyed/i.test(String(e?.message || ''))) return;
         throw e;
       }
-      if (gen !== renderGen && force !== true) return;
+      if (entry.renderTask === task) entry.renderTask = null;
+      if (myGen !== entry.gen || myLoad !== loadGen) return;
       entry.rendered = true;
 
       for (const hl of highlights.filter(x => x.page === n)) {
@@ -320,6 +533,7 @@
           hl.w * (w / entry.widthPt), hl.h * (h / entry.heightPt));
       }
       layoutOverlaysForPage(n);
+      layoutFillFieldsForPage(n);
       paintSearchHitsForPage(n);
     }
 
@@ -544,10 +758,14 @@
     function computeFitScale() {
       const entry = pageMap.get(pageNum);
       if (!entry) return scale;
-      const pad = continuous ? 16 : 12;
+      const pad = continuous ? 24 : 12;
       const availW = Math.max(40, viewer.clientWidth - pad);
       const availH = Math.max(40, viewer.clientHeight - pad);
-      // Fit entire page in view — letterbox only (no stretch, no CSS downscale blur)
+      // Continuous: fit WIDTH only — pages stay centered, stack for multi-page scroll.
+      // One-page mode: fit entire page in the viewport (letterbox, no stretch).
+      if (continuous) {
+        return Math.max(0.25, Math.min(4, availW / entry.widthPt));
+      }
       return Math.max(0.25, Math.min(4, Math.min(availW / entry.widthPt, availH / entry.heightPt)));
     }
 
@@ -559,11 +777,14 @@
         for (const e of pageMap.values()) e.rendered = false;
         await renderVisiblePages(true);
         layoutAllOverlays();
+        layoutAllFillFields();
         paintAllSearchHits();
       }
       scrollToPage(pageNum, false);
       document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
-      status.textContent = 'Fit — full page · sharp · resizes with window';
+      status.textContent = continuous
+        ? 'Fit width — pages centered · scroll for more'
+        : 'Fit — full page · sharp · resizes with window';
     }
 
     function syncPageFromScroll() {
@@ -740,9 +961,414 @@
       for (const o of overlays) layoutOverlay(o);
     }
 
+    let selectedOverlayId = null;
+
     function selectOverlay(id) {
+      selectedOverlayId = id;
       for (const o of overlays) o.el?.classList.toggle('selected', o.id === id);
+      positionStampFloatBar();
     }
+
+    /** Anchor scrolled out of the viewer → hide its HUD (Acrobat behaviour). */
+    function anchorOutOfView(r) {
+      const vr = viewer.getBoundingClientRect();
+      return r.bottom < vr.top || r.top > vr.bottom || r.right < vr.left || r.left > vr.right;
+    }
+
+    function positionStampFloatBar() {
+      if (!stampFloatBar) return;
+      const o = overlays.find(x => x.id === selectedOverlayId);
+      if (!o?.el || !o.el.isConnected) {
+        stampFloatBar.style.display = 'none';
+        return;
+      }
+      const r = o.el.getBoundingClientRect();
+      if (anchorOutOfView(r)) {
+        stampFloatBar.style.display = 'none';
+        return;
+      }
+      stampFloatBar.style.display = 'flex';
+      const barW = stampFloatBar.offsetWidth || 96;
+      let left = r.left + (r.width - barW) / 2;
+      let top = r.top - 34;
+      if (top < 8) top = r.bottom + 6;
+      left = Math.max(8, Math.min(left, window.innerWidth - barW - 8));
+      stampFloatBar.style.left = left + 'px';
+      stampFloatBar.style.top = top + 'px';
+    }
+
+    function postStampGeometry(o) {
+      if (!o) return;
+      post({
+        type: 'stampMoved',
+        id: o.id, page: o.page, xPt: o.xPt, yFromBottom: o.yFromBottom,
+        stampW: o.stampW, stampH: o.stampH
+      });
+    }
+
+    function scaleSelectedStamp(factor) {
+      const o = overlays.find(x => x.id === selectedOverlayId);
+      if (!o) return;
+      const nw = Math.max(24, o.stampW * factor);
+      const nh = Math.max(12, o.stampH * factor);
+      // Keep visual center stable when resizing via A+/A−
+      const cx = o.xPt + o.stampW / 2;
+      const cy = o.yFromBottom + o.stampH / 2;
+      o.stampW = nw;
+      o.stampH = nh;
+      o.xPt = Math.max(0, cx - nw / 2);
+      o.yFromBottom = Math.max(0, cy - nh / 2);
+      layoutOverlay(o);
+      positionStampFloatBar();
+      if (o.committed) postStampGeometry(o);
+      else pendingPlacement = o;
+    }
+
+    function deleteSelectedStamp() {
+      const o = overlays.find(x => x.id === selectedOverlayId);
+      if (!o) return;
+      const id = o.id;
+      o.el?.remove();
+      overlays = overlays.filter(x => x.id !== id);
+      if (pendingPlacement?.id === id) pendingPlacement = null;
+      if (pendingOverlay?.dataset?.id === id) pendingOverlay = null;
+      selectedOverlayId = null;
+      stampFloatBar.style.display = 'none';
+      post({ type: 'stampDeleted', id });
+      status.textContent = 'Signature removed';
+    }
+
+    document.getElementById('stampSizeDown')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scaleSelectedStamp(0.88);
+    });
+    document.getElementById('stampSizeUp')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scaleSelectedStamp(1.14);
+    });
+    document.getElementById('stampDeleteBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteSelectedStamp();
+    });
+    window.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Delete' || ev.key === 'Backspace') {
+        if (!selectedOverlayId) return;
+        const tag = (ev.target && ev.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable) return;
+        deleteSelectedStamp();
+        ev.preventDefault();
+      }
+    });
+
+    // ---------- Fill & Sign: click a cell / line, type, A / A / 🗑 ----------
+
+    const fillFloatBar = document.getElementById('fillFloatBar');
+    const fillBtn = document.getElementById('fillBtn');
+
+    function enterFillMode() {
+      if (stampMode || stampPending) exitStampMode();
+      highlightMode = false;
+      document.getElementById('hlBtn').classList.remove('on');
+      fillMode = true;
+      fillBtn.classList.add('on');
+      viewer.classList.add('fill-mode');
+      banner.style.display = 'block';
+      banner.textContent = 'Click a table cell or form line, then type · A / A / 🗑 above the box · autosaves';
+      status.textContent = 'Fill mode — click where you want to type';
+    }
+
+    function exitFillMode() {
+      if (!fillMode) return;
+      fillMode = false;
+      fillBtn.classList.remove('on');
+      viewer.classList.remove('fill-mode');
+      commitActiveFill();
+      banner.style.display = 'none';
+    }
+
+    /** AcroForm rect under a bottom-origin point, if the host pushed any. */
+    function fillFieldRectAt(page, xPt, yBotPt) {
+      for (const f of formFields) {
+        if (f.page !== page || f.w <= 6 || f.h <= 6) continue;
+        if (xPt >= f.x && xPt <= f.x + f.w && yBotPt >= f.y && yBotPt <= f.y + f.h)
+          return { xPt: f.x + 1, yFromBottom: f.y + 1, wPt: f.w - 2, hPt: f.h - 2 };
+      }
+      return null;
+    }
+
+    /**
+     * Acrobat-style table cell detection: scan the rendered canvas around the
+     * click for ruling lines (long continuous dark runs). Works for vector and
+     * scanned tables alike. Returns canvas-pixel rect of the cell interior.
+     */
+    function detectCellAt(entry, px, py) {
+      const cv = entry.canvas;
+      if (!cv.width || !cv.height) return null;
+      const pxPerPt = cv.width / entry.widthPt;
+      // 320pt was ~1600px²/click on a fit-scaled page (~11 MB getImageData, synchronous in the
+      // click handler). 170pt covers any real table cell / form line and cuts the read to ~1/3.
+      const win = Math.round(170 * pxPerPt);            // search radius ≈ 170 pt
+      const x0 = Math.max(0, Math.round(px - win)), x1 = Math.min(cv.width - 1, Math.round(px + win));
+      const y0 = Math.max(0, Math.round(py - win)), y1 = Math.min(cv.height - 1, Math.round(py + win));
+      const w = x1 - x0 + 1, h = y1 - y0 + 1;
+      if (w < 8 || h < 8) return null;
+      let data;
+      try { data = cv.getContext('2d', { willReadFrequently: true }).getImageData(x0, y0, w, h).data; }
+      catch (_) { return null; }
+      const darkAt = (x, y) => {
+        if (x < x0 || x > x1 || y < y0 || y > y1) return false;
+        const i = ((y - y0) * w + (x - x0)) * 4;
+        return data[i] * 0.3 + data[i + 1] * 0.59 + data[i + 2] * 0.11 < 130;
+      };
+      const spanPx = Math.max(6, Math.round(11 * pxPerPt)); // ruling must run ≥ ~11pt past the click
+      const cx = Math.round(px), cy = Math.round(py);
+      // A vertical ruling at column x: ≥88% dark across the local span (±1px slack for AA)
+      const vLine = (x) => {
+        const a = Math.max(y0, cy - spanPx), b = Math.min(y1, cy + spanPx);
+        if (b - a < spanPx) return false;
+        let hit = 0, total = 0;
+        for (let y = a; y <= b; y++) { total++; if (darkAt(x, y) || darkAt(x + 1, y) || darkAt(x - 1, y)) hit++; }
+        return hit / total > 0.88;
+      };
+      const hLine = (y) => {
+        const a = Math.max(x0, cx - spanPx), b = Math.min(x1, cx + spanPx);
+        if (b - a < spanPx) return false;
+        let hit = 0, total = 0;
+        for (let x = a; x <= b; x++) { total++; if (darkAt(x, y) || darkAt(x, y + 1) || darkAt(x, y - 1)) hit++; }
+        return hit / total > 0.88;
+      };
+      let left = -1, right = -1, top = -1, bottom = -1;
+      for (let x = cx - 2; x >= x0; x--) if (vLine(x)) { left = x; break; }
+      for (let x = cx + 2; x <= x1; x++) if (vLine(x)) { right = x; break; }
+      for (let y = cy - 2; y >= y0; y--) if (hLine(y)) { top = y; break; }
+      for (let y = cy + 2; y <= y1; y++) if (hLine(y)) { bottom = y; break; }
+      // Underline-only fields: bottom rule found, no side rules → box sits on the line
+      if (bottom >= 0 && (left < 0 || right < 0)) {
+        const hPx = Math.round(20 * pxPerPt);
+        if (top < 0 || bottom - top > hPx * 2.2)
+          return { x: Math.max(x0, cx - Math.round(70 * pxPerPt)), y: bottom - hPx - 2, w: Math.round(150 * pxPerPt), h: hPx, kind: 'line' };
+      }
+      if (left < 0 || right < 0 || top < 0 || bottom < 0) return null;
+      if (right - left < 8 || bottom - top < 6) return null;
+      return { x: left + 2, y: top + 2, w: right - left - 3, h: bottom - top - 3, kind: 'cell' };
+    }
+
+    function flashCell(entry, cellPx) {
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const sx = cr.width / entry.canvas.width, sy = cr.height / entry.canvas.height;
+      const el = document.createElement('div');
+      el.className = 'fill-cell-flash';
+      el.style.left = ((cr.left - wrapR.left) + cellPx.x * sx) + 'px';
+      el.style.top = ((cr.top - wrapR.top) + cellPx.y * sy) + 'px';
+      el.style.width = (cellPx.w * sx) + 'px';
+      el.style.height = (cellPx.h * sy) + 'px';
+      entry.wrap.appendChild(el);
+      setTimeout(() => { el.style.opacity = '0'; }, 350);
+      setTimeout(() => el.remove(), 900);
+    }
+
+    function createFillEl(f) {
+      const el = document.createElement('div');
+      el.className = 'fill-text';
+      el.contentEditable = 'true';
+      el.spellcheck = false;
+      el.dataset.id = f.id;
+      el.addEventListener('input', () => {
+        f.text = el.textContent || '';
+        scheduleFillPost();
+      });
+      el.addEventListener('focus', () => {
+        activeFillId = f.id;
+        el.classList.add('active');
+        positionFillFloatBar();
+      });
+      el.addEventListener('blur', () => {
+        el.classList.remove('active');
+        f.text = el.textContent || '';
+        postFillTexts(); // flush immediately — do not rely on debounce before Save/close
+        setTimeout(() => {
+          const still = fillFields.find(x => x.id === f.id);
+          if (!still) return;
+          const focusInBar = document.activeElement?.closest?.('#fillFloatBar');
+          if (document.activeElement !== el && !focusInBar) {
+            if (!(f.text || '').trim()) removeFillField(f.id);
+            else if (activeFillId === f.id) { activeFillId = null; positionFillFloatBar(); }
+          }
+        }, 120);
+      });
+      el.addEventListener('keydown', (ev) => {
+        ev.stopPropagation();               // typing must never hit stamp shortcuts
+        if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); el.blur(); }
+      });
+      el.addEventListener('mousedown', (ev) => ev.stopPropagation());
+      return el;
+    }
+
+    function layoutFillField(f) {
+      const entry = pageMap.get(f.page);
+      if (!entry || !f.el) return;
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const kx = cr.width / entry.widthPt;
+      const ky = cr.height / entry.heightPt;
+      f.el.style.left = ((cr.left - wrapR.left) + f.xPt * kx) + 'px';
+      f.el.style.top = ((cr.top - wrapR.top) + (entry.heightPt - f.yFromBottom - f.hPt) * ky) + 'px';
+      f.el.style.width = Math.max(10, f.wPt * kx) + 'px';
+      f.el.style.height = Math.max(8, f.hPt * ky) + 'px';
+      f.el.style.fontSize = Math.max(6, f.fontPt * ky) + 'px';
+      f.el.style.lineHeight = Math.max(8, f.hPt * ky) + 'px';
+      if (f.el.parentElement !== entry.wrap) entry.wrap.appendChild(f.el);
+      if (f.el.textContent !== f.text) f.el.textContent = f.text;
+    }
+
+    function layoutFillFieldsForPage(n) {
+      for (const f of fillFields.filter(x => x.page === n)) layoutFillField(f);
+    }
+
+    function layoutAllFillFields() {
+      for (const f of fillFields) layoutFillField(f);
+    }
+
+    function positionFillFloatBar() {
+      if (!fillFloatBar) return;
+      const f = fillFields.find(x => x.id === activeFillId);
+      if (!f?.el || !f.el.isConnected) { fillFloatBar.style.display = 'none'; return; }
+      const r = f.el.getBoundingClientRect();
+      if (anchorOutOfView(r)) { fillFloatBar.style.display = 'none'; return; }
+      fillFloatBar.style.display = 'flex';
+      const barW = fillFloatBar.offsetWidth || 96;
+      let left = r.left + (r.width - barW) / 2;
+      let top = r.top - 34;
+      if (top < 8) top = r.bottom + 6;
+      left = Math.max(8, Math.min(left, window.innerWidth - barW - 8));
+      fillFloatBar.style.left = left + 'px';
+      fillFloatBar.style.top = top + 'px';
+    }
+
+    function scaleActiveFill(k) {
+      const f = fillFields.find(x => x.id === activeFillId);
+      if (!f) return;
+      f.fontPt = Math.min(48, Math.max(6, f.fontPt * k));
+      if (f.snapped !== 'cell' && f.snapped !== 'acroform')
+        f.hPt = Math.max(f.hPt, f.fontPt * 1.4);   // free boxes grow with the text
+      layoutFillField(f);
+      positionFillFloatBar();
+      scheduleFillPost();
+    }
+
+    function removeFillField(id) {
+      const f = fillFields.find(x => x.id === id);
+      if (!f) return;
+      f.el?.remove();
+      fillFields = fillFields.filter(x => x.id !== id);
+      if (activeFillId === id) activeFillId = null;
+      positionFillFloatBar();
+      scheduleFillPost();
+      status.textContent = 'Text box removed';
+    }
+
+    function commitActiveFill() {
+      const f = fillFields.find(x => x.id === activeFillId);
+      if (f?.el && document.activeElement === f.el) f.el.blur();
+    }
+
+    function scheduleFillPost() {
+      clearTimeout(fillPostTimer);
+      fillPostTimer = setTimeout(postFillTexts, 120);
+    }
+
+    function postFillTexts() {
+      clearTimeout(fillPostTimer);
+      fillPostTimer = null;
+      post({
+        type: 'fillTexts',
+        texts: fillFields.filter(f => (f.text || '').trim()).map(f => ({
+          id: f.id, page: f.page, xPt: f.xPt, yFromBottom: f.yFromBottom,
+          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text
+        }))
+      });
+    }
+
+    function flushAllToHost() {
+      commitActiveFill();
+      clearTimeout(fillPostTimer);
+      fillPostTimer = null;
+      for (const o of overlays.filter(x => x.committed && x.el)) {
+        placementFromOverlayCss(o);
+        postStampGeometry(o);
+      }
+      postFillTexts();
+      post({
+        type: 'flushReady',
+        stamps: overlays.filter(x => x.committed).length,
+        fills: fillFields.filter(f => (f.text || '').trim()).length
+      });
+    }
+
+    pagesEl.addEventListener('click', (ev) => {
+      if (!fillMode || stampMode || stampPending || boxDrag) return;
+      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('.fill-text')) return;
+      commitActiveFill();
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) return;
+      const xPt = (p.x / p.entry.canvas.width) * p.entry.widthPt;
+      const yBotPt = p.entry.heightPt - (p.y / p.entry.canvas.height) * p.entry.heightPt;
+      let rect = fillFieldRectAt(p.page, xPt, yBotPt);
+      let snapped = rect ? 'acroform' : '';
+      if (!rect) {
+        const cell = detectCellAt(p.entry, p.x, p.y);
+        if (cell) {
+          rect = {
+            xPt: (cell.x / p.entry.canvas.width) * p.entry.widthPt,
+            yFromBottom: p.entry.heightPt - ((cell.y + cell.h) / p.entry.canvas.height) * p.entry.heightPt,
+            wPt: (cell.w / p.entry.canvas.width) * p.entry.widthPt,
+            hPt: (cell.h / p.entry.canvas.height) * p.entry.heightPt
+          };
+          snapped = cell.kind;
+          flashCell(p.entry, cell);
+        }
+      }
+      if (!rect) {
+        const wPt = 150, hPt = 20;    // free text box right where you clicked
+        rect = { xPt: Math.max(0, Math.min(xPt - 4, p.entry.widthPt - wPt)), yFromBottom: Math.max(0, yBotPt - hPt / 2), wPt, hPt };
+      }
+      const f = {
+        id: uid(), page: p.page,
+        xPt: rect.xPt, yFromBottom: rect.yFromBottom, wPt: rect.wPt, hPt: rect.hPt,
+        fontPt: Math.min(28, Math.max(7, rect.hPt * 0.58)),
+        text: '', snapped, el: null
+      };
+      f.el = createFillEl(f);
+      fillFields.push(f);
+      layoutFillField(f);
+      f.el.focus();
+      activeFillId = f.id;
+      positionFillFloatBar();
+      status.textContent = snapped === 'cell' ? 'Snapped to table cell — type'
+        : snapped === 'acroform' ? 'Snapped to form field — type'
+        : snapped === 'line' ? 'On the line — type'
+        : 'Type here · A / A / 🗑 above the box';
+    });
+
+    // Keep focus in the text box while clicking A+/A− (Acrobat behaviour)
+    fillFloatBar.addEventListener('mousedown', (ev) => {
+      if (ev.target?.id !== 'fillDeleteBtn') ev.preventDefault();
+    });
+    document.getElementById('fillSizeDown')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scaleActiveFill(0.87);
+    });
+    document.getElementById('fillSizeUp')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      scaleActiveFill(1.15);
+    });
+    document.getElementById('fillDeleteBtn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (activeFillId) removeFillField(activeFillId);
+    });
+    fillBtn.onclick = () => { fillMode ? exitFillMode() : enterFillMode(); };
 
     function placementFromOverlayCss(o) {
       const entry = pageMap.get(o.page);
@@ -845,6 +1471,7 @@
     }
 
     function enterStampMode(dataUrl) {
+      exitFillMode();
       clearUncommitted();
       if (dataUrl) {
         stampDataUrl = dataUrl;
@@ -853,14 +1480,16 @@
       stampMode = true;
       stampPending = false;
       highlightMode = false;
-      dragging = true;
+      // Do NOT arm dragging here — a leftover mouseup from the dialog/toolbar
+      // would place off-page and leave the user thinking Sign is broken.
+      dragging = false;
       viewer.classList.add('stamp-mode');
       banner.style.display = 'block';
-      banner.textContent = 'Drag onto page — drop where you want (Shift = snap to field)';
+      banner.textContent = 'Click the page to place — then drag the box anytime';
       stampBtn.classList.add('active', 'hot');
       stampBtn.textContent = 'Cancel placement';
       stampConfirmBtn.style.display = 'none';
-      status.textContent = 'Follow cursor — scroll ok · release to place';
+      status.textContent = 'Move over the page · click to place (Shift = snap to field)';
     }
 
     function clearUncommitted() {
@@ -887,6 +1516,8 @@
     function clearAllOverlays() {
       for (const o of overlays) o.el?.remove();
       overlays = [];
+      selectedOverlayId = null;
+      if (stampFloatBar) stampFloatBar.style.display = 'none';
       clearUncommitted();
     }
 
@@ -905,10 +1536,22 @@
       }
     });
 
+    // Scroll fires faster than frames on precision touchpads — coalesce the relayout into one rAF.
+    let scrollRafPending = false;
     viewer.addEventListener('scroll', () => {
-      if (stampMode && !stampPending && lastPointer) moveGhost(lastPointer);
-      layoutAllOverlays();
-      syncPageFromScroll();
+      // Banner is a single cheap write; keep it immediate so it never lags the page.
+      banner.style.top = (viewer.scrollTop + 12) + 'px';
+      if (scrollRafPending) return;
+      scrollRafPending = true;
+      requestAnimationFrame(() => {
+        scrollRafPending = false;
+        if (stampMode && !stampPending && lastPointer) moveGhost(lastPointer);
+        layoutAllOverlays();
+        layoutAllFillFields();
+        positionStampFloatBar();
+        positionFillFloatBar();
+        syncPageFromScroll();
+      });
       // Lazy render as you scroll to the end — no mid-doc cap
       clearTimeout(viewer._scrollTimer);
       viewer._scrollTimer = setTimeout(() => renderVisiblePages(false), 40);
@@ -916,8 +1559,19 @@
 
     viewer.addEventListener('mousedown', (ev) => {
       if (!stampMode || stampPending) return;
+      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('#stampFloatBar')) return;
       dragging = true;
       moveGhost(ev);
+      ev.preventDefault();
+    });
+
+    // Click-to-place (Acrobat-style) — also handles mouseup after mousedown on page
+    viewer.addEventListener('click', (ev) => {
+      if (!stampMode || stampPending || !stampDataUrl) return;
+      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('#stampFloatBar')) return;
+      if (ev.target.closest?.('#banner')) return;
+      placeStamp(ev);
+      dragging = false;
       ev.preventDefault();
     });
 
@@ -926,24 +1580,16 @@
         const o = overlays.find(x => x.id === boxDrag.id);
         if (o) {
           placementFromOverlayCss(o);
-          if (o.committed) {
-            post({
-              type: 'stampMoved',
-              id: o.id, page: o.page, xPt: o.xPt, yFromBottom: o.yFromBottom,
-              stampW: o.stampW, stampH: o.stampH
-            });
-          } else {
-            pendingPlacement = o;
-          }
+          if (o.committed) postStampGeometry(o);
+          else pendingPlacement = o;
+          positionStampFloatBar();
         }
         boxDrag = null;
         ev.preventDefault();
         return;
       }
-      if (stampMode && dragging && !stampPending) {
-        placeStamp(ev);
-        ev.preventDefault();
-      }
+      // Placement is handled by viewer click — do not place on random window mouseups
+      dragging = false;
     });
 
     let hlDrag = null;
@@ -1004,6 +1650,115 @@
       hlDrag = null;
     }, true);
 
+    // ── Region marquee: crop the page + parse the text under the box, then stage in chat ──
+    let regionDrag = null;
+
+    function setRegionMode(on) {
+      regionMode = !!on;
+      if (regionMode) { exitStampMode(); exitFillMode(); highlightMode = false;
+        document.getElementById('hlBtn')?.classList.remove('on'); }
+      document.getElementById('regionBtn')?.classList.toggle('on', regionMode);
+      pagesEl.style.cursor = regionMode ? 'crosshair' : '';
+      status.textContent = regionMode ? 'Drag a box over a table or figure — releases to chat' : '';
+    }
+
+    pagesEl.addEventListener('mousedown', (ev) => {
+      if (!regionMode || stampMode || stampPending) return;
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) return;
+      regionDrag = { page: p.page, entry: p.entry, x0: p.x, y0: p.y, x1: p.x, y1: p.y, el: null };
+      let layer = p.entry.wrap.querySelector('.region-layer');
+      if (!layer) { layer = document.createElement('div'); layer.className = 'region-layer'; p.entry.wrap.appendChild(layer); }
+      layer.querySelectorAll('.region-box').forEach(n => n.remove());
+      const box = document.createElement('div');
+      box.className = 'region-box';
+      layer.appendChild(box);
+      regionDrag.el = box;
+      ev.preventDefault();
+      ev.stopPropagation();
+    });
+
+    viewer.addEventListener('mousemove', (ev) => {
+      if (!regionDrag) return;
+      const r = regionDrag.entry.canvas.getBoundingClientRect();
+      regionDrag.x1 = (ev.clientX - r.left) * (regionDrag.entry.canvas.width / r.width);
+      regionDrag.y1 = (ev.clientY - r.top) * (regionDrag.entry.canvas.height / r.height);
+      const left = Math.min(regionDrag.x0, regionDrag.x1);
+      const top = Math.min(regionDrag.y0, regionDrag.y1);
+      const w = Math.abs(regionDrag.x1 - regionDrag.x0);
+      const h = Math.abs(regionDrag.y1 - regionDrag.y0);
+      const sx = r.width / regionDrag.entry.canvas.width;
+      const sy = r.height / regionDrag.entry.canvas.height;
+      regionDrag.el.style.left = (left * sx) + 'px';
+      regionDrag.el.style.top = (top * sy) + 'px';
+      regionDrag.el.style.width = Math.max(2, w * sx) + 'px';
+      regionDrag.el.style.height = Math.max(2, h * sy) + 'px';
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!regionDrag) return;
+      const drag = regionDrag;
+      regionDrag = null;
+      const w = Math.abs(drag.x1 - drag.x0);
+      const h = Math.abs(drag.y1 - drag.y0);
+      const cleanup = () => { if (drag.el) drag.el.remove(); };
+      if (w < 8 || h < 8) { cleanup(); return; }
+      handleRegionClip(drag).catch((e) => post({ type: 'error', message: 'Region clip: ' + e.message }))
+        .finally(cleanup);
+    }, true);
+
+    async function handleRegionClip(drag) {
+      const entry = drag.entry;
+      const left = Math.round(Math.min(drag.x0, drag.x1));
+      const top = Math.round(Math.min(drag.y0, drag.y1));
+      const w = Math.round(Math.abs(drag.x1 - drag.x0));
+      const h = Math.round(Math.abs(drag.y1 - drag.y0));
+
+      // Crop straight from the already-rendered page canvas — no re-render.
+      const crop = document.createElement('canvas');
+      crop.width = w; crop.height = h;
+      crop.getContext('2d').drawImage(entry.canvas, left, top, w, h, 0, 0, w, h);
+      let dataUrl = '';
+      try { dataUrl = crop.toDataURL('image/png'); } catch (_) { dataUrl = ''; }
+
+      const text = await extractRegionText(drag.page, left, top, w, h, entry).catch(() => '');
+      status.textContent = text ? ('Clip sent · ' + text.length + ' chars parsed') : 'Clip sent to chat';
+      post({ type: 'regionClip', page: drag.page, dataUrl, text,
+             wPt: (w / entry.canvas.width) * entry.widthPt,
+             hPt: (h / entry.canvas.height) * entry.heightPt });
+    }
+
+    // Light "parse before AI": pull text-layer items whose baseline sits inside the box.
+    async function extractRegionText(pageIndex, left, top, w, h, entry) {
+      if (!pdf) return '';
+      const page = await pdf.getPage(pageIndex);
+      const tc = await page.getTextContent();
+      const cw = entry.canvas.width, ch = entry.canvas.height;
+      const x0Pt = (left / cw) * entry.widthPt;
+      const x1Pt = ((left + w) / cw) * entry.widthPt;
+      const yTopPt = entry.heightPt - (top / ch) * entry.heightPt;         // box top edge (higher y)
+      const yBotPt = entry.heightPt - ((top + h) / ch) * entry.heightPt;   // box bottom edge (lower y)
+      const picked = [];
+      for (const it of tc.items) {
+        const s = it.str || '';
+        if (!s.trim()) continue;
+        const tx = it.transform || [1, 0, 0, 1, 0, 0];
+        const x = tx[4], y = tx[5], iw = it.width || 0;
+        if (x + iw < x0Pt - 3 || x > x1Pt + 3) continue;
+        if (y < yBotPt - 3 || y > yTopPt + 3) continue;
+        picked.push({ x, y, s });
+      }
+      picked.sort((a, b) => (b.y - a.y) || (a.x - b.x)); // top-to-bottom, then left-to-right
+      let out = '', lastY = null;
+      for (const p of picked) {
+        if (lastY === null) out = p.s;
+        else if (Math.abs(p.y - lastY) > 3) out += '\n' + p.s;
+        else out += (out.endsWith(' ') ? '' : ' ') + p.s;
+        lastY = p.y;
+      }
+      return out.trim();
+    }
+
     document.getElementById('prev').onclick = () => goToPage(pageNum - 1, true);
     document.getElementById('next').onclick = () => goToPage(pageNum + 1, true);
     document.getElementById('modeBtn').onclick = () => {
@@ -1050,15 +1805,25 @@
       for (const e of pageMap.values()) e.rendered = false;
       await renderVisiblePages(true);
       layoutAllOverlays();
+      layoutAllFillFields();
       paintAllSearchHits();
     }
-    document.getElementById('zoomIn').onclick = async () => {
+
+    // Button-mashing / key-autorepeat used to stack one full invalidate+rasterize per step.
+    // Update the label instantly, coalesce the re-render into a single trailing pass.
+    let rescaleTimer = 0;
+    function scheduleRescale() {
+      document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+      clearTimeout(rescaleTimer);
+      rescaleTimer = setTimeout(() => { rescaleAll(); }, 120);
+    }
+    document.getElementById('zoomIn').onclick = () => {
       scale = Math.min(4, scale + 0.15);
-      await rescaleAll();
+      scheduleRescale();
     };
-    document.getElementById('zoomOut').onclick = async () => {
+    document.getElementById('zoomOut').onclick = () => {
       scale = Math.max(0.25, scale - 0.15);
-      await rescaleAll();
+      scheduleRescale();
     };
     document.getElementById('fit').onclick = async () => {
       await applyFit(false);
@@ -1088,25 +1853,46 @@
     document.getElementById('hlBtn').onclick = () => {
       highlightMode = !highlightMode;
       bboxMode = false;
-      if (highlightMode) exitStampMode();
+      if (highlightMode) { exitStampMode(); exitFillMode(); setRegionMode(false); }
       document.getElementById('hlBtn').classList.toggle('on', highlightMode);
       status.textContent = highlightMode ? 'Drag across text to highlight' : '';
     };
+    document.getElementById('regionBtn').onclick = () => setRegionMode(!regionMode);
 
-    window.chrome?.webview?.addEventListener('message', (ev) => {
-      let msg;
-      try { msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; }
-      catch (_) { return; }
+    function onHostMessage(msg) {
       if (msg?.type === 'gotoPage' && pdf) goToPage(msg.page | 0, true);
       if (msg?.type === 'setZoom' && msg.scale) {
         fitMode = false;
         viewer.classList.remove('fit-mode');
         scale = Math.min(4, Math.max(0.25, Number(msg.scale) || 1.25));
         for (const e of pageMap.values()) e.rendered = false;
-        renderVisiblePages(true).then(() => { layoutAllOverlays(); paintAllSearchHits(); });
+        renderVisiblePages(true).then(() => { layoutAllOverlays(); layoutAllFillFields(); paintAllSearchHits(); });
       }
       if (msg?.type === 'fitPage') applyFit(false);
       if (msg?.type === 'enterStampMode') enterStampMode(msg.dataUrl || stampDataUrl);
+      if (msg?.type === 'enterFillMode') enterFillMode();
+      if (msg?.type === 'exitFillMode') exitFillMode();
+      if (msg?.type === 'exitStampMode') exitStampMode();
+      if (msg?.type === 'requestFlush') flushAllToHost();
+      if (msg?.type === 'scaleSelected' && msg.factor) {
+        const factor = Number(msg.factor) || 1;
+        if (activeFillId) scaleActiveFill(factor);
+        else scaleSelectedStamp(factor);
+      }
+      if (msg?.type === 'setHighlightMode') {
+        highlightMode = !!msg.on;
+        bboxMode = false;
+        if (highlightMode) { exitStampMode(); exitFillMode(); setRegionMode(false); }
+        document.getElementById('hlBtn')?.classList.toggle('on', highlightMode);
+        status.textContent = highlightMode ? 'Drag across text to highlight' : '';
+      }
+      if (msg?.type === 'setRegionMode') setRegionMode(!!msg.on);
+      if (msg?.type === 'clearFillTexts') {
+        for (const f of fillFields) f.el?.remove();
+        fillFields = [];
+        activeFillId = null;
+        positionFillFloatBar();
+      }
       if (msg?.type === 'setFormFields' && Array.isArray(msg.fields)) {
         formFields = msg.fields.map(f => ({
           page: Number(f.page) || 1, x: Number(f.x) || 0, y: Number(f.y) || 0,
@@ -1144,28 +1930,84 @@
       if (msg?.type === 'reloadPdf' && msg.fileUrl) {
         fileUrl = msg.fileUrl;
         const keep = !!msg.keepOverlays;
+        // Snapshot then clear arrays — otherwise keepOverlays rebuild pushes onto stale
+        // entries whose orphaned .el get resurrected by layoutAllOverlays (ghost stamps).
         const savedOverlays = keep ? overlays.map(o => ({
           id: o.id, page: o.page, xPt: o.xPt, yFromBottom: o.yFromBottom,
           stampW: o.stampW, stampH: o.stampH, pageWidthPt: o.pageWidthPt, pageHeightPt: o.pageHeightPt,
           dataUrl: o.dataUrl, committed: true
         })) : [];
-        if (!keep) clearAllOverlays();
-        else for (const o of overlays) o.el?.remove();
+        const savedFills = keep ? fillFields.map(f => ({
+          id: f.id, page: f.page, xPt: f.xPt, yFromBottom: f.yFromBottom,
+          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text, snapped: f.snapped, el: null
+        })) : [];
+        for (const o of overlays) o.el?.remove();
+        overlays = [];
+        for (const f of fillFields) f.el?.remove();
+        fillFields = [];
+        activeFillId = null;
+        positionFillFloatBar();
+        if (!keep) clearUncommitted();
         load().then(() => {
-          if (!keep || !savedOverlays.length) return;
+          if (!keep) return;
           for (const s of savedOverlays) {
             const el = createOverlayEl(s, s.dataUrl, true);
             s.el = el;
             overlays.push(s);
             layoutOverlay(s);
           }
-          status.textContent = 'Saved — drag signature boxes anytime';
+          for (const s of savedFills) {
+            s.el = createFillEl(s);
+            fillFields.push(s);
+            layoutFillField(s);
+          }
+          if (savedOverlays.length)
+            selectOverlay(savedOverlays[savedOverlays.length - 1].id);
+          if (savedOverlays.length || savedFills.length)
+            status.textContent = 'Saved — keep dragging boxes or typing';
         }).catch(err => {
           status.textContent = 'Reload failed: ' + err.message;
           post({ type: 'error', message: err.message });
         });
       }
+    }
+
+    window.chrome?.webview?.addEventListener('message', (ev) => {
+      let msg;
+      try { msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data; }
+      catch (_) { return; }
+      onHostMessage(msg);
     });
+
+    // Dev harness — plain-browser only (never active under WebView2 host).
+    // Lets stress tests drive host messages and inspect viewer state.
+    if (!window.chrome?.webview) {
+      // Hidden/headless tabs never fire rAF; pdf.js chunked rendering would hang.
+      window.requestAnimationFrame = (cb) => setTimeout(() => cb(performance.now()), 16);
+      window.cancelAnimationFrame = (id) => clearTimeout(id);
+      window.__netie = {
+        sent: [],
+        onHostMessage,
+        debug: () => ({
+          pageNum, scale, stampMode, stampPending, selectedOverlayId,
+          domOverlays: document.querySelectorAll('.stamp-overlay').length,
+          overlays: overlays.map(o => ({
+            id: o.id, page: o.page, xPt: +o.xPt.toFixed(2), yFromBottom: +o.yFromBottom.toFixed(2),
+            stampW: +o.stampW.toFixed(2), stampH: +o.stampH.toFixed(2),
+            committed: !!o.committed, connected: !!o.el?.isConnected
+          })),
+          fill: {
+            mode: fillMode, activeFillId,
+            domFields: document.querySelectorAll('.fill-text').length,
+            fields: fillFields.map(f => ({
+              id: f.id, page: f.page, xPt: +f.xPt.toFixed(2), yFromBottom: +f.yFromBottom.toFixed(2),
+              wPt: +f.wPt.toFixed(2), hPt: +f.hPt.toFixed(2), fontPt: +f.fontPt.toFixed(2),
+              text: f.text, snapped: f.snapped, connected: !!f.el?.isConnected
+            }))
+          }
+        })
+      };
+    }
 
     load().catch(err => {
       status.textContent = 'Failed: ' + err.message;

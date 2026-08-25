@@ -17,7 +17,16 @@ namespace NetieSpace;
 public partial class App : Application
 {
     private const string MutexName = "Global\\NetieSpace.SingleInstance.v1";
+    private const string ShowTrayEventName = "Global\\NetieSpace.ShowTray.v1";
     private static Mutex? _mutex;
+    private static bool _ownsMutex;
+    private EventWaitHandle? _showTrayEvent;
+    private Thread? _showTrayWatcher;
+
+    private static string PendingPreviewPath =>
+        IoPath.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NetieSpace", "pending-preview.txt");
 
     private TaskbarIcon? _trayIcon;
     private GlobalKeyboardHook? _keyboardHook;
@@ -37,14 +46,32 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         _mutex = new Mutex(true, MutexName, out var isNew);
+        _ownsMutex = isNew;
         var headlessStamp = e.Args.Any(a => string.Equals(a, "--stamp-test", StringComparison.OrdinalIgnoreCase));
         if (!isNew && !headlessStamp)
         {
-            MessageBox.Show(
-                "Netie Space is already running.\nCheck the system tray for the Netie Space icon.",
-                "Netie Space",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            // Desktop "Netie" stack button / second launch — no MessageBox spam.
+            // Forward --preview to the live instance via a pending file + tray ping.
+            try
+            {
+                var previewPath = TryExtractPreviewPath(e.Args);
+                if (!string.IsNullOrWhiteSpace(previewPath))
+                {
+                    IoDirectory.CreateDirectory(IoPath.GetDirectoryName(PendingPreviewPath)!);
+                    IoFile.WriteAllText(PendingPreviewPath, previewPath);
+                }
+
+                using var ping = EventWaitHandle.OpenExisting(ShowTrayEventName);
+                ping.Set();
+            }
+            catch
+            {
+                /* first instance may be mid-startup */
+            }
+
+            try { _mutex.Dispose(); } catch { /* ignore */ }
+            _mutex = null;
+            _ownsMutex = false;
             Shutdown();
             return;
         }
@@ -117,6 +144,9 @@ public partial class App : Application
             _contentParser = new ContentParserService(_conversionService);
             _explorerService = new ExplorerFileService();
 
+            // Soft-connect OpenVault key SoT (offline cache stays in user.env)
+            _ = SyncOpenVaultOnStartupAsync();
+
             WebViewWarmup.StartWarmup();
 
             _keyboardHook = new GlobalKeyboardHook
@@ -147,6 +177,8 @@ public partial class App : Application
                     ? $"Tray icon loaded from {AppIconHelper.IconPath}"
                     : "Tray icon using fallback (netie.ico not on disk)");
 
+            StartShowTrayWatcher();
+
             ShowStartupHudIfNeeded(force: false);
             AppLogger.Info($"Ready. AI provider: {_aiService.ActiveProvider}. Conversion: {_conversionService.IsAvailable}");
 
@@ -175,7 +207,10 @@ public partial class App : Application
     {
         // Never close / open while typing in chat, signature, API keys, etc.
         if (IsTypingContext())
+        {
+            AppLogger.Info("Space ignored — typing context (chat/dialog focus)");
             return false;
+        }
 
         var previewOpen = false;
         lock (_previewLock)
@@ -206,7 +241,15 @@ public partial class App : Application
         }
 
         if (!GlobalKeyboardHook.IsExplorerOrDesktopForeground())
+        {
+            var fg = Win32Api.GetForegroundWindow();
+            var cur = Win32Api.GetWindowUnderCursor();
+            AppLogger.Info(
+                $"Space ignored — not Explorer/Desktop " +
+                $"(fg=0x{fg.ToInt64():X}/{Win32Api.GetWindowClass(fg)} " +
+                $"cursor=0x{cur.ToInt64():X}/{Win32Api.GetWindowClass(cur)})");
             return false;
+        }
 
         // Capture context HWND now (focus control, not delayed GetForegroundWindow — that often becomes Progman).
         var contextHwnd = Win32Api.GetExplorerContextHwnd();
@@ -243,6 +286,7 @@ public partial class App : Application
                 catch (Exception ex)
                 {
                     AppLogger.Error(ex, "Space handler failed");
+                    ShowBalloon("Preview failed", ex.GetBaseException().Message);
                 }
             });
         });
@@ -264,21 +308,24 @@ public partial class App : Application
                         () => typing = IsTypingContextOnUi(),
                         DispatcherPriority.Send,
                         CancellationToken.None,
-                        TimeSpan.FromMilliseconds(80));
+                        TimeSpan.FromMilliseconds(120));
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Timeout / busy — fail open (allow Space to type)
-                    return true;
+                    // Timeout / busy — do NOT treat as typing (that silently killed Space).
+                    // Preview open is the product path; real text fields rarely hang the dispatcher.
+                    AppLogger.Warn($"IsTypingContext marshal failed ({ex.GetType().Name}) — assuming not typing");
+                    return false;
                 }
                 return typing;
             }
 
             return IsTypingContextOnUi();
         }
-        catch
+        catch (Exception ex)
         {
-            return true;
+            AppLogger.Warn($"IsTypingContext error: {ex.Message} — assuming not typing");
+            return false;
         }
     }
 
@@ -470,7 +517,7 @@ public partial class App : Application
 
             if (!IoFile.Exists(output))
             {
-                AppLogger.Error(null, "Stamp test failed — output missing");
+                AppLogger.Error("Stamp test failed — output missing");
                 Environment.Exit(3);
                 return true;
             }
@@ -490,6 +537,24 @@ public partial class App : Application
         }
     }
 
+    private static string? TryExtractPreviewPath(string[] args)
+    {
+        for (var i = 0; i < args.Length; i++)
+        {
+            if (string.Equals(args[i], "--preview", StringComparison.OrdinalIgnoreCase) &&
+                i + 1 < args.Length)
+            {
+                var p = args[i + 1].Trim('"');
+                return IoFile.Exists(p) ? p : null;
+            }
+
+            if (i == 0 && !args[i].StartsWith('-') && IoFile.Exists(args[i]))
+                return args[i];
+        }
+
+        return null;
+    }
+
     private void TryHandleCliPreview(string[] args)
     {
         if (args.Length == 0)
@@ -507,30 +572,14 @@ public partial class App : Application
             return;
         }
 
-        string? path = null;
-        for (var i = 0; i < args.Length; i++)
-        {
-            if (string.Equals(args[i], "--preview", StringComparison.OrdinalIgnoreCase) &&
-                i + 1 < args.Length)
-            {
-                path = args[i + 1].Trim('"');
-                break;
-            }
-
-            // Also accept bare file path as first arg
-            if (i == 0 && !args[i].StartsWith('-') && IoFile.Exists(args[i]))
-            {
-                path = args[i];
-                break;
-            }
-        }
-
-        if (string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
+        var path = TryExtractPreviewPath(args);
+        if (string.IsNullOrWhiteSpace(path))
             return;
 
-        var file = path;
+        var file = path!;
         Dispatcher.BeginInvoke(async () =>
         {
+            AppLogger.Info($"CLI preview: {file}");
             await OpenPreviewAsync(file);
         });
     }
@@ -808,6 +857,28 @@ public partial class App : Application
         _apiSetupWindow.Show();
     }
 
+    private async Task SyncOpenVaultOnStartupAsync()
+    {
+        try
+        {
+            if (_aiService is null) return;
+            var result = await OpenVaultKeySync.SyncApiKeysAsync().ConfigureAwait(false);
+            if (result.Synced)
+            {
+                _aiService.ReloadProviders();
+                AppLogger.Info($"OpenVault startup sync: {result.Message}");
+            }
+            else
+            {
+                AppLogger.Info($"OpenVault startup: {result.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"OpenVault startup sync: {ex.Message}");
+        }
+    }
+
     private void ShowBalloon(string title, string text)
     {
         try
@@ -898,13 +969,84 @@ public partial class App : Application
             MessageBoxImage.Information);
     }
 
+    private void StartShowTrayWatcher()
+    {
+        try
+        {
+            _showTrayEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowTrayEventName);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"ShowTray event: {ex.Message}");
+            return;
+        }
+
+        _showTrayWatcher = new Thread(() =>
+        {
+            while (true)
+            {
+                try
+                {
+                    if (_showTrayEvent is null) return;
+                    _showTrayEvent.WaitOne();
+                    Dispatcher.BeginInvoke(async () =>
+                    {
+                        try
+                        {
+                            if (IoFile.Exists(PendingPreviewPath))
+                            {
+                                var pending = IoFile.ReadAllText(PendingPreviewPath).Trim().Trim('"');
+                                try { IoFile.Delete(PendingPreviewPath); } catch { /* ignore */ }
+                                if (!string.IsNullOrWhiteSpace(pending) && IoFile.Exists(pending))
+                                {
+                                    AppLogger.Info($"Pending preview from second instance: {pending}");
+                                    await OpenPreviewAsync(pending);
+                                    return;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            AppLogger.Warn($"Pending preview: {ex.Message}");
+                        }
+
+                        ShowBalloon(
+                            "Netie Space is ready",
+                            "Already running in the tray — select a file in Explorer or Desktop, then press Space.");
+                    });
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Warn($"ShowTray watcher: {ex.Message}");
+                }
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "NetieShowTrayWatcher"
+        };
+        _showTrayWatcher.Start();
+    }
+
     protected override void OnExit(ExitEventArgs e)
     {
         AppLogger.Info("Shutting down");
+        try { _showTrayEvent?.Set(); } catch { /* wake watcher */ }
+        try { _showTrayEvent?.Dispose(); } catch { /* ignore */ }
+        _showTrayEvent = null;
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
-        _mutex?.ReleaseMutex();
-        _mutex?.Dispose();
+        if (_ownsMutex)
+        {
+            try { _mutex?.ReleaseMutex(); } catch { /* ignore */ }
+        }
+        try { _mutex?.Dispose(); } catch { /* ignore */ }
+        _mutex = null;
+        _ownsMutex = false;
         base.OnExit(e);
     }
 }
