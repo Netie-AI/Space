@@ -440,8 +440,8 @@
                                     <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,10,6" VerticalAlignment="Center"/>
                                     <Button x:Name="PdfSaveStampsButton" Content="Save" Style="{StaticResource EditorChipPrimary}"
                                             Click="PdfSaveStamps_Click" ToolTip="Write signatures, typed text, and highlights into this PDF"/>
-                                    <Button x:Name="PdfMoreButton" Content="More" Style="{StaticResource EditorChip}"
-                                            Click="PdfMoreButton_Click" ToolTip="Less-used tools">
+                                    <Button x:Name="PdfMoreButton" Content="More..." Style="{StaticResource EditorChip}"
+                                            Click="PdfMoreButton_Click" ToolTip="Watermark, protect, scan OCR, export">
                                         <Button.ContextMenu>
                                             <ContextMenu>
                                                 <MenuItem Header="Edit text / OCR…" Click="PdfEditTextMode_Click"
@@ -549,39 +549,43 @@
                                 Background="#1A5EC4B8">
                             <StackPanel>
                                 <DockPanel Margin="0,0,0,10">
-                                    <TextBlock Text="All video tools" FontFamily="{StaticResource DisplayFont}"
+                                    <TextBlock Text="Video tools" FontFamily="{StaticResource DisplayFont}"
                                                FontSize="12" FontWeight="SemiBold" Foreground="#D8FFF8"
                                                Opacity="0.9"/>
-                                    <TextBlock DockPanel.Dock="Right" Text="Timeline · Split · Export"
+                                    <TextBlock x:Name="VideoRibbonHint" DockPanel.Dock="Right" Text="Export · + Clip · Order · More"
                                                Foreground="#80A0A8B8" FontSize="11" VerticalAlignment="Center"/>
                                 </DockPanel>
-                                <WrapPanel Orientation="Horizontal">
-                                    <Button x:Name="TrimVideoButton" Content="Export range (In→Out)" Style="{StaticResource EditorChip}"
-                                            Click="TrimVideoButton_Click"
-                                            ToolTip="CapCut: export only Mark In → Mark Out selection"/>
-                                    <Button x:Name="ExportEditButton" Content="Export all (timeline)" Style="{StaticResource EditorChipPrimary}"
+                                <WrapPanel x:Name="VideoPrimaryRow" Orientation="Horizontal">
+                                    <Button x:Name="ExportEditButton" Content="Export all" Style="{StaticResource EditorChipPrimary}"
                                             Click="ExportEditButton_Click"
-                                            ToolTip="CapCut: export full packed timeline (all clips)"/>
+                                            ToolTip="Export the full packed timeline (all clips)"/>
                                     <Button x:Name="AddVideoButton" Content="+ Clip" Style="{StaticResource EditorChip}"
                                             Click="AddVideoButton_Click"
                                             ToolTip="Add one or more videos onto V1 -- packs after existing clips in dialog order (no overlap). Drag to reorder. Fade/Wipe still burn on Export."/>
                                     <Button x:Name="OrderClipsButton" Content="Order..." Style="{StaticResource EditorChip}"
                                             Click="OrderClipsButton_Click"
                                             ToolTip="Arrange V1 clip order before Export. Top plays first. Drag or Up/Down."/>
-                                    <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,12,0" VerticalAlignment="Center"/>
-                                    <!-- Buttons instead of ComboBox — custom ComboBox template crashed PreviewWindow XAML load -->
-                                    <Button x:Name="ExportMatchButton" Content="Match" Style="{StaticResource EditorChip}"
-                                            Margin="0,0,4,0" Click="ExportPresetButton_Click" Tag="MatchSource"
-                                            ToolTip="Export match source resolution"/>
-                                    <Button x:Name="Export1080Button" Content="1080p" Style="{StaticResource EditorChip}"
-                                            Margin="0,0,4,0" Click="ExportPresetButton_Click" Tag="Hd1080"
-                                            ToolTip="Export 1080p"/>
-                                    <Button x:Name="Export4KButton" Content="4K" Style="{StaticResource EditorChip}"
-                                            Margin="0,0,8,0" Click="ExportPresetButton_Click" Tag="Uhd4K"
-                                            ToolTip="Export 4K UHD"/>
-                                    <Button x:Name="LutButton" Content="LUT…" Style="{StaticResource EditorChip}"
-                                            Click="LutButton_Click"
-                                            ToolTip="Apply .cube LUT on Export timeline"/>
+                                    <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,10,6" VerticalAlignment="Center"/>
+                                    <Button x:Name="VideoMoreButton" Content="More..." Style="{StaticResource EditorChip}"
+                                            Click="VideoMoreButton_Click"
+                                            ToolTip="Export range, resolution preset, LUT">
+                                        <Button.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="Export range (In to Out)" Click="TrimVideoButton_Click"
+                                                          ToolTip="Export only Mark In to Mark Out"/>
+                                                <Separator/>
+                                                <MenuItem x:Name="VideoPresetMatchMenu" Header="Preset: Match source"
+                                                          Click="ExportPresetButton_Click" Tag="MatchSource"/>
+                                                <MenuItem x:Name="VideoPreset1080Menu" Header="Preset: 1080p"
+                                                          Click="ExportPresetButton_Click" Tag="Hd1080"/>
+                                                <MenuItem x:Name="VideoPreset4KMenu" Header="Preset: 4K"
+                                                          Click="ExportPresetButton_Click" Tag="Uhd4K"/>
+                                                <Separator/>
+                                                <MenuItem Header="LUT..." Click="LutButton_Click"
+                                                          ToolTip="Apply .cube LUT on Export timeline"/>
+                                            </ContextMenu>
+                                        </Button.ContextMenu>
+                                    </Button>
                                 </WrapPanel>
                             </StackPanel>
                         </Border>
