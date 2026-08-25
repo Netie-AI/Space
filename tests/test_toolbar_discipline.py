@@ -48,6 +48,8 @@ def test_ci_runs_contract_scripts():
     assert "python -m compileall -q -f tests scripts" in yml
     assert "for f in tests/test_*.py" in yml
     assert 'python "$f"' in yml
+    assert "dotnet test NetieSpace.sln" in yml
+    assert "needs: [build-windows, python-syntax]" in yml
 
 
 if __name__ == "__main__":

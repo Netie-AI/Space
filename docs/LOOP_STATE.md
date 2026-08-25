@@ -12,7 +12,7 @@
 |-------|--------|
 | **Pillar** | 1 — Video |
 | **Slice** | await user Select→Split→Drag→Delete→Fade→Export |
-| **Tick** | post-#17 (ffmpeg CI smoke on main; not a user gate) |
+| **Tick** | post-#20 + Windows xunit NLE (not a user Export gate) |
 | **Consecutive fails** | 0 |
 
 ---

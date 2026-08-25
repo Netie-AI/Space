@@ -4,10 +4,11 @@
 
 ## Now
 
-1. **main CI is green** — Windows `dotnet build` + python compileall, contract tests, and
-   ffmpeg fade/wipeleft smoke. Merge only when both checks succeed (never `gh pr merge --auto`:
+1. **main CI is green** — Windows `dotnet test` (NLE Select/Split/Drag/Delete/Fade + WASM
+   policy) + python compileall/contracts + ffmpeg fade/wipeleft smoke + aggregator job `ci`.
+   Merge only when **all** checks on the head SHA succeed (never `gh pr merge --auto`:
    this repo has no required status checks).
-2. **Ready PRs #4–#17 landed** after green CI. Draft #1 (demo video renderer) stays draft.
+2. **Ready PRs #4–#20 landed** after green CI. Draft #1 (stale demo path) stays draft.
 3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
 
 ## Next
