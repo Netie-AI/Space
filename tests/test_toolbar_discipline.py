@@ -7,6 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PREVIEW = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs"
 PREVIEW_XAML = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml"
 PARKING = ROOT / "PARKING_LOT.md"
+CI = ROOT / ".github/workflows/ci.yml"
 
 
 def _read(path: Path) -> str:
@@ -42,7 +43,15 @@ def test_parking_lot_toolbar_checked():
     assert "- [x] Toolbar discipline polish (primary chips + More...)" in text
 
 
+def test_ci_runs_contract_scripts():
+    yml = _read(CI)
+    assert "python -m compileall -q -f tests scripts" in yml
+    assert "for f in tests/test_*.py" in yml
+    assert 'python "$f"' in yml
+
+
 if __name__ == "__main__":
     test_pdf_and_video_more_menus()
     test_parking_lot_toolbar_checked()
+    test_ci_runs_contract_scripts()
     print("PASS test_toolbar_discipline")
