@@ -4,8 +4,8 @@
 
 ## Now
 
-1. **main CI is green** — Windows `dotnet test` (NLE Select/Split/Drag/Delete/Fade + WASM +
-   ditch) + python compileall/contracts + ffmpeg fade/wipeleft smoke + aggregator job `ci`.
+1. **main CI is green** — Windows `dotnet test` (NLE Select/Split/Drag/Delete/Fade + WASM
+   policy) + python compileall/contracts + ffmpeg fade/wipeleft smoke + aggregator job `ci`.
    Merge only when **all** checks on the head SHA succeed (never `gh pr merge --auto`:
    this repo has no required status checks).
 2. **Ready PRs #4–#20 landed** after green CI. Draft #1 (stale demo path) stays draft.

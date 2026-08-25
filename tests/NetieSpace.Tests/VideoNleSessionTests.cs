@@ -20,7 +20,7 @@ public class VideoNleSessionTests
     public void Select_split_drag_delete_ripples()
     {
         var session = TenSecond();
-        Assert.Equal(1, session.Clips.Count);
+        Assert.Single(session.Clips);
 
         session.SelectAt(TimeSpan.FromSeconds(4));
         Assert.True(session.HasSelection);
