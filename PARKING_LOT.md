@@ -117,13 +117,8 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] `docs/QUICK_LOOK_PRINCIPLES.md`
 - [x] Esc / Space / Home / End parity
 - [x] AirGPT `--preview` CLI
-<<<<<<< HEAD
-- [ ] Slide screenshot → chat attach (partially started)
-- [x] Cite / First Principles / Mindmap chat modes
-=======
 - [x] Slide screenshot → chat attach (visible slide PNG via Send slide / Add to Chat)
-- [ ] Cite / First Principles / Mindmap chat modes
->>>>>>> 300970c (feat(pptx): attach the visible slide image to chat)
+- [x] Cite / First Principles / Mindmap chat modes
 - [ ] Marketing assets (Pillar 4 optional)
 
 ## P7 — Deferred architecture (do not start)
