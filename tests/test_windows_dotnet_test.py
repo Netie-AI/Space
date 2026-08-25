@@ -18,6 +18,12 @@ def test_windows_ci_runs_dotnet_test():
     assert "dotnet test NetieSpace.sln" in yml
     assert "--blame-hang-timeout 2m" in yml
     assert "needs: [build-windows, python-syntax]" in yml
+    assert "actions/checkout@v5" in yml
+    assert "actions/setup-dotnet@v5" in yml
+    assert "actions/setup-python@v6" in yml
+    assert "actions/checkout@v4" not in yml
+    assert "actions/setup-dotnet@v4" not in yml
+    assert "actions/setup-python@v5" not in yml
     assert "NetieSpace.Tests" in sln
     assert "xunit" in csproj
     assert "<ProjectReference" not in csproj

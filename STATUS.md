@@ -8,7 +8,7 @@
    policy) + python compileall/contracts + ffmpeg fade/wipeleft smoke + aggregator job `ci`.
    Merge only when **all** checks on the head SHA succeed (never `gh pr merge --auto`:
    this repo has no required status checks).
-2. **Ready PRs #4–#20 landed** after green CI. Draft #1 (stale demo path) stays draft.
+2. **Ready PRs #4–#21 landed** after green CI. Draft #1 (stale demo path) stays draft.
 3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
 
 ## Next
