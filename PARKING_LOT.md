@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (Cortex WASM stubs).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (V1 clip-order + Cortex WASM stubs).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -72,7 +72,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [ ] User-validated Select→Split→Drag→Delete→Fade→Export (gate to leave Pillar 1)
 - [x] Multi-source V1 polish (+ Clip)
 - [x] Transitions beyond fade; overlay text on canvas
-- [ ] Phase 3: richer ordered multi-clip merge UX
+- [x] Phase 3: richer ordered multi-clip merge UX
 
 ## eSuite / AirGPT / Ponytail
 

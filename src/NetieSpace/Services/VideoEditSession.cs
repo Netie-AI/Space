@@ -317,6 +317,30 @@ public sealed class VideoEditSession
                 return $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}]{name} {Format(s.Start)}–{Format(s.End)}";
             }));
 
+    /// <summary>
+    /// Replace packed V1 order. <paramref name="fromIndices"/> is a permutation of 0..Count-1
+    /// (index in the current list). Used by the clip-order dialog.
+    /// </summary>
+    public bool ApplyOrder(IReadOnlyList<int> fromIndices)
+    {
+        if (fromIndices.Count != _kept.Count || _kept.Count == 0)
+            return false;
+        var seen = new bool[_kept.Count];
+        var next = new List<KeptClip>(_kept.Count);
+        foreach (var i in fromIndices)
+        {
+            if (i < 0 || i >= _kept.Count || seen[i])
+                return false;
+            seen[i] = true;
+            next.Add(_kept[i]);
+        }
+
+        _kept.Clear();
+        _kept.AddRange(next);
+        SelectedIndex = 0;
+        return true;
+    }
+
     /// <summary>Reorder clip from one index to another (CapCut drag).</summary>
     public bool MoveClip(int fromIndex, int toIndex)
     {
