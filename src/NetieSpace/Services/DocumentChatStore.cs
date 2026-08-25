@@ -255,6 +255,8 @@ public sealed class DocumentChatThread
     public string DocumentKey { get; set; } = "";
     public string FilePath { get; set; } = "";
     public string Title { get; set; } = "Notes & chat";
+    /// <summary>normal | cite | first-principles | mindmap — restored with the document.</summary>
+    public string ChatMode { get; set; } = "normal";
     public DateTime UpdatedUtc { get; set; } = DateTime.UtcNow;
     public List<ChatMessage> Messages { get; set; } = [];
 }

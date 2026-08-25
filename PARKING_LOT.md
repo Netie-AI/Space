@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-07-14** (rotate loop).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (chat modes).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -118,7 +118,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Esc / Space / Home / End parity
 - [x] AirGPT `--preview` CLI
 - [ ] Slide screenshot → chat attach (partially started)
-- [ ] Cite / First Principles / Mindmap chat modes
+- [x] Cite / First Principles / Mindmap chat modes
 - [ ] Marketing assets (Pillar 4 optional)
 
 ## P7 — Deferred architecture (do not start)
