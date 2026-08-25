@@ -17,7 +17,10 @@ def test_windows_ci_runs_dotnet_test():
     nle = NLE.read_text(encoding="utf-8")
     assert "dotnet test NetieSpace.sln" in yml
     assert "--blame-hang-timeout 2m" in yml
-    assert "needs: [build-windows, python-syntax]" in yml
+    assert "needs: [build-windows, python-syntax, license-api]" in yml
+    assert "npm ci --legacy-peer-deps" in yml
+    assert "npm run typecheck" in yml
+    assert "actions/setup-node@v5" in yml
     assert "actions/checkout@v5" in yml
     assert "actions/setup-dotnet@v5" in yml
     assert "actions/setup-python@v6" in yml
