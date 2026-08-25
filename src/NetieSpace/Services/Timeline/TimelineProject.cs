@@ -93,6 +93,32 @@ public sealed class TimelineProject
     public IEnumerable<TimelineTrack> AudioTracks => Tracks.Where(t => t.Kind == TrackKind.Audio);
     public TimelineTrack? OverlayTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Overlay);
 
+    /// <summary>True when V1 has clips from more than one source file.</summary>
+    public bool HasMultipleVideoSources
+    {
+        get
+        {
+            var v = VideoTrack;
+            if (v is null)
+                return false;
+            string? first = null;
+            foreach (var c in v.Clips.Where(c =>
+                         c.Overlay == OverlayKind.None && !string.IsNullOrWhiteSpace(c.SourcePath)))
+            {
+                if (first is null)
+                {
+                    first = c.SourcePath;
+                    continue;
+                }
+
+                if (!string.Equals(first, c.SourcePath, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
     public TimelineClip? SelectedClip =>
         SelectedClipId is null
             ? null
@@ -326,23 +352,40 @@ public sealed class TimelineProject
         });
     }
 
-    public void ImportClip(string path, TimeSpan duration, TrackKind kind = TrackKind.Video)
+    /// <summary>
+    /// Pack a new clip onto the track after the last existing clip (no overlap).
+    /// V1 also rebuilds linked A1. Drag reorder is how the user changes order later.
+    /// </summary>
+    public TimelineClip? ImportClip(string path, TimeSpan duration, TrackKind kind = TrackKind.Video)
     {
         var track = Tracks.FirstOrDefault(t => t.Kind == kind) ?? VideoTrack;
-        if (track is null)
-            return;
+        if (track is null || string.IsNullOrWhiteSpace(path) || duration <= TimeSpan.Zero)
+            return null;
 
+        // Place after the rightmost clip so a second/third source never lands on top.
         var start = track.Clips.Count == 0
             ? TimeSpan.Zero
             : track.Clips.Max(c => c.TimelineEnd);
 
-        track.Clips.Add(new TimelineClip
+        var clip = new TimelineClip
         {
             SourcePath = path,
             SourceIn = TimeSpan.Zero,
             SourceOut = duration,
             TimelineStart = start
-        });
+        };
+        track.Clips.Add(clip);
+        if (track.Kind == TrackKind.Video)
+        {
+            PackLinkedVideoAudio();
+            SelectedClipId = clip.Id;
+        }
+        else
+        {
+            track.Clips.Sort((a, b) => a.TimelineStart.CompareTo(b.TimelineStart));
+        }
+
+        return clip;
     }
 
     /// <summary>Flatten V1 clips to kept source ranges (compat with legacy ExportKeptSegments).</summary>
@@ -361,6 +404,14 @@ public sealed class TimelineProject
 
     public void SyncFromKeptRanges(IReadOnlyList<(TimeSpan Start, TimeSpan End)> kept, string sourcePath)
     {
+        var rows = kept.Select(k => (k.Start, k.End, sourcePath)).ToList();
+        SyncFromKeptRanges(rows, sourcePath);
+    }
+
+    public void SyncFromKeptRanges(
+        IReadOnlyList<(TimeSpan Start, TimeSpan End, string SourcePath)> kept,
+        string fallbackSource)
+    {
         var v = VideoTrack;
         var a = Tracks.FirstOrDefault(t => t.Name == "A1");
         if (v is null)
@@ -375,14 +426,15 @@ public sealed class TimelineProject
         v.Clips.Clear();
         a?.Clips.Clear();
         var t = TimeSpan.Zero;
-        foreach (var (start, end) in kept)
+        foreach (var (start, end, rawPath) in kept)
         {
             var dur = end - start;
             if (dur <= TimeSpan.Zero)
                 continue;
+            var path = string.IsNullOrWhiteSpace(rawPath) ? fallbackSource : rawPath;
             var clip = new TimelineClip
             {
-                SourcePath = sourcePath,
+                SourcePath = path,
                 SourceIn = start,
                 SourceOut = end,
                 TimelineStart = t
@@ -390,7 +442,7 @@ public sealed class TimelineProject
             var match = prior.FindIndex(p =>
                 p.SourceIn == start &&
                 p.SourceOut == end &&
-                string.Equals(p.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase));
+                string.Equals(p.SourcePath, path, StringComparison.OrdinalIgnoreCase));
             if (match >= 0)
             {
                 var p = prior[match];
@@ -409,7 +461,7 @@ public sealed class TimelineProject
             v.Clips.Add(clip);
             a?.Clips.Add(new TimelineClip
             {
-                SourcePath = sourcePath,
+                SourcePath = path,
                 SourceIn = start,
                 SourceOut = end,
                 TimelineStart = t

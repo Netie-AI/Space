@@ -1,16 +1,23 @@
-using NetieSpace.Helpers;
+using NetieSpace.Services.Timeline;
 
 namespace NetieSpace.Services;
 
 /// <summary>
-/// CapCut / Premiere–light: one track of kept source ranges.
-/// Split = blade at playhead; Delete = ripple-remove selected clip; Export = ffmpeg concat.
+/// CapCut / Premiere–light: packed V1 keep list (one or more source files).
+/// Split = blade; Delete = ripple-remove; + Clip = pack on the end (no overlap).
 /// </summary>
 public sealed class VideoEditSession
 {
-    private readonly List<(TimeSpan Start, TimeSpan End)> _kept = [];
+    private readonly List<KeptClip> _kept = [];
+    private readonly Stack<List<KeptClip>> _undo = new();
 
-    public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept => _kept;
+    public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept =>
+        _kept.ConvertAll(c => (c.Start, c.End));
+
+    public IReadOnlyList<KeptClip> Clips => _kept;
+
+    public string PrimarySourcePath { get; private set; } = "";
+
     public TimeSpan SourceDuration { get; private set; }
 
     /// <summary>Selected clip index for Delete; -1 = none.</summary>
@@ -24,13 +31,40 @@ public sealed class VideoEditSession
     /// <summary>True when the selected clip has a following clip to wipe/crossfade into.</summary>
     public bool CanJoinToNext => HasSelection && SelectedIndex < _kept.Count - 1;
 
-    public void Reset(TimeSpan duration)
+    public bool HasMultipleSources
     {
+        get
+        {
+            string? first = null;
+            foreach (var c in _kept)
+            {
+                var path = ResolvedSource(c.SourcePath);
+                if (string.IsNullOrWhiteSpace(path))
+                    continue;
+                if (first is null)
+                {
+                    first = path;
+                    continue;
+                }
+
+                if (!string.Equals(first, path, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    public void Reset(TimeSpan duration, string? sourcePath = null)
+    {
+        if (!string.IsNullOrWhiteSpace(sourcePath))
+            PrimarySourcePath = sourcePath;
         SourceDuration = duration < TimeSpan.Zero ? TimeSpan.Zero : duration;
         _kept.Clear();
+        _undo.Clear();
         SelectedIndex = -1;
         if (SourceDuration > TimeSpan.Zero)
-            _kept.Add((TimeSpan.Zero, SourceDuration));
+            _kept.Add(new KeptClip(TimeSpan.Zero, SourceDuration, PrimarySourcePath));
     }
 
     public void Select(int index)
@@ -40,12 +74,61 @@ public sealed class VideoEditSession
 
     public void ClearSelection() => SelectedIndex = -1;
 
-    /// <summary>Restore kept ranges from undo snapshot.</summary>
+    /// <summary>Restore kept ranges from undo snapshot (single-source fallback).</summary>
     public void RestoreKept(IReadOnlyList<(TimeSpan Start, TimeSpan End)> ranges)
     {
+        RestoreKept(ranges.Select(r => new KeptClip(r.Start, r.End, PrimarySourcePath)).ToList());
+    }
+
+    public void RestoreKept(IReadOnlyList<KeptClip> clips)
+    {
         _kept.Clear();
-        _kept.AddRange(ranges.Where(r => r.End - r.Start >= TimeSpan.FromMilliseconds(40)));
+        _kept.AddRange(clips.Where(r => r.End - r.Start >= TimeSpan.FromMilliseconds(40)));
         SelectedIndex = -1;
+    }
+
+    public void PushUndo()
+    {
+        _undo.Push(_kept.Select(c => c).ToList());
+        if (_undo.Count <= 40)
+            return;
+        var keep = _undo.Take(30).Reverse().ToList();
+        _undo.Clear();
+        foreach (var s in keep.AsEnumerable().Reverse())
+            _undo.Push(s);
+    }
+
+    public bool TryUndo()
+    {
+        if (_undo.Count == 0)
+            return false;
+        RestoreKept(_undo.Pop());
+        return true;
+    }
+
+    /// <summary>
+    /// Pack a second/third video onto V1 after existing clips (no overlap).
+    /// Drag reorder still uses <see cref="MoveClip"/>.
+    /// </summary>
+    public int AppendClip(string sourcePath, TimeSpan duration)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath) || duration < TimeSpan.FromMilliseconds(40))
+            return -1;
+        _kept.Add(new KeptClip(TimeSpan.Zero, duration, sourcePath));
+        SelectedIndex = _kept.Count - 1;
+        return SelectedIndex;
+    }
+
+    /// <summary>Push packed clips (with per-clip sources) onto the NLE project.</summary>
+    public void ApplyTo(TimelineProject project, string fallbackSource)
+    {
+        var fallback = string.IsNullOrWhiteSpace(fallbackSource) ? PrimarySourcePath : fallbackSource;
+        var rows = _kept.Select(c =>
+        {
+            var path = string.IsNullOrWhiteSpace(c.SourcePath) ? fallback : c.SourcePath;
+            return (c.Start, c.End, path);
+        }).ToList();
+        project.SyncFromKeptRanges(rows, fallback);
     }
 
     /// <summary>Select clip under playhead (or nearest containing range).</summary>
@@ -58,25 +141,56 @@ public sealed class VideoEditSession
 
     public bool SplitAt(TimeSpan playhead)
     {
-        if (playhead <= TimeSpan.Zero || playhead >= SourceDuration)
+        var i = PickIndexForSourcePlayhead(playhead);
+        if (i < 0)
             return false;
 
-        for (var i = 0; i < _kept.Count; i++)
+        var clip = _kept[i];
+        if (playhead - clip.Start < TimeSpan.FromMilliseconds(120) ||
+            clip.End - playhead < TimeSpan.FromMilliseconds(120))
+            return false;
+
+        _kept[i] = clip with { End = playhead };
+        _kept.Insert(i + 1, clip with { Start = playhead });
+        SelectedIndex = i;
+        return true;
+    }
+
+    /// <summary>Blade the clip under a packed-timeline playhead (multi-source safe).</summary>
+    public bool SplitAtPacked(TimeSpan packedTime)
+    {
+        var segs = BuildPackedTimeline(fillSourceGapsWithBlack: false);
+        foreach (var s in segs)
         {
-            var (a, b) = _kept[i];
-            if (playhead <= a || playhead >= b)
+            if (s.IsBlack)
                 continue;
-            if (playhead - a < TimeSpan.FromMilliseconds(120) ||
-                b - playhead < TimeSpan.FromMilliseconds(120))
+            if (packedTime <= s.TimelineIn || packedTime >= s.TimelineOut)
+                continue;
+            if (packedTime - s.TimelineIn < TimeSpan.FromMilliseconds(120) ||
+                s.TimelineOut - packedTime < TimeSpan.FromMilliseconds(120))
                 return false;
 
-            _kept[i] = (a, playhead);
-            _kept.Insert(i + 1, (playhead, b));
-            SelectedIndex = i; // left half selected after blade
-            return true;
+            var cut = s.SourceIn + (packedTime - s.TimelineIn);
+            return SplitAtIndex(s.ClipIndex, cut);
         }
 
         return false;
+    }
+
+    private bool SplitAtIndex(int i, TimeSpan playhead)
+    {
+        if (i < 0 || i >= _kept.Count)
+            return false;
+        var clip = _kept[i];
+        if (playhead <= clip.Start || playhead >= clip.End)
+            return false;
+        if (playhead - clip.Start < TimeSpan.FromMilliseconds(120) ||
+            clip.End - playhead < TimeSpan.FromMilliseconds(120))
+            return false;
+        _kept[i] = clip with { End = playhead };
+        _kept.Insert(i + 1, clip with { Start = playhead });
+        SelectedIndex = i;
+        return true;
     }
 
     /// <summary>Ripple-delete the selected clip, or the segment that contains playhead.</summary>
@@ -95,22 +209,15 @@ public sealed class VideoEditSession
     /// <summary>Ripple-delete the kept segment that contains playhead (CapCut select→Delete).</summary>
     public bool DeleteSegmentAt(TimeSpan playhead)
     {
-        for (var i = 0; i < _kept.Count; i++)
-        {
-            var (a, b) = _kept[i];
-            if (playhead < a || playhead > b)
-                continue;
-            if (playhead == b && i + 1 < _kept.Count && _kept[i + 1].Start == b)
-                continue;
-            _kept.RemoveAt(i);
-            if (SelectedIndex == i)
-                SelectedIndex = -1;
-            else if (SelectedIndex > i)
-                SelectedIndex--;
-            return true;
-        }
-
-        return false;
+        var i = PickIndexForSourcePlayhead(playhead);
+        if (i < 0)
+            return false;
+        _kept.RemoveAt(i);
+        if (SelectedIndex == i)
+            SelectedIndex = -1;
+        else if (SelectedIndex > i)
+            SelectedIndex--;
+        return true;
     }
 
     /// <summary>Ripple-delete source range [from,to) from all kept segments (Premiere lift/extract light).</summary>
@@ -119,43 +226,33 @@ public sealed class VideoEditSession
         if (to <= from)
             return false;
 
-        var next = new List<(TimeSpan, TimeSpan)>();
+        var next = new List<KeptClip>();
         var changed = false;
-        foreach (var (a, b) in _kept)
+        foreach (var c in _kept)
         {
-            if (b <= from || a >= to)
+            if (c.End <= from || c.Start >= to)
             {
-                next.Add((a, b));
+                next.Add(c);
                 continue;
             }
 
             changed = true;
-            if (a < from)
-                next.Add((a, from));
-            if (b > to)
-                next.Add((to, b));
+            if (c.Start < from)
+                next.Add(c with { End = from });
+            if (c.End > to)
+                next.Add(c with { Start = to });
         }
 
         if (!changed)
             return false;
 
         _kept.Clear();
-        _kept.AddRange(next.Where(s => s.Item2 - s.Item1 >= TimeSpan.FromMilliseconds(80)));
+        _kept.AddRange(next.Where(s => s.End - s.Start >= TimeSpan.FromMilliseconds(80)));
         SelectedIndex = -1;
         return true;
     }
 
-    public int IndexAt(TimeSpan playhead)
-    {
-        for (var i = 0; i < _kept.Count; i++)
-        {
-            var (a, b) = _kept[i];
-            if (playhead >= a && playhead <= b)
-                return i;
-        }
-
-        return -1;
-    }
+    public int IndexAt(TimeSpan playhead) => PickIndexForSourcePlayhead(playhead);
 
     /// <summary>Hit-test a normalized 0–1 packed timeline position.</summary>
     public int IndexAtPackedNormalized(double t01, bool? fillGaps = null)
@@ -191,6 +288,8 @@ public sealed class VideoEditSession
         {
             if (s.IsBlack)
                 continue;
+            if (!ClipSourceEquals(s.ClipIndex, PrimarySourcePath) && HasMultipleSources)
+                continue;
             if (sourceTime >= s.SourceIn && sourceTime <= s.SourceOut)
                 return s.TimelineIn + (sourceTime - s.SourceIn);
         }
@@ -211,7 +310,12 @@ public sealed class VideoEditSession
         _kept.Count == 0
             ? "No clips (all deleted)"
             : string.Join(" · ", _kept.Select((s, i) =>
-                $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}] {Format(s.Start)}–{Format(s.End)}"));
+            {
+                var name = string.IsNullOrWhiteSpace(s.SourcePath)
+                    ? ""
+                    : $" {IoPath.GetFileName(s.SourcePath)}";
+                return $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}]{name} {Format(s.Start)}–{Format(s.End)}";
+            }));
 
     /// <summary>Reorder clip from one index to another (CapCut drag).</summary>
     public bool MoveClip(int fromIndex, int toIndex)
@@ -230,7 +334,7 @@ public sealed class VideoEditSession
 
     /// <summary>
     /// Packed output layout: clips abut left-to-right in list order (CapCut ripple).
-    /// Optional black fillers for holes in source time between consecutive kept ranges.
+    /// Optional black fillers only for holes in the *same* source between consecutive kept ranges.
     /// </summary>
     public IReadOnlyList<TimelineSegment> BuildPackedTimeline(bool fillSourceGapsWithBlack = true)
     {
@@ -238,8 +342,9 @@ public sealed class VideoEditSession
         var cursor = TimeSpan.Zero;
         for (var i = 0; i < _kept.Count; i++)
         {
-            var (a, b) = _kept[i];
-            if (fillSourceGapsWithBlack && i > 0)
+            var a = _kept[i].Start;
+            var b = _kept[i].End;
+            if (fillSourceGapsWithBlack && i > 0 && ClipSourceEquals(i, _kept[i - 1].SourcePath))
             {
                 var prevEnd = _kept[i - 1].End;
                 if (a > prevEnd + TimeSpan.FromMilliseconds(40))
@@ -280,9 +385,48 @@ public sealed class VideoEditSession
         return -1;
     }
 
+    private int PickIndexForSourcePlayhead(TimeSpan playhead)
+    {
+        var matches = new List<int>();
+        for (var i = 0; i < _kept.Count; i++)
+        {
+            var c = _kept[i];
+            if (playhead >= c.Start && playhead <= c.End)
+                matches.Add(i);
+        }
+
+        if (matches.Count == 0)
+            return -1;
+        if (matches.Count == 1)
+            return matches[0];
+
+        foreach (var i in matches)
+        {
+            if (ClipSourceEquals(i, PrimarySourcePath))
+                return i;
+        }
+
+        if (HasSelection && matches.Contains(SelectedIndex))
+            return SelectedIndex;
+        return matches[0];
+    }
+
+    private bool ClipSourceEquals(int index, string? path)
+    {
+        if (index < 0 || index >= _kept.Count)
+            return false;
+        return string.Equals(ResolvedSource(_kept[index].SourcePath), ResolvedSource(path),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private string ResolvedSource(string? path) =>
+        string.IsNullOrWhiteSpace(path) ? PrimarySourcePath : path;
+
     private static string Format(TimeSpan t) =>
         $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 }
+
+public readonly record struct KeptClip(TimeSpan Start, TimeSpan End, string SourcePath);
 
 public readonly record struct TimelineSegment(
     int ClipIndex,
