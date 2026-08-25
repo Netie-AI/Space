@@ -55,16 +55,37 @@ jobs:
             python "$f"
           done
 
+  license-api:
+    name: license-api
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: license-api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: license-api/package-lock.json
+      - name: typecheck
+        run: |
+          npm ci --legacy-peer-deps
+          npm run typecheck
+
   ci:
     name: ci
     if: always()
-    needs: [build-windows, python-syntax]
+    needs: [build-windows, python-syntax, license-api]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Require both jobs green
+      - name: Require all jobs green
         run: |
           echo "windows=${{ needs.build-windows.result }}"
           echo "python=${{ needs.python-syntax.result }}"
+          echo "license=${{ needs.license-api.result }}"
           test "${{ needs.build-windows.result }}" = success
           test "${{ needs.python-syntax.result }}" = success
+          test "${{ needs.license-api.result }}" = success

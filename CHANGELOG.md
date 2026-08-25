@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- CI: `license-api` job runs `tsc --noEmit` (schema-only Worker; Stripe Checkout still parked). Aggregator `ci` now requires Windows + python + license-api.
 - CI: bump `actions/checkout@v5`, `setup-dotnet@v5`, `setup-python@v6` (Node 24 majors). Node 20 on runners is deprecated.
 - CI: Windows job runs `dotnet test` (xunit Select/Split/Drag/Delete/Fade + WASM policy). Tests compile-link NLE services (no WPF WinExe ProjectReference — testhost hangs on App.xaml). `--blame-hang-timeout 2m`. Aggregator job `ci` fails unless both Windows and python succeed. `merge_group` trigger ready if merge queue is enabled. Not a substitute for the human Export gate.
 - CI: Windows `setup-dotnet` caches NuGet (`cache: true` on `*.csproj` / `*.sln`).
