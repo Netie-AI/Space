@@ -426,6 +426,8 @@ public partial class PreviewWindow : Window
 
         if (AddVideoButton is not null)
             AddVideoButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
+        if (OrderClipsButton is not null)
+            OrderClipsButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         if (TrimVideoButton is not null)
             TrimVideoButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         CutMiddleButton.Visibility = isVideo && _editMode && _videoEdit.HasSelection
@@ -3859,25 +3861,34 @@ public partial class PreviewWindow : Window
         var dlg = new OpenFileDialog
         {
             Title = "Add clip onto V1",
-            Filter = "Video|*.mp4;*.webm;*.mkv;*.mov;*.avi;*.m4v;*.wmv|All|*.*"
+            Filter = "Video|*.mp4;*.webm;*.mkv;*.mov;*.avi;*.m4v;*.wmv|All|*.*",
+            Multiselect = true
         };
-        if (dlg.ShowDialog(this) != true)
+        if (dlg.ShowDialog(this) != true || dlg.FileNames.Length == 0)
             return;
 
         ConvertStatusText.Text = "Reading clip duration…";
-        var dur = await _ffmpeg.ProbeDurationAsync(dlg.FileName);
-        if (dur is null || dur <= TimeSpan.Zero)
+        var added = 0;
+        var lastIdx = -1;
+        string? lastName = null;
+        PushVideoUndo();
+        foreach (var file in dlg.FileNames)
         {
-            ConvertStatusText.Text =
-                "Could not read that video’s duration (need FFmpeg). Run scripts/download-ffmpeg.ps1.";
-            return;
+            var dur = await _ffmpeg.ProbeDurationAsync(file);
+            if (dur is null || dur <= TimeSpan.Zero)
+                continue;
+            var idx = _videoEdit.AppendClip(file, dur.Value);
+            if (idx < 0)
+                continue;
+            added++;
+            lastIdx = idx;
+            lastName = IoPath.GetFileName(file);
         }
 
-        PushVideoUndo();
-        var idx = _videoEdit.AppendClip(dlg.FileName, dur.Value);
-        if (idx < 0)
+        if (added == 0)
         {
-            ConvertStatusText.Text = "Clip too short to add.";
+            ConvertStatusText.Text =
+                "Could not read those videos’ duration (need FFmpeg). Run scripts/download-ffmpeg.ps1.";
             return;
         }
 
@@ -3886,8 +3897,36 @@ public partial class PreviewWindow : Window
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)
             TimelineHintText.Text = _videoEdit.Describe();
-        ConvertStatusText.Text =
-            $"Added clip {idx + 1} on V1 ({IoPath.GetFileName(dlg.FileName)}) — packed after existing clips. Drag to reorder. Fade/Wipe still join on Export.";
+        ConvertStatusText.Text = added == 1
+            ? $"Added clip {lastIdx + 1} on V1 ({lastName}) -- packed after existing clips. Order... to arrange. Fade/Wipe still join on Export."
+            : $"Added {added} clips on V1 in dialog order (last: {lastName}). Order... to arrange. Fade/Wipe still join on Export.";
+    }
+
+    private void OrderClipsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_videoEdit.Clips.Count == 0)
+        {
+            ConvertStatusText.Text = "No clips on V1 to order.";
+            return;
+        }
+
+        var ordered = VideoOrderWindow.Show(this, _videoEdit.Clips);
+        if (ordered is null)
+            return;
+
+        PushVideoUndo();
+        if (!_videoEdit.ApplyOrder(ordered))
+        {
+            ConvertStatusText.Text = "Could not apply that clip order.";
+            return;
+        }
+
+        SyncTimelineFromSession();
+        RefreshDeleteVisibility();
+        ScheduleTimelineLayout();
+        if (TimelineHintText is not null)
+            TimelineHintText.Text = _videoEdit.Describe();
+        ConvertStatusText.Text = "V1 clip order applied -- top of the list plays first. Export uses this packed order.";
     }
 
     private async void RemoveBgButton_Click(object sender, RoutedEventArgs e)
