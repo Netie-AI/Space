@@ -17,6 +17,7 @@ namespace NetieSpace.Views;
 
 public partial class PreviewWindow : Window
 {
+    private PreviewHandlerOverlay? _previewHandler;
     private readonly int _animationMs;
     private readonly ContentParserService _parser;
     private readonly ConversionService _conversion;
@@ -261,6 +262,7 @@ public partial class PreviewWindow : Window
     public async Task LoadFileAsync(string filePath)
     {
         StopVideo();
+        HidePreviewHandler();
         // Persist chat for the previous file before swapping
         try { ChatPanel.Persist(); } catch { /* ignore */ }
         if (!string.Equals(_currentFilePath, filePath, StringComparison.OrdinalIgnoreCase))
@@ -550,6 +552,7 @@ public partial class PreviewWindow : Window
         PreviewWebView.Visibility = Visibility.Collapsed;
         VideoPanel.Visibility = Visibility.Collapsed;
         StopVideo();
+        HidePreviewHandler();
         ResetZoom();
 
         if (content.Kind == PreviewKind.Image)
@@ -619,6 +622,18 @@ public partial class PreviewWindow : Window
             }
 
             return;
+        }
+
+        if (content.Kind == PreviewKind.ShellInfo &&
+            !string.IsNullOrWhiteSpace(content.FilePath) &&
+            !IoDirectory.Exists(content.FilePath))
+        {
+            EnsurePreviewHandler();
+            if (_previewHandler!.TryShow(content.FilePath))
+            {
+                ConvertStatusText.Text = "Windows preview handler";
+                return;
+            }
         }
 
         PreviewWebView.Visibility = Visibility.Visible;
@@ -5615,6 +5630,17 @@ public partial class PreviewWindow : Window
         }
     }
 
+    private void EnsurePreviewHandler() =>
+        _previewHandler ??= new PreviewHandlerOverlay(this, ContentHost);
+
+    private void HidePreviewHandler() => _previewHandler?.Hide();
+
+    private void DisposePreviewHandler()
+    {
+        _previewHandler?.Dispose();
+        _previewHandler = null;
+    }
+
     private void StopVideo()
     {
         _videoTimer.Stop();
@@ -6521,6 +6547,7 @@ public partial class PreviewWindow : Window
         _allowClose = true;
         _cts?.Cancel();
         StopVideo();
+        HidePreviewHandler();
         await AnimationHelper.AnimateCloseAsync(RootBorder, _animationMs - 40);
         Close();
     }
@@ -6560,6 +6587,7 @@ public partial class PreviewWindow : Window
         }
 
         try { ChatPanel.Persist(); } catch { /* ignore */ }
+        DisposePreviewHandler();
         if (!string.IsNullOrWhiteSpace(_nobgTempPath) &&
             !string.Equals(_nobgTempPath, _currentFilePath, StringComparison.OrdinalIgnoreCase))
             DeleteNobgTemp(_nobgTempPath);

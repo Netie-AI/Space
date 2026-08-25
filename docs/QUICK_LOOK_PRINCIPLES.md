@@ -19,7 +19,7 @@ Short Mac Quick Look ideas and how they map to Netie.
 | Arrow sibling travel | Done (Up/Down/Left/Right) |
 | Home / End extremes | Done (first/last sibling) |
 | Faithful Office | PPTX: COM → LibreOffice → HTML; DOCX: mammoth + media/ |
-| IPreviewHandler host | Parked (P8) |
+| IPreviewHandler host | Opaque overlay over ContentHost (not inside glass HWND) |
 | Mission Control–style overview | Parked |
 
 Keep Space feel light: no heavy chrome in the first viewport, no convert-to-markdown for visual preview.
