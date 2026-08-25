@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- Marketing: `scripts/demo_video/` renders a 16.5s 1080p promo (brand / Space key / preview / CTA). Output under `scripts/demo_video/out/` (not `/opt/cursor/artifacts`). `NETIE_DEMO_MAX_FRAMES=1` skips encode.
 - Housekeeping: STATUS.md records green main CI and merge-only-if-green (no `--auto`).
 - CI: ubuntu job installs ffmpeg and smokes Space's fade + wipeleft xfade graph (not a substitute for user Export stress).
 - ShellInfo files with an Explorer preview handler open in an **opaque overlay** (IPreviewHandler). Glass PreviewWindow stays layered; `NETIE_SPACE_PREVIEW_HANDLER=0` disables. Folders and missing CLSIDs keep the HTML metadata view.

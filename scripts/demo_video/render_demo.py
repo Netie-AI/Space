@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import math
+import os
 import shutil
 import subprocess
 import sys
@@ -26,8 +27,8 @@ PAPER_FAINT = (255, 255, 255, 30)
 
 FONT_DIR = ROOT / "fonts"
 SYSTEM_FONTS = Path("/usr/share/fonts/truetype")
-OUT_DIR = Path("/opt/cursor/artifacts")
-FRAMES = Path("/tmp/netie-demo-frames")
+OUT_DIR = Path(os.environ.get("NETIE_DEMO_OUT", str(ROOT / "out")))
+FRAMES = Path(os.environ.get("NETIE_DEMO_FRAMES_DIR", "/tmp/netie-demo-frames"))
 
 _FONT_CANDIDATES = {
     "Inter-Bold.ttf": [
@@ -497,7 +498,11 @@ def encode(frames_dir: Path, out: Path) -> None:
     ]
     subprocess.check_call(cmd)
     # also write a poster frame
-    shutil.copy(frames_dir / "frame_00090.png", out.with_suffix(".png"))
+    poster = frames_dir / "frame_00090.png"
+    if not poster.exists():
+        poster = frames_dir / "frame_00000.png"
+    if poster.exists():
+        shutil.copy(poster, out.with_suffix(".png"))
 
 
 def main() -> int:
@@ -507,20 +512,22 @@ def main() -> int:
         shutil.rmtree(FRAMES)
     FRAMES.mkdir(parents=True)
 
-    print(f"Rendering {TOTAL} frames @ {FPS}fps…", flush=True)
-    for i in range(TOTAL):
+    n = int(os.environ.get("NETIE_DEMO_MAX_FRAMES", str(TOTAL)))
+    n = max(1, min(TOTAL, n))
+    print(f"Rendering {n} frames @ {FPS}fps…", flush=True)
+    for i in range(n):
         t = i / FPS
         frame = render_frame(t, brand, bg).convert("RGB")
         frame.save(FRAMES / f"frame_{i:05d}.png", optimize=False)
         if i % 30 == 0:
-            print(f"  {i}/{TOTAL} ({t:.1f}s)", flush=True)
+            print(f"  {i}/{n} ({t:.1f}s)", flush=True)
 
     out = OUT_DIR / "netie-space-demo.mp4"
+    if n < 15 or shutil.which("ffmpeg") is None:
+        print(f"Skip encode (frames={n}, ffmpeg={shutil.which('ffmpeg')})", flush=True)
+        return 0
     print(f"Encoding {out}…", flush=True)
     encode(FRAMES, out)
-    # lightweight copy into repo artifacts note path
-    repo_out = ROOT / "netie-space-demo.mp4"
-    # don't commit large mp4 by default — leave in /opt/cursor/artifacts
     size = out.stat().st_size
     print(f"Done: {out} ({size / 1e6:.2f} MB)", flush=True)
     return 0
