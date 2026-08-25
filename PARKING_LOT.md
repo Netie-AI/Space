@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (slide-to-chat + Word/HTML editor).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (Cortex WASM stubs).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -84,7 +84,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Acrobat-class pdf.js viewer in WebView2 (ACTIVE — see P3)
 - [x] AirGPT `--preview "path"` CLI handoff
 - [x] Vault ↔ Space bridge (`OpenVaultKeySync`)
-- [ ] Cortex sidecar ditch tiers + WASM stubs (parallel track)
+- [x] Cortex sidecar ditch tiers + WASM stubs (parallel track)
 
 ## P3 — Acrobat-class PDF (ACTIVE · Loop Pillar 2 next)
 
