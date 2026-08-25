@@ -16,9 +16,12 @@ def test_windows_ci_runs_dotnet_test():
     csproj = CSPROJ.read_text(encoding="utf-8")
     nle = NLE.read_text(encoding="utf-8")
     assert "dotnet test NetieSpace.sln" in yml
+    assert "--blame-hang-timeout 2m" in yml
     assert "needs: [build-windows, python-syntax]" in yml
     assert "NetieSpace.Tests" in sln
     assert "xunit" in csproj
+    assert "<ProjectReference" not in csproj
+    assert "Do not ProjectReference the WPF WinExe" in csproj
     assert "Select_split_drag_delete_ripples" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle
 

@@ -1,10 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>NetieSpace.Tests</RootNamespace>
@@ -19,8 +18,18 @@
     </PackageReference>
   </ItemGroup>
 
+  <!--
+    Do not ProjectReference the WPF WinExe. testhost loads App.xaml, takes the
+    single-instance mutex, and hangs Restore/build/test on windows-latest.
+  -->
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NetieSpace\NetieSpace.csproj" />
+    <Compile Include="..\..\src\NetieSpace\GlobalUsings.cs" Link="Linked\GlobalUsings.cs" />
+    <Compile Include="..\..\src\NetieSpace\Models\AppModels.cs" Link="Linked\AppModels.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\VideoEditSession.cs" Link="Linked\VideoEditSession.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\Timeline\TimelineProject.cs" Link="Linked\TimelineProject.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\CortexWasmPolicy.cs" Link="Linked\CortexWasmPolicy.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\DitchContext.cs" Link="Linked\DitchContext.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\LocalSummaryService.cs" Link="Linked\LocalSummaryService.cs" />
   </ItemGroup>
 
 </Project>

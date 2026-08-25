@@ -29,7 +29,10 @@ jobs:
             **/*.csproj
             **/*.sln
       - name: Restore, build, and test
-        run: dotnet test NetieSpace.sln -c Debug --nologo --logger "trx;LogFileName=test-results.trx"
+        run: >
+          dotnet test NetieSpace.sln -c Debug --nologo
+          --blame-hang-timeout 2m
+          --logger "trx;LogFileName=test-results.trx"
 
   python-syntax:
     name: python syntax
