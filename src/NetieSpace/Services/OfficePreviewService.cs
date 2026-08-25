@@ -15,6 +15,8 @@ using A = DocumentFormat.OpenXml.Drawing;
 using M = DocumentFormat.OpenXml.Math;
 using PIC = DocumentFormat.OpenXml.Drawing.Pictures;
 using Wp = DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using Run = DocumentFormat.OpenXml.Wordprocessing.Run;
+using Table = DocumentFormat.OpenXml.Wordprocessing.Table;
 
 namespace NetieSpace.Services;
 
