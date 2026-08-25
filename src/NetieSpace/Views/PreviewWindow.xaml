@@ -135,6 +135,10 @@
                         <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="RemoveBgButton_Click"/>
+                        <Button x:Name="OcrImageButton" Content="OCR" Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                Click="OcrImageButton_Click"
+                                ToolTip="Read text from this image (local OCR; cloud stays opt-in)"/>
                         <Button x:Name="CopyImageButton" Content="Copy" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="CopyImageButton_Click"
@@ -440,8 +444,8 @@
                                             Click="PdfMoreButton_Click" ToolTip="Less-used tools">
                                         <Button.ContextMenu>
                                             <ContextMenu>
-                                                <MenuItem Header="Edit text boxes (preview)" Click="PdfEditTextMode_Click"
-                                                          ToolTip="Show native PDF text boxes — full edit later"/>
+                                                <MenuItem Header="Edit text / OCR…" Click="PdfEditTextMode_Click"
+                                                          ToolTip="Edit native text or seed OCR boxes, then Save into this PDF"/>
                                                 <Separator/>
                                                 <MenuItem Header="Compress…" IsEnabled="False"
                                                           ToolTip="Coming soon — not a fake rewrite"/>
@@ -510,9 +514,12 @@
                                     <StackPanel>
                                         <TextBlock Text="Fill &amp; type" FontSize="11" Foreground="#A8FFF8" Margin="0,0,0,6" FontWeight="SemiBold"/>
                                         <WrapPanel>
-                                            <TextBlock Text="Click a table cell or blank line, then type. Press Save when done."
+                                            <TextBlock Text="Click a cell or blank, type, then Save. OCR seeds boxes on scanned pages."
                                                        Foreground="#C0C8D4" FontSize="12" VerticalAlignment="Center"
-                                                       Margin="0,0,12,6" TextWrapping="Wrap" MaxWidth="420"/>
+                                                       Margin="0,0,12,6" TextWrapping="Wrap" MaxWidth="360"/>
+                                            <Button Content="OCR this page" Style="{StaticResource EditorChipPrimary}"
+                                                    Click="PdfOcrSeed_Click"
+                                                    ToolTip="Read the visible page with local OCR and drop editable text boxes"/>
                                             <Button Content="A−" Style="{StaticResource EditorChip}" Click="PdfSizeDown_Click" MinWidth="40"/>
                                             <Button Content="A+" Style="{StaticResource EditorChip}" Click="PdfSizeUp_Click" MinWidth="40"/>
                                             <Button Content="Exit Fill" Style="{StaticResource EditorChip}" Click="PdfExitFill_Click"/>

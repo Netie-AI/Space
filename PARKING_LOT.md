@@ -95,7 +95,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Page thumb strip + stamp drag placement
 - [x] Merge arrange UI; Organize page thumbs
 - [x] Annotate / highlight (pdf.js overlay; PdfSharpCore appearance, no iText AGPL)
-- [ ] Form fill / OCR / in-place text — Tier B
+- [x] Form fill / OCR / in-place text — Tier B
 - [ ] Cryptographic digital signature — Tier C park (stamp is visual only)
 - [ ] Toolbar discipline polish (primary chips + More ▾) — ongoing
 
