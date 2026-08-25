@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (V1 clip-order + Cortex WASM stubs).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (toolbar More... + V1 clip-order).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -97,7 +97,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Annotate / highlight (pdf.js overlay; PdfSharpCore appearance, no iText AGPL)
 - [x] Form fill / OCR / in-place text — Tier B
 - [ ] Cryptographic digital signature — Tier C park (stamp is visual only)
-- [ ] Toolbar discipline polish (primary chips + More ▾) — ongoing
+- [x] Toolbar discipline polish (primary chips + More...)
 
 ## P8 — Office fidelity
 

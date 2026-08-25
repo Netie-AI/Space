@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- CI: python job runs every `tests/test_*.py` contract script after compileall (not syntax-only).
+- PDF/Video editor ribbons: primary chips only; **More...** menus hold range export, Match/1080/4K presets, LUT, watermark/protect/OCR. No ComboBox (that template crashed XAML load).
 - Video: **Order...** dialog + multi-select **+ Clip** packs several files onto V1 in chosen order (drag / Up / Down). Export still uses packed sources so Fade/Wipe join mixed files.
 - Cortex: Space sends WASM pack policy (deny WASI FS/net, 50k fuel, 4MiB, 2s kill) on sidecar calls; `CORTEX_WASM_DISABLED` skips isolate. Python stub + ditch-tier sidecar in `scripts/` with tests (fuel/OOM/missing export/timeout/disabled).
 - Video: **+ Clip** packs a second/third source onto V1 (no overlap; drag to reorder). Export uses per-clip sources so Fade/Wipe xfade still join mixed files.

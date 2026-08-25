@@ -428,21 +428,13 @@ public partial class PreviewWindow : Window
             AddVideoButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         if (OrderClipsButton is not null)
             OrderClipsButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
-        if (TrimVideoButton is not null)
-            TrimVideoButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
+        if (VideoMoreButton is not null)
+            VideoMoreButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         CutMiddleButton.Visibility = isVideo && _editMode && _videoEdit.HasSelection
             ? Visibility.Visible
             : Visibility.Collapsed;
         if (ExportEditButton is not null)
             ExportEditButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
-        if (ExportMatchButton is not null)
-            ExportMatchButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
-        if (Export1080Button is not null)
-            Export1080Button.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
-        if (Export4KButton is not null)
-            Export4KButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
-        if (LutButton is not null)
-            LutButton.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         RefreshExportPresetButtons();
 
         RemoveBgButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
@@ -1668,7 +1660,7 @@ public partial class PreviewWindow : Window
 
     private void ExportPresetButton_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string tag })
+        if (sender is not FrameworkElement { Tag: string tag })
             return;
         _exportPreset = tag switch
         {
@@ -1687,18 +1679,33 @@ public partial class PreviewWindow : Window
 
     private void RefreshExportPresetButtons()
     {
-        void StyleBtn(Button? b, bool on)
+        void StyleItem(System.Windows.Controls.MenuItem? m, bool on)
         {
-            if (b is null) return;
-            b.Opacity = on ? 1.0 : 0.65;
-            b.BorderBrush = on
-                ? new SolidColorBrush(Color.FromRgb(0x5E, 0xC4, 0xB8))
-                : new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF));
+            if (m is null) return;
+            m.FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal;
         }
 
-        StyleBtn(ExportMatchButton, _exportPreset == ExportPreset.MatchSource);
-        StyleBtn(Export1080Button, _exportPreset == ExportPreset.Hd1080);
-        StyleBtn(Export4KButton, _exportPreset == ExportPreset.Uhd4K);
+        StyleItem(VideoPresetMatchMenu, _exportPreset == ExportPreset.MatchSource);
+        StyleItem(VideoPreset1080Menu, _exportPreset == ExportPreset.Hd1080);
+        StyleItem(VideoPreset4KMenu, _exportPreset == ExportPreset.Uhd4K);
+
+        if (VideoRibbonHint is not null)
+        {
+            VideoRibbonHint.Text = _exportPreset switch
+            {
+                ExportPreset.Hd1080 => "Preset 1080p · More for range/LUT",
+                ExportPreset.Uhd4K => "Preset 4K · More for range/LUT",
+                _ => "Export · + Clip · Order · More"
+            };
+        }
+    }
+
+    private void VideoMoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Button btn || btn.ContextMenu is null)
+            return;
+        btn.ContextMenu.PlacementTarget = btn;
+        btn.ContextMenu.IsOpen = true;
     }
 
     private async void TrimVideoButton_Click(object sender, RoutedEventArgs e)
