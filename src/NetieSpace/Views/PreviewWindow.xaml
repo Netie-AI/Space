@@ -787,6 +787,12 @@
                                                     Click="FadeInButton_Click" ToolTip="0.5s fade in on selected clip"/>
                                             <Button Content="Fade Out" Style="{StaticResource EditorChip}" Margin="0,0,8,6"
                                                     Click="FadeOutButton_Click" ToolTip="0.5s fade out on selected clip"/>
+                                            <Button Content="Wipe" Style="{StaticResource EditorChip}" Margin="0,0,8,6"
+                                                    Click="WipeButton_Click"
+                                                    ToolTip="0.5s wipe into the next clip (ffmpeg xfade wipeleft) — burns on Export"/>
+                                            <Button Content="Text" Style="{StaticResource EditorChip}" Margin="0,0,8,6"
+                                                    Click="OverlayTextButton_Click"
+                                                    ToolTip="Overlay text on the canvas at the playhead — burns into Export"/>
                                             <Button Content="Captions" Style="{StaticResource EditorChip}" Margin="0,0,8,6"
                                                     Click="AutoCaptionsButton_Click"
                                                     ToolTip="Local AI subtitles (whisper.cpp) — ZH+EN auto"/>

@@ -268,8 +268,10 @@ public sealed class FfmpegService
         var dir = IoPath.GetDirectoryName(output)!;
         IoDirectory.CreateDirectory(dir);
         var parts = new List<string>();
+        var exportClips = new List<Timeline.TimelineClip>();
         var list = IoPath.Combine(dir, $"_ns_tl_{Guid.NewGuid():N}.txt");
         string? concatTempPath = null;
+        var joinTemps = new List<string>();
 
         try
         {
@@ -284,13 +286,14 @@ public sealed class FfmpegService
                 var vf = new StringBuilder();
                 if (clip.Speed > 0 && Math.Abs(clip.Speed - 1.0) > 0.01)
                     vf.Append($"setpts={1.0 / clip.Speed:0.####}*PTS");
-                if (clip.FadeIn > TimeSpan.Zero)
+                // Wipe joins use xfade; skip per-clip fade on that edge so we do not double-darken.
+                if (clip.FadeIn > TimeSpan.Zero && clip.TransitionIn != Timeline.TransitionKind.Wipe)
                 {
                     if (vf.Length > 0) vf.Append(',');
                     vf.Append($"fade=t=in:st=0:d={clip.FadeIn.TotalSeconds:0.###}");
                 }
 
-                if (clip.FadeOut > TimeSpan.Zero)
+                if (clip.FadeOut > TimeSpan.Zero && clip.TransitionOut != Timeline.TransitionKind.Wipe)
                 {
                     var dur = (clip.SourceOut - clip.SourceIn).TotalSeconds / Math.Max(0.01, clip.Speed);
                     var st = Math.Max(0, dur - clip.FadeOut.TotalSeconds);
@@ -317,6 +320,7 @@ public sealed class FfmpegService
                 if (!cut.Success)
                     return cut;
                 parts.Add(part);
+                exportClips.Add(clip);
             }
 
             // Generated overlays as color clips inserted by timeline order — burn after concat for simplicity
@@ -332,15 +336,11 @@ public sealed class FfmpegService
             {
                 concatPath = IoPath.Combine(dir, $"_ns_tlcat_{Guid.NewGuid():N}.mp4");
                 concatTempPath = concatPath;
-                var sb = new StringBuilder();
-                foreach (var p in parts)
-                    sb.AppendLine($"file '{p.Replace("'", "'\\''")}'");
-                await IoFile.WriteAllTextAsync(list, sb.ToString(), ct);
-                var cat = await RunAsync(
-                    $"-y -f concat -safe 0 -i \"{list}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{concatPath}\"",
-                    concatPath, ct);
-                if (!cat.Success)
-                    return cat;
+                var joined = await JoinVideoPartsAsync(
+                    parts, exportClips, list, concatPath,
+                    project.Width, project.Height, joinTemps, ct);
+                if (!joined.Success)
+                    return joined;
             }
 
             // Text / black / white overlays
@@ -353,11 +353,7 @@ public sealed class FfmpegService
                     FfmpegResult r;
                     if (o.Overlay == Timeline.OverlayKind.Text && !string.IsNullOrWhiteSpace(o.Text))
                     {
-                        var escaped = o.Text.Replace("\\", "\\\\").Replace(":", "\\:").Replace("'", "\\'");
-                        r = await RunAsync(
-                            $"-y -i \"{current}\" -vf \"drawtext=text='{escaped}':fontsize=48:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:enable='between(t,{o.TimelineStart.TotalSeconds:0.###},{(o.TimelineStart + o.Duration).TotalSeconds:0.###})'\" " +
-                            $"-c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{next}\"",
-                            next, ct);
+                        r = await BurnTextOverlayAsync(current, next, o, ct);
                     }
                     else if (o.Overlay is Timeline.OverlayKind.Black or Timeline.OverlayKind.White)
                     {
@@ -414,10 +410,217 @@ public sealed class FfmpegService
         {
             foreach (var p in parts)
                 TryDelete(p);
+            foreach (var p in joinTemps)
+                TryDelete(p);
             TryDelete(list);
             if (concatTempPath is not null)
                 TryDelete(concatTempPath);
         }
+    }
+
+    /// <summary>
+    /// Concat packed V1 parts, using ffmpeg xfade wipeleft at Wipe junctions.
+    /// Hard cuts still use the concat demuxer.
+    /// </summary>
+    private async Task<FfmpegResult> JoinVideoPartsAsync(
+        IReadOnlyList<string> parts,
+        IReadOnlyList<Timeline.TimelineClip> clips,
+        string concatListPath,
+        string outputPath,
+        int width,
+        int height,
+        List<string> temps,
+        CancellationToken ct)
+    {
+        var hasXfade = false;
+        for (var i = 0; i < clips.Count - 1 && i < parts.Count - 1; i++)
+        {
+            if (Timeline.TimelineProject.XfadeJoinDuration(clips[i], clips[i + 1]) > TimeSpan.Zero)
+            {
+                hasXfade = true;
+                break;
+            }
+        }
+
+        if (!hasXfade)
+        {
+            var sb = new StringBuilder();
+            foreach (var p in parts)
+                sb.AppendLine($"file '{p.Replace("'", "'\\''")}'");
+            await IoFile.WriteAllTextAsync(concatListPath, sb.ToString(), ct);
+            return await RunAsync(
+                $"-y -f concat -safe 0 -i \"{concatListPath}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
+                outputPath, ct);
+        }
+
+        var current = parts[0];
+        var currentDur = clips[0].Duration;
+        var dir = IoPath.GetDirectoryName(outputPath)!;
+        for (var i = 1; i < parts.Count; i++)
+        {
+            var nextPath = i == parts.Count - 1
+                ? outputPath
+                : IoPath.Combine(dir, $"_ns_xfade_{Guid.NewGuid():N}.mp4");
+            var xfadeDur = i - 1 < clips.Count - 1
+                ? Timeline.TimelineProject.XfadeJoinDuration(clips[i - 1], clips[i])
+                : TimeSpan.Zero;
+
+            FfmpegResult join;
+            if (xfadeDur > TimeSpan.Zero)
+            {
+                join = await XfadeJoinAsync(current, parts[i], currentDur, xfadeDur, nextPath, width, height, ct);
+                currentDur += clips[i].Duration - xfadeDur;
+            }
+            else
+            {
+                join = await ConcatTwoAsync(current, parts[i], concatListPath, nextPath, ct);
+                currentDur += clips[i].Duration;
+            }
+
+            if (!join.Success)
+                return join;
+
+            if (current != parts[0] && current != outputPath)
+                TryDelete(current);
+            current = nextPath;
+            if (nextPath != outputPath)
+                temps.Add(nextPath);
+        }
+
+        return new FfmpegResult { Success = true, OutputPath = outputPath };
+    }
+
+    private async Task<FfmpegResult> ConcatTwoAsync(
+        string left, string right, string listPath, string outputPath, CancellationToken ct)
+    {
+        await IoFile.WriteAllTextAsync(listPath,
+            $"file '{left.Replace("'", "'\\''")}'\nfile '{right.Replace("'", "'\\''")}'\n", ct);
+        return await RunAsync(
+            $"-y -f concat -safe 0 -i \"{listPath}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
+            outputPath, ct);
+    }
+
+    private async Task<FfmpegResult> XfadeJoinAsync(
+        string left,
+        string right,
+        TimeSpan leftDuration,
+        TimeSpan xfadeDur,
+        string outputPath,
+        int width,
+        int height,
+        CancellationToken ct)
+    {
+        var w = width > 0 ? width : 1920;
+        var h = height > 0 ? height : 1080;
+        var offset = Math.Max(0, leftDuration.TotalSeconds - xfadeDur.TotalSeconds);
+        var d = xfadeDur.TotalSeconds;
+        var scale =
+            $"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS";
+        var xfade = Timeline.TimelineProject.XfadeWipeName;
+        var withAudio =
+            $"[0:v]{scale}[v0];[1:v]{scale}[v1];" +
+            $"[v0][v1]xfade=transition={xfade}:duration={d:0.###}:offset={offset:0.###}[vout];" +
+            $"[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a0];" +
+            $"[1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a1];" +
+            $"[a0][a1]acrossfade=d={d:0.###}[aout]";
+        var r = await RunAsync(
+            $"-y -i \"{left}\" -i \"{right}\" -filter_complex \"{withAudio}\" -map \"[vout]\" -map \"[aout]\" " +
+            $"-c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
+            outputPath, ct);
+        if (r.Success)
+            return r;
+
+        var videoOnly =
+            $"[0:v]{scale}[v0];[1:v]{scale}[v1];" +
+            $"[v0][v1]xfade=transition={xfade}:duration={d:0.###}:offset={offset:0.###}[vout]";
+        return await RunAsync(
+            $"-y -i \"{left}\" -i \"{right}\" -filter_complex \"{videoOnly}\" -map \"[vout]\" -an " +
+            $"-c:v libx264 -preset veryfast -crf 23 -movflags +faststart \"{outputPath}\"",
+            outputPath, ct);
+    }
+
+    /// <summary>
+    /// Burn overlay text onto the canvas. Prefer drawtext with a system font;
+    /// fall back to a timed SRT so export still gets burned-in glyphs.
+    /// </summary>
+    private async Task<FfmpegResult> BurnTextOverlayAsync(
+        string input,
+        string output,
+        Timeline.TimelineClip overlay,
+        CancellationToken ct)
+    {
+        var dir = IoPath.GetDirectoryName(output) ?? IoPath.GetTempPath();
+        var textFile = IoPath.Combine(dir, $"_ns_txt_{Guid.NewGuid():N}.txt");
+        try
+        {
+            await IoFile.WriteAllTextAsync(textFile, overlay.Text ?? "", ct);
+            var start = overlay.TimelineStart.TotalSeconds;
+            var end = (overlay.TimelineStart + overlay.Duration).TotalSeconds;
+            var font = ResolveDrawtextFont();
+            var fontArg = font is null ? "" : $":fontfile='{EscapeFilterPath(font)}'";
+            var vf =
+                $"drawtext=textfile='{EscapeFilterPath(textFile)}'{fontArg}:fontsize=48:fontcolor=white:" +
+                $"borderw=2:bordercolor=black@0.65:x=(w-text_w)/2:y=(h-text_h)/2:" +
+                $"enable='between(t,{start:0.###},{end:0.###})'";
+            var r = await RunAsync(
+                $"-y -i \"{input}\" -vf \"{vf}\" -c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{output}\"",
+                output, ct);
+            if (r.Success)
+                return r;
+
+            var srt = IoPath.Combine(dir, $"_ns_ovtxt_{Guid.NewGuid():N}.srt");
+            try
+            {
+                await IoFile.WriteAllTextAsync(srt, ToTimedSrt(overlay.Text ?? "", overlay.TimelineStart, overlay.Duration), ct);
+                var escaped = EscapeFilterPath(srt);
+                return await RunAsync(
+                    $"-y -i \"{input}\" -vf \"subtitles='{escaped}'\" " +
+                    $"-c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{output}\"",
+                    output, ct);
+            }
+            finally
+            {
+                TryDelete(srt);
+            }
+        }
+        finally
+        {
+            TryDelete(textFile);
+        }
+    }
+
+    private static string ToTimedSrt(string text, TimeSpan start, TimeSpan duration)
+    {
+        var end = start + duration;
+        var body = text.Replace("\r\n", "\n").Replace('\r', '\n');
+        return $"1\n{FormatSrtTs(start)} --> {FormatSrtTs(end)}\n{body}\n";
+    }
+
+    private static string FormatSrtTs(TimeSpan t)
+    {
+        if (t < TimeSpan.Zero)
+            t = TimeSpan.Zero;
+        return $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00},{t.Milliseconds:000}";
+    }
+
+    private static string EscapeFilterPath(string path) =>
+        path.Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");
+
+    private static string? ResolveDrawtextFont()
+    {
+        var fontsDir = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+        string[] candidates =
+        [
+            IoPath.Combine(fontsDir, "arial.ttf"),
+            IoPath.Combine(fontsDir, "segoeui.ttf"),
+            IoPath.Combine(fontsDir, "calibri.ttf"),
+            @"C:\Windows\Fonts\arial.ttf",
+            @"C:\Windows\Fonts\segoeui.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+            "/usr/share/fonts/truetype/freefont/FreeSans.ttf"
+        ];
+        return candidates.FirstOrDefault(IoFile.Exists);
     }
 
     /// <summary>Burn SRT into video with ffmpeg subtitles filter (Windows path escaped).</summary>

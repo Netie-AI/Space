@@ -21,6 +21,9 @@ public sealed class VideoEditSession
     /// <summary>When true, deleted gaps render/export as black fillers (CapCut-style).</summary>
     public bool FillGapsWithBlack { get; set; } = false;
 
+    /// <summary>True when the selected clip has a following clip to wipe/crossfade into.</summary>
+    public bool CanJoinToNext => HasSelection && SelectedIndex < _kept.Count - 1;
+
     public void Reset(TimeSpan duration)
     {
         SourceDuration = duration < TimeSpan.Zero ? TimeSpan.Zero : duration;

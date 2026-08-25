@@ -21,7 +21,9 @@ public enum TransitionKind
     None,
     Fade,
     Crossfade,
-    Dissolve
+    Dissolve,
+    /// <summary>Clip-to-clip join via ffmpeg xfade wipeleft (not a per-clip opacity fade).</summary>
+    Wipe
 }
 
 public enum ExportPreset
@@ -83,6 +85,9 @@ public sealed class TimelineProject
     public string? SubtitleBurnPath { get; set; }
     /// <summary>Insert black fillers for source gaps on export (false = ripple merge).</summary>
     public bool FillGapsWithBlack { get; set; } = false;
+
+    /// <summary>Default clip-to-clip wipe duration when FadeOut/FadeIn is unset.</summary>
+    public static readonly TimeSpan DefaultXfadeDuration = TimeSpan.FromMilliseconds(500);
 
     public TimelineTrack? VideoTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Video);
     public IEnumerable<TimelineTrack> AudioTracks => Tracks.Where(t => t.Kind == TrackKind.Audio);
@@ -361,6 +366,12 @@ public sealed class TimelineProject
         if (v is null)
             return;
 
+        // Keep fade/wipe/speed so Split→Wipe→Fade→Export does not reset the previous chip.
+        var prior = v.Clips
+            .Select(c => (c.SourcePath, c.SourceIn, c.SourceOut, c.Speed, c.FadeIn, c.FadeOut,
+                c.TransitionIn, c.TransitionOut, c.LutPath, c.Opacity, c.Muted, c.Text))
+            .ToList();
+
         v.Clips.Clear();
         a?.Clips.Clear();
         var t = TimeSpan.Zero;
@@ -369,13 +380,33 @@ public sealed class TimelineProject
             var dur = end - start;
             if (dur <= TimeSpan.Zero)
                 continue;
-            v.Clips.Add(new TimelineClip
+            var clip = new TimelineClip
             {
                 SourcePath = sourcePath,
                 SourceIn = start,
                 SourceOut = end,
                 TimelineStart = t
-            });
+            };
+            var match = prior.FindIndex(p =>
+                p.SourceIn == start &&
+                p.SourceOut == end &&
+                string.Equals(p.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase));
+            if (match >= 0)
+            {
+                var p = prior[match];
+                clip.Speed = p.Speed;
+                clip.FadeIn = p.FadeIn;
+                clip.FadeOut = p.FadeOut;
+                clip.TransitionIn = p.TransitionIn;
+                clip.TransitionOut = p.TransitionOut;
+                clip.LutPath = p.LutPath;
+                clip.Opacity = p.Opacity;
+                clip.Muted = p.Muted;
+                clip.Text = p.Text;
+                prior.RemoveAt(match);
+            }
+
+            v.Clips.Add(clip);
             a?.Clips.Add(new TimelineClip
             {
                 SourcePath = sourcePath,
@@ -388,6 +419,30 @@ public sealed class TimelineProject
 
         SelectedClipId = null;
     }
+
+    /// <summary>
+    /// Duration of an ffmpeg xfade join between two packed V1 clips.
+    /// Wipe only — Fade stays a per-clip opacity filter.
+    /// </summary>
+    public static TimeSpan XfadeJoinDuration(TimelineClip left, TimelineClip right)
+    {
+        if (left.TransitionOut != TransitionKind.Wipe && right.TransitionIn != TransitionKind.Wipe)
+            return TimeSpan.Zero;
+
+        var requested = left.FadeOut > TimeSpan.Zero
+            ? left.FadeOut
+            : right.FadeIn > TimeSpan.Zero
+                ? right.FadeIn
+                : DefaultXfadeDuration;
+        var capSec = Math.Min(left.Duration.TotalSeconds, right.Duration.TotalSeconds) * 0.4;
+        if (capSec < 0.12)
+            return TimeSpan.Zero;
+        var cap = TimeSpan.FromSeconds(capSec);
+        return requested > cap ? cap : requested;
+    }
+
+    /// <summary>ffmpeg xfade transition name for a wipe join.</summary>
+    public const string XfadeWipeName = "wipeleft";
 
     /// <summary>After V1 reorder via kept-ranges sync, ensure A1 mirrors V1.</summary>
     public void EnsureAudioLinkedToVideo() => PackLinkedVideoAudio();
