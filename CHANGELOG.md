@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- CI: bump `actions/checkout@v5`, `setup-dotnet@v5`, `setup-python@v6` (Node 24 majors). Node 20 on runners is deprecated.
 - CI: Windows job runs `dotnet test` (xunit Select/Split/Drag/Delete/Fade + WASM policy). Tests compile-link NLE services (no WPF WinExe ProjectReference — testhost hangs on App.xaml). `--blame-hang-timeout 2m`. Aggregator job `ci` fails unless both Windows and python succeed. `merge_group` trigger ready if merge queue is enabled. Not a substitute for the human Export gate.
 - CI: Windows `setup-dotnet` caches NuGet (`cache: true` on `*.csproj` / `*.sln`).
 - Marketing: `scripts/demo_video/` renders a 16.5s 1080p promo (brand / Space key / preview / CTA). Output under `scripts/demo_video/out/` (not `/opt/cursor/artifacts`). `NETIE_DEMO_MAX_FRAMES=1` skips encode.
