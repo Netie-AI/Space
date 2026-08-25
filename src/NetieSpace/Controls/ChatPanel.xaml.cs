@@ -180,7 +180,7 @@ public partial class ChatPanel : UserControl
         });
     }
 
-    public void StageImage(string imagePath)
+    public void StageImage(string imagePath, string? title = null, string? detail = null)
     {
         if (string.IsNullOrWhiteSpace(imagePath) || !IoFile.Exists(imagePath))
             return;
@@ -188,10 +188,17 @@ public partial class ChatPanel : UserControl
         AddAsset(new ChatAsset
         {
             Kind = ChatAssetKind.Image,
-            Title = IoPath.GetFileName(imagePath),
-            Detail = DescribeFile(imagePath),
+            Title = string.IsNullOrWhiteSpace(title) ? IoPath.GetFileName(imagePath) : title,
+            Detail = string.IsNullOrWhiteSpace(detail) ? DescribeFile(imagePath) : detail,
             ImagePath = imagePath
         });
+    }
+
+    /// <summary>Stage one PPTX slide PNG through the same image-attach path. Nothing sends until Send.</summary>
+    public void StageSlideImage(string imagePath, int slideIndex)
+    {
+        var label = slideIndex >= 1 ? $"Slide {slideIndex}" : IoPath.GetFileName(imagePath);
+        StageImage(imagePath, label, $"{DescribeFile(imagePath)} · visible slide");
     }
 
     /// <summary>Marquee clip: page pixels plus whatever the light parse found under the box.</summary>

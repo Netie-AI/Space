@@ -352,6 +352,10 @@
                                 <Button x:Name="AddChatClipButton" Content="Add to Chat" Style="{StaticResource GhostButton}"
                                         Margin="0,0,8,0" Padding="10,4" Click="AddChatClipButton_Click"
                                         ToolTip="Stage this file (parsed) as an attachment — nothing sends until you press Send"/>
+                                <Button x:Name="SendSlideChatButton" Content="Send slide" Style="{StaticResource GhostButton}"
+                                        Margin="0,0,8,0" Padding="10,4" Click="SendSlideChatButton_Click"
+                                        Visibility="Collapsed"
+                                        ToolTip="Attach the visible slide image to chat — not the whole deck. Nothing sends until you press Send."/>
                                 <Button x:Name="RegionSelectButton" Content="Select area" Style="{StaticResource GhostButton}"
                                         Margin="0,0,8,0" Padding="10,4" Click="RegionSelectButton_Click"
                                         ToolTip="Drag a box over text or a figure — it parses first, then stages as an attachment"/>

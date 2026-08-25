@@ -8,9 +8,51 @@ namespace NetieSpace.Services;
 /// <summary>
 /// Renders PPTX slides as real page images (PowerPoint COM when installed).
 /// Returns null so caller can fall back to HTML text preview.
+/// Also resolves the PNG for the slide currently on screen so chat can attach
+/// that page — not a screenshot of the whole deck.
 /// </summary>
 public static class PptxSlideImageService
 {
+    /// <summary>1-based index of the scroll-snapped slide. Safe on cached HTML that never got the tracker script.</summary>
+    public const string VisibleSlideIndexScript =
+        "(function(){try{" +
+        "if(typeof window.__netieVisibleSlideIndex==='function'){var n=window.__netieVisibleSlideIndex();if(n>0)return String(n);}" +
+        "if(typeof window.__netieSlideIndex==='number'&&window.__netieSlideIndex>0)return String(window.__netieSlideIndex);" +
+        "var deck=document.getElementById('deck');" +
+        "var slides=deck?deck.querySelectorAll('.slide'):document.querySelectorAll('section.slide,.slide');" +
+        "if(!slides||!slides.length)return '1';" +
+        "var root=deck||document.scrollingElement||document.documentElement;" +
+        "var mid=(root.scrollTop||0)+((root.clientHeight||window.innerHeight)/2);" +
+        "var best=1,dist=1e12;" +
+        "for(var i=0;i<slides.length;i++){var r=slides[i];var top=r.offsetTop,h=r.offsetHeight||0;var d=Math.abs(top+h/2-mid);if(d<dist){dist=d;best=i+1;}}" +
+        "return String(best);}catch(e){return '1';}})()";
+
+    /// <summary>PNG data URL of the visible slide's &lt;img&gt; — not CapturePreview of the whole WebView.</summary>
+    public const string VisibleSlideDataUrlScript =
+        "(function(){try{" +
+        "var idx=1;" +
+        "if(typeof window.__netieVisibleSlideIndex==='function'){var n=window.__netieVisibleSlideIndex();if(n>0)idx=n;}" +
+        "else if(typeof window.__netieSlideIndex==='number'&&window.__netieSlideIndex>0)idx=window.__netieSlideIndex;" +
+        "else {" +
+        "var deck=document.getElementById('deck');" +
+        "var slides=deck?deck.querySelectorAll('.slide'):document.querySelectorAll('section.slide,.slide');" +
+        "if(slides&&slides.length){var root=deck||document.scrollingElement||document.documentElement;" +
+        "var mid=(root.scrollTop||0)+((root.clientHeight||window.innerHeight)/2);" +
+        "var best=1,dist=1e12;" +
+        "for(var i=0;i<slides.length;i++){var r=slides[i];var top=r.offsetTop,h=r.offsetHeight||0;var d=Math.abs(top+h/2-mid);if(d<dist){dist=d;best=i+1;}}" +
+        "idx=best;}" +
+        "}" +
+        "var img=null;" +
+        "var deck2=document.getElementById('deck');" +
+        "var nodes=deck2?deck2.querySelectorAll('.slide'):document.querySelectorAll('section.slide,.slide');" +
+        "if(nodes&&nodes.length){var s=nodes[Math.max(0,Math.min(idx-1,nodes.length-1))];img=s.querySelector?s.querySelector('img'):null;}" +
+        "if(!img){var vis=document.querySelectorAll('img');for(var j=0;j<vis.length;j++){var b=vis[j].getBoundingClientRect();if(b.width>40&&b.height>40&&b.top<window.innerHeight&&b.bottom>0){img=vis[j];break;}}}" +
+        "if(!img)return '';" +
+        "var c=document.createElement('canvas');c.width=img.naturalWidth||img.width;c.height=img.naturalHeight||img.height;" +
+        "if(!c.width||!c.height)return '';" +
+        "c.getContext('2d').drawImage(img,0,0);return c.toDataURL('image/png');" +
+        "}catch(e){return '';}})()";
+
     public static string? TryExportSlidesHtml(string pptxPath, int width = 1280, int height = 720)
     {
         if (string.IsNullOrWhiteSpace(pptxPath) || !IoFile.Exists(pptxPath))
@@ -20,11 +62,9 @@ public static class PptxSlideImageService
         if (pptType is null)
             return null;
 
-        var fi = new FileInfo(pptxPath);
-        var cacheDir = IoPath.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "NetieSpace", "pptx-slides",
-            PreviewHtmlDiskCache.CacheKey(pptxPath, fi.Length, fi.LastWriteTimeUtc));
+        var cacheDir = ComCacheDir(pptxPath);
+        if (string.IsNullOrWhiteSpace(cacheDir))
+            return null;
 
         var htmlPath = IoPath.Combine(cacheDir, "deck.html");
         if (IoFile.Exists(htmlPath))
@@ -148,11 +188,7 @@ public static class PptxSlideImageService
                 "</style></head><body><div id=\"deck\">" +
                 imgs +
                 "</div><div class=\"hint\">PgUp / PgDn · scroll for slides</div>" +
-                "<script>document.addEventListener('keydown',e=>{" +
-                "const deck=document.getElementById('deck');const h=deck.clientHeight;" +
-                "if(e.key==='PageDown'||e.key==='ArrowRight'){e.preventDefault();deck.scrollBy({top:h,behavior:'smooth'});}" +
-                "else if(e.key==='PageUp'||e.key==='ArrowLeft'){e.preventDefault();deck.scrollBy({top:-h,behavior:'smooth'});}" +
-                "});</script></body></html>";
+                "<script>" + DeckTrackerScript + "</script></body></html>";
 
             IoFile.WriteAllText(htmlPath, html, Encoding.UTF8);
 
@@ -212,4 +248,169 @@ public static class PptxSlideImageService
                 Marshal.FinalReleaseComObject(app);
         }
     }
+
+    /// <summary>
+    /// Resolve the exported PNG for one 1-based slide. Prefers PowerPoint COM
+    /// <c>slide_NNN.png</c>, then LibreOffice siblings, then PNGs next to the preview HTML.
+    /// </summary>
+    public static string? TryGetSlidePng(string pptxPath, int slideIndex1Based, string? htmlFilePath = null)
+    {
+        if (slideIndex1Based < 1 || string.IsNullOrWhiteSpace(pptxPath))
+            return null;
+
+        var com = ComCacheDir(pptxPath);
+        if (!string.IsNullOrWhiteSpace(com))
+        {
+            var hit = TryGetSlidePngInDir(com, slideIndex1Based);
+            if (hit is not null)
+                return hit;
+        }
+
+        var lo = LibreOfficeCacheDir(pptxPath);
+        if (!string.IsNullOrWhiteSpace(lo))
+        {
+            var hit = TryGetSlidePngInDir(lo, slideIndex1Based);
+            if (hit is not null)
+                return hit;
+        }
+
+        if (!string.IsNullOrWhiteSpace(htmlFilePath))
+        {
+            var dir = IoPath.GetDirectoryName(htmlFilePath);
+            if (!string.IsNullOrWhiteSpace(dir))
+            {
+                var hit = TryGetSlidePngInDir(dir, slideIndex1Based);
+                if (hit is not null)
+                    return hit;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>Copy the slide PNG into chat-clips so a later cache prune cannot drop the attachment.</summary>
+    public static string? TryCopySlidePngForChat(string pptxPath, int slideIndex1Based, string destDir, string? htmlFilePath = null)
+    {
+        var src = TryGetSlidePng(pptxPath, slideIndex1Based, htmlFilePath);
+        if (src is null || !IoFile.Exists(src))
+            return null;
+
+        try
+        {
+            IoDirectory.CreateDirectory(destDir);
+            var dest = IoPath.Combine(destDir, $"slide_{slideIndex1Based:D3}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+            IoFile.Copy(src, dest, overwrite: true);
+            return dest;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Slide PNG copy failed: {ex.Message}");
+            return src;
+        }
+    }
+
+    public static string? TryWritePngFromDataUrl(string? dataUrl, string destPath)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl) ||
+            !dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var comma = dataUrl.IndexOf(',');
+        if (comma < 0 || comma >= dataUrl.Length - 1)
+            return null;
+
+        try
+        {
+            var bytes = Convert.FromBase64String(dataUrl[(comma + 1)..]);
+            if (bytes.Length < 32)
+                return null;
+            var dir = IoPath.GetDirectoryName(destPath);
+            if (!string.IsNullOrWhiteSpace(dir))
+                IoDirectory.CreateDirectory(dir);
+            IoFile.WriteAllBytes(destPath, bytes);
+            return destPath;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Slide data-URL write failed: {ex.Message}");
+            return null;
+        }
+    }
+
+    public static bool IsPptxPath(string? path)
+    {
+        var ext = IoPath.GetExtension(path ?? "").ToLowerInvariant();
+        return ext is ".pptx" or ".ppt";
+    }
+
+    private static string? TryGetSlidePngInDir(string dir, int slideIndex1Based)
+    {
+        if (string.IsNullOrWhiteSpace(dir) || !IoDirectory.Exists(dir))
+            return null;
+
+        var padded = IoPath.Combine(dir, $"slide_{slideIndex1Based:D3}.png");
+        if (IoFile.Exists(padded))
+            return padded;
+
+        var plain = IoPath.Combine(dir, $"slide_{slideIndex1Based}.png");
+        if (IoFile.Exists(plain))
+            return plain;
+
+        string[] pngs;
+        try
+        {
+            pngs = IoDirectory.GetFiles(dir, "*.png")
+                .OrderBy(p => p, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (slideIndex1Based <= pngs.Length)
+            return pngs[slideIndex1Based - 1];
+        return null;
+    }
+
+    private static string? ComCacheDir(string pptxPath)
+    {
+        try
+        {
+            var fi = new FileInfo(pptxPath);
+            if (!fi.Exists)
+                return null;
+            return IoPath.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "NetieSpace", "pptx-slides",
+                PreviewHtmlDiskCache.CacheKey(pptxPath, fi.Length, fi.LastWriteTimeUtc));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? LibreOfficeCacheDir(string pptxPath)
+    {
+        var com = ComCacheDir(pptxPath);
+        return string.IsNullOrWhiteSpace(com) ? null : com + "_lo";
+    }
+
+    /// <summary>Tracks the snapped slide and PgUp/PgDn. Also used by ExecuteScript fallbacks on older cached decks.</summary>
+    private const string DeckTrackerScript =
+        "(function(){" +
+        "const deck=document.getElementById('deck');if(!deck)return;" +
+        "const slides=deck.querySelectorAll('.slide');" +
+        "function current(){let best=1,dist=1e12;const mid=deck.scrollTop+(deck.clientHeight/2);" +
+        "for(let i=0;i<slides.length;i++){const t=slides[i].offsetTop,h=slides[i].offsetHeight||0,d=Math.abs(t+h/2-mid);if(d<dist){dist=d;best=i+1;}}" +
+        "window.__netieSlideIndex=best;return best;}" +
+        "window.__netieVisibleSlideIndex=current;" +
+        "deck.addEventListener('scroll',current,{passive:true});current();" +
+        "document.addEventListener('keydown',e=>{" +
+        "const h=deck.clientHeight;" +
+        "if(e.key==='PageDown'||e.key==='ArrowRight'){e.preventDefault();deck.scrollBy({top:h,behavior:'smooth'});}" +
+        "else if(e.key==='PageUp'||e.key==='ArrowLeft'){e.preventDefault();deck.scrollBy({top:-h,behavior:'smooth'});}" +
+        "});" +
+        "})();";
 }
