@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- Housekeeping: STATUS.md records green main CI and merge-only-if-green (no `--auto`).
 - CI: ubuntu job installs ffmpeg and smokes Space's fade + wipeleft xfade graph (not a substitute for user Export stress).
 - ShellInfo files with an Explorer preview handler open in an **opaque overlay** (IPreviewHandler). Glass PreviewWindow stays layered; `NETIE_SPACE_PREVIEW_HANDLER=0` disables. Folders and missing CLSIDs keep the HTML metadata view.
 - CI: python job runs every `tests/test_*.py` contract script after compileall (not syntax-only).

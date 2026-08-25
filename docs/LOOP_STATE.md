@@ -11,8 +11,8 @@
 | Field | Value |
 |-------|--------|
 | **Pillar** | 1 — Video |
-| **Slice** | tick4 wake: user PDF sign OK; await video Export stress |
-| **Tick** | 4 (loop sentinel #2 @ ~01:52) |
+| **Slice** | await user Select→Split→Drag→Delete→Fade→Export |
+| **Tick** | post-#17 (ffmpeg CI smoke on main; not a user gate) |
 | **Consecutive fails** | 0 |
 
 ---
