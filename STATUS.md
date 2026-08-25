@@ -4,17 +4,16 @@
 
 ## Now
 
-1. **Land document-chat + CI** (`cursor/ci-cd-and-image-copy-828f`): PR #2 work plus
-   GitHub Actions Windows Debug build, python syntax, rembg copy/drag-out.
-2. **CI now exists** — `.github/workflows/ci.yml`. Merge only if green.
-3. **Naming collision** — "Netie Space" (this desktop doc workspace) vs Cortex "DMS
-   Spaces" (ACL sandboxes) still confuses cross-repo docs; not resolved here.
+1. **main CI is red** — Windows `dotnet build` failed CS0104 (`Block` WPF vs Markdig) in
+   `ChatMarkdownRenderer.cs`. #4 merged before that check finished. Hotfix in flight.
+2. **Stacked tickets** — #5 chat modes, #6 PDF highlights, #7 video wipe. Same CS0104 until
+   hotfix lands; then rebase.
+3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
 
 ## Next
 
-- Land this branch once Windows `dotnet build` CI is green (supersedes PR #2).
-- Route primary AI path through OpenVault gate (called out in PR #3 review, not in tree).
-- Draft PR #1 (demo video renderer) still open since 2026-07-28.
+- Merge the CS0104 hotfix only after Windows CI is green.
+- Rebase #5/#6/#7 onto that fix; land only if green. #6 and #7 conflict on PreviewWindow.
 
 ## Later
 
