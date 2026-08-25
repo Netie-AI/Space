@@ -58,6 +58,7 @@ public partial class PreviewWindow : Window
     private string? _pendingStampImage;
     private readonly List<PendingPdfStamp> _pendingStamps = [];
     private readonly List<PendingPdfFillText> _pendingFillTexts = [];
+    private readonly List<PendingPdfHighlight> _pendingHighlights = [];
     private TaskCompletionSource<bool>? _viewerFlushTcs;
     private string _pdfToolMode = ""; // organize | sign | fill | comment
     private string _preferredSignFont = "Segoe Script";
@@ -128,6 +129,18 @@ public partial class PreviewWindow : Window
         public double HPt { get; set; }
         public double FontPt { get; set; }
         public string Text { get; set; } = "";
+    }
+
+    /// <summary>Comment highlight or ink mark from the viewer (PDF points, origin bottom-left).</summary>
+    private sealed class PendingPdfHighlight
+    {
+        public string Id { get; set; } = "";
+        public int Page { get; set; }
+        public double XPt { get; set; }
+        public double YFromBottom { get; set; }
+        public double WPt { get; set; }
+        public double HPt { get; set; }
+        public string Kind { get; set; } = "highlight";
     }
 
     private ExportPreset _exportPreset = ExportPreset.MatchSource;
@@ -1855,6 +1868,10 @@ public partial class PreviewWindow : Window
                     : $"{_pendingFillTexts.Count} text box(es)";
                 ScheduleStampAutosave(fillHeavy: true);
             }
+            else if ((type == "highlight" || type == "highlights") && !string.IsNullOrWhiteSpace(_currentFilePath))
+            {
+                AcceptViewerHighlights(root, replaceAll: type == "highlights");
+            }
             else if (type == "flushReady")
             {
                 _viewerFlushTcs?.TrySetResult(true);
@@ -1875,7 +1892,7 @@ public partial class PreviewWindow : Window
             {
                 // Keep status quiet for demos — long hint text was noisy and overlapped the strip.
                 ConvertStatusText.Text = _pdfDirty
-                    ? $"{_pendingStamps.Count + _pendingFillTexts.Count} edit(s) pending"
+                    ? $"{PendingPdfEditCount()} edit(s) pending"
                     : "";
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
                     PostFormFieldsToViewer(_currentFilePath);
@@ -1884,6 +1901,89 @@ public partial class PreviewWindow : Window
         catch (Exception ex)
         {
             AppLogger.Warn($"pdf.js message: {ex.Message}");
+        }
+    }
+
+    private void AcceptViewerHighlights(System.Text.Json.JsonElement root, bool replaceAll)
+    {
+        var parsed = PdfJsViewerService.ReadHighlights(root);
+        if (replaceAll)
+        {
+            _pendingHighlights.Clear();
+            foreach (var h in parsed)
+                _pendingHighlights.Add(ToPendingHighlight(h));
+        }
+        else
+        {
+            foreach (var h in parsed)
+            {
+                var existing = !string.IsNullOrWhiteSpace(h.Id)
+                    ? _pendingHighlights.FirstOrDefault(x => x.Id == h.Id)
+                    : null;
+                if (existing is null)
+                    _pendingHighlights.Add(ToPendingHighlight(h));
+                else
+                {
+                    existing.Page = h.Page;
+                    existing.XPt = h.XPt;
+                    existing.YFromBottom = h.YFromBottom;
+                    existing.WPt = h.WidthPt;
+                    existing.HPt = h.HeightPt;
+                    existing.Kind = h.Kind;
+                }
+            }
+        }
+
+        EnsureStampBaseLocked(_currentFilePath!);
+        _pdfDirty = true;
+        ConvertStatusText.Text = _pendingHighlights.Count == 0
+            ? ""
+            : $"{_pendingHighlights.Count} mark(s) — autosaving…";
+        ScheduleStampAutosave();
+    }
+
+    private static PendingPdfHighlight ToPendingHighlight(PdfJsHighlight h) => new()
+    {
+        Id = string.IsNullOrWhiteSpace(h.Id) ? Guid.NewGuid().ToString("N") : h.Id,
+        Page = h.Page,
+        XPt = h.XPt,
+        YFromBottom = h.YFromBottom,
+        WPt = h.WidthPt,
+        HPt = h.HeightPt,
+        Kind = string.IsNullOrWhiteSpace(h.Kind) ? "highlight" : h.Kind
+    };
+
+    private int PendingPdfEditCount() =>
+        _pendingStamps.Count + _pendingFillTexts.Count + _pendingHighlights.Count;
+
+    private bool HasPendingPdfEdits() => PendingPdfEditCount() > 0;
+
+    private string PendingPdfEditsLabel()
+    {
+        var parts = new List<string>();
+        if (_pendingStamps.Count > 0) parts.Add($"{_pendingStamps.Count} stamp(s)");
+        if (_pendingFillTexts.Count > 0) parts.Add($"{_pendingFillTexts.Count} text box(es)");
+        if (_pendingHighlights.Count > 0) parts.Add($"{_pendingHighlights.Count} highlight(s)");
+        return parts.Count == 0 ? "edits" : string.Join(" + ", parts);
+    }
+
+    private void TryPostViewerPersistResult(bool ok, string? message, bool final = false)
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        try
+        {
+            var payload = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                type = ok ? "persistOk" : "persistFailed",
+                message = message ?? "",
+                final
+            });
+            core.PostWebMessageAsJson(payload);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"persist result post: {ex.Message}");
         }
     }
 
@@ -1926,6 +2026,7 @@ public partial class PreviewWindow : Window
         _stampAutosaveCts?.Cancel();
         _pendingStamps.Clear();
         _pendingFillTexts.Clear();
+        _pendingHighlights.Clear();
         _pdfDirty = false;
         _pendingStampImage = null;
         _pendingStampName = null;
@@ -1975,7 +2076,7 @@ public partial class PreviewWindow : Window
         // Nothing left to bake: restore clean base if we had baked any earlier.
         // Live-annotation model: the viewer canvas always shows the clean base, so
         // no reload is needed — the overlays that were deleted are already gone.
-        if (_pendingStamps.Count == 0 && _pendingFillTexts.Count == 0)
+        if (!HasPendingPdfEdits())
         {
             if (!string.IsNullOrWhiteSpace(_pdfStampBasePath) && IoFile.Exists(_pdfStampBasePath))
             {
@@ -2058,6 +2159,14 @@ public partial class PreviewWindow : Window
                 path = await Task.Run(() => _pdfEdit.DrawFillTexts(path, fillItems));
             }
 
+            if (_pendingHighlights.Count > 0)
+            {
+                var hlItems = _pendingHighlights
+                    .Select(h => new PdfHighlightItem(h.Page, h.XPt, h.YFromBottom, h.WPt, h.HPt, h.Kind))
+                    .ToList();
+                path = await Task.Run(() => _pdfEdit.DrawHighlights(path, hlItems));
+            }
+
             // Write into the same file the user opened
             if (!string.Equals(path, originalPath, StringComparison.OrdinalIgnoreCase))
             {
@@ -2103,6 +2212,7 @@ public partial class PreviewWindow : Window
                 // no page jump, no ghost. Disk already holds the baked copy, re-baked
                 // from the clean base on every change.
                 ConvertStatusText.Text = "";
+                TryPostViewerPersistResult(true, "", final: false);
             }
             else
             {
@@ -2110,17 +2220,17 @@ public partial class PreviewWindow : Window
                 ClearStampSession();
                 await LoadFileAsync(path);
                 ConvertStatusText.Text = $"Saved · {IoPath.GetFileName(path)}";
+                TryPostViewerPersistResult(true, "", final: true);
             }
 
             return true;
         }
         catch (Exception ex)
         {
-            ConvertStatusText.Text = $"Save failed: {ex.Message}";
-            if (IoFile.Exists(originalPath))
-            {
-                try { await LoadFileAsync(originalPath); } catch { /* ignore */ }
-            }
+            // Fail closed: original file is only replaced after a successful bake-to-temp.
+            // Keep the session overlay so the user does not lose marks; do not reload.
+            ConvertStatusText.Text = $"Save failed: {ex.Message} — marks kept in session";
+            TryPostViewerPersistResult(false, ex.Message);
             return false;
         }
         finally
@@ -2147,15 +2257,10 @@ public partial class PreviewWindow : Window
     private async Task<bool> PromptSavePendingPdfAsync()
     {
         await RequestViewerFlushAsync();
-        if (!_pdfDirty || (_pendingStamps.Count == 0 && _pendingFillTexts.Count == 0))
+        if (!_pdfDirty || !HasPendingPdfEdits())
             return true;
 
-        var pendingLabel = (_pendingStamps.Count, _pendingFillTexts.Count) switch
-        {
-            (> 0, > 0) => $"{_pendingStamps.Count} stamp(s) + {_pendingFillTexts.Count} text box(es)",
-            (> 0, _) => $"{_pendingStamps.Count} stamp(s)",
-            _ => $"{_pendingFillTexts.Count} text box(es)"
-        };
+        var pendingLabel = PendingPdfEditsLabel();
         var choice = GlassChoiceDialog.Show(this,
             "Unsaved edits",
             $"{pendingLabel} not written yet. Save before closing?",
@@ -4191,9 +4296,9 @@ public partial class PreviewWindow : Window
         ConvertStatusText.Text = "Saving… pulling edits from the viewer";
         await RequestViewerFlushAsync();
 
-        if (_pendingStamps.Count == 0 && _pendingFillTexts.Count == 0)
+        if (!HasPendingPdfEdits())
         {
-            ConvertStatusText.Text = "Nothing to save — place a signature or type in Fill first.";
+            ConvertStatusText.Text = "Nothing to save — place a signature, type in Fill, or add a highlight first.";
             return;
         }
 
@@ -4702,8 +4807,16 @@ public partial class PreviewWindow : Window
     {
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
-        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "setHighlightMode", on = true }));
-        ConvertStatusText.Text = "Highlight on — drag across text (not saved into PDF yet)";
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "setHighlightMode", on = true, kind = "highlight" }));
+        ConvertStatusText.Text = "Highlight on — drag across text. Save writes marks into the PDF.";
+    }
+
+    private void PdfCommentMark_Click(object sender, RoutedEventArgs e)
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "setHighlightMode", on = true, kind = "mark" }));
+        ConvertStatusText.Text = "Mark on — drag to draw. Save writes marks into the PDF.";
     }
 
     private void PdfEditTextMode_Click(object sender, RoutedEventArgs e)

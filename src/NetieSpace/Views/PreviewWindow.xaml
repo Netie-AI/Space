@@ -431,7 +431,7 @@
                                             Click="PdfModeComment_Click" ToolTip="Highlight markup"/>
                                     <Border Width="1" Height="22" Background="#33FFFFFF" Margin="4,0,10,6" VerticalAlignment="Center"/>
                                     <Button x:Name="PdfSaveStampsButton" Content="Save" Style="{StaticResource EditorChipPrimary}"
-                                            Click="PdfSaveStamps_Click" ToolTip="Write signatures &amp; typed text into this PDF"/>
+                                            Click="PdfSaveStamps_Click" ToolTip="Write signatures, typed text, and highlights into this PDF"/>
                                     <Button x:Name="PdfMoreButton" Content="More" Style="{StaticResource EditorChip}"
                                             Click="PdfMoreButton_Click" ToolTip="Less-used tools">
                                         <Button.ContextMenu>
@@ -524,7 +524,10 @@
                                         <WrapPanel>
                                             <Button Content="Highlight" Style="{StaticResource EditorChip}"
                                                     Click="PdfCommentHighlight_Click"
-                                                    ToolTip="Drag on the page to mark (session only for now)"/>
+                                                    ToolTip="Drag on the page to highlight. Save writes it into the PDF."/>
+                                            <Button Content="Mark" Style="{StaticResource EditorChip}"
+                                                    Click="PdfCommentMark_Click"
+                                                    ToolTip="Drag to draw a mark. Save writes it into the PDF."/>
                                         </WrapPanel>
                                     </StackPanel>
                                 </Border>

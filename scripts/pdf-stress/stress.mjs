@@ -289,6 +289,49 @@ async function fillPhase(browser) {
   await page.close();
 }
 
+async function highlightPhase(browser) {
+  console.log('\n== HIGHLIGHT: overlay + host message + reload keep ==');
+  const page = await freshPage(browser, 'hl');
+
+  await clickSel(page, '#hlBtn');
+  await sleep(120);
+  const on = await page.evaluate(() => window.__netie.debug().highlightMode);
+  t('H0 Highlight button arms markup mode', !!on);
+
+  await page.evaluate(nn => window.__netie.onHostMessage({ type: 'gotoPage', page: nn }), 3);
+  await sleep(500);
+  const a = await cssOfPt(page, 3, 60, 700);
+  const b = await cssOfPt(page, 3, 360, 660);
+  await page.mouse.move(a.x, a.y);
+  await page.mouse.down();
+  await page.mouse.move(b.x, b.y, { steps: 8 });
+  await page.mouse.up();
+  await sleep(250);
+
+  const msgs = await sent(page, 'highlight');
+  const d1 = await dbg(page);
+  t('H1 drag posts highlight with yFromBottom',
+    msgs.length >= 1 && msgs[0].page === 3 && msgs[0].wPt > 10 && Number.isFinite(msgs[0].yFromBottom),
+    JSON.stringify(msgs[0] ?? {}));
+  t('H1 session overlay stored', d1.highlights.length === 1 && d1.domHighlights >= 1,
+    `arr=${d1.highlights.length} dom=${d1.domHighlights}`);
+
+  await reloadKeep(page, 31);
+  const d2 = await dbg(page);
+  t('H2 reload keepOverlays restores highlight',
+    d2.highlights.length === 1 && Math.abs(d2.highlights[0].wPt - d1.highlights[0].wPt) < 0.5,
+    `arr=${d2.highlights.length}`);
+
+  await page.evaluate(() => window.__netie.onHostMessage({ type: 'persistFailed', message: 'disk locked' }));
+  const st = await page.evaluate(() => document.getElementById('status').textContent);
+  const d3 = await dbg(page);
+  t('H3 persistFailed keeps session overlay', d3.highlights.length === 1, `arr=${d3.highlights.length}`);
+  t('H3 persistFailed status is honest', /Save failed/i.test(st || '') && /kept/i.test(st || ''), st || '');
+
+  await page.screenshot({ path: OUT + 'shot_highlight_end.png' });
+  await page.close();
+}
+
 const mode = process.argv[2] || 'all';
 const browser = await puppeteer.launch({
   executablePath: EDGE,
@@ -298,6 +341,7 @@ const browser = await puppeteer.launch({
 try {
   if (mode === 'phase1' || mode === 'all') await phase1(browser);
   if (mode === 'fill' || mode === 'all') await fillPhase(browser);
+  if (mode === 'highlight' || mode === 'all') await highlightPhase(browser);
 } finally {
   await browser.close();
 }

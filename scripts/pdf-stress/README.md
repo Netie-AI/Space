@@ -22,7 +22,7 @@ python make_test_pdf.py "../../src/NetieSpace/Assets/pdfjs/__stress/test.pdf"
 python -m http.server 8517 --directory ../../src/NetieSpace/Assets/pdfjs
 
 # 3. in another terminal
-node stress.mjs all        # or phase1 / fill
+node stress.mjs all        # or phase1 / fill / highlight
 ```
 
 Outputs: console PASS/FAIL, `stress_results.json`, `shot_*.png` next to the script.

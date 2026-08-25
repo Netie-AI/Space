@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (chat modes).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (chat modes + PDF highlights).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -94,7 +94,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] pdf.js viewer + C# message bridge (stringify fixed 2026-07-14)
 - [x] Page thumb strip + stamp drag placement
 - [x] Merge arrange UI; Organize page thumbs
-- [ ] Annotate / highlight (pdf.js overlay; avoid iText AGPL)
+- [x] Annotate / highlight (pdf.js overlay; PdfSharpCore appearance, no iText AGPL)
 - [ ] Form fill / OCR / in-place text — Tier B
 - [ ] Cryptographic digital signature — Tier C park (stamp is visual only)
 - [ ] Toolbar discipline polish (primary chips + More ▾) — ongoing
