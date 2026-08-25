@@ -308,7 +308,7 @@
                                             <TextBlock Text="&lt;/&gt;" FontSize="10" FontWeight="Bold" Foreground="#D8FFF8"
                                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                        <TextBlock Text="Edit as HTML (Word/Office)" VerticalAlignment="Center"
+                                        <TextBlock Text="Edit Word / HTML (autosave)" VerticalAlignment="Center"
                                                    Foreground="{StaticResource TextBrush}" FontSize="13"/>
                                     </DockPanel>
                                 </Button>

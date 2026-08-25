@@ -268,6 +268,7 @@ public partial class PreviewWindow : Window
         var ct = _cts.Token;
 
         FileNameText.Text = IoPath.GetFileName(filePath);
+        _textAutosaveCts?.Cancel();
         _textEditMode = false;
         // Fresh viewer load resets region mode on the JS side — mirror it on the button.
         if (_regionMode) { _regionMode = false; RegionSelectButton.Content = "Select area"; }
@@ -367,6 +368,7 @@ public partial class PreviewWindow : Window
         var isPdf = kind == PreviewKind.Pdf;
         var isImage = kind == PreviewKind.Image;
         var isTextCode = kind is PreviewKind.Text or PreviewKind.Markdown;
+        var isHtmlWord = IsHtmlWordEditable();
         var editing = _editMode && (isVideo || isPdf);
 
         EditModeButton.Visibility = (isVideo || isPdf) ? Visibility.Visible : Visibility.Collapsed;
@@ -377,17 +379,22 @@ public partial class PreviewWindow : Window
 
         if (TextEditButton is not null)
         {
-            TextEditButton.Visibility = isTextCode ? Visibility.Visible : Visibility.Collapsed;
+            TextEditButton.Visibility = isTextCode || isHtmlWord ? Visibility.Visible : Visibility.Collapsed;
             TextEditButton.Content = _textEditMode ? "Done" : "Edit";
+            TextEditButton.ToolTip = isHtmlWord
+                ? "Edit Word/HTML in the preview — autosaves as you type"
+                : "Edit text — autosaves as you type";
         }
 
         if (BrandModeText is not null)
         {
             BrandModeText.Text = editing
                 ? (isPdf ? "PDF Editor" : "Video Editor")
-                : _textEditMode && isTextCode
-                    ? "Text Editor"
-                    : "NETIE SPACE";
+                : _textEditMode && isHtmlWord
+                    ? HtmlWordBrandLabel()
+                    : _textEditMode && isTextCode
+                        ? "Text Editor"
+                        : "NETIE SPACE";
         }
 
         // ApplySummaryLayout already yields the row to the editor ribbons while editing.
@@ -1822,6 +1829,13 @@ public partial class PreviewWindow : Window
                 var text = root.TryGetProperty("text", out var txEl) ? txEl.GetString() : null;
                 if (text is not null)
                     ScheduleTextAutosave(text);
+                return;
+            }
+
+            if (type == "htmlEdit")
+            {
+                if (_textEditMode && IsHtmlWordEditable())
+                    ScheduleHtmlAutosave();
                 return;
             }
 
@@ -4289,6 +4303,12 @@ public partial class PreviewWindow : Window
 
     private async void TextEditButton_Click(object sender, RoutedEventArgs e)
     {
+        if (IsHtmlWordEditable())
+        {
+            await ToggleHtmlEditModeAsync();
+            return;
+        }
+
         if (_content?.Kind is not (PreviewKind.Text or PreviewKind.Markdown))
             return;
 
@@ -5286,35 +5306,218 @@ public partial class PreviewWindow : Window
     private async void EditHtmlButton_Click(object sender, RoutedEventArgs e)
     {
         SharePopup.IsOpen = false;
-        if (_content?.Kind is not (PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown))
+        if (!IsHtmlWordEditable())
         {
-            ConvertStatusText.Text = "Open a Word/Office or HTML preview first.";
+            ConvertStatusText.Text = "Open a Word (.docx) or HTML file to edit in the preview.";
             return;
         }
 
-        await EnsureWebViewAsync();
-        var core = PreviewWebView.CoreWebView2;
-        if (core is null)
+        await ToggleHtmlEditModeAsync();
+    }
+
+    private bool IsHtmlWordEditable() =>
+        _content is not null &&
+        OfficePreviewService.IsHtmlWordEditable(_content.Kind, _currentFilePath);
+
+    private string HtmlWordBrandLabel()
+    {
+        var ext = IoPath.GetExtension(_currentFilePath ?? "").ToLowerInvariant();
+        return ext == ".docx" ? "Word Editor" : "HTML Editor";
+    }
+
+    private async Task ToggleHtmlEditModeAsync()
+    {
+        if (!IsHtmlWordEditable())
             return;
+
+        _textEditMode = !_textEditMode;
+        UpdateActionButtons(_content!.Kind);
+        await EnsureWebViewAsync();
+        if (PreviewWebView.CoreWebView2 is not { } core)
+        {
+            _textEditMode = false;
+            UpdateActionButtons(_content.Kind);
+            ConvertStatusText.Text = "HTML edit needs the preview WebView.";
+            return;
+        }
 
         try
         {
-            await core.ExecuteScriptAsync("""
-                (function(){
-                  var b = document.body;
-                  if (!b) return 'no-body';
-                  var on = b.getAttribute('contenteditable') === 'true';
-                  b.setAttribute('contenteditable', on ? 'false' : 'true');
-                  b.style.outline = on ? 'none' : '2px solid #5EC4B8';
-                  return on ? 'locked' : 'editing';
-                })()
-                """);
-            ConvertStatusText.Text =
-                "HTML edit toggled — photos/layout stay intact (better than markdown for images). Escapes back via menu again.";
+            if (_textEditMode)
+            {
+                await core.ExecuteScriptAsync("""
+                    (function(){
+                      var target = document.querySelector('article.office-body') || document.body;
+                      if (!target) return 'no-target';
+                      target.setAttribute('contenteditable','true');
+                      target.style.outline = '1px solid rgba(94,196,184,0.45)';
+                      target.style.borderRadius = '8px';
+                      function notify(typing){
+                        try{chrome.webview.postMessage(JSON.stringify({type:'netieTyping',typing:!!typing}));}catch(e){}
+                      }
+                      function save(){
+                        try{chrome.webview.postMessage(JSON.stringify({type:'htmlEdit'}));}catch(e){}
+                      }
+                      window.__netieSave = save;
+                      if (!target.__netieHtmlEditWired){
+                        target.__netieHtmlEditWired = true;
+                        target.addEventListener('focus', function(){ notify(true); });
+                        target.addEventListener('blur', function(){ notify(false); save(); });
+                        target.addEventListener('input', function(){
+                          notify(true);
+                          clearTimeout(window.__netieSaveT);
+                          window.__netieSaveT = setTimeout(save, 400);
+                        });
+                      }
+                      notify(true);
+                      target.focus();
+                      return 'editing';
+                    })();
+                    """);
+                ConvertStatusText.Text = "Editing Word/HTML — autosaves as you type.";
+                _webViewTyping = true;
+            }
+            else
+            {
+                _textAutosaveCts?.Cancel();
+                await core.ExecuteScriptAsync("""
+                    (function(){
+                      var target = document.querySelector('[contenteditable="true"]')
+                        || document.querySelector('article.office-body')
+                        || document.body;
+                      if (target){
+                        target.removeAttribute('contenteditable');
+                        target.style.outline = '';
+                      }
+                      try{chrome.webview.postMessage(JSON.stringify({type:'netieTyping',typing:false}));}catch(e){}
+                    })();
+                    """);
+                _webViewTyping = false;
+                await PersistHtmlEditAsync(CancellationToken.None);
+                if (!ConvertStatusText.Text.StartsWith("Save failed", StringComparison.Ordinal))
+                {
+                    ConvertStatusText.Text = ConvertStatusText.Text.StartsWith("Saved", StringComparison.Ordinal)
+                        ? ConvertStatusText.Text + " · edit closed."
+                        : "Edit closed.";
+                }
+            }
         }
         catch (Exception ex)
         {
             ConvertStatusText.Text = $"HTML edit failed: {ex.Message}";
+            _textEditMode = false;
+            _webViewTyping = false;
+            if (_content is not null)
+                UpdateActionButtons(_content.Kind);
+        }
+    }
+
+    private void ScheduleHtmlAutosave()
+    {
+        if (!IsHtmlWordEditable() || string.IsNullOrWhiteSpace(_currentFilePath))
+            return;
+        _textAutosaveCts?.Cancel();
+        _textAutosaveCts = new CancellationTokenSource();
+        var ct = _textAutosaveCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(350, ct);
+                if (ct.IsCancellationRequested)
+                    return;
+                await Dispatcher.InvokeAsync(new Func<Task>(() => PersistHtmlEditAsync(ct))).Task.Unwrap();
+            }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                await Dispatcher.InvokeAsync(() => ConvertStatusText.Text = $"Save failed: {ex.Message}");
+            }
+        }, ct);
+    }
+
+    private async Task PersistHtmlEditAsync(CancellationToken ct)
+    {
+        if (!IsHtmlWordEditable() || string.IsNullOrWhiteSpace(_currentFilePath))
+            return;
+
+        try
+        {
+            var fetched = await FetchEditableHtmlAsync();
+            if (ct.IsCancellationRequested || fetched is null)
+                return;
+
+            var path = _currentFilePath!;
+            var mediaDir = !string.IsNullOrWhiteSpace(_content?.HtmlFilePath)
+                ? IoPath.GetDirectoryName(_content!.HtmlFilePath)
+                : IoPath.GetDirectoryName(path);
+
+            var result = await Task.Run(
+                () => OfficePreviewService.SaveEditedPreview(path, fetched.DocumentHtml, fetched.ArticleHtml, mediaDir),
+                ct);
+            if (ct.IsCancellationRequested)
+                return;
+
+            ConvertStatusText.Text = result.Success ? result.Message : $"Save failed: {result.Message}";
+            if (result.Success && _content is not null)
+                _content.RawText = fetched.ArticleHtml;
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"Save failed: {ex.Message}";
+        }
+    }
+
+    private sealed record HtmlEditPayload(string DocumentHtml, string ArticleHtml);
+
+    private async Task<HtmlEditPayload?> FetchEditableHtmlAsync()
+    {
+        await EnsureWebViewAsync();
+        if (PreviewWebView.CoreWebView2 is not { } core)
+            return null;
+
+        var quoted = await core.ExecuteScriptAsync("""
+            (function(){
+              var article = document.querySelector('article.office-body');
+              var target = article || document.body;
+              var ce = target ? target.getAttribute('contenteditable') : null;
+              var outline = target ? target.style.outline : '';
+              if (target){
+                target.removeAttribute('contenteditable');
+                target.style.outline = '';
+              }
+              var dt = document.doctype ? '<!DOCTYPE html>\n' : '';
+              var doc = dt + document.documentElement.outerHTML;
+              var articleHtml = article ? article.innerHTML : (document.body ? document.body.innerHTML : '');
+              if (target && ce) target.setAttribute('contenteditable', ce);
+              if (target) target.style.outline = outline;
+              return JSON.stringify({doc: doc, article: articleHtml});
+            })();
+            """);
+        var json = UnquoteJsString(quoted);
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+
+        using var parsed = System.Text.Json.JsonDocument.Parse(json);
+        var root = parsed.RootElement;
+        var doc = root.TryGetProperty("doc", out var d) ? d.GetString() ?? "" : "";
+        var article = root.TryGetProperty("article", out var a) ? a.GetString() ?? "" : "";
+        return new HtmlEditPayload(doc, article);
+    }
+
+    private async Task FlushHtmlEditIfNeededAsync()
+    {
+        if (!_textEditMode || !IsHtmlWordEditable())
+            return;
+        _textAutosaveCts?.Cancel();
+        try
+        {
+            await PersistHtmlEditAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // closing — status already set if persist failed
         }
     }
 
@@ -5338,7 +5541,7 @@ public partial class PreviewWindow : Window
         ShareMdRow.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
         SharePdfRow.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
         ShareHtmlRow.Visibility =
-            formats && _content?.Kind is PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown
+            formats && IsHtmlWordEditable()
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         ShareExportAsLabel.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
@@ -5967,8 +6170,12 @@ public partial class PreviewWindow : Window
 
     private async void CloseButton_Click(object sender, RoutedEventArgs e)
     {
+        await FlushHtmlEditIfNeededAsync();
+
         if (!await PromptSavePendingPdfAsync())
             return;
+
+        _textEditMode = false;
 
         _allowClose = true;
         _cts?.Cancel();
@@ -5979,6 +6186,15 @@ public partial class PreviewWindow : Window
 
     private async void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        if (_textEditMode && IsHtmlWordEditable())
+        {
+            e.Cancel = true;
+            await FlushHtmlEditIfNeededAsync();
+            _textEditMode = false;
+            Close();
+            return;
+        }
+
         if (!_allowClose && _content?.Kind == PreviewKind.Pdf)
         {
             e.Cancel = true;
