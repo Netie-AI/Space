@@ -1,0 +1,130 @@
+"""CI smoke: ffmpeg fade + wipeleft xfade matching FfmpegService.XfadeJoinAsync.
+
+Does not check PARKING_LOT user-validated Export (needs a human). Proves the
+filter graph Space burns on mixed-source V1 export actually runs.
+"""
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+FFMPEG_CS = ROOT / "src/NetieSpace/Services/FfmpegService.cs"
+TIMELINE = ROOT / "src/NetieSpace/Services/Timeline/TimelineProject.cs"
+
+
+def _have_ffmpeg() -> bool:
+    return shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
+
+
+def _run(args: list[str]) -> None:
+    subprocess.run(args, check=True, capture_output=True, text=True)
+
+
+def _probe_duration(path: Path) -> float:
+    out = subprocess.check_output(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        text=True,
+    ).strip()
+    return float(out)
+
+
+class FfmpegNleExportTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.missing = not _have_ffmpeg()
+        if cls.missing and os.environ.get("CI"):
+            raise AssertionError("ffmpeg/ffprobe required in CI for NLE export smoke")
+
+    def test_cs_wipe_graph_still_wipeleft(self):
+        ffmpeg = FFMPEG_CS.read_text(encoding="utf-8")
+        timeline = TIMELINE.read_text(encoding="utf-8")
+        self.assertIn('public const string XfadeWipeName = "wipeleft"', timeline)
+        self.assertIn("XfadeWipeName", ffmpeg)
+        self.assertIn("xfade=transition=", ffmpeg)
+        self.assertIn("fade=t=in", ffmpeg)
+        self.assertIn("fade=t=out", ffmpeg)
+        yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("apt-get install -y -qq ffmpeg", yml)
+
+    def test_split_fade_wipe_export_runs(self):
+        if self.missing:
+            self.skipTest("ffmpeg not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            td = Path(tmp)
+            a = td / "a.mp4"
+            b = td / "b.mp4"
+            split = td / "split.mp4"
+            faded = td / "faded.mp4"
+            out = td / "wipe.mp4"
+            _run(
+                [
+                    "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=red:s=320x240:d=2",
+                    "-f", "lavfi", "-i", "sine=f=440:d=2", "-shortest",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(a),
+                ]
+            )
+            _run(
+                [
+                    "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=2",
+                    "-f", "lavfi", "-i", "sine=f=880:d=2", "-shortest",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(b),
+                ]
+            )
+            # Split / trim: keep 0-1.6s of A (Select then Split analogue).
+            _run(
+                [
+                    "ffmpeg", "-y", "-i", str(a), "-ss", "0", "-t", "1.6",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(split),
+                ]
+            )
+            _run(
+                [
+                    "ffmpeg", "-y", "-i", str(split),
+                    "-vf", "fade=t=in:st=0:d=0.2,fade=t=out:st=1.2:d=0.2",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(faded),
+                ]
+            )
+            scale = (
+                "scale=320:240:force_original_aspect_ratio=decrease,"
+                "pad=320:240:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS"
+            )
+            # Match FfmpegService.XfadeJoinAsync: offset = left duration - 0.5s wipe.
+            fc = (
+                f"[0:v]{scale}[v0];[1:v]{scale}[v1];"
+                "[v0][v1]xfade=transition=wipeleft:duration=0.5:offset=1.1[vout];"
+                "[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a0];"
+                "[1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a1];"
+                "[a0][a1]acrossfade=d=0.5[aout]"
+            )
+            _run(
+                [
+                    "ffmpeg", "-y", "-i", str(faded), "-i", str(b),
+                    "-filter_complex", fc,
+                    "-map", "[vout]", "-map", "[aout]",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                    "-c:a", "aac", "-movflags", "+faststart", str(out),
+                ]
+            )
+            self.assertTrue(out.exists() and out.stat().st_size > 1000)
+            dur = _probe_duration(out)
+            # faded 1.6 + b 2 - 0.5 wipe ≈ 3.1s
+            self.assertGreater(dur, 2.5)
+            self.assertLess(dur, 4.0)
+
+
+if __name__ == "__main__":
+    unittest.main()
