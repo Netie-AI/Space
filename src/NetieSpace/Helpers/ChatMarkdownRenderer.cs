@@ -139,7 +139,7 @@ public static class ChatMarkdownRenderer
         return tb;
     }
 
-    private static void AppendBlock(InlineCollection inlines, Block block, Brush foreground)
+    private static void AppendBlock(InlineCollection inlines, Markdig.Syntax.Block block, Brush foreground)
     {
         switch (block)
         {
