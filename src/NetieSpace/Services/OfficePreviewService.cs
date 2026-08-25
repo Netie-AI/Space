@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.IO;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
@@ -641,4 +643,119 @@ public sealed class OfficePreviewService
         </script>
         </head><body>{{body}}</body></html>
         """;
+
+    /// <summary>DOCX or HTML preview that can round-trip through the WebView contenteditable path.</summary>
+    public static bool IsHtmlWordEditable(PreviewKind kind, string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        var ext = IoPath.GetExtension(path).ToLowerInvariant();
+        if (kind == PreviewKind.Html && ext is ".html" or ".htm")
+            return true;
+        return kind == PreviewKind.Office && ext == ".docx";
+    }
+
+    /// <summary>
+    /// Persist an edited WebView document. HTML files are written as HTML.
+    /// Existing local .docx files are rewritten via OpenXML (no extra NuGet / no iText).
+    /// </summary>
+    public static HtmlSaveResult SaveEditedPreview(
+        string destinationPath,
+        string documentHtml,
+        string? articleHtml = null,
+        string? mediaBaseDir = null)
+    {
+        if (string.IsNullOrWhiteSpace(destinationPath))
+            return new HtmlSaveResult(false, "No file path.");
+
+        var ext = IoPath.GetExtension(destinationPath).ToLowerInvariant();
+        try
+        {
+            if (ext is ".html" or ".htm")
+            {
+                var html = StripEditorChrome(string.IsNullOrWhiteSpace(documentHtml) ? articleHtml : documentHtml);
+                AtomicWriteText(destinationPath, EnsureHtmlDocument(html ?? ""));
+                return new HtmlSaveResult(true, "Saved HTML");
+            }
+
+            if (ext == ".docx")
+            {
+                if (!IoFile.Exists(destinationPath))
+                    return new HtmlSaveResult(false, "Word save needs an existing local .docx path.");
+
+                var bodyHtml = string.IsNullOrWhiteSpace(articleHtml) ? documentHtml : articleHtml;
+                var tmp = IoPath.Combine(IoPath.GetTempPath(), $"netie-html-{Guid.NewGuid():N}.docx");
+                try
+                {
+                    HtmlDocxWriter.Write(tmp, bodyHtml ?? "", mediaBaseDir);
+                    CopyReplace(tmp, destinationPath);
+                }
+                finally
+                {
+                    try { IoFile.Delete(tmp); } catch { /* ignore */ }
+                }
+
+                return new HtmlSaveResult(true, "Saved Word document");
+            }
+
+            return new HtmlSaveResult(false, $"Cannot save edits as {ext}.");
+        }
+        catch (Exception ex)
+        {
+            return new HtmlSaveResult(false, ex.Message);
+        }
+    }
+
+    public static string EnsureHtmlDocument(string html)
+    {
+        var t = (html ?? "").Trim();
+        if (t.Length == 0)
+            return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body></body></html>";
+        if (t.StartsWith("<!DOCTYPE", StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+            return t;
+        return "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body>" + t + "</body></html>";
+    }
+
+    public static string StripEditorChrome(string? html)
+    {
+        if (string.IsNullOrEmpty(html))
+            return html ?? "";
+        var s = Regex.Replace(html, @"\scontenteditable\s*=\s*(['""])(true|false)\1", "", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"\scontenteditable(?=[\s>])", "", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"outline:\s*1px solid rgba\(94,\s*196,\s*184,\s*0\.45\);?", "", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"outline:\s*2px solid #5EC4B8;?", "", RegexOptions.IgnoreCase);
+        return s;
+    }
+
+    private static void AtomicWriteText(string path, string contents)
+    {
+        var tmp = path + ".netie-tmp";
+        IoFile.WriteAllText(tmp, contents, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+        CopyReplace(tmp, path);
+        try { IoFile.Delete(tmp); } catch { /* ignore */ }
+    }
+
+    private static void CopyReplace(string source, string destination)
+    {
+        IOException? last = null;
+        for (var i = 0; i < 4; i++)
+        {
+            try
+            {
+                IoFile.Copy(source, destination, overwrite: true);
+                return;
+            }
+            catch (IOException ex)
+            {
+                last = ex;
+                Thread.Sleep(80 * (i + 1));
+            }
+        }
+
+        throw last ?? new IOException("Could not replace " + destination);
+    }
 }
+
+public readonly record struct HtmlSaveResult(bool Success, string Message);

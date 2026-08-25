@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (video wipe + slide-to-chat).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (slide-to-chat + Word/HTML editor).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -103,7 +103,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 - [x] PPTX COM / HTML scroll-snap / mammoth DOCX / Shell thumb / LibreOffice / XLSX
 - [x] Never MarkItDown for Space visual
-- [ ] Word/HTML contenteditable editor
+- [x] Word/HTML contenteditable editor
 - [ ] Windows IPreviewHandler host (optional)
 
 ## P4 — Image tools
