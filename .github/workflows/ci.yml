@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/*.sln
       - name: Restore and build
         run: dotnet build NetieSpace.sln -c Debug --nologo
 

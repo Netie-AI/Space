@@ -59,6 +59,7 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("fade=t=out", ffmpeg)
         yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn("apt-get install -y -qq ffmpeg", yml)
+        self.assertIn("cache: true", yml)
 
     def test_split_fade_wipe_export_runs(self):
         if self.missing:
