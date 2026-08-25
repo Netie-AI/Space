@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-25
 
+- Video: clip-to-clip **Wipe** via ffmpeg `xfade=transition=wipeleft` (offset = outgoing clip duration − 0.5s). Overlay **Text** chip burns on export (`drawtext` + system font, SRT `subtitles=` fallback).
 - PDF: Comment highlight/mark overlay now bakes into the opened file via PdfSharpCore appearance streams (no iText). Save/autosave writes marks; a failed persist keeps the session overlay and leaves the original bytes untouched.
 - Chat: Cite / First Principles / Mindmap mode chips in the Notes & chat panel. Default stays normal chat. Selected mode persists per document via DocumentChatStore. Cite quotes + short citations; First Principles strips to axioms; Mindmap returns an indented / mermaid-friendly tree. Empty Send in a mode maps the open document.
 - Fix: qualify `Markdig.Syntax.Block` in ChatMarkdownRenderer (CS0104 vs WPF Documents.Block).

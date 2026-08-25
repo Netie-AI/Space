@@ -3150,6 +3150,48 @@ public partial class PreviewWindow : Window
         ApplyFadeToSelected(fadeIn: null, fadeOut: TimeSpan.FromSeconds(0.5));
     }
 
+    private void WipeButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_videoEdit.HasSelection)
+        {
+            ConvertStatusText.Text = "Select a clip first, then Wipe.";
+            return;
+        }
+
+        if (!_videoEdit.CanJoinToNext)
+        {
+            ConvertStatusText.Text = "Wipe joins to the next clip — Split first, then select a clip that is not last.";
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_currentFilePath))
+            _timeline.SyncFromKeptRanges(_videoEdit.Kept.ToList(), _currentFilePath);
+        var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
+        if (clip is null)
+        {
+            ConvertStatusText.Text = "No timeline clip — Split once, then select.";
+            return;
+        }
+
+        clip.TransitionOut = TransitionKind.Wipe;
+        if (clip.FadeOut <= TimeSpan.Zero)
+            clip.FadeOut = TimeSpan.FromMilliseconds(500);
+        ConvertStatusText.Text =
+            $"Wipe (xfade wipeleft {clip.FadeOut.TotalSeconds:0.#}s) on clip {_videoEdit.SelectedIndex + 1} → next. Burns on Export timeline.";
+        ScheduleTimelineLayout();
+    }
+
+    private void OverlayTextButton_Click(object sender, RoutedEventArgs e)
+    {
+        var before = _timeline.OverlayTrack?.Clips.Count ?? 0;
+        AddTextOverlayInteractive();
+        if ((_timeline.OverlayTrack?.Clips.Count ?? 0) > before)
+        {
+            ConvertStatusText.Text = "Text overlay on canvas — burns into Export (drawtext / SRT fallback).";
+            ScheduleTimelineLayout();
+        }
+    }
+
     private void ApplyFadeToSelected(TimeSpan? fadeIn, TimeSpan? fadeOut)
     {
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
