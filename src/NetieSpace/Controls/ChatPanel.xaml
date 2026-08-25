@@ -41,6 +41,20 @@
                                     Padding="12,6" MinHeight="32" Margin="0,0,0,4" Click="NotesOnly_Click"
                                     ToolTip="Save ideas without calling AI"/>
                         </WrapPanel>
+                        <WrapPanel Margin="0,2,0,0">
+                            <Button x:Name="ModeCiteButton" Content="Cite" Tag="cite"
+                                    Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="ModeChip_Click"
+                                    ToolTip="Quote the open document. Short citations (page / heading / excerpt). Click again for normal chat."/>
+                            <Button x:Name="ModeFirstPrinciplesButton" Content="First Principles" Tag="first-principles"
+                                    Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="ModeChip_Click"
+                                    ToolTip="Strip to axioms, then rebuild. No fluff. Click again for normal chat."/>
+                            <Button x:Name="ModeMindmapButton" Content="Mindmap" Tag="mindmap"
+                                    Style="{StaticResource GhostButton}" Padding="12,6" Margin="0,0,6,4"
+                                    MinHeight="32" Click="ModeChip_Click"
+                                    ToolTip="Compact indented outline / mermaid-friendly tree of this file. Click again for normal chat."/>
+                        </WrapPanel>
                     </StackPanel>
                 </DockPanel>
             </Border>

@@ -214,15 +214,18 @@ public sealed class AiService
 
         var slim = historyForApi.Count > 0;
         var hasAttachmentPayload = userMessage.Contains("Attached context (", StringComparison.Ordinal);
+        var modeAddon = ChatModeSystemAddon(userMessage);
+        var persona = string.IsNullOrEmpty(modeAddon)
+            ? "You are a helpful assistant answering questions about the currently previewed file. " +
+              "Be concise and accurate. Prefer short markdown (bold for key terms). " +
+              "Use a mermaid fenced block only when a diagram clearly helps.\n\n"
+            : modeAddon + "You are answering about the currently previewed file.\n\n";
         var messages = new List<ChatMessage>
         {
             new()
             {
                 Role = "system",
-                Content = "You are a helpful assistant answering questions about the currently previewed file. " +
-                          "Be concise and accurate. Prefer short markdown (bold for key terms). " +
-                          "Use a mermaid fenced block only when a diagram clearly helps.\n\n" +
-                          BuildDocumentPrompt(content, slim: slim || hasAttachmentPayload)
+                Content = persona + BuildDocumentPrompt(content, slim: slim || hasAttachmentPayload)
             }
         };
 
@@ -673,6 +676,36 @@ public sealed class AiService
                 }
             }
         };
+    }
+
+    /// <summary>
+    /// ChatPanel prefixes the user turn with [Cite mode] / [First Principles mode] / [Mindmap mode].
+    /// Overlay the system prompt so Cite/Mindmap are not fighting "be concise + mermaid only when helpful".
+    /// </summary>
+    internal static string ChatModeSystemAddon(string userMessage)
+    {
+        if (string.IsNullOrEmpty(userMessage))
+            return string.Empty;
+
+        if (userMessage.StartsWith("[Cite mode]", StringComparison.Ordinal))
+        {
+            return "Active mode: Cite. Quote the open document. Every non-trivial claim needs a short " +
+                   "citation (page number, heading, or a brief excerpt). Do not invent sources.\n\n";
+        }
+
+        if (userMessage.StartsWith("[First Principles mode]", StringComparison.Ordinal))
+        {
+            return "Active mode: First Principles. Strip the question and document to axioms, then rebuild " +
+                   "the answer from those axioms. No fluff, no throat-clearing, no analogies unless they are the axiom.\n\n";
+        }
+
+        if (userMessage.StartsWith("[Mindmap mode]", StringComparison.Ordinal))
+        {
+            return "Active mode: Mindmap. Return a compact indented outline of the open document as a mermaid " +
+                   "mindmap or nested bullet tree. No prose preamble. Prefer a mermaid fenced block.\n\n";
+        }
+
+        return string.Empty;
     }
 
     private static string BuildDocumentPrompt(PreviewContent content, bool slim = false)

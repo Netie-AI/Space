@@ -20,12 +20,22 @@ public partial class ChatPanel : UserControl
     /// <summary>Total cap for one composed send.</summary>
     private const int ComposeTextBudget = 14000;
 
+    private const string ModeNormal = "normal";
+    private const string ModeCite = "cite";
+    private const string ModeFirstPrinciples = "first-principles";
+    private const string ModeMindmap = "mindmap";
+
+    private const string CiteMarker = "[Cite mode]";
+    private const string FirstPrinciplesMarker = "[First Principles mode]";
+    private const string MindmapMarker = "[Mindmap mode]";
+
     private readonly List<ChatMessage> _history = [];
     private readonly List<ChatAsset> _assets = [];
     private readonly Dictionary<string, FrameworkElement> _assetChips = new(StringComparer.Ordinal);
     private string? _boundFilePath;
     private bool _notesOnly;
     private bool _busy;
+    private string _chatMode = ModeNormal;
     private readonly DocumentChatStore _store = new();
     private bool _suppressPersist;
     private readonly DispatcherTimer _persistTimer;
@@ -72,6 +82,7 @@ public partial class ChatPanel : UserControl
 
             if (string.IsNullOrWhiteSpace(filePath))
             {
+                _chatMode = ModeNormal;
                 ShowWelcome();
                 UpdateChrome();
                 return;
@@ -92,6 +103,7 @@ public partial class ChatPanel : UserControl
             }
 
             TitleText.Text = string.IsNullOrWhiteSpace(thread.Title) ? "Notes & chat" : thread.Title;
+            _chatMode = NormalizeChatMode(thread.ChatMode);
             UpdateChrome();
         }
         finally
@@ -108,6 +120,7 @@ public partial class ChatPanel : UserControl
         var thread = new DocumentChatThread
         {
             Title = TitleText.Text,
+            ChatMode = _chatMode,
             Messages = _history.Select(m => new ChatMessage
             {
                 Role = m.Role,
@@ -568,10 +581,48 @@ public partial class ChatPanel : UserControl
     {
         SubtitleText.Text = _notesOnly
             ? "Notes mode — ideas stay on this file, no AI calls"
-            : "Saved with this file · reopen anytime";
+            : _chatMode switch
+            {
+                ModeCite => "Cite · quotes the open document with short citations",
+                ModeFirstPrinciples => "First Principles · axioms, then rebuild — no fluff",
+                ModeMindmap => "Mindmap · indented outline / mermaid tree of this file",
+                _ => "Saved with this file · reopen anytime"
+            };
         NotesOnlyButton.Content = _notesOnly ? "Notes ON" : "Notes";
+        ApplyModeChipStyles();
         UpdateSendAffordance();
     }
+
+    private void ApplyModeChipStyles()
+    {
+        if (ModeCiteButton is null) return;
+        var ghost = TryFindResource("GhostButton") as Style;
+        var on = TryFindResource("TealButton") as Style ?? ghost;
+        ModeCiteButton.Style = _chatMode == ModeCite ? on : ghost;
+        ModeFirstPrinciplesButton.Style = _chatMode == ModeFirstPrinciples ? on : ghost;
+        ModeMindmapButton.Style = _chatMode == ModeMindmap ? on : ghost;
+    }
+
+    private void ModeChip_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not string mode)
+            return;
+
+        _chatMode = string.Equals(_chatMode, mode, StringComparison.OrdinalIgnoreCase)
+            ? ModeNormal
+            : NormalizeChatMode(mode);
+        UpdateChrome();
+        SchedulePersist();
+        FocusInput();
+    }
+
+    private static string NormalizeChatMode(string? mode) => mode?.Trim().ToLowerInvariant() switch
+    {
+        ModeCite => ModeCite,
+        ModeFirstPrinciples => ModeFirstPrinciples,
+        ModeMindmap => ModeMindmap,
+        _ => ModeNormal
+    };
 
     private void UpdateSendAffordance()
     {
@@ -590,7 +641,13 @@ public partial class ChatPanel : UserControl
             ? "Save as note (no AI)"
             : _assets.Count > 0
                 ? $"Send your question with {_assets.Count} attachment{(_assets.Count == 1 ? "" : "s")}"
-                : "Send to AI";
+                : _chatMode switch
+                {
+                    ModeCite => "Send in Cite mode (quotes + citations)",
+                    ModeFirstPrinciples => "Send in First Principles mode",
+                    ModeMindmap => "Send in Mindmap mode (outline / mermaid tree)",
+                    _ => "Send to AI"
+                };
     }
 
     private void AppendBubble(string content, bool isUser, bool isNote = false, bool animate = true)
@@ -784,7 +841,11 @@ public partial class ChatPanel : UserControl
     {
         var question = InputBox.Text.Trim();
         if (question.Length == 0 && _assets.Count == 0)
-            return;
+        {
+            if (forceNote || _chatMode == ModeNormal)
+                return;
+            question = DefaultQuestionForMode(_chatMode);
+        }
 
         var staged = _assets.ToList();
         var transcript = BuildTranscriptEntry(question, staged);
@@ -833,11 +894,31 @@ public partial class ChatPanel : UserControl
     }
 
     /// <summary>What actually goes to the model — parsed text first, image paths noted.</summary>
-    private static string BuildModelPayload(string question, IReadOnlyList<ChatAsset> assets)
+    private string BuildModelPayload(string question, IReadOnlyList<ChatAsset> assets)
     {
-        if (assets.Count == 0)
-            return question;
+        var body = assets.Count == 0 ? question : BuildAttachedPayload(question, assets);
+        var prefix = UserPrefixForMode(_chatMode);
+        return prefix is null ? body : prefix + "\n\n" + body;
+    }
 
+    private static string? UserPrefixForMode(string mode) => mode switch
+    {
+        ModeCite => CiteMarker + " Quote the open document. Include short citations (page / heading / excerpt) for every claim.",
+        ModeFirstPrinciples => FirstPrinciplesMarker + " Strip to axioms, then rebuild. No fluff.",
+        ModeMindmap => MindmapMarker + " Return a compact indented outline or mermaid-friendly tree of the open document. No prose preamble.",
+        _ => null
+    };
+
+    private static string DefaultQuestionForMode(string mode) => mode switch
+    {
+        ModeCite => "What does this document claim? Quote and cite.",
+        ModeFirstPrinciples => "Explain this document from first principles.",
+        ModeMindmap => "Map the open document as a compact outline.",
+        _ => ""
+    };
+
+    private static string BuildAttachedPayload(string question, IReadOnlyList<ChatAsset> assets)
+    {
         var sb = new StringBuilder();
         sb.Append("Attached context (").Append(assets.Count)
           .Append(assets.Count == 1 ? " item" : " items").Append("):\n\n");
@@ -903,6 +984,7 @@ public partial class ChatPanel : UserControl
         var next = _store.StartNew(_boundFilePath, new DocumentChatThread
         {
             Title = TitleText.Text,
+            ChatMode = _chatMode,
             Messages = _history.ToList()
         });
         _history.Clear();
@@ -962,6 +1044,7 @@ public partial class ChatPanel : UserControl
             _store.StartNew(_boundFilePath!, new DocumentChatThread
             {
                 Title = TitleText.Text,
+                ChatMode = _chatMode,
                 Messages = _history.ToList()
             });
         }
@@ -983,6 +1066,7 @@ public partial class ChatPanel : UserControl
             TitleText.Text = string.IsNullOrWhiteSpace(archived.Title)
                 ? "Restored chat"
                 : archived.Title;
+            _chatMode = NormalizeChatMode(archived.ChatMode);
             UpdateChrome();
         }
         finally
