@@ -34,7 +34,7 @@ public sealed record PdfTextBox(int Page, double X, double Y, double Width, doub
 /// <summary>One Fill &amp; Sign typed-text box in PDF points, origin bottom-left (viewer convention).</summary>
 public sealed record PdfFillTextItem(
     int Page, double XPt, double YFromBottom, double WidthPt, double HeightPt,
-    double FontPt, string Text);
+    double FontPt, string Text, bool CoverBackground = false);
 
 /// <summary>
 /// Comment highlight or ink mark in PDF points, origin bottom-left (same as stamps/fills).
@@ -460,7 +460,10 @@ public sealed class PdfEditService
                 var wPt = Math.Max(8, t.WidthPt);
                 var fontPt = Math.Clamp(t.FontPt <= 0 ? hPt * 0.58 : t.FontPt, 4, 96);
                 var yTop = Math.Clamp(page.Height - t.YFromBottom - hPt, 0, Math.Max(0, page.Height - hPt));
-                var rect = new XRect(Math.Clamp(t.XPt, 0, Math.Max(0, page.Width - 8)) + 2, yTop, wPt - 4, hPt);
+                var x = Math.Clamp(t.XPt, 0, Math.Max(0, page.Width - 8));
+                if (t.CoverBackground)
+                    gfx.DrawRectangle(XBrushes.White, x, yTop, wPt, hPt);
+                var rect = new XRect(x + 2, yTop, wPt - 4, hPt);
                 if (!TryDrawVectorText(gfx, t.Text, fontPt, rect))
                     DrawTextAsImage(gfx, t.Text, fontPt, rect);
             }
@@ -725,6 +728,16 @@ public sealed class PdfEditService
     {
         using var input = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
         return input.PageCount;
+    }
+
+    /// <summary>Page size in PDF points (MediaBox / PdfSharp Width×Height).</summary>
+    public (double WidthPt, double HeightPt) GetPageSize(string pdfPath, int pageNumber)
+    {
+        using var input = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
+        if (pageNumber < 1 || pageNumber > input.PageCount)
+            throw new InvalidOperationException($"Page {pageNumber} is out of range (1–{input.PageCount}).");
+        var page = input.Pages[pageNumber - 1];
+        return (page.Width, page.Height);
     }
 
     /// <summary>Existing page Rotate values (degrees) for each page, length = page count.</summary>

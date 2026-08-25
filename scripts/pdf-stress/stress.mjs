@@ -285,6 +285,21 @@ async function fillPhase(browser) {
   const d6 = await dbg(page);
   t('F6 trash deletes field', d6.fill.fields.length === 1, `fields=${d6.fill.fields.length}`);
 
+  // F7: OCR/host seedFillTexts drops editable boxes at PDF points
+  await page.evaluate(() => window.__netie.onHostMessage({
+    type: 'seedFillTexts',
+    texts: [{ page: 1, xPt: 50, yFromBottom: 100, wPt: 120, hPt: 18, fontPt: 11, text: 'OCR LINE', snapped: 'ocr' }]
+  }));
+  await sleep(250);
+  const d7 = await dbg(page);
+  const seeded = d7.fill.fields.find(f => f.text === 'OCR LINE');
+  const seedPosts = await sent(page, 'fillTexts');
+  t('F7 seedFillTexts creates editable OCR box',
+    !!seeded && Math.abs(seeded.xPt - 50) < 1 && Math.abs(seeded.yFromBottom - 100) < 1,
+    seeded ? `x=${seeded.xPt} y=${seeded.yFromBottom}` : 'missing');
+  t('F7 seedFillTexts posts fillTexts to host',
+    seedPosts.some(m => (m.texts || []).some(x => x.text === 'OCR LINE')));
+
   await page.screenshot({ path: OUT + 'shot_fill_end.png' });
   await page.close();
 }

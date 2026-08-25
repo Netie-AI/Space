@@ -1253,10 +1253,12 @@
       el.addEventListener('focus', () => {
         activeFillId = f.id;
         el.classList.add('active');
+        post({ type: 'netieTyping', typing: true });
         positionFillFloatBar();
       });
       el.addEventListener('blur', () => {
         el.classList.remove('active');
+        post({ type: 'netieTyping', typing: false });
         f.text = el.textContent || '';
         postFillTexts(); // flush immediately — do not rely on debounce before Save/close
         setTimeout(() => {
@@ -1358,7 +1360,8 @@
         type: 'fillTexts',
         texts: fillFields.filter(f => (f.text || '').trim()).map(f => ({
           id: f.id, page: f.page, xPt: f.xPt, yFromBottom: f.yFromBottom,
-          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text
+          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text,
+          cover: !!f.cover
         }))
       });
     }
@@ -1408,23 +1411,84 @@
         const wPt = 150, hPt = 20;    // free text box right where you clicked
         rect = { xPt: Math.max(0, Math.min(xPt - 4, p.entry.widthPt - wPt)), yFromBottom: Math.max(0, yBotPt - hPt / 2), wPt, hPt };
       }
-      const f = {
-        id: uid(), page: p.page,
+      addFillField({
+        page: p.page,
         xPt: rect.xPt, yFromBottom: rect.yFromBottom, wPt: rect.wPt, hPt: rect.hPt,
         fontPt: Math.min(28, Math.max(7, rect.hPt * 0.58)),
-        text: '', snapped, el: null
-      };
-      f.el = createFillEl(f);
-      fillFields.push(f);
-      layoutFillField(f);
-      f.el.focus();
-      activeFillId = f.id;
-      positionFillFloatBar();
+        text: '', snapped, cover: false, focus: true
+      });
       status.textContent = snapped === 'cell' ? 'Snapped to table cell — type'
         : snapped === 'acroform' ? 'Snapped to form field — type'
         : snapped === 'line' ? 'On the line — type'
         : 'Type here · A / A / 🗑 above the box';
     });
+
+    function addFillField(t) {
+      const f = {
+        id: t.id || uid(),
+        page: t.page | 0,
+        xPt: Number(t.xPt) || 0,
+        yFromBottom: Number(t.yFromBottom) || 0,
+        wPt: Math.max(8, Number(t.wPt) || 120),
+        hPt: Math.max(8, Number(t.hPt) || 16),
+        fontPt: Math.min(48, Math.max(6, Number(t.fontPt) || 11)),
+        text: t.text || '',
+        snapped: t.snapped || '',
+        cover: !!t.cover,
+        el: null
+      };
+      f.el = createFillEl(f);
+      fillFields.push(f);
+      layoutFillField(f);
+      if (t.focus) {
+        f.el.focus();
+        activeFillId = f.id;
+        positionFillFloatBar();
+      }
+      return f;
+    }
+
+    function seedFillTexts(texts, opts) {
+      const replace = !!(opts && opts.replace);
+      if (replace) {
+        for (const f of fillFields) f.el?.remove();
+        fillFields = [];
+        activeFillId = null;
+      }
+      if (!Array.isArray(texts) || !texts.length) {
+        positionFillFloatBar();
+        postFillTexts();
+        return;
+      }
+      enterFillMode();
+      for (const t of texts)
+        addFillField(t);
+      layoutAllFillFields();
+      postFillTexts();
+      status.textContent = `${texts.length} text box(es) — edit then Save`;
+    }
+
+    async function exportPagePng(n) {
+      const page = (n | 0) || pageNum;
+      if (pdf && page !== pageNum) await goToPage(page, true);
+      await renderVisiblePages(true);
+      const entry = pageMap.get(page);
+      if (!entry?.canvas) {
+        post({ type: 'pagePng', page, error: 'page not rendered' });
+        return;
+      }
+      let dataUrl = '';
+      try { dataUrl = entry.canvas.toDataURL('image/png'); }
+      catch (err) {
+        post({ type: 'pagePng', page, error: err.message || 'export failed' });
+        return;
+      }
+      post({
+        type: 'pagePng', page, dataUrl,
+        widthPt: entry.widthPt, heightPt: entry.heightPt,
+        widthPx: entry.canvas.width, heightPx: entry.canvas.height
+      });
+    }
 
     // Keep focus in the text box while clicking A+/A− (Acrobat behaviour)
     fillFloatBar.addEventListener('mousedown', (ev) => {
@@ -1952,6 +2016,14 @@
       if (msg?.type === 'enterStampMode') enterStampMode(msg.dataUrl || stampDataUrl);
       if (msg?.type === 'enterFillMode') enterFillMode();
       if (msg?.type === 'exitFillMode') exitFillMode();
+      if (msg?.type === 'enterTextEditMode') {
+        enterFillMode();
+        bboxMode = true;
+        banner.textContent = 'Click a word to edit it, or click blank space to type';
+      }
+      if (msg?.type === 'seedFillTexts' || msg?.type === 'addFillTexts')
+        seedFillTexts(msg.texts || [], { replace: !!msg.replace });
+      if (msg?.type === 'exportPagePng') exportPagePng(msg.page | 0);
       if (msg?.type === 'exitStampMode') exitStampMode();
       if (msg?.type === 'requestFlush') flushAllToHost();
       if (msg?.type === 'scaleSelected' && msg.factor) {
@@ -1991,7 +2063,7 @@
         for (const entry of pageMap.values()) {
           entry.wrap.querySelectorAll('.bbox').forEach(n => n.remove());
         }
-        if (!bboxMode) return;
+        bboxMode = true;
         for (const b of msg.boxes) {
           const entry = pageMap.get(b.page | 0);
           if (!entry) continue;
@@ -2009,6 +2081,22 @@
             entry.wrap.querySelectorAll('.bbox').forEach(x => x.classList.remove('selected'));
             el.classList.add('selected');
             post({ type: 'textBoxSelected', text: b.text || '', page: b.page, x: b.x, y: b.y, w: b.w, h: b.h });
+            // Promote native bbox to an editable fill overlay (whiteout + replace on save).
+            addFillField({
+              page: b.page | 0,
+              xPt: Number(b.x) || 0,
+              yFromBottom: Number(b.y) || 0,
+              wPt: Number(b.w) || 40,
+              hPt: Number(b.h) || 12,
+              fontPt: Math.max(7, (Number(b.h) || 12) * 0.85),
+              text: b.text || '',
+              snapped: 'native',
+              cover: true,
+              focus: true
+            });
+            el.remove();
+            postFillTexts();
+            enterFillMode();
           };
           entry.wrap.appendChild(el);
         }
@@ -2027,7 +2115,8 @@
         })) : [];
         const savedFills = keep ? fillFields.map(f => ({
           id: f.id, page: f.page, xPt: f.xPt, yFromBottom: f.yFromBottom,
-          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text, snapped: f.snapped, el: null
+          wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text, snapped: f.snapped,
+          cover: !!f.cover, el: null
         })) : [];
         const savedHighlights = keep ? snapshotHighlights() : [];
         for (const o of overlays) o.el?.remove();
@@ -2083,6 +2172,8 @@
       window.__netie = {
         sent: [],
         onHostMessage,
+        seedFillTexts,
+        exportPagePng,
         debug: () => ({
           pageNum, scale, stampMode, stampPending, selectedOverlayId,
           domOverlays: document.querySelectorAll('.stamp-overlay').length,
@@ -2097,7 +2188,7 @@
             fields: fillFields.map(f => ({
               id: f.id, page: f.page, xPt: +f.xPt.toFixed(2), yFromBottom: +f.yFromBottom.toFixed(2),
               wPt: +f.wPt.toFixed(2), hPt: +f.hPt.toFixed(2), fontPt: +f.fontPt.toFixed(2),
-              text: f.text, snapped: f.snapped, connected: !!f.el?.isConnected
+              text: f.text, snapped: f.snapped, cover: !!f.cover, connected: !!f.el?.isConnected
             }))
           },
           highlightMode, markupKind,

@@ -60,6 +60,7 @@ public partial class PreviewWindow : Window
     private readonly List<PendingPdfFillText> _pendingFillTexts = [];
     private readonly List<PendingPdfHighlight> _pendingHighlights = [];
     private TaskCompletionSource<bool>? _viewerFlushTcs;
+    private TaskCompletionSource<PagePngCapture>? _pagePngTcs;
     private string _pdfToolMode = ""; // organize | sign | fill | comment
     private string _preferredSignFont = "Segoe Script";
     private bool _pdfSignFontComboReady;
@@ -129,6 +130,7 @@ public partial class PreviewWindow : Window
         public double HPt { get; set; }
         public double FontPt { get; set; }
         public string Text { get; set; } = "";
+        public bool CoverBackground { get; set; }
     }
 
     /// <summary>Comment highlight or ink mark from the viewer (PDF points, origin bottom-left).</summary>
@@ -141,6 +143,17 @@ public partial class PreviewWindow : Window
         public double WPt { get; set; }
         public double HPt { get; set; }
         public string Kind { get; set; } = "highlight";
+    }
+
+    private sealed class PagePngCapture
+    {
+        public int Page { get; set; }
+        public string? DataUrl { get; set; }
+        public string? Error { get; set; }
+        public double WidthPt { get; set; }
+        public double HeightPt { get; set; }
+        public int WidthPx { get; set; }
+        public int HeightPx { get; set; }
     }
 
     private ExportPreset _exportPreset = ExportPreset.MatchSource;
@@ -432,6 +445,8 @@ public partial class PreviewWindow : Window
         RefreshExportPresetButtons();
 
         RemoveBgButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
+        if (OcrImageButton is not null)
+            OcrImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (CopyImageButton is not null)
             CopyImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (CompressImageButton is not null)
@@ -1967,7 +1982,9 @@ public partial class PreviewWindow : Window
                             WPt = el.TryGetProperty("wPt", out var fw) ? fw.GetDouble() : 120,
                             HPt = el.TryGetProperty("hPt", out var fh) ? fh.GetDouble() : 20,
                             FontPt = el.TryGetProperty("fontPt", out var fp) ? fp.GetDouble() : 11,
-                            Text = text!
+                            Text = text!,
+                            CoverBackground = el.TryGetProperty("cover", out var cov) &&
+                                             cov.ValueKind is System.Text.Json.JsonValueKind.True
                         });
                     }
                 }
@@ -1987,6 +2004,32 @@ public partial class PreviewWindow : Window
             else if (type == "flushReady")
             {
                 _viewerFlushTcs?.TrySetResult(true);
+            }
+            else if (type == "pagePng")
+            {
+                static int IntProp(System.Text.Json.JsonElement el, string name, int fallback)
+                {
+                    if (!el.TryGetProperty(name, out var p) || p.ValueKind != System.Text.Json.JsonValueKind.Number)
+                        return fallback;
+                    return (int)Math.Round(p.GetDouble());
+                }
+                static double DblProp(System.Text.Json.JsonElement el, string name)
+                {
+                    if (!el.TryGetProperty(name, out var p) || p.ValueKind != System.Text.Json.JsonValueKind.Number)
+                        return 0;
+                    return p.GetDouble();
+                }
+
+                _pagePngTcs?.TrySetResult(new PagePngCapture
+                {
+                    Page = IntProp(root, "page", 1),
+                    DataUrl = root.TryGetProperty("dataUrl", out var du) ? du.GetString() : null,
+                    Error = root.TryGetProperty("error", out var errEl) ? errEl.GetString() : null,
+                    WidthPt = DblProp(root, "widthPt"),
+                    HeightPt = DblProp(root, "heightPt"),
+                    WidthPx = IntProp(root, "widthPx", 0),
+                    HeightPx = IntProp(root, "heightPx", 0)
+                });
             }
             else if (type == "requestTextBoxes" && !string.IsNullOrWhiteSpace(_currentFilePath))
             {
@@ -2266,7 +2309,7 @@ public partial class PreviewWindow : Window
             if (_pendingFillTexts.Count > 0)
             {
                 var fillItems = _pendingFillTexts
-                    .Select(f => new PdfFillTextItem(f.Page, f.XPt, f.YFromBottom, f.WPt, f.HPt, f.FontPt, f.Text))
+                    .Select(f => new PdfFillTextItem(f.Page, f.XPt, f.YFromBottom, f.WPt, f.HPt, f.FontPt, f.Text, f.CoverBackground))
                     .ToList();
                 path = await Task.Run(() => _pdfEdit.DrawFillTexts(path, fillItems));
             }
@@ -4526,7 +4569,7 @@ public partial class PreviewWindow : Window
             {
                 "organize" => "Page tools below",
                 "sign" => "New signature · then click the page to place",
-                "fill" => "Click a cell · type · Save",
+                "fill" => "Click a cell · type · OCR seeds scans · Save",
                 "comment" => "Drag to highlight",
                 _ => "Pick a mode · tweaks appear below"
             };
@@ -4982,9 +5025,15 @@ public partial class PreviewWindow : Window
     private void PdfEditTextMode_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_currentFilePath)) return;
+        if (!string.Equals(_pdfToolMode, "fill", StringComparison.OrdinalIgnoreCase))
+            SetPdfToolMode("fill");
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        PostFormFieldsToViewer(_currentFilePath!);
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterTextEditMode" }));
         PostTextBoxesToViewer(_currentFilePath!, 1);
         ConvertStatusText.Text =
-            "Edit text — boxes from PDF text layer. Click a box to select. Full OCR edit (scans) next.";
+            "Edit text — click a word to change it, or OCR this page for scans. Save writes into the file.";
     }
 
     private void PdfFillForm_Click(object sender, RoutedEventArgs e)
@@ -4996,6 +5045,211 @@ public partial class PreviewWindow : Window
         core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterFillMode" }));
         ConvertStatusText.Text =
             "Fill — click a table cell or blank line, type, then press Save";
+    }
+
+    private async void PdfOcrSeed_Click(object sender, RoutedEventArgs e)
+    {
+        await SeedOcrFillTextsAsync();
+    }
+
+    private async void OcrImageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy || string.IsNullOrWhiteSpace(_currentFilePath) || _content?.Kind != PreviewKind.Image)
+            return;
+
+        _busy = true;
+        SetLoading(true, "Reading text…");
+        ConvertStatusText.Text = ImageOcrService.IsLocalAvailable
+            ? "OCR (local)…"
+            : ImageOcrService.IsCloudEnabled
+                ? "OCR (cloud, opt-in)…"
+                : "OCR…";
+        try
+        {
+            var result = await ImageOcrService.RecognizeLayoutAsync(_currentFilePath);
+            if (!result.Ok || string.IsNullOrWhiteSpace(result.FullText))
+            {
+                ConvertStatusText.Text = result.Error
+                    ?? (ImageOcrService.IsCloudEnabled
+                        ? "No text found."
+                        : "No local OCR. Install Tesseract, or set NETIE_SPACE_OCR_CLOUD=1.");
+                return;
+            }
+
+            try { Clipboard.SetText(result.FullText); } catch { /* ignore */ }
+            var shown = PromptDialog.Ask(this, $"OCR · {result.Engine}",
+                "Text read from this image (copied). Edit if you like, then OK.",
+                result.FullText);
+            if (!string.IsNullOrWhiteSpace(shown))
+            {
+                try { Clipboard.SetText(shown); } catch { /* ignore */ }
+                if (!_chatOpen) OpenChatPanel();
+                ChatPanel.StagePackedContext(
+                    $"OCR · {IoPath.GetFileName(_currentFilePath)}",
+                    shown,
+                    $"OCR · {result.Engine}");
+            }
+
+            ConvertStatusText.Text = $"OCR · {result.Engine} · {result.Lines.Count} line(s)";
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"OCR failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            SetLoading(false);
+        }
+    }
+
+    private async Task SeedOcrFillTextsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentFilePath) || _busy)
+            return;
+        if (!IoPath.GetExtension(_currentFilePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            ConvertStatusText.Text = "OCR fill works on a PDF page.";
+            return;
+        }
+
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null)
+        {
+            ConvertStatusText.Text = "PDF viewer not ready.";
+            return;
+        }
+
+        _busy = true;
+        SetLoading(true, "OCR this page…");
+        ConvertStatusText.Text = ImageOcrService.IsLocalAvailable
+            ? "Reading page (local OCR)…"
+            : ImageOcrService.IsCloudEnabled
+                ? "Reading page (cloud OCR)…"
+                : "Reading page…";
+        string? tmpPng = null;
+        try
+        {
+            if (!string.Equals(_pdfToolMode, "fill", StringComparison.OrdinalIgnoreCase))
+                SetPdfToolMode("fill");
+            core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterFillMode" }));
+
+            var shot = await RequestViewerPagePngAsync();
+            if (shot is null || string.IsNullOrWhiteSpace(shot.DataUrl))
+            {
+                ConvertStatusText.Text = shot?.Error ?? "Could not capture the page for OCR.";
+                return;
+            }
+
+            tmpPng = IoPath.Combine(IoPath.GetTempPath(), $"netie_ocr_{Guid.NewGuid():N}.png");
+            if (!TryWriteDataUrlPng(shot.DataUrl, tmpPng))
+            {
+                ConvertStatusText.Text = "Page image decode failed.";
+                return;
+            }
+
+            var layout = await ImageOcrService.RecognizeLayoutAsync(tmpPng);
+            if (!layout.Ok || layout.Lines.Count == 0)
+            {
+                ConvertStatusText.Text = layout.Error
+                    ?? (ImageOcrService.IsCloudEnabled
+                        ? "No text on this page."
+                        : "No local OCR. Install Tesseract, or set NETIE_SPACE_OCR_CLOUD=1.");
+                return;
+            }
+
+            var page = shot.Page > 0 ? shot.Page : 1;
+            var widthPt = shot.WidthPt > 0 ? shot.WidthPt : _pdfEdit.GetPageSize(_currentFilePath!, page).WidthPt;
+            var heightPt = shot.HeightPt > 0 ? shot.HeightPt : _pdfEdit.GetPageSize(_currentFilePath!, page).HeightPt;
+            if (shot.WidthPx > 0) layout = layout with { ImageWidth = shot.WidthPx };
+            if (shot.HeightPx > 0) layout = layout with { ImageHeight = shot.HeightPx };
+
+            var items = ImageOcrService.ToFillTexts(layout, page, widthPt, heightPt);
+            if (items.Count == 0)
+            {
+                ConvertStatusText.Text = $"OCR · {layout.Engine} found text but no boxes.";
+                return;
+            }
+
+            PostSeedFillTexts(items, replace: false);
+            ConvertStatusText.Text =
+                $"OCR · {layout.Engine} · {items.Count} box(es) — edit, then Save writes into this PDF";
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"OCR failed: {ex.Message}";
+        }
+        finally
+        {
+            if (!string.IsNullOrWhiteSpace(tmpPng))
+            {
+                try { IoFile.Delete(tmpPng); } catch { /* ignore */ }
+            }
+            _busy = false;
+            SetLoading(false);
+        }
+    }
+
+    private void PostSeedFillTexts(IReadOnlyList<PdfFillTextItem> items, bool replace)
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        var texts = items.Select(t => new
+        {
+            page = t.Page,
+            xPt = t.XPt,
+            yFromBottom = t.YFromBottom,
+            wPt = t.WidthPt,
+            hPt = t.HeightPt,
+            fontPt = t.FontPt,
+            text = t.Text,
+            cover = t.CoverBackground,
+            snapped = "ocr"
+        }).ToList();
+        var payload = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "seedFillTexts",
+            replace,
+            texts
+        });
+        core.PostWebMessageAsJson(payload);
+    }
+
+    private async Task<PagePngCapture?> RequestViewerPagePngAsync(int page = 0)
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return null;
+
+        _pagePngTcs = new TaskCompletionSource<PagePngCapture>(TaskCreationOptions.RunContinuationsAsynchronously);
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "exportPagePng",
+            page
+        }));
+        var completed = await Task.WhenAny(_pagePngTcs.Task, Task.Delay(4000));
+        if (completed != _pagePngTcs.Task)
+        {
+            AppLogger.Warn("exportPagePng timed out");
+            return null;
+        }
+
+        return await _pagePngTcs.Task;
+    }
+
+    private static bool TryWriteDataUrlPng(string dataUrl, string path)
+    {
+        try
+        {
+            var comma = dataUrl.IndexOf(',');
+            if (comma < 0) return false;
+            var bytes = Convert.FromBase64String(dataUrl[(comma + 1)..]);
+            IoFile.WriteAllBytes(path, bytes);
+            return bytes.Length > 32;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task PushStampToViewerAsync(string pngPath)
