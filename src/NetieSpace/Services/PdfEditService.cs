@@ -37,6 +37,14 @@ public sealed record PdfFillTextItem(
     double FontPt, string Text);
 
 /// <summary>
+/// Comment highlight or ink mark in PDF points, origin bottom-left (same as stamps/fills).
+/// <paramref name="Kind"/> is "highlight" (yellow) or "mark" (teal).
+/// </summary>
+public sealed record PdfHighlightItem(
+    int Page, double XPt, double YFromBottom, double WidthPt, double HeightPt,
+    string Kind = "highlight");
+
+/// <summary>
 /// Compose slot: either import a source page or insert a new page from an image file.
 /// </summary>
 public sealed class PdfComposeSlot
@@ -471,6 +479,80 @@ public sealed class PdfEditService
         {
             AppLogger.Warn($"In-place fill text deferred (locked): {ex.Message}");
             return temp;
+        }
+    }
+
+    /// <summary>
+    /// Bake Comment highlights / marks into page content (appearance stream via XGraphics Append).
+    /// Coordinates arrive in PDF points with origin bottom-left; converted to XGraphics top-left here.
+    /// Fail-closed: draws on a temp copy; the original path is only replaced after a successful Save.
+    /// If the dest is locked, returns the baked temp so the host can swap after unload.
+    /// Never uses AGPL PDF libraries.
+    /// </summary>
+    public string DrawHighlights(string pdfPath, IReadOnlyList<PdfHighlightItem> items)
+    {
+        var valid = (items ?? [])
+            .Where(h => h.Page >= 1 && h.WidthPt > 0.5 && h.HeightPt > 0.5)
+            .ToList();
+        if (valid.Count == 0)
+            return pdfPath;
+        if (!IoFile.Exists(pdfPath))
+            throw new FileNotFoundException("PDF not found.", pdfPath);
+
+        var work = IoPath.Combine(IoPath.GetTempPath(), $"netie_hl_work_{Guid.NewGuid():N}.pdf");
+        IoFile.Copy(pdfPath, work, overwrite: true);
+        try
+        {
+            using var doc = PdfReader.Open(work, PdfDocumentOpenMode.Modify);
+            if (doc.PageCount == 0)
+                throw new InvalidOperationException("PDF has no pages.");
+
+            var drawn = 0;
+            foreach (var group in valid.GroupBy(h => h.Page))
+            {
+                var idx = group.Key - 1;
+                if (idx < 0 || idx >= doc.PageCount)
+                    continue;
+
+                var page = doc.Pages[idx];
+                using var gfx = XGraphics.FromPdfPage(page, XGraphicsPdfPageOptions.Append);
+                foreach (var h in group)
+                {
+                    var w = Math.Max(1, h.WidthPt);
+                    var ht = Math.Max(1, h.HeightPt);
+                    var x = Math.Clamp(h.XPt, 0, Math.Max(0, page.Width - 1));
+                    // Viewer yFromBottom → XGraphics top-left (same conversion as DrawFillTexts).
+                    var yTop = Math.Clamp(page.Height - h.YFromBottom - ht, 0, Math.Max(0, page.Height - ht));
+                    var isMark = string.Equals(h.Kind, "mark", StringComparison.OrdinalIgnoreCase);
+                    var brush = isMark
+                        ? new XSolidBrush(XColor.FromArgb(110, 94, 196, 184))
+                        : new XSolidBrush(XColor.FromArgb(107, 255, 214, 74));
+                    gfx.DrawRectangle(brush, x, yTop, w, ht);
+                    drawn++;
+                }
+            }
+
+            if (drawn == 0)
+                return pdfPath;
+
+            var baked = IoPath.Combine(IoPath.GetTempPath(), $"netie_hl_{Guid.NewGuid():N}.pdf");
+            doc.Save(baked);
+            try
+            {
+                IoFile.Copy(baked, pdfPath, overwrite: true);
+                try { IoFile.Delete(baked); } catch { /* ignore */ }
+                AppLogger.Info($"Baked {drawn} highlight(s) → {pdfPath}");
+                return pdfPath;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn($"In-place highlight deferred (locked): {ex.Message}");
+                return baked;
+            }
+        }
+        finally
+        {
+            try { if (IoFile.Exists(work)) IoFile.Delete(work); } catch { /* ignore */ }
         }
     }
 

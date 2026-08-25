@@ -145,6 +145,7 @@
     .hl-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 12; }
     .hl-box { position: absolute; background: rgba(255, 214, 74, 0.42); border: 1.5px solid rgba(255, 196, 40, 0.9);
       border-radius: 3px; mix-blend-mode: multiply; }
+    .hl-box.mark { background: rgba(94, 196, 184, 0.38); border-color: rgba(94, 196, 184, 0.95); }
     /* Region marquee — Word-style "select area", crops + parses before AI */
     .region-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 13; }
     .region-box { position: absolute; background: rgba(94, 196, 184, 0.16);
@@ -182,7 +183,8 @@
     <button id="stampBtn" class="accent" title="Cancel signature placement">Cancel placement</button>
     <button id="stampConfirmBtn" class="accent hot" style="display:none" title="Legacy — auto-kept on drop">Keep stamp</button>
     <button id="fillBtn" title="Fill &amp; type — click a table cell or line, then type">Fill text</button>
-    <button id="hlBtn" title="Drag to highlight">Highlight</button>
+    <button id="hlBtn" title="Drag across text to highlight — Save writes it into the PDF">Highlight</button>
+    <button id="markBtn" title="Drag to draw a mark — Save writes it into the PDF">Mark</button>
     <button id="regionBtn" title="Select area — drag a box over a table or figure to send it to chat">Select area</button>
     <div id="searchWrap">
       <button id="searchToggle" title="Search text in document">Search</button>
@@ -225,7 +227,9 @@
     let stampMode = false;
     let stampPending = false;
     let highlightMode = false;
+    let markupKind = 'highlight'; // 'highlight' | 'mark'
     let bboxMode = false;
+    /** @type {{id:string,page:number,xPt:number,yFromBottom:number,wPt:number,hPt:number,kind:string,el:HTMLElement|null}[]} */
     let highlights = [];
     let stampDataUrl = null;
     let dragging = false;
@@ -527,11 +531,7 @@
       if (myGen !== entry.gen || myLoad !== loadGen) return;
       entry.rendered = true;
 
-      for (const hl of highlights.filter(x => x.page === n)) {
-        ctx.fillStyle = 'rgba(255, 230, 80, 0.35)';
-        ctx.fillRect(hl.x * (w / entry.widthPt), hl.y * (h / entry.heightPt),
-          hl.w * (w / entry.widthPt), hl.h * (h / entry.heightPt));
-      }
+      layoutHighlightsForPage(n);
       layoutOverlaysForPage(n);
       layoutFillFieldsForPage(n);
       paintSearchHitsForPage(n);
@@ -637,6 +637,76 @@
     function paintAllSearchHits() {
       const pages = new Set(searchHits.map(h => h.page));
       for (const n of pages) paintSearchHitsForPage(n);
+    }
+
+    function ensureHlLayer(entry) {
+      let layer = entry.wrap.querySelector('.hl-layer');
+      if (!layer) {
+        layer = document.createElement('div');
+        layer.className = 'hl-layer';
+        entry.wrap.appendChild(layer);
+      }
+      return layer;
+    }
+
+    /** PDF bottom-left → overlay CSS. Session truth until Save bakes into the file. */
+    function layoutHighlight(hl) {
+      const entry = pageMap.get(hl.page);
+      if (!entry) return;
+      const layer = ensureHlLayer(entry);
+      if (!hl.el) {
+        hl.el = document.createElement('div');
+        hl.el.className = 'hl-box' + (hl.kind === 'mark' ? ' mark' : '');
+      }
+      if (hl.el.parentNode !== layer) layer.appendChild(hl.el);
+      const cr = entry.canvas.getBoundingClientRect();
+      const wrapR = entry.wrap.getBoundingClientRect();
+      const cssW = cr.width || entry.canvas.clientWidth;
+      const cssH = cr.height || entry.canvas.clientHeight;
+      hl.el.style.left = ((cr.left - wrapR.left) + (hl.xPt / entry.widthPt) * cssW) + 'px';
+      hl.el.style.top = ((cr.top - wrapR.top) + ((entry.heightPt - hl.yFromBottom - hl.hPt) / entry.heightPt) * cssH) + 'px';
+      hl.el.style.width = Math.max(2, (hl.wPt / entry.widthPt) * cssW) + 'px';
+      hl.el.style.height = Math.max(2, (hl.hPt / entry.heightPt) * cssH) + 'px';
+    }
+
+    function layoutHighlightsForPage(n) {
+      for (const hl of highlights.filter(x => x.page === n)) layoutHighlight(hl);
+    }
+
+    function layoutAllHighlights() {
+      for (const hl of highlights) layoutHighlight(hl);
+    }
+
+    function snapshotHighlights() {
+      return highlights.map(h => ({
+        id: h.id, page: h.page, xPt: h.xPt, yFromBottom: h.yFromBottom,
+        wPt: h.wPt, hPt: h.hPt, kind: h.kind || 'highlight', el: null
+      }));
+    }
+
+    function postHighlights() {
+      post({
+        type: 'highlights',
+        highlights: highlights.map(h => ({
+          id: h.id, page: h.page, xPt: h.xPt, yFromBottom: h.yFromBottom,
+          wPt: h.wPt, hPt: h.hPt, kind: h.kind || 'highlight',
+          pageHeightPt: pageMap.get(h.page)?.heightPt || 0
+        }))
+      });
+    }
+
+    function setMarkupMode(kind) {
+      const next = kind === 'mark' ? 'mark' : 'highlight';
+      const turningOn = !highlightMode || markupKind !== next;
+      highlightMode = turningOn;
+      markupKind = next;
+      bboxMode = false;
+      if (highlightMode) { exitStampMode(); exitFillMode(); setRegionMode(false); }
+      document.getElementById('hlBtn')?.classList.toggle('on', highlightMode && markupKind === 'highlight');
+      document.getElementById('markBtn')?.classList.toggle('on', highlightMode && markupKind === 'mark');
+      status.textContent = highlightMode
+        ? (markupKind === 'mark' ? 'Drag to draw a mark — Save writes it into the PDF' : 'Drag across text to highlight — Save writes it into the PDF')
+        : '';
     }
 
     function pushQuad(hits, pageIndex, it, idx, matchLen) {
@@ -778,6 +848,7 @@
         await renderVisiblePages(true);
         layoutAllOverlays();
         layoutAllFillFields();
+        layoutAllHighlights();
         paintAllSearchHits();
       }
       scrollToPage(pageNum, false);
@@ -1068,7 +1139,8 @@
     function enterFillMode() {
       if (stampMode || stampPending) exitStampMode();
       highlightMode = false;
-      document.getElementById('hlBtn').classList.remove('on');
+      document.getElementById('hlBtn')?.classList.remove('on');
+      document.getElementById('markBtn')?.classList.remove('on');
       fillMode = true;
       fillBtn.classList.add('on');
       viewer.classList.add('fill-mode');
@@ -1300,10 +1372,12 @@
         postStampGeometry(o);
       }
       postFillTexts();
+      postHighlights();
       post({
         type: 'flushReady',
         stamps: overlays.filter(x => x.committed).length,
-        fills: fillFields.filter(f => (f.text || '').trim()).length
+        fills: fillFields.filter(f => (f.text || '').trim()).length,
+        highlights: highlights.length
       });
     }
 
@@ -1548,6 +1622,7 @@
         if (stampMode && !stampPending && lastPointer) moveGhost(lastPointer);
         layoutAllOverlays();
         layoutAllFillFields();
+        layoutAllHighlights();
         positionStampFloatBar();
         positionFillFloatBar();
         syncPageFromScroll();
@@ -1598,14 +1673,9 @@
       const p = canvasPoint(ev);
       if (!p.inside || !p.entry) return;
       hlDrag = { page: p.page, entry: p.entry, x0: p.x, y0: p.y, x1: p.x, y1: p.y, el: null };
-      let layer = p.entry.wrap.querySelector('.hl-layer');
-      if (!layer) {
-        layer = document.createElement('div');
-        layer.className = 'hl-layer';
-        p.entry.wrap.appendChild(layer);
-      }
+      const layer = ensureHlLayer(p.entry);
       const box = document.createElement('div');
-      box.className = 'hl-box';
+      box.className = 'hl-box' + (markupKind === 'mark' ? ' mark' : '');
       layer.appendChild(box);
       hlDrag.el = box;
       ev.preventDefault();
@@ -1634,16 +1704,29 @@
       const w = Math.abs(hlDrag.x1 - hlDrag.x0);
       const h = Math.abs(hlDrag.y1 - hlDrag.y0);
       if (w > 6 && h > 4) {
+        const entry = hlDrag.entry;
+        const xPt = (left / entry.canvas.width) * entry.widthPt;
+        const wPt = (w / entry.canvas.width) * entry.widthPt;
+        const hPt = (h / entry.canvas.height) * entry.heightPt;
+        const yTopPt = (top / entry.canvas.height) * entry.heightPt;
         const hit = {
+          id: uid(),
           page: hlDrag.page,
-          x: (left / hlDrag.entry.canvas.width) * hlDrag.entry.widthPt,
-          y: (top / hlDrag.entry.canvas.height) * hlDrag.entry.heightPt,
-          w: (w / hlDrag.entry.canvas.width) * hlDrag.entry.widthPt,
-          h: (h / hlDrag.entry.canvas.height) * hlDrag.entry.heightPt
+          xPt,
+          yFromBottom: entry.heightPt - yTopPt - hPt,
+          wPt,
+          hPt,
+          kind: markupKind === 'mark' ? 'mark' : 'highlight',
+          el: hlDrag.el
         };
         highlights.push(hit);
-        post({ type: 'highlight', ...hit });
-        status.textContent = 'Highlight added';
+        layoutHighlight(hit);
+        post({
+          type: 'highlight',
+          id: hit.id, page: hit.page, xPt: hit.xPt, yFromBottom: hit.yFromBottom,
+          wPt: hit.wPt, hPt: hit.hPt, kind: hit.kind, pageHeightPt: entry.heightPt
+        });
+        status.textContent = hit.kind === 'mark' ? 'Mark added — Save writes it into the PDF' : 'Highlight added — Save writes it into the PDF';
       } else if (hlDrag.el) {
         hlDrag.el.remove();
       }
@@ -1656,7 +1739,8 @@
     function setRegionMode(on) {
       regionMode = !!on;
       if (regionMode) { exitStampMode(); exitFillMode(); highlightMode = false;
-        document.getElementById('hlBtn')?.classList.remove('on'); }
+        document.getElementById('hlBtn')?.classList.remove('on');
+        document.getElementById('markBtn')?.classList.remove('on'); }
       document.getElementById('regionBtn')?.classList.toggle('on', regionMode);
       pagesEl.style.cursor = regionMode ? 'crosshair' : '';
       status.textContent = regionMode ? 'Drag a box over a table or figure — releases to chat' : '';
@@ -1806,6 +1890,7 @@
       await renderVisiblePages(true);
       layoutAllOverlays();
       layoutAllFillFields();
+      layoutAllHighlights();
       paintAllSearchHits();
     }
 
@@ -1850,13 +1935,8 @@
       if (stampMode || stampPending) { exitStampMode(); status.textContent = 'Placement cancelled'; }
     };
     stampConfirmBtn.onclick = () => keepPendingStamp();
-    document.getElementById('hlBtn').onclick = () => {
-      highlightMode = !highlightMode;
-      bboxMode = false;
-      if (highlightMode) { exitStampMode(); exitFillMode(); setRegionMode(false); }
-      document.getElementById('hlBtn').classList.toggle('on', highlightMode);
-      status.textContent = highlightMode ? 'Drag across text to highlight' : '';
-    };
+    document.getElementById('hlBtn').onclick = () => setMarkupMode('highlight');
+    document.getElementById('markBtn').onclick = () => setMarkupMode('mark');
     document.getElementById('regionBtn').onclick = () => setRegionMode(!regionMode);
 
     function onHostMessage(msg) {
@@ -1866,7 +1946,7 @@
         viewer.classList.remove('fit-mode');
         scale = Math.min(4, Math.max(0.25, Number(msg.scale) || 1.25));
         for (const e of pageMap.values()) e.rendered = false;
-        renderVisiblePages(true).then(() => { layoutAllOverlays(); layoutAllFillFields(); paintAllSearchHits(); });
+        renderVisiblePages(true).then(() => { layoutAllOverlays(); layoutAllFillFields(); layoutAllHighlights(); paintAllSearchHits(); });
       }
       if (msg?.type === 'fitPage') applyFit(false);
       if (msg?.type === 'enterStampMode') enterStampMode(msg.dataUrl || stampDataUrl);
@@ -1880,11 +1960,19 @@
         else scaleSelectedStamp(factor);
       }
       if (msg?.type === 'setHighlightMode') {
-        highlightMode = !!msg.on;
-        bboxMode = false;
-        if (highlightMode) { exitStampMode(); exitFillMode(); setRegionMode(false); }
-        document.getElementById('hlBtn')?.classList.toggle('on', highlightMode);
-        status.textContent = highlightMode ? 'Drag across text to highlight' : '';
+        if (msg.on) setMarkupMode(msg.kind === 'mark' ? 'mark' : 'highlight');
+        else {
+          highlightMode = false;
+          document.getElementById('hlBtn')?.classList.remove('on');
+          document.getElementById('markBtn')?.classList.remove('on');
+          status.textContent = '';
+        }
+      }
+      if (msg?.type === 'persistFailed') {
+        status.textContent = 'Save failed: ' + (msg.message || 'file unchanged') + ' — marks kept in session';
+      }
+      if (msg?.type === 'persistOk') {
+        status.textContent = msg.final ? 'Saved into PDF' : (highlights.length ? `${highlights.length} mark(s) saved` : '');
       }
       if (msg?.type === 'setRegionMode') setRegionMode(!!msg.on);
       if (msg?.type === 'clearFillTexts') {
@@ -1941,11 +2029,14 @@
           id: f.id, page: f.page, xPt: f.xPt, yFromBottom: f.yFromBottom,
           wPt: f.wPt, hPt: f.hPt, fontPt: f.fontPt, text: f.text, snapped: f.snapped, el: null
         })) : [];
+        const savedHighlights = keep ? snapshotHighlights() : [];
         for (const o of overlays) o.el?.remove();
         overlays = [];
         for (const f of fillFields) f.el?.remove();
         fillFields = [];
         activeFillId = null;
+        for (const h of highlights) h.el?.remove();
+        highlights = [];
         positionFillFloatBar();
         if (!keep) clearUncommitted();
         load().then(() => {
@@ -1961,10 +2052,14 @@
             fillFields.push(s);
             layoutFillField(s);
           }
+          for (const s of savedHighlights) {
+            highlights.push(s);
+            layoutHighlight(s);
+          }
           if (savedOverlays.length)
             selectOverlay(savedOverlays[savedOverlays.length - 1].id);
-          if (savedOverlays.length || savedFills.length)
-            status.textContent = 'Saved — keep dragging boxes or typing';
+          if (savedOverlays.length || savedFills.length || savedHighlights.length)
+            status.textContent = 'Saved — keep dragging boxes, marks, or typing';
         }).catch(err => {
           status.textContent = 'Reload failed: ' + err.message;
           post({ type: 'error', message: err.message });
@@ -2004,7 +2099,14 @@
               wPt: +f.wPt.toFixed(2), hPt: +f.hPt.toFixed(2), fontPt: +f.fontPt.toFixed(2),
               text: f.text, snapped: f.snapped, connected: !!f.el?.isConnected
             }))
-          }
+          },
+          highlightMode, markupKind,
+          highlights: highlights.map(h => ({
+            id: h.id, page: h.page, xPt: +h.xPt.toFixed(2), yFromBottom: +h.yFromBottom.toFixed(2),
+            wPt: +h.wPt.toFixed(2), hPt: +h.hPt.toFixed(2), kind: h.kind,
+            connected: !!h.el?.isConnected
+          })),
+          domHighlights: document.querySelectorAll('.hl-box').length
         })
       };
     }
