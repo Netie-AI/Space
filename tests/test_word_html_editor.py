@@ -15,7 +15,7 @@ def test_no_itext_or_new_preview_handler():
     assert "itext" not in csproj.lower()
     assert "AGPL" not in csproj
     assert "IPreviewHandler" not in SERVICE.read_text(encoding="utf-8")
-    assert "IPreviewHandler" not in PREVIEW.read_text(encoding="utf-8")
+    # PreviewWindow hosts IPreviewHandler via PreviewHandlerOverlay (P8).
 
 
 def test_save_api_and_autosave_path_exist():
@@ -33,7 +33,7 @@ def test_save_api_and_autosave_path_exist():
 def test_parking_lot_p8_checked():
     text = PARKING.read_text(encoding="utf-8")
     assert "- [x] Word/HTML contenteditable editor" in text
-    assert "- [ ] Windows IPreviewHandler host" in text
+    assert "- [x] Windows IPreviewHandler host (optional)" in text
 
 
 if __name__ == "__main__":
