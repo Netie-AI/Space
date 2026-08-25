@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (demo video marketing).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-25** (Windows `dotnet test` NLE logic).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -69,7 +69,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] A1 ripple pack with V1 drag/delete
 - [x] Export progress + background toast (Space-safe)
 - [x] Delete UX: timeline toolbar + merge/black dialog
-- [ ] User-validated Select→Split→Drag→Delete→Fade→Export (gate to leave Pillar 1)
+- [ ] User-validated Select→Split→Drag→Delete→Fade→Export (gate to leave Pillar 1; Windows xunit covers the same edit ops, not Export)
 - [x] Multi-source V1 polish (+ Clip)
 - [x] Transitions beyond fade; overlay text on canvas
 - [x] Phase 3: richer ordered multi-clip merge UX
