@@ -4,17 +4,15 @@
 
 ## Now
 
-1. **Open PR #2** (`feat/document-chat-and-cortex-sync`): document chat, OCR/image
-   editing, Cortex + OpenVault sync — 61 files committed; security follow-up landed
-   (DPAPI-sealed keys, cloud OCR opt-in, credential-scan removed). Not merged.
-2. **No CI** — builds not verified on push; last local work needed .NET SDK absent on
-   the machine that wrote the security commit.
+1. **Land document-chat + CI** (`cursor/ci-cd-and-image-copy-828f`): PR #2 work plus
+   GitHub Actions Windows Debug build, python syntax, rembg copy/drag-out.
+2. **CI now exists** — `.github/workflows/ci.yml`. Merge only if green.
 3. **Naming collision** — "Netie Space" (this desktop doc workspace) vs Cortex "DMS
    Spaces" (ACL sandboxes) still confuses cross-repo docs; not resolved here.
 
 ## Next
 
-- Merge or close PR #2 after compile verify on a machine with the .NET SDK.
+- Land this branch once Windows `dotnet build` CI is green (supersedes PR #2).
 - Route primary AI path through OpenVault gate (called out in PR #3 review, not in tree).
 - Draft PR #1 (demo video renderer) still open since 2026-07-28.
 

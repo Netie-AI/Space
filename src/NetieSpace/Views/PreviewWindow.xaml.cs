@@ -36,6 +36,9 @@ public partial class PreviewWindow : Window
     /// <summary>Chat column mid-slide — skip the per-frame corner-mask rebuild until it settles.</summary>
     private bool _chatAnimating;
     private bool _busy;
+    private string? _nobgTempPath;
+    private Point _imageDragStart;
+    private bool _imageDragArmed;
     private bool _sliderDragging;
     private bool _wasPlayingBeforeScrub;
     private double _volumeBeforeScrub = 1.0;
@@ -409,6 +412,8 @@ public partial class PreviewWindow : Window
         RefreshExportPresetButtons();
 
         RemoveBgButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
+        if (CopyImageButton is not null)
+            CopyImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (CompressImageButton is not null)
             CompressImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
 
@@ -3611,17 +3616,28 @@ public partial class PreviewWindow : Window
 
             var keep = GlassChoiceDialog.Show(this,
                 "Background removed",
-                "Preview on checkerboard (transparent ≠ black). Keep this PNG?",
+                "Preview on checkerboard (transparent ≠ black). Save, copy, or discard.",
                 [
                     ("keep", "Keep & save…", true),
+                    ("copy", "Copy", false),
                     ("discard", "Discard", false)
                 ]);
+
+            if (keep == "copy")
+            {
+                RememberNobgTemp(result.OutputPath);
+                if (TryCopyImageFile(result.OutputPath, out var copyErr))
+                    ConvertStatusText.Text = "Copied transparent PNG — paste or drag the picture out.";
+                else
+                    ConvertStatusText.Text = $"Copy failed: {copyErr}";
+                return;
+            }
 
             if (keep != "keep")
             {
                 await LoadFileAsync(_currentFilePath!);
                 ConvertStatusText.Text = "Background removal discarded.";
-                try { IoFile.Delete(result.OutputPath); } catch { /* ignore */ }
+                DeleteNobgTemp(result.OutputPath);
                 return;
             }
 
@@ -3639,12 +3655,12 @@ public partial class PreviewWindow : Window
             if (dlg.ShowDialog(this) != true)
             {
                 await LoadFileAsync(_currentFilePath!);
-                try { IoFile.Delete(result.OutputPath); } catch { /* ignore */ }
+                DeleteNobgTemp(result.OutputPath);
                 return;
             }
 
             IoFile.Copy(result.OutputPath, dlg.FileName, overwrite: true);
-            try { IoFile.Delete(result.OutputPath); } catch { /* ignore */ }
+            DeleteNobgTemp(result.OutputPath);
             ConvertStatusText.Text = $"Saved {IoPath.GetFileName(dlg.FileName)}";
             await LoadFileAsync(dlg.FileName);
         }
@@ -3657,6 +3673,113 @@ public partial class PreviewWindow : Window
             _busy = false;
             SetLoading(false);
         }
+    }
+
+    private void CopyImageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryRequireFile(out var path))
+            return;
+
+        if (TryCopyImageFile(path, out var err))
+            ConvertStatusText.Text = $"Copied {IoPath.GetFileName(path)} — paste or drag the picture out.";
+        else
+            ConvertStatusText.Text = $"Copy failed: {err}";
+    }
+
+    private void PreviewImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        _imageDragArmed = _content?.Kind == PreviewKind.Image && !string.IsNullOrWhiteSpace(_currentFilePath);
+        _imageDragStart = e.GetPosition(PreviewImage);
+    }
+
+    private void PreviewImage_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_imageDragArmed || e.LeftButton != MouseButtonState.Pressed)
+            return;
+        if (_content?.Kind != PreviewKind.Image || string.IsNullOrWhiteSpace(_currentFilePath))
+            return;
+        if (!IoFile.Exists(_currentFilePath))
+            return;
+
+        var delta = e.GetPosition(PreviewImage) - _imageDragStart;
+        if (Math.Abs(delta.X) < 10 && Math.Abs(delta.Y) < 10)
+            return;
+
+        _imageDragArmed = false;
+        var data = new DataObject(DataFormats.FileDrop, new[] { _currentFilePath });
+        DragDrop.DoDragDrop(PreviewImage, data, DragDropEffects.Copy);
+    }
+
+    private void PreviewImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) =>
+        _imageDragArmed = false;
+
+    private void PreviewImage_MouseLeave(object sender, MouseEventArgs e)
+    {
+        if (e.LeftButton != MouseButtonState.Pressed)
+            _imageDragArmed = false;
+    }
+
+    private bool TryCopyImageFile(string path, out string error)
+    {
+        error = "";
+        try
+        {
+            if (!IoFile.Exists(path))
+            {
+                error = "file missing";
+                return false;
+            }
+
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            bmp.UriSource = new Uri(path);
+            bmp.EndInit();
+            bmp.Freeze();
+
+            var data = new DataObject();
+            data.SetImage(bmp);
+            data.SetFileDropList(new System.Collections.Specialized.StringCollection { path });
+
+            using (var ms = new MemoryStream())
+            {
+                var enc = new PngBitmapEncoder();
+                enc.Frames.Add(BitmapFrame.Create(bmp));
+                enc.Save(ms);
+                data.SetData("PNG", ms.ToArray());
+            }
+
+            Clipboard.SetDataObject(data, true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private void RememberNobgTemp(string path)
+    {
+        if (!string.Equals(_nobgTempPath, path, StringComparison.OrdinalIgnoreCase))
+            DeleteNobgTemp(_nobgTempPath);
+        _nobgTempPath = path;
+    }
+
+    private void DeleteNobgTemp(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+        try
+        {
+            if (IoFile.Exists(path))
+                IoFile.Delete(path);
+        }
+        catch { /* temp file */ }
+
+        if (string.Equals(_nobgTempPath, path, StringComparison.OrdinalIgnoreCase))
+            _nobgTempPath = null;
     }
 
     private void FileNameText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
@@ -5627,6 +5750,9 @@ public partial class PreviewWindow : Window
         }
 
         try { ChatPanel.Persist(); } catch { /* ignore */ }
+        if (!string.IsNullOrWhiteSpace(_nobgTempPath) &&
+            !string.Equals(_nobgTempPath, _currentFilePath, StringComparison.OrdinalIgnoreCase))
+            DeleteNobgTemp(_nobgTempPath);
     }
 
     private void SummaryText_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

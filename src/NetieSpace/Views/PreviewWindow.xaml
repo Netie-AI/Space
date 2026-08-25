@@ -135,6 +135,10 @@
                         <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="RemoveBgButton_Click"/>
+                        <Button x:Name="CopyImageButton" Content="Copy" Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                Click="CopyImageButton_Click"
+                                ToolTip="Copy this image (bitmap + file). Drag the picture out to drop it into a folder or chat."/>
                         <Button x:Name="CompressImageButton" Content="Compress" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="CompressImageButton_Click"
@@ -644,7 +648,12 @@
                                     </Rectangle.Fill>
                                 </Rectangle>
                                 <Image x:Name="PreviewImage" Stretch="Uniform"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center">
+                                       HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       MouseLeftButtonDown="PreviewImage_MouseLeftButtonDown"
+                                       MouseMove="PreviewImage_MouseMove"
+                                       MouseLeftButtonUp="PreviewImage_MouseLeftButtonUp"
+                                       MouseLeave="PreviewImage_MouseLeave"
+                                       ToolTip="Drag out to copy the file">
                                     <Image.LayoutTransform>
                                         <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>
                                     </Image.LayoutTransform>
