@@ -458,6 +458,10 @@ public partial class PreviewWindow : Window
         // Region marquee is a PDF-viewer feature; images fall back to a whole-frame clip.
         var regionOk = kind is PreviewKind.Pdf or PreviewKind.Image;
         RegionSelectButton.Visibility = regionOk ? Visibility.Visible : Visibility.Collapsed;
+        if (SendSlideChatButton is not null)
+            SendSlideChatButton.Visibility = PptxSlideImageService.IsPptxPath(_currentFilePath)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
         if (!regionOk && _regionMode)
         {
             _regionMode = false;
@@ -926,8 +930,18 @@ public partial class PreviewWindow : Window
         await RunLookupAsync(string.IsNullOrWhiteSpace(word) ? text : word, ctx);
     }
 
+    private async void SendSlideChatButton_Click(object sender, RoutedEventArgs e) =>
+        await StageCurrentSlideToChatAsync();
+
     private async void AddChatClipButton_Click(object sender, RoutedEventArgs e)
     {
+        // PPTX: attach the visible slide, not packed "PPTX preview" text or a whole-WebView shot.
+        if (PptxSlideImageService.IsPptxPath(_currentFilePath))
+        {
+            if (await StageCurrentSlideToChatAsync())
+                return;
+        }
+
         // Whole-file attach: first-layer parse (OCR/text extract) before AI
         if (_content is not null && !string.IsNullOrWhiteSpace(_currentFilePath))
         {
@@ -1113,6 +1127,90 @@ public partial class PreviewWindow : Window
         ConvertStatusText.Text = string.IsNullOrWhiteSpace(text)
             ? $"Clip from page {page} staged in chat."
             : $"Clip from page {page} staged · {text.Length:N0} chars parsed.";
+    }
+
+    /// <summary>
+    /// Stage the slide currently on screen into ChatPanel. Uses the exported PNG when
+    /// present; otherwise the visible &lt;img&gt; pixels — never a whole-deck WebView capture.
+    /// </summary>
+    private async Task<bool> StageCurrentSlideToChatAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_currentFilePath) || !PptxSlideImageService.IsPptxPath(_currentFilePath))
+            return false;
+
+        var index = await TryGetVisibleSlideIndexAsync();
+        if (index < 1)
+            index = 1;
+
+        string? png = null;
+        try
+        {
+            png = await Task.Run(() => PptxSlideImageService.TryCopySlidePngForChat(
+                _currentFilePath!,
+                index,
+                AppResourceBudget.ChatClipsCache,
+                _content?.HtmlFilePath));
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Slide PNG resolve failed: {ex.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(png) || !IoFile.Exists(png))
+            png = await CaptureVisibleSlidePngAsync(index);
+
+        if (string.IsNullOrWhiteSpace(png) || !IoFile.Exists(png))
+        {
+            ConvertStatusText.Text = "Could not capture this slide — wait for the preview to finish loading.";
+            return false;
+        }
+
+        if (!_chatOpen) OpenChatPanel();
+        ChatPanel.StageSlideImage(png, index);
+        ConvertStatusText.Text = $"Slide {index} staged in chat — add a question, then Send.";
+        return true;
+    }
+
+    private async Task<int> TryGetVisibleSlideIndexAsync()
+    {
+        try
+        {
+            if (PreviewWebView.Visibility != Visibility.Visible || PreviewWebView.CoreWebView2 is null)
+                return 1;
+            var raw = UnquoteJsString(await PreviewWebView.CoreWebView2.ExecuteScriptAsync(
+                PptxSlideImageService.VisibleSlideIndexScript));
+            return int.TryParse(raw, out var n) && n >= 1 ? n : 1;
+        }
+        catch
+        {
+            return 1;
+        }
+    }
+
+    private async Task<string?> CaptureVisibleSlidePngAsync(int slideIndex)
+    {
+        try
+        {
+            await EnsureWebViewAsync();
+            var core = PreviewWebView.CoreWebView2;
+            if (core is null)
+                return null;
+
+            var raw = UnquoteJsString(await core.ExecuteScriptAsync(
+                PptxSlideImageService.VisibleSlideDataUrlScript));
+            if (string.IsNullOrWhiteSpace(raw))
+                return null;
+
+            var dir = AppResourceBudget.ChatClipsCache;
+            IoDirectory.CreateDirectory(dir);
+            var path = IoPath.Combine(dir, $"slide_{Math.Max(1, slideIndex):D3}_{DateTime.Now:yyyyMMdd_HHmmss}.png");
+            return PptxSlideImageService.TryWritePngFromDataUrl(raw, path);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Visible slide capture failed: {ex.Message}");
+            return null;
+        }
     }
 
     private async Task<string?> TryGetPreviewSelectionAsync()
