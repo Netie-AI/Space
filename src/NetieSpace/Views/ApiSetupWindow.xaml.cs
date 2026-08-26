@@ -40,10 +40,7 @@ public partial class ApiSetupWindow : Window
     {
         try
         {
-            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
-            if (string.IsNullOrWhiteSpace(baseUrl))
-                baseUrl = "https://netie-space-license.workers.dev";
-            var api = new LicenseApiClient(baseUrl);
+            var api = new LicenseApiClient(LicenseActivation.ResolveApiBase());
             var st = await api.GetStripeStatusAsync().ConfigureAwait(true);
             if (!st.Known)
                 return;
@@ -263,12 +260,8 @@ public partial class ApiSetupWindow : Window
         StatusText.Text = "Starting checkout…";
         try
         {
-            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
-            if (string.IsNullOrWhiteSpace(baseUrl))
-                baseUrl = "https://netie-space-license.workers.dev";
-
             var session = LicenseStore.LoadSession();
-            var api = new LicenseApiClient(baseUrl);
+            var api = new LicenseApiClient(LicenseActivation.ResolveApiBase());
             var checkout = await api.CreateCheckoutAsync(session?.Token, session?.Email).ConfigureAwait(true);
             if (checkout.Success && !string.IsNullOrWhiteSpace(checkout.CheckoutUrl))
             {
@@ -318,11 +311,7 @@ public partial class ApiSetupWindow : Window
                 return;
             }
 
-            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
-            if (string.IsNullOrWhiteSpace(baseUrl))
-                baseUrl = "https://netie-space-license.workers.dev";
-
-            var api = new LicenseApiClient(baseUrl);
+            var api = new LicenseApiClient(LicenseActivation.ResolveApiBase());
             var portal = await api.CreatePortalAsync(session.Token).ConfigureAwait(true);
             if (portal.Success && !string.IsNullOrWhiteSpace(portal.PortalUrl))
             {

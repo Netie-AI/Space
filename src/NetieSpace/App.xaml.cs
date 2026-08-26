@@ -137,6 +137,9 @@ public partial class App : Application
             if (UserPrefs.EmbeddingConsentAccepted)
                 LocalEmbeddingBrain.Instance.EnsureLayout();
             _settings = LoadSettings();
+            Services.Licensing.LicenseActivation.Configure(
+                _settings?.License.ApiBaseUrl,
+                _settings?.License.DevicePepper);
             _summaryCache = new SummaryCache(_settings.Preview.CacheSummaries);
             _conversationMemory = new ConversationMemoryCache();
             _aiService = new AiService(_settings.Ai, _summaryCache, _conversationMemory);
@@ -681,8 +684,8 @@ public partial class App : Application
         var account = new MenuItem { Header = "Account / Sign in…" };
         account.Click += (_, _) =>
         {
-            var api = _settings?.License.ApiBaseUrl ?? "https://netie-space-license.workers.dev";
-            var pepper = _settings?.License.DevicePepper ?? "netie-dev-pepper";
+            var api = Services.Licensing.LicenseActivation.ResolveApiBase();
+            var pepper = Services.Licensing.LicenseActivation.ResolvePepper();
             var login = new LoginWindow(api, pepper);
             login.ShowDialog();
             if (_trayIcon?.ContextMenu is not null)
@@ -824,8 +827,8 @@ public partial class App : Application
 
         try
         {
-            var api = _settings?.License.ApiBaseUrl ?? "https://netie-space-license.workers.dev";
-            var pepper = _settings?.License.DevicePepper ?? "netie-dev-pepper";
+            var api = Services.Licensing.LicenseActivation.ResolveApiBase();
+            var pepper = Services.Licensing.LicenseActivation.ResolvePepper();
             var login = new LoginWindow(api, pepper);
             var ok = login.ShowDialog() == true && login.Entitled;
             if (!ok)

@@ -33,7 +33,7 @@ Then set in [`src/NetieSpace/appsettings.json`](../src/NetieSpace/appsettings.js
 }
 ```
 
-Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"`
+Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"` (or `NETIE_LICENSE_API`; env wins). Login, Setup Buy, and Activate all use `LicenseActivation.ResolveApiBase` so they cannot hit different hosts.
 
 ## API surface (Stripe-ready)
 

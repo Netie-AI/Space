@@ -5,9 +5,9 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#38 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#41 landed**. Draft #1 stays draft.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
-   Register is `pending` until pay. Login gate Buy + Activate. You still put secrets.
+   Register is `pending` until pay. Login/Setup/Activate share one API host. You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local clients; live GPU still human.
 
 ## Next

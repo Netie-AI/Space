@@ -77,6 +77,13 @@ def test_wpf_buy_calls_checkout():
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
     assert "System.Windows" not in activation
+    assert "public static void Configure" in activation
+    assert "ResolveApiBase" in activation
+    assert "LicenseActivation.ResolveApiBase()" in setup
+    assert 'Environment.GetEnvironmentVariable("NETIE_LICENSE_API")' not in setup
+    app = _read(ROOT / "src/NetieSpace/App.xaml.cs")
+    assert "LicenseActivation.Configure" in app
+    assert "LicenseActivation.ResolveApiBase()" in app
     assert "OpenBuyFallback" in setup
     assert "HUMAN_STRIPE_CHECKOUT.md" in setup
     assert "HUMAN_PILLAR1_TEST.md" in setup

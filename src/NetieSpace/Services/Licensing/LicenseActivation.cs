@@ -11,16 +11,33 @@ public static class LicenseActivation
     public const string ApiEnvName = "NETIE_LICENSE_API";
     public const string PepperEnvName = "NETIE_DEVICE_PEPPER";
 
+    private static string? _configuredApiBase;
+    private static string? _configuredPepper;
+
+    /// <summary>
+    /// Appsettings fallback after env. Env always wins so a local Worker
+    /// (`NETIE_LICENSE_API=http://127.0.0.1:8787`) cannot split from Login.
+    /// </summary>
+    public static void Configure(string? apiBase, string? pepper)
+    {
+        _configuredApiBase = string.IsNullOrWhiteSpace(apiBase) ? null : apiBase.Trim().TrimEnd('/');
+        _configuredPepper = string.IsNullOrWhiteSpace(pepper) ? null : pepper.Trim();
+    }
+
     public static string ResolveApiBase()
     {
         var raw = Environment.GetEnvironmentVariable(ApiEnvName);
-        return string.IsNullOrWhiteSpace(raw) ? DefaultApiBase : raw.Trim().TrimEnd('/');
+        if (!string.IsNullOrWhiteSpace(raw))
+            return raw.Trim().TrimEnd('/');
+        return _configuredApiBase ?? DefaultApiBase;
     }
 
     public static string ResolvePepper()
     {
         var raw = Environment.GetEnvironmentVariable(PepperEnvName);
-        return string.IsNullOrWhiteSpace(raw) ? DefaultPepper : raw.Trim();
+        if (!string.IsNullOrWhiteSpace(raw))
+            return raw.Trim();
+        return _configuredPepper ?? DefaultPepper;
     }
 
     public static async Task<(bool Ok, string Message)> ActivateCurrentSessionAsync(
