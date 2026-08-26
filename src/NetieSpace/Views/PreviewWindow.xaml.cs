@@ -1493,18 +1493,18 @@ public partial class PreviewWindow : Window
             var kept = _videoEdit.Kept;
             if (idx + 1 < kept.Count && kept[idx].End == kept[idx + 1].Start)
             {
-                _markIn = kept[idx].Start;
-                _markOut = kept[idx + 1].End;
+                _markIn = _videoEdit.PackedStartOf(idx);
+                _markOut = _videoEdit.PackedEndOf(idx + 1);
             }
             else if (idx > 0 && kept[idx - 1].End == kept[idx].Start)
             {
-                _markIn = kept[idx - 1].Start;
-                _markOut = kept[idx].End;
+                _markIn = _videoEdit.PackedStartOf(idx - 1);
+                _markOut = _videoEdit.PackedEndOf(idx);
             }
             else
             {
-                _markIn = kept[idx].Start;
-                _markOut = kept[idx].End;
+                _markIn = _videoEdit.PackedStartOf(idx);
+                _markOut = _videoEdit.PackedEndOf(idx);
             }
         }
 
@@ -1594,8 +1594,8 @@ public partial class PreviewWindow : Window
 
         if (_videoEdit.Kept.Count > 0)
         {
-            _markIn = _videoEdit.Kept[0].Start;
-            _markOut = _videoEdit.Kept[^1].End;
+            _markIn = TimeSpan.Zero;
+            _markOut = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
         }
         else
         {
@@ -1748,6 +1748,21 @@ public partial class PreviewWindow : Window
         var output = PromptVideoSavePath("trim");
         if (output is null)
             return;
+
+        if (_editMode && _videoEdit.Kept.Count > 0)
+        {
+            SyncTimelineFromSession();
+            var snap = _timeline.Clone();
+            if (!snap.SlicePacked(a, b))
+            {
+                ConvertStatusText.Text = "Export range needs a span that covers a clip.";
+                return;
+            }
+
+            await RunFfmpegAsync("Exporting selection...", () =>
+                _ffmpeg.ExportTimelineAsync(snap, output));
+            return;
+        }
 
         await RunFfmpegAsync("Exporting selection...", () =>
             _ffmpeg.TrimAsync(_currentFilePath!, a, b, output));
@@ -2723,14 +2738,15 @@ public partial class PreviewWindow : Window
     }
 
     /// <summary>
-    /// Mark In/Out store source time (timeline-drag already uses
-    /// <see cref="VideoEditSession.PackedToSource"/>). After + Clip,
-    /// <see cref="GetPlayhead"/> is still clip-1 source time.
+    /// <summary>
+    /// In edit mode marks are packed seconds (Export range slices the
+    /// timeline). After + Clip, source times from two files cannot be
+    /// compared or TrimAsync'd on the open file.
     /// </summary>
     private TimeSpan MarkFromPlayhead()
     {
         if (_editMode && _videoEdit.Kept.Count > 0)
-            return _videoEdit.PackedToSource(PackedPlayhead());
+            return PackedPlayhead();
         return GetPlayhead();
     }
 
@@ -2808,14 +2824,8 @@ public partial class PreviewWindow : Window
             return;
         }
 
-        var start = Math.Clamp(
-            (_editMode && _videoEdit.Kept.Count > 0
-                ? _videoEdit.MarkToPacked(_markIn.Value)
-                : _markIn.Value).TotalSeconds / max, 0, 1);
-        var end = Math.Clamp(
-            (_editMode && _videoEdit.Kept.Count > 0
-                ? _videoEdit.MarkToPacked(_markOut.Value)
-                : _markOut.Value).TotalSeconds / max, 0, 1);
+        var start = Math.Clamp(_markIn.Value.TotalSeconds / max, 0, 1);
+        var end = Math.Clamp(_markOut.Value.TotalSeconds / max, 0, 1);
         if (end <= start)
         {
             MarkRangeTint.Visibility = Visibility.Collapsed;
@@ -2843,11 +2853,6 @@ public partial class PreviewWindow : Window
 
         var inSec = Math.Clamp((_markIn ?? TimeSpan.Zero).TotalSeconds, 0, max);
         var outSec = Math.Clamp((_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds, 0, max);
-        if (_editMode && _videoEdit.Kept.Count > 0)
-        {
-            inSec = _videoEdit.MarkToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
-            outSec = _videoEdit.MarkToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
-        }
         if (outSec < inSec)
             (inSec, outSec) = (outSec, inSec);
 
@@ -3798,11 +3803,6 @@ public partial class PreviewWindow : Window
         var max = TimelineMaxSeconds();
         var inSec = Math.Clamp((_markIn ?? TimeSpan.Zero).TotalSeconds, 0, max);
         var outSec = Math.Clamp((_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds, 0, max);
-        if (_editMode && _videoEdit.Kept.Count > 0)
-        {
-            inSec = _videoEdit.MarkToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
-            outSec = _videoEdit.MarkToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
-        }
         var xIn = inSec / max * w;
         var xOut = outSec / max * w;
         // Small hit only — large zones stole click-to-seek (especially after select snapped marks)
@@ -3828,17 +3828,13 @@ public partial class PreviewWindow : Window
         switch (_timelineDrag)
         {
             case TimelineDragMode.MarkIn:
-                _markIn = _editMode && _videoEdit.Kept.Count > 0
-                    ? _videoEdit.PackedToSource(t)
-                    : t;
+                _markIn = t;
                 if (_markOut.HasValue && _markOut < _markIn)
                     _markOut = _markIn;
                 UpdateMarkLabel();
                 break;
             case TimelineDragMode.MarkOut:
-                _markOut = _editMode && _videoEdit.Kept.Count > 0
-                    ? _videoEdit.PackedToSource(t)
-                    : t;
+                _markOut = t;
                 if (_markIn.HasValue && _markOut < _markIn)
                     _markIn = _markOut;
                 UpdateMarkLabel();

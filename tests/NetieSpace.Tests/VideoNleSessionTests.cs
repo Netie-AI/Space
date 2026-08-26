@@ -156,6 +156,41 @@ public class VideoNleSessionTests
         Assert.Equal(TimeSpan.Zero, session.PackedStartOf(0));
         Assert.Equal(TimeSpan.FromSeconds(10), session.PackedStartOf(1));
         Assert.Equal(TimeSpan.Zero, session.Clips[1].Start);
+        Assert.Equal(TimeSpan.FromSeconds(10), session.PackedEndOf(0));
+        Assert.Equal(TimeSpan.FromSeconds(12), session.PackedEndOf(1));
+    }
+
+    [Fact]
+    public void SlicePacked_second_clip_keeps_that_file()
+    {
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        Assert.NotNull(project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2)));
+        Assert.True(project.SlicePacked(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(12)));
+        var v = project.VideoTrack!;
+        Assert.Single(v.Clips);
+        Assert.Equal(@"C:\clips\b.mp4", v.Clips[0].SourcePath);
+        Assert.Equal(TimeSpan.Zero, v.Clips[0].TimelineStart);
+        Assert.Equal(TimeSpan.Zero, v.Clips[0].SourceIn);
+        Assert.Equal(TimeSpan.FromSeconds(2), v.Clips[0].SourceOut);
+    }
+
+    [Fact]
+    public void SlicePacked_across_join_keeps_both_files()
+    {
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        Assert.NotNull(project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2)));
+        Assert.True(project.SlicePacked(TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(11)));
+        var v = project.VideoTrack!;
+        Assert.Equal(2, v.Clips.Count);
+        Assert.Equal(@"C:\clips\a.mp4", v.Clips[0].SourcePath);
+        Assert.Equal(@"C:\clips\b.mp4", v.Clips[1].SourcePath);
+        Assert.Equal(TimeSpan.FromSeconds(9), v.Clips[0].SourceIn);
+        Assert.Equal(TimeSpan.FromSeconds(10), v.Clips[0].SourceOut);
+        Assert.Equal(TimeSpan.Zero, v.Clips[1].SourceIn);
+        Assert.Equal(TimeSpan.FromSeconds(1), v.Clips[1].SourceOut);
+        Assert.Equal(v.Clips[0].TimelineEnd, v.Clips[1].TimelineStart);
     }
 
     [Fact]

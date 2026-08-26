@@ -28,7 +28,9 @@ def test_append_and_import_pack_without_overlap():
     assert "wipe on both halves" in session
     assert "ClipSourceEquals" in session
     assert "PackedStartOf" in session
+    assert "PackedEndOf" in session
     assert "source in-point" in session
+    assert "public bool SlicePacked(" in timeline
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline
@@ -85,11 +87,15 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     layout = preview[preview.index("private void UpdateTimelineLayout()"):preview.index("if (TimelinePlayhead is not null)")]
     assert "PackedPlayhead().TotalSeconds" in layout
     assert "GetPlayhead().TotalSeconds" not in layout
-    assert "MarkToPacked" in layout
+    assert "MarkToPacked" not in layout
     marks = preview[preview.index("private TimeSpan MarkFromPlayhead()"):preview.index("private void UpdateMarkLabel()")]
-    assert "PackedToSource(PackedPlayhead())" in marks
+    assert "return PackedPlayhead()" in marks
+    assert "PackedToSource(PackedPlayhead())" not in marks
     assert "_markIn = GetPlayhead()" not in marks
     assert "_markOut = GetPlayhead()" not in marks
+    trim = preview[preview.index("private async void TrimVideoButton_Click"):preview.index("private void PreviewWebView_NavigationCompleted")]
+    assert "SlicePacked" in trim
+    assert "ExportTimelineAsync" in trim
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 
