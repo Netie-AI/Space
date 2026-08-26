@@ -637,6 +637,13 @@ def test_html_photo_export() -> None:
             f'<html><body><img src="data:image/png;base64,{b64}" alt="pic"></body></html>',
             encoding="utf-8",
         )
+        preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+        assert "ShareMdRow.Visibility = docFormats" in preview
+        md = d / "only.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
         pdf = d / "only.pdf"
         res = run_engine(["export-as", str(html), str(pdf)])
         assert res.get("success"), res
@@ -663,6 +670,11 @@ def test_html_photo_export() -> None:
         Image.new("RGB", (64, 48), (20, 80, 200)).save(sib, format="PNG")
         rel = d / "rel.html"
         rel.write_text('<html><body><img src="pic.png" alt="pic"></body></html>', encoding="utf-8")
+        rmd = d / "rel.md"
+        res = run_engine(["to-md", str(rel), str(rmd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in rmd.read_text(encoding="utf-8")
         rpdf = d / "rel.pdf"
         res = run_engine(["export-as", str(rel), str(rpdf)])
         assert res.get("success"), res

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Markdown on photo-only HTML embeds data-URI / sibling pictures. `html-strip` used to write a 1-byte file. Text HTML stays the strip path.
 - Convert: Share dest 1 PDF on Markdown renders headings (stdlib fallback; `markdown` is not a CI dep). Used to dump `#` source. Sibling images on HTML dest 2/3 and MD dest 1/4 inline as data URIs so Story / Word keep the pictures.
 - Convert: Share dest 2 PDF on HTML feeds MuPDF Story the page (no markdown_to_html). Dest 2 used to dump source tags. Photo-only HTML dest 3 Word embeds data-URI pictures; html-strip used to write an empty .docx.
 - Convert: Share dest 1 on MP4 / keep-type audio (same folder + stem) no longer fails ffmpeg in-place. HTML dest 1 already skipped the copy.

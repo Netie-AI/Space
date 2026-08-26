@@ -574,8 +574,12 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     if got:
         return got
     if ext in {".html", ".htm"}:
-        text = src.read_text(encoding="utf-8", errors="replace")
-        text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
+        raw = src.read_text(encoding="utf-8", errors="replace")
+        visible = html_visible_text(raw)
+        pngs = html_string_media_pngs(raw, src.parent)
+        if pngs and not visible:
+            return pngs_to_markdown(pngs, "Page", "html-md-images")
+        text = re.sub(r"(?is)<script.*?>.*?</script>", "", raw)
         text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
         text = re.sub(r"(?s)<[^>]+>", " ", text)
         return re.sub(r"\s+", " ", text).strip() + "\n", "html-strip"
