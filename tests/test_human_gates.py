@@ -51,6 +51,7 @@ def test_scripts_and_docs():
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
     assert "Play after" in pillar or "MediaEnded" in pillar
+    assert "abort the drag" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -127,6 +128,10 @@ def test_scripts_and_docs():
     assert "LostMouseCapture += FadeHandle_LostMouseCapture" in preview
     assert "LostMouseCapture += ClipBlock_LostMouseCapture" in preview
     assert "EndClipDrag" in preview
+    layout = preview[preview.index("private void UpdateTimelineLayout"):preview.index("private void RenderKeptClipSegments")]
+    assert "_dragClipIndex >= 0" in layout
+    assert "_fadeDragClip >= 0" in layout
+    assert "return" in layout
     clip_drag = preview[preview.index("private void ClipBlock_PreviewMouseLeftButtonUp"):preview.index("private void FadeInButton_Click")]
     assert "DiscardLastVideoUndo" in clip_drag
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
