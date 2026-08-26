@@ -600,7 +600,13 @@ def test_export_as_preview_video_gif() -> None:
     assert '".wmv"' in src
     assert '".mpeg"' in src
     parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     assert '".wmv"' in parser
+    # convertOk used to exclude Video so Share Export as never showed (engine GIF already worked).
+    convert_ok = preview.split("var convertOk", 1)[1].split(";", 1)[0]
+    assert "PreviewKind.Video" not in convert_ok
+    assert "ShareMdRow.Visibility = docFormats" in preview
+    assert "ShareExportAsRow.Visibility = formats" in preview
     if shutil.which("ffmpeg") is None:
         print("SKIP video gif export -- ffmpeg missing")
         return
