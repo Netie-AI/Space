@@ -290,31 +290,8 @@ public sealed class FfmpegService
                 if (string.IsNullOrWhiteSpace(src) || !IoFile.Exists(src))
                     return Fail($"Missing source for V1 clip: {src}");
                 var part = IoPath.Combine(dir, $"_ns_tlseg_{Guid.NewGuid():N}.mp4");
-                var vf = new StringBuilder();
-                if (clip.Speed > 0 && Math.Abs(clip.Speed - 1.0) > 0.01)
-                    vf.Append($"setpts={1.0 / clip.Speed:0.####}*PTS");
-                // Mixed files often differ in size; normalize so concat/xfade wipe still joins.
-                if (hasMultipleSources)
-                {
-                    var nw = project.Width > 0 ? project.Width : 1920;
-                    var nh = project.Height > 0 ? project.Height : 1080;
-                    if (vf.Length > 0) vf.Append(',');
-                    vf.Append($"scale={nw}:{nh}:force_original_aspect_ratio=decrease,pad={nw}:{nh}:(ow-iw)/2:(oh-ih)/2,setsar=1");
-                }
-                // Wipe joins use xfade; skip per-clip fade on that edge so we do not double-darken.
-                if (clip.FadeIn > TimeSpan.Zero && clip.TransitionIn != Timeline.TransitionKind.Wipe)
-                {
-                    if (vf.Length > 0) vf.Append(',');
-                    vf.Append($"fade=t=in:st=0:d={clip.FadeIn.TotalSeconds:0.###}");
-                }
-
-                if (clip.FadeOut > TimeSpan.Zero && clip.TransitionOut != Timeline.TransitionKind.Wipe)
-                {
-                    var dur = (clip.SourceOut - clip.SourceIn).TotalSeconds / Math.Max(0.01, clip.Speed);
-                    var st = Math.Max(0, dur - clip.FadeOut.TotalSeconds);
-                    if (vf.Length > 0) vf.Append(',');
-                    vf.Append($"fade=t=out:st={st:0.###}:d={clip.FadeOut.TotalSeconds:0.###}");
-                }
+                var vf = new StringBuilder(FfmpegExportGraph.ClipVideoFilters(
+                    clip, hasMultipleSources, project.Width, project.Height));
 
                 if (!string.IsNullOrWhiteSpace(clip.LutPath) && IoFile.Exists(clip.LutPath))
                 {
@@ -525,19 +502,7 @@ public sealed class FfmpegService
         int height,
         CancellationToken ct)
     {
-        var w = width > 0 ? width : 1920;
-        var h = height > 0 ? height : 1080;
-        var offset = Math.Max(0, leftDuration.TotalSeconds - xfadeDur.TotalSeconds);
-        var d = xfadeDur.TotalSeconds;
-        var scale =
-            $"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS";
-        var xfade = Timeline.TimelineProject.XfadeWipeName;
-        var withAudio =
-            $"[0:v]{scale}[v0];[1:v]{scale}[v1];" +
-            $"[v0][v1]xfade=transition={xfade}:duration={d:0.###}:offset={offset:0.###}[vout];" +
-            $"[0:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a0];" +
-            $"[1:a]aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[a1];" +
-            $"[a0][a1]acrossfade=d={d:0.###}[aout]";
+        var withAudio = FfmpegExportGraph.XfadeWithAudio(leftDuration, xfadeDur, width, height);
         var r = await RunAsync(
             $"-y -i \"{left}\" -i \"{right}\" -filter_complex \"{withAudio}\" -map \"[vout]\" -map \"[aout]\" " +
             $"-c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
@@ -545,9 +510,7 @@ public sealed class FfmpegService
         if (r.Success)
             return r;
 
-        var videoOnly =
-            $"[0:v]{scale}[v0];[1:v]{scale}[v1];" +
-            $"[v0][v1]xfade=transition={xfade}:duration={d:0.###}:offset={offset:0.###}[vout]";
+        var videoOnly = FfmpegExportGraph.XfadeVideoOnly(leftDuration, xfadeDur, width, height);
         return await RunAsync(
             $"-y -i \"{left}\" -i \"{right}\" -filter_complex \"{videoOnly}\" -map \"[vout]\" -an " +
             $"-c:v libx264 -preset veryfast -crf 23 -movflags +faststart \"{outputPath}\"",

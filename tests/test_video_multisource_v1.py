@@ -34,13 +34,15 @@ def test_append_and_import_pack_without_overlap():
 
 def test_export_keeps_fade_wipe_and_skips_primary_only_concat():
     ffmpeg = _read(FFMPEG)
+    graph = _read(ROOT / "src/NetieSpace/Services/FfmpegExportGraph.cs")
     assert "HasMultipleVideoSources" in ffmpeg
     assert "so a second/third V1 clip is not exported from the primary path" in ffmpeg
-    assert "xfade=transition=" in ffmpeg
-    assert "XfadeWipeName" in ffmpeg
+    assert "FfmpegExportGraph.XfadeWithAudio" in ffmpeg
+    assert "xfade=transition=" in graph
+    assert "XfadeWipeName" in graph
     assert "ProbeDurationAsync" in ffmpeg
-    assert "fade=t=in" in ffmpeg
-    assert "fade=t=out" in ffmpeg
+    assert "fade=t=in" in graph
+    assert "fade=t=out" in graph
     # Simple concat must not run when mixed sources are on V1.
     idx = ffmpeg.index("hasMultipleSources")
     simple = ffmpeg.index("ExportKeptSegmentsAsync", idx)
