@@ -32,6 +32,9 @@ public class PdfCmsSignerTests
         Assert.Contains("/ByteRange [0 ", text);
         Assert.DoesNotContain("**********", text);
         Assert.Contains("/Contents <", text);
+        Assert.Contains("/Annots [", text);
+        Assert.Contains("/AP << /N ", text);
+        Assert.Contains("/Subtype /Form", text);
         Assert.DoesNotContain("iText", text);
     }
 

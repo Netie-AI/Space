@@ -88,6 +88,7 @@ public static class PdfCmsSigner
         var acroId = nextId++;
         var fieldId = nextId++;
         var sigId = nextId++;
+        var apId = nextId++;
 
         var hexZeros = new string('0', ContentsReserveBytes * 2);
         var byteRangePlaceholder = "[0 ********** ********** **********]";
@@ -97,6 +98,7 @@ public static class PdfCmsSigner
         var pageRef = TryFirstPageRef(pdf, trailer.RootId);
         var fieldRect = pageRef is null ? "[0 0 0 0]" : "[36 36 180 90]";
         var pageKey = pageRef is { } p ? $" /P {p} 0 R" : "";
+        var apStream = BuildAppearanceStream(name);
 
         var block = new StringBuilder();
         block.Append('\n');
@@ -110,9 +112,27 @@ public static class PdfCmsSigner
         Mark(acroId);
         block.Append($"{acroId} 0 obj<< /Fields [{fieldId} 0 R] /SigFlags 3 >>endobj\n");
         Mark(fieldId);
-        block.Append($"{fieldId} 0 obj<< /FT /Sig /Type /Annot /Subtype /Widget /F 4 /Rect {fieldRect} /V {sigId} 0 R /T (Signature1){pageKey} >>endobj\n");
+        block.Append($"{fieldId} 0 obj<< /FT /Sig /Type /Annot /Subtype /Widget /F 4 /Rect {fieldRect} /V {sigId} 0 R /T (Signature1){pageKey} /AP << /N {apId} 0 R >> >>endobj\n");
         Mark(sigId);
         block.Append($"{sigId} 0 obj<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /{SubFilter} /ByteRange {byteRangePlaceholder} /Contents <{hexZeros}> /M (D:{when}Z) /Name ({name}) >>endobj\n");
+        Mark(apId);
+        block.Append($"{apId} 0 obj<< /Type /XObject /Subtype /Form /BBox [0 0 144 54] /Resources << /Font << /Helv << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> /Length {apStream.Length} >>stream\n");
+        block.Append(apStream);
+        block.Append("\nendstream\nendobj\n");
+
+        string? pageOverride = null;
+        int? pageOverrideId = null;
+        if (pageRef is { } pageId)
+        {
+            pageOverride = RewritePageWithAnnot(pdf, pageId, fieldId);
+            if (pageOverride is not null)
+                pageOverrideId = pageId;
+        }
+        if (pageOverride is not null && pageOverrideId is { } markedPage)
+        {
+            Mark(markedPage);
+            block.Append(pageOverride);
+        }
 
         var insert = Encoding.ASCII.GetBytes(block.ToString());
         var withObjs = Concat(pdf, insert);
@@ -120,8 +140,13 @@ public static class PdfCmsSigner
         var xrefStart = withObjs.Length;
         var xref = new StringBuilder();
         xref.Append("xref\n0 1\n0000000000 65535 f \n");
-        xref.Append($"{catalogId} 4\n");
-        foreach (var id in new[] { catalogId, acroId, fieldId, sigId })
+        if (pageOverride is not null && pageOverrideId is { } pid)
+        {
+            xref.Append($"{pid} 1\n");
+            xref.Append($"{objStarts[pid]:D10} 00000 n \n");
+        }
+        xref.Append($"{catalogId} 5\n");
+        foreach (var id in new[] { catalogId, acroId, fieldId, sigId, apId })
             xref.Append($"{objStarts[id]:D10} 00000 n \n");
         xref.Append($"trailer<< /Size {nextId} /Root {catalogId} 0 R /Prev {trailer.StartXref} >>\n");
         xref.Append($"startxref\n{xrefStart}\n%%EOF\n");
@@ -199,6 +224,59 @@ public static class PdfCmsSigner
         var size = MatchInt(trailerText, @"/Size\s+(\d+)");
         var root = MatchInt(trailerText, @"/Root\s+(\d+)\s+0\s+R");
         return new TrailerInfo(size, root, startxref);
+    }
+
+    private static string BuildAppearanceStream(string name)
+    {
+        var label = string.IsNullOrWhiteSpace(name) ? "Netie" : name;
+        if (label.Length > 28)
+            label = label[..28];
+        return string.Join('\n',
+            "q",
+            "0.90 0.95 0.90 rg",
+            "0 0 144 54 re f",
+            "0 0.35 0 rg",
+            "1 w",
+            "0.5 0.5 143 53 re S",
+            "BT /Helv 9 Tf 6 32 Td (Digitally signed) Tj",
+            $"6 16 Td ({EscapePdf(label)}) Tj ET",
+            "Q");
+    }
+
+    private static string? RewritePageWithAnnot(byte[] pdf, int pageId, int fieldId)
+    {
+        var obj = TryReadObject(pdf, pageId);
+        if (obj is null)
+            return null;
+        var start = obj.IndexOf("<<", StringComparison.Ordinal);
+        var endTok = obj.LastIndexOf("endobj", StringComparison.Ordinal);
+        if (start < 0 || endTok < 0)
+            return null;
+        var inner = obj[start..endTok];
+        inner = AddAnnotsToPageDict(inner, fieldId);
+        return $"{pageId} 0 obj\n{inner.Trim()}\nendobj\n";
+    }
+
+    private static string AddAnnotsToPageDict(string pageBody, int fieldId)
+    {
+        var refTok = $"{fieldId} 0 R";
+        var annotsOpen = Regex.Match(pageBody, @"/Annots\s*\[");
+        if (annotsOpen.Success)
+            return pageBody.Insert(annotsOpen.Index + annotsOpen.Length, refTok + " ");
+
+        var annotsRef = Regex.Match(pageBody, @"/Annots\s+(\d+)\s+0\s+R");
+        if (annotsRef.Success)
+        {
+            return pageBody.Remove(annotsRef.Index, annotsRef.Length)
+                .Insert(annotsRef.Index, $"/Annots [{refTok} {annotsRef.Groups[1].Value} 0 R]");
+        }
+
+        var streamAt = pageBody.IndexOf("stream", StringComparison.Ordinal);
+        var search = streamAt >= 0 ? pageBody[..streamAt] : pageBody;
+        var gt = search.LastIndexOf(">>", StringComparison.Ordinal);
+        if (gt < 0)
+            return pageBody;
+        return pageBody.Insert(gt, $" /Annots [{refTok}]");
     }
 
     private static int? TryPagesRef(byte[] pdf, int catalogId)

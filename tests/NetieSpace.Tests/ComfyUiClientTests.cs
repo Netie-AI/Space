@@ -23,4 +23,24 @@ public class ComfyUiClientTests
             Environment.SetEnvironmentVariable(ComfyUiClient.UrlEnvName, prev);
         }
     }
+
+    [Fact]
+    public async Task UploadImage_missing_or_down_returns_null()
+    {
+        var client = new ComfyUiClient("http://127.0.0.1:1");
+        Assert.Null(await client.UploadImageAsync("/no/such/netie-comfy.png"));
+
+        var dir = Path.Combine(Path.GetTempPath(), "netie-comfy-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "x.png");
+        File.WriteAllBytes(path, new byte[] { 0x89, 0x50, 0x4E, 0x47 });
+        try
+        {
+            Assert.Null(await client.UploadImageAsync(path));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
 }

@@ -14,6 +14,8 @@ What you do:
 3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.
 4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".
+   The first page should show a small "Digitally signed" box (page Annots +
+   appearance). Untrusted is OK; missing from the Signature panel is not.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
 Needs a classic xref PDF (PdfSharp / Space save). xref-stream files get a
@@ -30,8 +32,9 @@ Click path (image preview):
 1. Space an image.
 2. Image ribbon -> Send to Comfy...
 3. If 8188 is down: status/toast, no hang, no crash. rembg / Copy still work.
-4. If up: POST a minimal LoadImage workflow and/or write `{file}.comfy-input.json`
-   next to the image; run that workflow in ComfyUI.
+4. If up: POST `/upload/image` (so the file is in Comfy's input folder), then
+   POST a LoadImage workflow. If upload/queue fails, write
+   `{file}.comfy-input.json` next to the image and run that workflow in ComfyUI.
 
 What you do on a Windows GPU:
 
