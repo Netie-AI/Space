@@ -47,6 +47,7 @@ def test_scripts_and_docs():
     assert "extra Ctrl+Z" in pillar or "push undo" in pillar.lower()
     assert "Leave black" in pillar
     assert "title card" in pillar
+    assert "OV lane" in pillar
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
@@ -132,6 +133,13 @@ def test_scripts_and_docs():
     assert "_dragClipIndex >= 0" in layout
     assert "_fadeDragClip >= 0" in layout
     assert "return" in layout
+    assert "RenderOverlayTrack" in layout
+    xaml_preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml").read_text(encoding="utf-8")
+    assert 'x:Name="OverlayTrackCanvas"' in xaml_preview
+    ov = preview[preview.index("private void RenderOverlayTrack"):preview.index("private void RenderKeptClipSegments")]
+    assert "TimelineStart" in ov
+    assert "OverlayTrack" in ov
+    assert "KeptClip.Start" not in ov
     clip_drag = preview[preview.index("private void ClipBlock_PreviewMouseLeftButtonUp"):preview.index("private void FadeInButton_Click")]
     assert "DiscardLastVideoUndo" in clip_drag
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]

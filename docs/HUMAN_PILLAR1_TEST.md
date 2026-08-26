@@ -68,6 +68,8 @@ Export should land near that.
    should disappear. Ripple (default) joins the gap.    "Leave black scene"
    puts the title card at the packed clip start for the packed clip length
    (not source in 0 on + Clip, and not source duration after Speed 2x).
+   The OV lane shows that card (used to be model-only, so you could not
+   see packed start/length before Export).
    Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
    on and insert same-source holes later). A2 clicks use packed start too
    (not source in 0). A2 is preview-only -- Export does not amix.
@@ -91,7 +93,8 @@ Export should land near that.
    the same session (Export syncs from session, not a leftover timeline fade).
    Context-menu Speed / Add black / Add text push undo. An accidental
    Speed 2x or black card used to have no Ctrl+Z (2x blows the 3.1s
-   gate; black card fails "picture is not black").    Speed 2x now shrinks
+   gate; black card fails "picture is not black"). The OV lane shows
+   that black/text card so you can Ctrl+Z before Export.    Speed 2x now shrinks
    that clip on the packed timeline (used to stay full width, so the 2x
    was invisible and Export was ~2.3s). Order... lists that packed length
    (used to show source duration, so 2x still looked like 1.6s+2.0s).

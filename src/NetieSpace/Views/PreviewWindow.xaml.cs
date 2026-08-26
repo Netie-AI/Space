@@ -2957,7 +2957,67 @@ public partial class PreviewWindow : Window
         RenderKeptClipSegments(w, max);
         RenderAudioTrackClips(AudioTrack1Canvas, AudioTrack1Host, "A1", w, max);
         RenderAudioTrackClips(AudioTrack2Canvas, AudioTrack2Host, "A2", w, max);
+        RenderOverlayTrack(w, max);
         RenderCaptionTrack(w, max);
+    }
+
+    /// <summary>
+    /// Leave-black / Add black / text live on OverlayTrack. V1/A1/A2/CC
+    /// used to be the only rows, so the title card was invisible and an
+    /// accidental black card only showed up as Export "picture is not black".
+    /// </summary>
+    private void RenderOverlayTrack(double w, double max)
+    {
+        if (OverlayTrackCanvas is null)
+            return;
+
+        OverlayTrackCanvas.Children.Clear();
+        var hostW = OverlayTrackHost?.ActualWidth > 8 ? OverlayTrackHost.ActualWidth : w;
+        OverlayTrackCanvas.Width = hostW;
+        if (hostW < 8 || max <= 0)
+            return;
+
+        var ov = _timeline.OverlayTrack;
+        if (ov is null || ov.Clips.Count == 0)
+            return;
+
+        var total = Math.Max(max, 0.001);
+        foreach (var clip in ov.Clips)
+        {
+            var x0 = clip.TimelineStart.TotalSeconds / total * hostW;
+            var x1 = clip.TimelineEnd.TotalSeconds / total * hostW;
+            var (bg, fg, label) = clip.Overlay switch
+            {
+                OverlayKind.Black => (Color.FromArgb(0xDD, 0x14, 0x14, 0x18), Brushes.White, "black"),
+                OverlayKind.White => (Color.FromArgb(0xDD, 0xE8, 0xE8, 0xEC), Brushes.Black, "white"),
+                OverlayKind.Text => (Color.FromArgb(0xBB, 0x5E, 0xC4, 0xB8), Brushes.White, "text"),
+                _ => (Color.FromArgb(0x99, 0x80, 0x80, 0xA0), Brushes.White, "ov")
+            };
+            var text = clip.Overlay == OverlayKind.Text && !string.IsNullOrWhiteSpace(clip.Text)
+                ? (clip.Text.Length > 18 ? clip.Text[..18] + "…" : clip.Text)
+                : label;
+            var bdr = new Border
+            {
+                Width = Math.Max(4, x1 - x0 - 1),
+                Height = 16,
+                CornerRadius = new CornerRadius(3),
+                Background = new SolidColorBrush(bg),
+                ToolTip =
+                    $"{label} @ {clip.TimelineStart.TotalSeconds:0.0}s for {clip.Duration.TotalSeconds:0.0}s (packed)"
+            };
+            bdr.Child = new TextBlock
+            {
+                Text = text,
+                FontSize = 9,
+                Foreground = fg,
+                Margin = new Thickness(3, 1, 3, 1),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                IsHitTestVisible = false
+            };
+            Canvas.SetLeft(bdr, x0);
+            Canvas.SetTop(bdr, 2);
+            OverlayTrackCanvas.Children.Add(bdr);
+        }
     }
 
     private void RenderKeptClipSegments(double w, double max)

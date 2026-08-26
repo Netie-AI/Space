@@ -788,11 +788,12 @@
                                                Text="In — · Out —"/>
                                 </StackPanel>
 
-                                <!-- Multi-track timeline (V1 / A1 / A2) -->
+                                <!-- Multi-track timeline (V1 / A1 / A2 / OV / CC) -->
                                 <Border Margin="0,12,0,0" Padding="12,10" CornerRadius="12"
                                         Background="#14FFFFFF" BorderBrush="#28FFFFFF" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
@@ -905,8 +906,18 @@
                                             </Grid>
                                         </DockPanel>
 
+                                        <!-- OV (Leave black / Add black / text) -->
+                                        <DockPanel Grid.Row="4" Margin="0,4,0,0" LastChildFill="True">
+                                            <TextBlock Text="OV" Width="28" VerticalAlignment="Center"
+                                                       Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                                            <Grid x:Name="OverlayTrackHost" Height="22" Background="#12FFFFFF"
+                                                  ToolTip="Overlay cards (Leave black / Add black / text) — packed start + length. Burns on Export.">
+                                                <Canvas x:Name="OverlayTrackCanvas" Height="18" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DockPanel>
+
                                         <!-- CC captions track -->
-                                        <DockPanel Grid.Row="4" Margin="0,6,0,0" LastChildFill="True">
+                                        <DockPanel Grid.Row="5" Margin="0,6,0,0" LastChildFill="True">
                                             <TextBlock Text="CC" Width="28" VerticalAlignment="Center"
                                                        Foreground="{StaticResource Accent2Brush}" FontSize="11" FontWeight="Bold"/>
                                             <Grid x:Name="CaptionTrackHost" Height="28" Background="#12FFFFFF"
