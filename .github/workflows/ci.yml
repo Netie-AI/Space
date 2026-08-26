@@ -18,7 +18,7 @@ jobs:
   build-windows:
     name: build (windows)
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
@@ -28,6 +28,13 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             **/*.sln
+      # Chocolatey community feed 504s (ffmpeg 9.0.1). GyanD GitHub builds instead.
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: ffmpeg version
+        run: ffmpeg -hide_banner -version && ffprobe -hide_banner -version
       - name: Restore, build, and test
         run: >
           dotnet test NetieSpace.sln -c Debug --nologo
