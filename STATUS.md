@@ -13,7 +13,7 @@
 
 ## Next
 
-- Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Wipe on either side of the join. Playwright cannot open WPF.
+- Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Wipe on either side of the join. Toast duration uses bundled ffprobe. Playwright cannot open WPF.
 - Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (hybrid rewrite + Sign refuse leftover hybrid).
 - Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 
