@@ -887,7 +887,11 @@ public sealed class FfmpegService
         try { if (IoFile.Exists(path)) IoFile.Delete(path); } catch { /* ignore */ }
     }
 
-    private static string? ResolveFfprobe()
+    /// <summary>
+    /// Same locate as Export: tools/ffmpeg next to the repo or the exe, then PATH.
+    /// Used by the export toast so duration is not missing when ffprobe is not on PATH.
+    /// </summary>
+    internal static string? ResolveFfprobe()
     {
         static string? SiblingProbe(string ffmpegPath)
         {
@@ -912,7 +916,27 @@ public sealed class FfmpegService
 
         var baseBundled = SiblingProbe(IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", "ffmpeg.exe"))
                           ?? SiblingProbe(IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", "ffmpeg"));
-        return baseBundled;
+        if (baseBundled is not null)
+            return baseBundled;
+
+        var fromFfmpeg = SiblingProbe(ResolveFfmpeg() ?? "");
+        if (fromFfmpeg is not null)
+            return fromFfmpeg;
+
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in path.Split(IoPath.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(dir))
+                continue;
+            foreach (var name in new[] { "ffprobe.exe", "ffprobe" })
+            {
+                var candidate = IoPath.Combine(dir, name);
+                if (IoFile.Exists(candidate))
+                    return candidate;
+            }
+        }
+
+        return null;
     }
 
     private static async Task<string?> RunTextAsync(string fileName, string args, CancellationToken ct)

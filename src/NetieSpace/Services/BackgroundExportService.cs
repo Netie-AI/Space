@@ -102,7 +102,7 @@ public sealed class BackgroundExportService
     {
         try
         {
-            var exe = WhichFfprobe();
+            var exe = FfmpegService.ResolveFfprobe();
             if (exe is null || string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
                 return null;
 
@@ -135,23 +135,6 @@ public sealed class BackgroundExportService
         {
             return null;
         }
-    }
-
-    private static string? WhichFfprobe()
-    {
-        foreach (var name in new[] { "ffprobe", "ffprobe.exe" })
-        {
-            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
-            foreach (var dir in path.Split(IoPath.PathSeparator))
-            {
-                if (string.IsNullOrWhiteSpace(dir))
-                    continue;
-                var candidate = IoPath.Combine(dir, name);
-                if (IoFile.Exists(candidate))
-                    return candidate;
-            }
-        }
-        return null;
     }
 
     private static async Task<T> RunJobAsync<T>(

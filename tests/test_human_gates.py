@@ -36,7 +36,11 @@ def test_scripts_and_docs():
     export = (ROOT / "src/NetieSpace/Services/BackgroundExportService.cs").read_text(encoding="utf-8")
     toast = (ROOT / "src/NetieSpace/Views/ToastHud.xaml.cs").read_text(encoding="utf-8")
     assert "TryFormatDuration" in export
+    assert "FfmpegService.ResolveFfprobe" in export
     assert "wipe expect ~3.1s" in export
+    ffmpeg_cs = (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
+    assert "internal static string? ResolveFfprobe" in ffmpeg_cs
+    assert 'IoPath.Combine(root, "tools", "ffmpeg"' in ffmpeg_cs
     assert "durationNote" in toast
     enc = (ROOT / "scripts/encode-pillar1-wipe.sh").read_text(encoding="utf-8")
     assert "wipeleft" in enc
