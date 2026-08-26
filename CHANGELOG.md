@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as PowerPoint on a photo ODP embeds `Pictures/` as slides. Dest 2 used to raise LibreOffice required. Text ODP still needs soffice.
 - Convert: Share Export as Excel on a photo ODS embeds `Pictures/` as sheet drawings. Empty cell text used to write a workbook with no `xl/media`. Sheets with cell text stay the row path.
 - Convert: Share Markdown / `to-md` on OLE `.ppt` / `.pps` no longer writes a 1-byte file when there are no zip pictures. Empty `pptx-md-images` used to succeed. Photo PPTX still embeds `ppt/media`.
 - Convert: Merge / drop `.doc` / `.xls` to PDF no longer writes a 573-byte blank file when soffice is missing. Those used empty markdown (`pymupdf-story`). Share still hides them. Empty RTF stays the empty-input PDF. `.ppt` already raised.

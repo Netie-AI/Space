@@ -846,11 +846,14 @@ def test_photo_odp_docx_export() -> None:
     src = ENGINE.read_text(encoding="utf-8")
     assert "PHOTO_OFFICE_EXTS" in src
     assert "def office_media_pngs" in src
+    assert "def write_pptx_images" in src
     preview_html = src.split('@register("preview-html")', 1)[1][:1400]
     assert "office_media_pngs" in preview_html
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     dlg = preview.split("var imageDefaultExt", 1)[1]
-    assert "PDF document|*.pdf" in dlg.split('".odp"', 1)[1][:200]
+    odp_dlg = dlg.split('".odp"', 1)[1][:200]
+    assert "PDF document|*.pdf" in odp_dlg
+    assert "PowerPoint presentation|*.pptx" in odp_dlg
     assert "PDF document|*.pdf" in dlg.split('".docx"', 1)[1][:200]
     if not pymupdf_available():
         print("SKIP photo odp/docx export -- pymupdf missing")
@@ -922,6 +925,16 @@ def test_photo_odp_docx_export() -> None:
         res = run_engine(["to-md", str(odp), str(md)])
         assert res.get("success"), res
         assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        pptx_out = d / "odp.pptx"
+        res = run_engine(["export-as", str(odp), str(pptx_out)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pptx-zip-images", res
+        with zipfile.ZipFile(pptx_out) as zf:
+            names = zf.namelist()
+            assert "ppt/slides/slide1.xml" in names
+            media = [n for n in names if n.startswith("ppt/media/") and n.lower().endswith(".png")]
+            assert media, names
+            assert len(zf.read(media[0])) > 80
 
         docx = d / "scan.docx"
         with zipfile.ZipFile(docx, "w") as zf:
