@@ -333,6 +333,8 @@ public class VideoNleSessionTests
 
         session.Select(1);
         session.PushUndo(project);
+        session.FillGapsWithBlack = true;
+        project.FillGapsWithBlack = true;
         Assert.True(session.DeleteSelectedOrAt(TimeSpan.Zero));
         session.ApplyTo(project, @"C:\clips\a.mp4");
         project.AddOverlay(OverlayKind.Black, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(2));
@@ -344,6 +346,8 @@ public class VideoNleSessionTests
         Assert.Equal(2, session.Clips.Count);
         Assert.Equal(@"C:\clips\b.mp4", session.Clips[1].SourcePath, ignoreCase: true);
         Assert.Empty(project.OverlayTrack!.Clips);
+        Assert.False(session.FillGapsWithBlack);
+        Assert.False(project.FillGapsWithBlack);
         Assert.True(session.TryUndo());
         Assert.Single(session.Clips);
     }

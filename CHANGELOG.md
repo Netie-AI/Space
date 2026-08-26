@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: A2 clip `TimelineStart` is packed time (`PackedStartOf`). After + Clip it used source in (0) so the A2 block sat on clip 1. Status no longer claims an export mix (Export does not amix).
+- Video: Leave-black undo restores `FillGapsWithBlack`. The flag used to stay true after Ctrl+Z, so a later same-source hole could insert extra black and miss 2.8..3.4s.
 - Video: context-menu Speed writes the session (undoable). Add black / white / text push the overlay undo stack. Speed used to be timeline-only with no Ctrl+Z, so an accidental 2x next to Fade blew the 3.1s Export gate; Add black failed "picture is not black".
 - Video: clip-drag capture-loss (alt-tab) still drops -- session `MoveClip` + clear the ghost transform. MouseUp used to be the only drop path, so a lost capture left a translated clip the session never reordered.
 - Video: fade-handle capture-loss (alt-tab) commits or discards the undo MouseDown pushed. MouseUp used to be the only path, so a lost capture left a no-op frame and Ctrl+Z popped + Clip.
