@@ -774,7 +774,9 @@ public sealed class FfmpegService
         if (!IsAvailable || string.IsNullOrWhiteSpace(input) || !IoFile.Exists(input))
             return null;
 
-        var cacheDir = AppResourceBudget.VideoPreviewCache;
+        var cacheDir = IoPath.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NetieSpace", "cache", "video-preview");
         IoDirectory.CreateDirectory(cacheDir);
         var stamp = new System.IO.FileInfo(input).LastWriteTimeUtc.Ticks;
         var output = IoPath.Combine(cacheDir, $"{IoPath.GetFileNameWithoutExtension(input)}_{stamp}_h264.mp4");
