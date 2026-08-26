@@ -1026,6 +1026,15 @@ def test_silent_video_export_mp3() -> None:
         assert mp3.is_file() and mp3.stat().st_size > 200
 
 
+def test_heic_preview_uses_engine() -> None:
+    """Space a HEIC used ParseImage (WPF) then ShellInfo and hid Share. Engine PNG keeps Image."""
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    assert 'extension is ".heic" or ".heif"' in parser
+    assert "ParseHeicPreviewAsync" in parser
+    assert "ExportAsAsync" in parser
+    assert "ParseHtmlPicture" in parser
+
+
 def test_heic_pdf_uses_pillow() -> None:
     """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
     engine = ENGINE.read_text(encoding="utf-8")
@@ -1233,6 +1242,7 @@ if __name__ == "__main__":
     test_photo_odp_docx_export()
     test_photo_ods_xlsx_export()
     test_silent_video_export_mp3()
+    test_heic_preview_uses_engine()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
