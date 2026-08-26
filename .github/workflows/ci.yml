@@ -40,6 +40,9 @@ jobs:
           dotnet test NetieSpace.sln -c Debug --nologo
           --blame-hang-timeout 2m
           --logger "trx;LogFileName=test-results.trx"
+      - name: pillar1 wipe reference encode
+        shell: pwsh
+        run: ./scripts/encode-pillar1-wipe.ps1 -Out "$env:RUNNER_TEMP/pillar1"
 
   python-syntax:
     name: python syntax
@@ -61,6 +64,8 @@ jobs:
             echo "== $f"
             python "$f"
           done
+      - name: pillar1 wipe reference encode
+        run: ./scripts/encode-pillar1-wipe.sh "$(mktemp -d)"
 
   license-api:
     name: license-api
