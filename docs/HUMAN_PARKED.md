@@ -9,11 +9,12 @@ Code is in: PDF More... -> **Cert sign (PFX)...** (`PdfCmsSigner`,
 
 What you do:
 
-1. Pull `main`. Open a PDF that Space itself saved (classic xref).
-2. More... -> Cert sign (PFX)... Pick a `.pfx`. Enter the password.
-3. Open the same file in Adobe Reader. Signature panel should list a
+1. Pull `main`. Make a test PFX: `.\scripts\make-test-pfx.ps1` (password `test`).
+2. Open a PDF that Space itself saved (classic xref).
+3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.
+4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".
-4. If sign fails, Space restores the original bytes. Stamp path still works.
+5. If sign fails, Space restores the original bytes. Stamp path still works.
 
 Needs a classic xref PDF (PdfSharp / Space save). xref-stream files get a
 clear error -- save from Space and retry.

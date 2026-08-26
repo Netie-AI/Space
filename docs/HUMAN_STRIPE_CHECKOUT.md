@@ -50,6 +50,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
 5. You land on `/v1/checkout/success`.
 6. Tray -> Account / Sign in -> Activate this laptop.
+7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
+   customer id from step 4). If you have not paid, the button says so.
 
 If secrets are missing, the button shows `stripe_not_configured` and still
 opens netie.space. That is expected until step 2 is done.

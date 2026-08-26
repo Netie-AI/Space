@@ -65,9 +65,15 @@
                                                Foreground="#E8FFF8" FontSize="14" FontWeight="SemiBold"/>
                                     <TextBlock Text="Unlock the full app first — device license, updates, and the path to Ult hosted AI. Start here before pasting random keys."
                                                Foreground="#D0E8E4" FontSize="12.5" TextWrapping="Wrap" Margin="0,8,0,12"/>
-                                    <Button x:Name="BuyNetieButton" Content="Get Netie subscription"
-                                            Style="{StaticResource AccentButton}" HorizontalAlignment="Left"
-                                            Click="BuyNetieButton_Click"/>
+                                    <WrapPanel>
+                                        <Button x:Name="BuyNetieButton" Content="Get Netie subscription"
+                                                Style="{StaticResource AccentButton}" HorizontalAlignment="Left"
+                                                Click="BuyNetieButton_Click"/>
+                                        <Button x:Name="ManageBillingButton" Content="Manage billing"
+                                                Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                                                Click="ManageBillingButton_Click"
+                                                ToolTip="Stripe Customer Portal after you have paid once"/>
+                                    </WrapPanel>
                                     <TextBlock x:Name="LicenseStatusText" Foreground="#A8D8D0" FontSize="11.5"
                                                Margin="0,10,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>

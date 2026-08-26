@@ -266,6 +266,43 @@ public partial class ApiSetupWindow : Window
         }
     }
 
+    private async void ManageBillingButton_Click(object sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Opening billing portal…";
+        try
+        {
+            var session = LicenseStore.LoadSession();
+            if (string.IsNullOrWhiteSpace(session?.Token))
+            {
+                StatusText.Text = "Sign in first (tray -> Account), then Manage billing.";
+                return;
+            }
+
+            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "https://netie-space-license.workers.dev";
+
+            var api = new LicenseApiClient(baseUrl);
+            var portal = await api.CreatePortalAsync(session.Token).ConfigureAwait(true);
+            if (portal.Success && !string.IsNullOrWhiteSpace(portal.PortalUrl))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = portal.PortalUrl,
+                    UseShellExecute = true
+                });
+                StatusText.Text = "Opened Stripe Customer Portal.";
+                return;
+            }
+
+            StatusText.Text = portal.Error ?? "Billing portal unavailable. Pay once first.";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = ex.Message;
+        }
+    }
+
     private void OpenBuyFallback(string? reason)
     {
         try

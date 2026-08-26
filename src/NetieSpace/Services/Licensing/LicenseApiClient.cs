@@ -56,6 +56,22 @@ public sealed class LicenseApiClient
         return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
     }
 
+    public async Task<PortalResult> CreatePortalAsync(string token, CancellationToken ct = default)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/billing-portal");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await _http.SendAsync(req, ct);
+        var body = await res.Content.ReadAsStringAsync(ct);
+        if (!res.IsSuccessStatusCode)
+            return PortalResult.Fail(ParseError(body));
+
+        var dto = JsonSerializer.Deserialize<PortalDto>(body, JsonOpts);
+        if (string.IsNullOrWhiteSpace(dto?.PortalUrl))
+            return PortalResult.Fail("No portal URL returned");
+
+        return PortalResult.Ok(dto.PortalUrl);
+    }
+
     public async Task<ActivateResult> ActivateAsync(
         string token,
         string deviceHash,
@@ -129,6 +145,11 @@ public sealed class LicenseApiClient
         [JsonPropertyName("checkout_url")] public string? CheckoutUrl { get; set; }
         [JsonPropertyName("session_id")] public string? SessionId { get; set; }
     }
+
+    private sealed class PortalDto
+    {
+        [JsonPropertyName("portal_url")] public string? PortalUrl { get; set; }
+    }
 }
 
 public sealed class LicenseAuthResult
@@ -182,6 +203,16 @@ public sealed class CheckoutResult
     };
 
     public static CheckoutResult Fail(string error) => new() { Success = false, Error = error };
+}
+
+public sealed class PortalResult
+{
+    public bool Success { get; init; }
+    public string? Error { get; init; }
+    public string? PortalUrl { get; init; }
+
+    public static PortalResult Ok(string url) => new() { Success = true, PortalUrl = url };
+    public static PortalResult Fail(string error) => new() { Success = false, Error = error };
 }
 
 public static class DeviceFingerprint
