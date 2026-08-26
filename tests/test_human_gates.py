@@ -52,6 +52,7 @@ def test_scripts_and_docs():
     assert "sliver" in pillar
     assert "ruler" in pillar
     assert "pads black" in pillar or "past V1" in pillar
+    assert "Mom's clips" in pillar or "apostrophe" in pillar.lower()
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
@@ -179,6 +180,8 @@ def test_scripts_and_docs():
     assert all("timelineSnapshot.SubtitleBurnPath" in ln for ln in burned_line)
     assert "wipe expect ~3.1s" in export
     ffmpeg_cs = (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
+    assert "FfmpegExportGraph.EscapeFilterPath(safeSrt)" in ffmpeg_cs
+    assert "_ns_burn_" in ffmpeg_cs
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs
     assert 'IoPath.Combine(root, "tools", "ffmpeg"' in ffmpeg_cs
     assert "durationNote" in toast

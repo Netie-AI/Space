@@ -58,6 +58,9 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("FfmpegExportGraph.XfadeWithAudio", ffmpeg)
         self.assertIn("FfmpegExportGraph.ClipVideoFilters", ffmpeg)
         self.assertIn("FfmpegExportGraph.PadBlackAfterVideo", ffmpeg)
+        self.assertIn("FfmpegExportGraph.EscapeFilterPath(safeSrt)", ffmpeg)
+        self.assertIn("GetTempPath()", ffmpeg)
+        self.assertIn("_ns_burn_", ffmpeg)
         self.assertIn("BlackPadAfterVideo", ffmpeg)
         self.assertIn("tpad=stop_mode=add", graph)
         self.assertIn("BlackPadAfterVideo", timeline)
@@ -138,6 +141,38 @@ class FfmpegNleExportTests(unittest.TestCase):
             # and used to pass the old 2.5..4.0 window.
             self.assertGreaterEqual(dur, 2.8)
             self.assertLessEqual(dur, 3.4)
+
+    def test_subtitle_burn_accepts_apostrophe_in_path(self):
+        if self.missing:
+            self.skipTest("ffmpeg not installed")
+        graph = GRAPH_CS.read_text(encoding="utf-8")
+        self.assertIn('Replace("\'", "\\\\\'")', graph)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "Mom's clips"
+            folder.mkdir()
+            video = folder / "clip.mp4"
+            srt = folder / "clip.srt"
+            out = folder / "burned.mp4"
+            _run(
+                [
+                    "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=0.4",
+                    "-f", "lavfi", "-i", "sine=f=440:d=0.4", "-shortest",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(video),
+                ]
+            )
+            srt.write_text("1\n00:00:00,000 --> 00:00:00,400\nhi\n", encoding="utf-8")
+            safe = Path(tmp) / "safe.srt"
+            safe.write_bytes(srt.read_bytes())
+            escaped = str(safe).replace("\\", "/").replace(":", "\\:")
+            _run(
+                [
+                    "ffmpeg", "-y", "-i", str(video),
+                    "-vf", f"subtitles='{escaped}'",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+                    "-c:a", "copy", "-movflags", "+faststart", str(out),
+                ]
+            )
+            self.assertTrue(out.exists() and out.stat().st_size > 500)
 
 
 if __name__ == "__main__":

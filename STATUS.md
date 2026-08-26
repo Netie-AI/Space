@@ -8,7 +8,7 @@
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
    `ci-cursor.sh` runs `encode-pillar1-wipe.sh` (same window).
    Windows CI runs `encode-pillar1-wipe.ps1`.
-2. **Ready PRs #4-#112 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#113 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
