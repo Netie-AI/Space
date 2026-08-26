@@ -6638,8 +6638,8 @@ public partial class PreviewWindow : Window
         var ext = IoPath.GetExtension(sourcePath).ToLowerInvariant();
         return ext switch
         {
-            ".docx" or ".doc" or ".odt" or ".rtf" => "PDF, Word, ODT, HTML…",
-            ".xlsx" or ".xls" or ".ods" or ".csv" => "PDF, Excel, ODS, HTML…",
+            ".docx" or ".doc" or ".odt" or ".rtf" => "PDF, Word, HTML…",
+            ".xlsx" or ".xls" or ".ods" or ".csv" => "PDF, Excel, HTML…",
             ".pptx" or ".ppt" or ".odp" => "PDF, PowerPoint, HTML…",
             ".pdf" => "PDF, JPG, PNG, Word, HTML…",
             ".md" or ".markdown" => "PDF, Markdown, HTML, Word…",
@@ -6679,10 +6679,10 @@ public partial class PreviewWindow : Window
         return ext switch
         {
             ".docx" or ".doc" or ".odt" or ".rtf" => (
-                "PDF document|*.pdf|Word document|*.docx|OpenDocument Text|*.odt|Web page|*.html|All files|*.*",
+                "PDF document|*.pdf|Word document|*.docx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
             ".xlsx" or ".xls" or ".ods" or ".csv" => (
-                "PDF document|*.pdf|Excel workbook|*.xlsx|OpenDocument Spreadsheet|*.ods|Web page|*.html|All files|*.*",
+                "PDF document|*.pdf|Excel workbook|*.xlsx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
             ".pptx" or ".ppt" or ".odp" => (
                 "PDF document|*.pdf|PowerPoint presentation|*.pptx|Web page|*.html|All files|*.*",
