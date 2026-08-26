@@ -30,6 +30,11 @@ def test_worker_checkout_routes():
     assert "fulfillCheckoutSession" in stripe
     assert "retrieveCheckoutSession" in stripe
     assert "checkoutSessionPaid" in stripe
+    assert "export function stripeRefId" in stripe
+    assert "COALESCE(stripe_customer_id" in stripe
+    assert "COALESCE(stripe_subscription_id" in stripe
+    assert "stripeRefId(obj.customer" in src
+    assert "stripeRefId(obj.subscription" in src
     assert "handleCheckoutSuccess" in src
     assert 'url.pathname === "/v1/stripe/status"' in src
     assert "payment_status === \"paid\"" in stripe or 'payment_status === "paid"' in stripe

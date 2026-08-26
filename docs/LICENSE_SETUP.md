@@ -43,7 +43,7 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"` (or `NETIE_LICENSE_API`; e
 - `POST /v1/download` — one-shot download token (burns on GET)
 - `GET /v1/me`
 - `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). 503 `stripe_not_configured` until secrets are set. Sign in first.
-- `POST /v1/webhooks/stripe` — verifies `Stripe-Signature`; fulfills `checkout.session.completed`
+- `POST /v1/webhooks/stripe` — verifies `Stripe-Signature`; fulfills `checkout.session.completed`. Customer/subscription IDs accept string or `{ id }`; a later retrieve backfills null portal ids
 - `POST /v1/billing-portal` — Stripe Customer Portal (Bearer + existing `stripe_customer_id`)
 - `GET /v1/checkout/success` — retrieves `session_id` and fulfills if paid (webhook backup)
 - `GET /v1/checkout/cancel`

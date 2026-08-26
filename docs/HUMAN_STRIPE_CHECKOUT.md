@@ -80,6 +80,9 @@ opens netie.space. That is expected until step 2 is done.
 - After a customer id exists, `POST /v1/billing-portal` (signed in) returns a
   `billing.stripe.com` URL. Cancel / update card there, then license status
   follows `customer.subscription.updated` / `deleted`.
+- If the webhook wrote the session before customer/subscription IDs were
+  parseable (string or `{ id }`), the success page retrieve backfills them.
+  Manage billing should still open.
 - After Activate, preview / edit works offline (`SkipGate` can stay true on
   your own PC while you test).
 
