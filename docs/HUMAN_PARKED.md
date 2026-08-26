@@ -14,7 +14,8 @@ What you do:
 2. Open a PDF (xref-stream and hybrid trailer+/Type /XRef are rewritten
    to classic xref first).
 3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.
-   Space loads that file with `LoadPfx` (Exportable + EphemeralKeySet).
+   Space loads that file with `LoadPfx` (EphemeralKeySet, then PersistKeySet
+   if Windows CNG rejects the first).
 4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".
    The first page should show a small "Digitally signed" box (page Annots +

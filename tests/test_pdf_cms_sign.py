@@ -28,6 +28,7 @@ def test_signer_is_cms_not_itext():
     assert "SignFile" in src
     assert "LoadPfx" in src
     assert "EphemeralKeySet" in src
+    assert "PersistKeySet" in src
     assert "Leave original bytes untouched on failure" in src or "untouched on failure" in src
     assert "/Annots" in src
     assert "/AP << /N" in src
@@ -99,6 +100,7 @@ def test_xunit_and_parking():
     assert "RewriteFile_first_gen_xref_stream_then_sign_verifies" in unit
     assert "PdfSharp_new_document_is_classic_or_rewritable" in unit
     assert "Sign_after_disk_pfx_load_matches_ui" in unit
+    assert "LoadPfx_signs_openssl_playbook_pfx" in unit
     xref = _read(XREF)
     assert "TryStripToClassic" in xref
     assert "FindEofEnds" in xref
