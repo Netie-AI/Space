@@ -8,9 +8,10 @@
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
    `ci-cursor.sh` runs `encode-pillar1-wipe.sh` (same window).
    Windows CI runs `encode-pillar1-wipe.ps1`.
-2. **Ready PRs #4-#95 landed**. Draft #1 stays draft.
-   Marks are packed seconds. + Clip expands In/Out to packed length
-   (Export range used to burn only clip 1). Export range slices (`SlicePacked`).
+2. **Ready PRs #4-#96 landed**. Draft #1 stays draft.
+   Marks are packed seconds. + Clip expands In/Out and slider max to
+   packed length (clip-2 seek used to clamp; Export range burned clip 1).
+   Export range slices (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.
