@@ -166,10 +166,15 @@ public sealed class VideoEditSession
         var fade = TimeSpan.FromMilliseconds(500);
         var a = _kept[i];
         var b = _kept[i + 1];
+        var nextOut = a.FadeOut > TimeSpan.Zero ? a.FadeOut : fade;
+        if (a.TransitionOut == TransitionKind.Wipe &&
+            b.TransitionIn == TransitionKind.Wipe &&
+            a.FadeOut == nextOut)
+            return false;
         _kept[i] = a with
         {
             TransitionOut = TransitionKind.Wipe,
-            FadeOut = a.FadeOut > TimeSpan.Zero ? a.FadeOut : fade
+            FadeOut = nextOut
         };
         _kept[i + 1] = b with { TransitionIn = TransitionKind.Wipe };
         return true;

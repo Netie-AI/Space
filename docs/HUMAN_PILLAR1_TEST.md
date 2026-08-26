@@ -60,8 +60,9 @@ produced 3.12s here. Your Windows Export should land near that.
    Wipe-then-split keeps wipe on the outgoing half only (one join).
    Fade / Wipe / drag now push undo, so an extra Ctrl+Z after those
    chips undoes the chip -- not + Clip. A failed Split (playhead on
-   an edge) or a fade-handle click that does not move the diamond
-   discards that undo so Ctrl+Z cannot pop + Clip.
+   an edge), a fade-handle click that does not move the diamond, or a
+   second Wipe on an already-wiped join discards that undo so Ctrl+Z
+   cannot pop + Clip.
 9. Select the first remaining clip. Click **Fade In**. Select the last
    clip. Click **Fade Out**. Context-menu Fade and timeline handles write
    the same session (Export syncs from session, not a leftover timeline fade).
