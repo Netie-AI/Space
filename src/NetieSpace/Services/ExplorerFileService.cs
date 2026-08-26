@@ -1014,7 +1014,7 @@ public sealed class ExplorerFileService
         ".svg", ".ico", ".heic",
         ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".ppsx", ".pps", ".odp",
         ".xlsx", ".xlsm", ".xls", ".ods",
-        ".txt", ".md", ".markdown", ".csv", ".json", ".xml", ".html", ".htm",
+        ".txt", ".text", ".md", ".markdown", ".csv", ".json", ".xml", ".html", ".htm",
         ".zip", ".7z", ".rar", ".lnk"
     ];
 
