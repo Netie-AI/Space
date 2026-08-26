@@ -122,4 +122,79 @@ public class PdfCmsSignerTests
         var ex = Assert.Throws<InvalidOperationException>(() => PdfCmsSigner.Sign(pdf, cert));
         Assert.Contains("/Pages", ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void RewriteFile_noop_on_classic_minimal()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "classic.pdf");
+        File.WriteAllBytes(path, PdfCmsSigner.CreateMinimalPdf());
+        try
+        {
+            Assert.False(PdfClassicXref.RewriteFile(path));
+            Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(File.ReadAllBytes(path)));
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void RewriteFile_strips_hybrid_marker_then_sign_verifies()
+    {
+        // Valid classic body + leftover /Type /XRef after %%EOF (Chrome/Word hybrid shape).
+        var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "hybrid.pdf");
+        var classic = PdfCmsSigner.CreateMinimalPdf();
+        var extra = System.Text.Encoding.ASCII.GetBytes("\n8 0 obj<< /Type /XRef /W [1 2 1] >>endobj\n");
+        var hybrid = new byte[classic.Length + extra.Length];
+        Buffer.BlockCopy(classic, 0, hybrid, 0, classic.Length);
+        Buffer.BlockCopy(extra, 0, hybrid, classic.Length, extra.Length);
+        File.WriteAllBytes(path, hybrid);
+        Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(hybrid));
+        try
+        {
+            Assert.True(PdfClassicXref.RewriteFile(path));
+            var after = File.ReadAllBytes(path);
+            Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
+            using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+            var signed = PdfCmsSigner.Sign(after, cert);
+            Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void PdfSharp_new_document_is_classic_or_rewritable()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "pdfsharp.pdf");
+        try
+        {
+            using (var doc = new PdfSharpCore.Pdf.PdfDocument())
+            {
+                doc.AddPage();
+                doc.Save(path);
+            }
+
+            var bytes = File.ReadAllBytes(path);
+            if (PdfCmsSigner.NeedsClassicXrefRewrite(bytes))
+                Assert.True(PdfClassicXref.RewriteFile(path));
+            var after = File.ReadAllBytes(path);
+            Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
+            using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+            Assert.True(PdfCmsSigner.TryVerify(PdfCmsSigner.Sign(after, cert), out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
 }

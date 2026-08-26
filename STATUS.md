@@ -9,7 +9,7 @@
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Portal return is not a charge. You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local clients; live GPU still human.
-5. **Cert sign** -- refuses leftover hybrid; `/Pages` fail-closed. Adobe panel still human.
+5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Adobe panel still human.
 
 ## Next
 
