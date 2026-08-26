@@ -16,7 +16,8 @@ What you do:
 4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".
    The first page should show a small "Digitally signed" box (page Annots +
-   appearance). Untrusted is OK; missing from the Signature panel is not.
+   appearance). Object ids are matched whole (`12 0 obj` is not object 2).
+   Untrusted is OK; missing from the Signature panel is not.
    Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 

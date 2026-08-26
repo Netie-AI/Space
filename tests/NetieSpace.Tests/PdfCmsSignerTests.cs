@@ -19,6 +19,27 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void TryReadObject_does_not_match_12_as_2()
+    {
+        var src = PdfCmsSigner.CreateMinimalPdf();
+        var header = System.Text.Encoding.ASCII.GetBytes("%PDF-1.4\n");
+        var fake = System.Text.Encoding.ASCII.GetBytes("12 0 obj<< /Type /Fake >>endobj\n");
+        var mixed = new byte[src.Length + fake.Length];
+        Buffer.BlockCopy(src, 0, mixed, 0, header.Length);
+        Buffer.BlockCopy(fake, 0, mixed, header.Length, fake.Length);
+        Buffer.BlockCopy(src, header.Length, mixed, header.Length + fake.Length, src.Length - header.Length);
+
+        var obj2 = PdfCmsSigner.TryReadObject(mixed, 2);
+        Assert.NotNull(obj2);
+        Assert.Contains("/Type /Pages", obj2);
+        Assert.DoesNotContain("/Type /Fake", obj2);
+        var obj12 = PdfCmsSigner.TryReadObject(mixed, 12);
+        Assert.NotNull(obj12);
+        Assert.Contains("/Type /Fake", obj12);
+        Assert.Contains("/Type /Page ", PdfCmsSigner.TryReadObject(src, 3));
+    }
+
+    [Fact]
     public void Sign_embeds_detached_pkcs7_and_keeps_hello()
     {
         var src = PdfCmsSigner.CreateMinimalPdf();

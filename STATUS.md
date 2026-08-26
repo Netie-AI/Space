@@ -12,7 +12,8 @@
    (no unlicensed continue). Download URLs use the request host. You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail.
    History waits for image outputs (not `completed` alone). Live GPU still human.
-5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Adobe panel still human.
+5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
+   match is not a substring (`12` != `2`). Adobe panel still human.
 
 ## Next
 
