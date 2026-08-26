@@ -54,6 +54,7 @@ def test_scripts_and_docs():
     assert "pads black" in pillar or "past V1" in pillar
     assert "V1 black hole" in pillar or "not covered" in pillar
     assert "Mom's clips" in pillar or "apostrophe" in pillar.lower()
+    assert "drawtext" in pillar.lower() or "Add text" in pillar
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
@@ -184,6 +185,9 @@ def test_scripts_and_docs():
     ffmpeg_cs = (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
     assert "FfmpegExportGraph.EscapeFilterPath(safeSrt)" in ffmpeg_cs
     assert "_ns_burn_" in ffmpeg_cs
+    burn_txt = ffmpeg_cs.index("BurnTextOverlayAsync")
+    burn_txt_end = ffmpeg_cs.index("ToTimedSrt")
+    assert "GetTempPath()" in ffmpeg_cs[burn_txt:burn_txt_end]
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs
     assert 'IoPath.Combine(root, "tools", "ffmpeg"' in ffmpeg_cs
     assert "durationNote" in toast

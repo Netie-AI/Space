@@ -63,6 +63,11 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("_ns_hole_", ffmpeg)
         self.assertIn("GetTempPath()", ffmpeg)
         self.assertIn("_ns_burn_", ffmpeg)
+        self.assertIn("_ns_txt_", ffmpeg)
+        burn_txt = ffmpeg.index("BurnTextOverlayAsync")
+        burn_txt_end = ffmpeg.index("ToTimedSrt")
+        self.assertIn("GetTempPath()", ffmpeg[burn_txt:burn_txt_end])
+        self.assertNotIn("GetDirectoryName(output)", ffmpeg[burn_txt:burn_txt_end])
         self.assertIn("BlackPadAfterVideo", ffmpeg)
         self.assertIn("tpad=stop_mode=add", graph)
         self.assertIn("BlackPadAfterVideo", timeline)
@@ -172,6 +177,32 @@ class FfmpegNleExportTests(unittest.TestCase):
                     "-vf", f"subtitles='{escaped}'",
                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
                     "-c:a", "copy", "-movflags", "+faststart", str(out),
+                ]
+            )
+            self.assertTrue(out.exists() and out.stat().st_size > 500)
+
+    def test_drawtext_from_temp_not_output_dir(self):
+        if self.missing:
+            self.skipTest("ffmpeg not installed")
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "Mom's clips"
+            folder.mkdir()
+            video = folder / "clip.mp4"
+            out = folder / "titled.mp4"
+            text = Path(tmp) / "safe.txt"
+            text.write_text("Title", encoding="utf-8")
+            _run(
+                [
+                    "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=blue:s=320x240:d=0.4",
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+                ]
+            )
+            escaped = str(text).replace("\\", "/").replace(":", "\\:")
+            _run(
+                [
+                    "ffmpeg", "-y", "-i", str(video),
+                    "-vf", f"drawtext=textfile='{escaped}':fontsize=24:fontcolor=white:x=10:y=10",
+                    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", str(out),
                 ]
             )
             self.assertTrue(out.exists() and out.stat().st_size > 500)

@@ -581,7 +581,10 @@ public sealed class FfmpegService
         Timeline.TimelineClip overlay,
         CancellationToken ct)
     {
-        var dir = IoPath.GetDirectoryName(output) ?? IoPath.GetTempPath();
+        // drawtext/subtitles strip apostrophes. Export to Mom's clips used
+        // to write these next to the output and fail after #113 only fixed
+        // the whisper sidecar path.
+        var dir = IoPath.GetTempPath();
         var textFile = IoPath.Combine(dir, $"_ns_txt_{Guid.NewGuid():N}.txt");
         try
         {

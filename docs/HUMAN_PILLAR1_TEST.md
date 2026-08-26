@@ -119,6 +119,7 @@ Export should land near that.
     when you clicked Export (a whisper finish after that does not count).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
+    Add text + Export to that folder also works (drawtext files go to temp).
 
 ### What to check after Export
 
