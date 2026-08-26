@@ -248,6 +248,13 @@ def test_export_as_rtf_odt_ods() -> None:
     assert "def rtf_to_text" in src
     assert "def odt_to_text" in src
     assert "def ods_to_rows" in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
+    # ShellInfo hid Share Export as (convertOk). These must preview as Office.
+    assert 'extension is ".odt" or ".rtf" or ".ods" or ".odp"' in parser
+    assert "not PreviewKind.ShellInfo" in preview
+    assert '".odt"' in explorer and '".xlsm"' in explorer
     import zipfile
 
     with tempfile.TemporaryDirectory() as tmp:

@@ -28,7 +28,8 @@ public sealed class ContentParserService
     ];
     private static readonly HashSet<string> OfficeExtensions =
     [
-        ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls"
+        ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp",
+        ".xlsx", ".xlsm", ".xls", ".ods"
     ];
     private readonly MarkdownPipeline _markdownPipeline = new MarkdownPipelineBuilder()
         .UseAdvancedExtensions()
@@ -82,6 +83,9 @@ public sealed class ContentParserService
                 return native;
             return await Task.Run(() => ShellInfoPreview.Build(filePath), ct);
         }
+        // Engine already exports these. ShellInfo hid Share Export as (convertOk).
+        if (extension is ".odt" or ".rtf" or ".ods" or ".odp")
+            return await ParseOfficeHtmlPreviewAsync(filePath, fileName, fileInfo.Length, fileInfo.LastWriteTimeUtc, isPptx: false, ct);
         if (extension is ".doc" or ".xls" or ".exe" or ".dll" or ".msi")
             return await Task.Run(() => ShellInfoPreview.Build(filePath), ct);
         if (extension is ".ppt")

@@ -1011,7 +1011,8 @@ public sealed class ExplorerFileService
         ".mp4", ".mkv", ".mov", ".avi", ".webm", ".wmv", ".m4v", ".mpeg", ".mpg",
         ".hevc", ".h265", ".mp3", ".wav", ".flac", ".m4a", ".aac",
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff",
-        ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".ppsx", ".pps", ".odp", ".xlsx", ".xls",
+        ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".ppsx", ".pps", ".odp",
+        ".xlsx", ".xlsm", ".xls", ".ods",
         ".txt", ".md", ".csv", ".json", ".xml", ".html", ".htm",
         ".zip", ".7z", ".rar", ".lnk"
     ];
