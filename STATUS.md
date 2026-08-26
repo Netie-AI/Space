@@ -7,9 +7,9 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#178 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#179 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip Video filter lists mpeg / 3gp / flv / ts.
-   WebP/TIF/HEIC drop and WebP/HEIC OCR/Copy/Compress/Comfy rasterize via Pillow, not XImage.
+   WebP Spaces as Image (WebView2). WebP/TIF/HEIC drop and WebP/HEIC OCR/Copy/Compress/Comfy rasterize via Pillow, not XImage.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
