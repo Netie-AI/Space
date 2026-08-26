@@ -66,7 +66,7 @@ public sealed class ContentParserService
         }
         if (extension == ".pdf")
             return await Task.Run(() => ParsePdf(filePath, fileName, fileInfo.Length), ct);
-        if (extension == ".md")
+        if (extension is ".md" or ".markdown")
             return await ParseMarkdownAsync(filePath, fileName, fileInfo.Length, ct);
         if (extension is ".html" or ".htm")
             return await ParseHtmlAsync(filePath, fileName, fileInfo.Length, ct);
@@ -473,7 +473,7 @@ public sealed class ContentParserService
         ".bat" => "dos",
         ".swift" => "swift",
         ".kt" => "kotlin",
-        ".md" => "markdown",
+        ".md" or ".markdown" => "markdown",
         ".csv" => "plaintext",
         _ => "plaintext"
     };

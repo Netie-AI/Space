@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Space a `.markdown` file previews as Markdown so Share Export as is visible. The Save dialog already listed `.markdown`; `ContentParser` only treated `.md`, so `ShellInfo` hid the row.
 - Convert: Space a desktop `.ppsx` previews as PowerPoint so Share Export as is visible. Same OOXML slides as `.pptx`; used to be `ShellInfo` + `need markitdown`. Merge / drop also accept `.ppsx` / `.xlsm` / `.ods` / `.odp`. OLE `.pps` stays soffice.
 - Convert: Space an `.odt` / `.rtf` / `.ods` / `.odp` now previews as Office so Share Export as is visible. Engine could already write PDF; `ShellInfo` hid the row (`convertOk`). Desktop probe also finds `.odt` / `.rtf` / `.ods` / `.xlsm`.
 - Convert: Share Export as GIF on previewed `.wmv` / `.mpeg` / `.flv` (and the other C# video suffixes). `VIDEO_EXTS` used to be only mp4/mov/mkv/webm/avi/m4v, so those clicks failed with `cannot export .wmv as .gif`.

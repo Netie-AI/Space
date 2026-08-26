@@ -164,6 +164,28 @@ def test_export_as_docx_from_text_sources() -> None:
         assert same.is_file() and same.stat().st_size == out.stat().st_size
 
 
+def test_export_as_markdown_suffix() -> None:
+    """Share Export as on README.markdown. Parser only treated .md so convertOk hid the row."""
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
+    assert 'extension is ".md" or ".markdown"' in parser
+    assert '".md" or ".markdown"' in preview
+    assert '".markdown"' in explorer
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        md = d / "README.markdown"
+        md.write_text("# Hello markdown suffix\n", encoding="utf-8")
+        pdf = d / "README.pdf"
+        res = run_engine(["export-as", str(md), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        docx = d / "README.docx"
+        res = run_engine(["export-as", str(md), str(docx)])
+        assert res.get("success"), res
+
+
 def test_export_as_xlsx_from_csv() -> None:
     """Share Export as Excel on a CSV. Engine used to return unsupported target: .xlsx."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -590,6 +612,7 @@ if __name__ == "__main__":
     test_unknown_action_emits_json()
     test_watermark_protect_smoke()
     test_export_as_docx_from_text_sources()
+    test_export_as_markdown_suffix()
     test_export_as_xlsx_from_csv()
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
