@@ -41,6 +41,9 @@ def test_windows_ci_runs_dotnet_test():
     assert "Unchanged_fade_undo_does_not_consume_plus_clip" in nle
     assert "Second_wipe_undo_does_not_consume_plus_clip" in nle
     assert "Leave_black_undo_removes_overlay_card" in nle
+    assert "Speed_survives_ApplyTo" in nle
+    assert "Unchanged_speed_undo_does_not_consume_plus_clip" in nle
+    assert "Context_black_overlay_undo_removes_card" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle
     assert "FedericoCarboni/setup-ffmpeg@v3" in yml
     assert "choco install ffmpeg" not in yml

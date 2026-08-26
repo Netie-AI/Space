@@ -48,6 +48,7 @@ def test_scripts_and_docs():
     assert "Leave black" in pillar
     assert "title card" in pillar
     assert "mouse capture" in pillar.lower()
+    assert "Speed 2x" in pillar or "Speed 2" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -83,6 +84,12 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in preview[wipe:wipe_end]
     assert "PushUndo(_timeline)" in preview
     assert "TryUndo(_timeline)" in preview
+    fx = preview[preview.index("private void TimelineTrack_PreviewMouseRightButtonUp"):preview.index("private void ApplySpeedToSelected")]
+    assert "PushVideoUndo" in fx
+    assert "AddOverlay(OverlayKind.Black" in fx
+    speed = preview[preview.index("private void ApplySpeedToSelected"):preview.index("private void AddTextOverlayInteractive")]
+    assert "ApplySpeedAt" in speed
+    assert "DiscardLastVideoUndo" in speed
     assert "Wipe already on that join" in preview[wipe:wipe_end]
     split = preview.index("private void SplitAtPlayhead_Click")
     split_end = preview.index("private void CutMiddleButton_Click")

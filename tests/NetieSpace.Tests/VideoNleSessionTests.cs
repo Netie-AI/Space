@@ -347,4 +347,52 @@ public class VideoNleSessionTests
         Assert.True(session.TryUndo());
         Assert.Single(session.Clips);
     }
+
+    [Fact]
+    public void Speed_survives_ApplyTo()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(0);
+        Assert.True(session.ApplySpeedAt(0, 2));
+        Assert.False(session.ApplySpeedAt(0, 2));
+
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        Assert.Equal(2, project.VideoTrack!.Clips[0].Speed, 3);
+        Assert.Equal(1, project.VideoTrack.Clips[1].Speed, 3);
+    }
+
+    [Fact]
+    public void Unchanged_speed_undo_does_not_consume_plus_clip()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.PushUndo();
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.PushUndo();
+        Assert.False(session.ApplySpeedAt(0, 1));
+        Assert.True(session.TryUndo());
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Equal(@"C:\clips\b.mp4", session.Clips[1].SourcePath, ignoreCase: true);
+        Assert.True(session.TryUndo());
+        Assert.Single(session.Clips);
+    }
+
+    [Fact]
+    public void Context_black_overlay_undo_removes_card()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.PushUndo();
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        session.PushUndo(project);
+        project.AddOverlay(OverlayKind.Black, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        Assert.Single(project.OverlayTrack!.Clips);
+        Assert.True(session.TryUndo(project));
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Empty(project.OverlayTrack!.Clips);
+    }
 }

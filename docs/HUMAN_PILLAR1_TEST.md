@@ -70,8 +70,11 @@ Export should land near that.
    cannot pop + Clip. A clip-drag alt-tab still drops (session MoveClip),
    not a leftover ghost transform.
 9. Select the first remaining clip. Click **Fade In**. Select the last
-   clip. Click **Fade Out**. Context-menu Fade and timeline handles write
+   clip. Click **Fade Out**.    Context-menu Fade and timeline handles write
    the same session (Export syncs from session, not a leftover timeline fade).
+   Context-menu Speed / Add black / Add text push undo. An accidental
+   Speed 2x or black card used to have no Ctrl+Z (2x blows the 3.1s
+   gate; black card fails "picture is not black").
 10. Click **Wipe** on either clip at the join (first or second). Export
     burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
 11. Click **Export all**. Pick a folder. Wait for the toast. Space-close is

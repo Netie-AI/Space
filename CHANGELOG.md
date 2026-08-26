@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: context-menu Speed writes the session (undoable). Add black / white / text push the overlay undo stack. Speed used to be timeline-only with no Ctrl+Z, so an accidental 2x next to Fade blew the 3.1s Export gate; Add black failed "picture is not black".
 - Video: clip-drag capture-loss (alt-tab) still drops -- session `MoveClip` + clear the ghost transform. MouseUp used to be the only drop path, so a lost capture left a translated clip the session never reordered.
 - Video: fade-handle capture-loss (alt-tab) commits or discards the undo MouseDown pushed. MouseUp used to be the only path, so a lost capture left a no-op frame and Ctrl+Z popped + Clip.
 - License: Buy on a live Worker with no session is `register_first` and stays in-app (Sign in first). After #87 showed Buy on a dead Worker, that click used to open netie.space and look like Checkout was still down.
