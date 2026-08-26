@@ -35,6 +35,10 @@ def test_worker_checkout_routes():
     assert "COALESCE(stripe_subscription_id" in stripe
     assert "stripeRefId(obj.customer" in src
     assert "stripeRefId(obj.subscription" in src
+    assert 'error: "already_paid"' in src
+    assert "Already paid. Activate this laptop" in src
+    assert 'body.set("customer"' in stripe
+    assert "customer_email" in stripe
     assert "handleCheckoutSuccess" in src
     assert 'url.pathname === "/v1/stripe/status"' in src
     assert "payment_status === \"paid\"" in stripe or 'payment_status === "paid"' in stripe
@@ -79,6 +83,9 @@ def test_wpf_buy_calls_checkout():
     client = _read(CLIENT)
     assert "ParseErrorCode" in client
     assert "PaymentRequired" in client
+    assert "AlreadyPaid" in client
+    assert "AlreadyPaid" in login
+    assert "AlreadyPaid" in setup
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
     assert "System.Windows" not in activation
@@ -105,6 +112,7 @@ def test_human_docs_exist():
     assert "stripe_not_configured" in human
     assert "pending" in human
     assert "payment_required" in human
+    assert "already_paid" in human
     assert "Buy API flow" in parking
     assert "Stripe Checkout" in parking
     assert 'url.pathname === "/v1/billing-portal"' in _read(WORKER)

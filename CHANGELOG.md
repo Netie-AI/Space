@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: `POST /v1/checkout` returns 409 `already_paid` when the license is active and already has a Stripe session. Buy buttons tell you to Activate instead of opening a second Checkout. Re-subscribe after expire reuses `stripe_customer_id`.
 - License: fulfill accepts Stripe customer/subscription as string or `{ id }`. A second fulfill for the same session backfills null portal ids (`COALESCE`) so Manage billing is not stuck after a thin webhook.
 - License: Login, Setup Buy, and Activate share `LicenseActivation.ResolveApiBase` (`NETIE_LICENSE_API` wins, then appsettings `ApiBaseUrl`). Local Worker pay cannot land on production `workers.dev`.
 - License: pay-first when Stripe secrets are live. Register creates `pending` (not `active`). Activate returns `payment_required` until fulfill stamps `stripe_checkout_session_id`. Login gate shows **Get Netie subscription** + **Activate this laptop** so `SkipGate: false` is not a deadlock. Local Worker without secrets still grants `active`.

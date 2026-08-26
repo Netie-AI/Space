@@ -73,7 +73,7 @@ export async function verifyStripeSignature(
 
 export async function createCheckoutSession(
   env: Env,
-  opts: { userId: string; email: string }
+  opts: { userId: string; email: string; customerId?: string | null }
 ): Promise<{ url: string; id: string }> {
   const body = new URLSearchParams();
   body.set("mode", "subscription");
@@ -85,7 +85,10 @@ export async function createCheckoutSession(
   );
   body.set("cancel_url", `${env.PUBLIC_BASE_URL}/v1/checkout/cancel`);
   body.set("client_reference_id", opts.userId);
-  body.set("customer_email", opts.email);
+  // Stripe rejects customer + customer_email together.
+  const customerId = stripeRefId(opts.customerId, "cus_");
+  if (customerId) body.set("customer", customerId);
+  else body.set("customer_email", opts.email);
   body.set("metadata[user_id]", opts.userId);
   body.set("metadata[email]", opts.email);
   body.set("subscription_data[metadata][user_id]", opts.userId);

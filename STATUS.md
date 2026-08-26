@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
 2. **Ready PRs #4-#41 landed**. Draft #1 stays draft.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
-   Register is `pending` until pay. One API host. Fulfill backfills portal ids. You still put secrets.
+   Register is `pending` until pay. Second Buy is `already_paid`. You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local clients; live GPU still human.
 
 ## Next

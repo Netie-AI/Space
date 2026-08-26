@@ -64,7 +64,11 @@ public partial class LoginWindow : Window
                 return;
             }
 
-            StatusText.Text = checkout.Error ?? "Checkout is not live yet (stripe_not_configured).";
+            StatusText.Text = checkout.AlreadyPaid
+                ? (checkout.Error ?? "Already paid. Activate this laptop.")
+                : (checkout.Error ?? "Checkout is not live yet (stripe_not_configured).");
+            if (checkout.AlreadyPaid)
+                ShowPayFirstButtons();
         }
         catch (Exception ex)
         {
