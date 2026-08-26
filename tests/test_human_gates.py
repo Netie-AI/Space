@@ -76,6 +76,13 @@ def test_scripts_and_docs():
     wipe = preview.index("private void WipeButton_Click")
     wipe_end = preview.index("private void OverlayTextButton_Click")
     assert "PushVideoUndo" in preview[wipe:wipe_end]
+    assert "DiscardLastVideoUndo" in preview[wipe:wipe_end]
+    split = preview.index("private void SplitAtPlayhead_Click")
+    split_end = preview.index("private void CutMiddleButton_Click")
+    assert "DiscardLastVideoUndo" in preview[split:split_end]
+    add = preview.index("private async void AddVideoButton_Click")
+    add_end = preview.index("private void OrderClipsButton_Click")
+    assert "DiscardLastVideoUndo" in preview[add:add_end]
     assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body

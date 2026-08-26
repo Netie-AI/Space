@@ -235,6 +235,21 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Failed_split_undo_does_not_consume_plus_clip()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.PushUndo();
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.PushUndo();
+        Assert.False(session.SplitAtPacked(TimeSpan.Zero));
+        Assert.True(session.TryUndo());
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Equal(@"C:\clips\b.mp4", session.Clips[1].SourcePath, ignoreCase: true);
+        Assert.True(session.TryUndo());
+        Assert.Single(session.Clips);
+    }
+
+    [Fact]
     public void Undo_after_fade_and_wipe_keeps_plus_clip()
     {
         var session = TenSecond(@"C:\clips\a.mp4");

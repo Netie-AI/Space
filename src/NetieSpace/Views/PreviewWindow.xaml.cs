@@ -1474,6 +1474,10 @@ public partial class PreviewWindow : Window
             : _videoEdit.SplitAt(pos);
         if (!split)
         {
+            // Playbook Ctrl+Z after Split/Delete. A failed Split (playhead
+            // still at packed 0 after + Clip) used to leave a no-op undo, so
+            // the next Ctrl+Z popped + Clip and Export was ~1.6s.
+            DiscardLastVideoUndo();
             ConvertStatusText.Text = "Split needs playhead inside a clip (not on an edge).";
             return;
         }
@@ -1549,7 +1553,10 @@ public partial class PreviewWindow : Window
             ]);
 
         if (choice is null or "cancel")
+        {
+            DiscardLastVideoUndo();
             return;
+        }
 
         _videoEdit.FillGapsWithBlack = choice == "black";
         _timeline.FillGapsWithBlack = _videoEdit.FillGapsWithBlack;
@@ -3423,6 +3430,7 @@ public partial class PreviewWindow : Window
         PushVideoUndo();
         if (!_videoEdit.ApplyWipeAtJoin())
         {
+            DiscardLastVideoUndo();
             ConvertStatusText.Text = "Wipe needs two clips — Split or + Clip, then click Wipe on either side of the join.";
             return;
         }
@@ -3964,6 +3972,7 @@ public partial class PreviewWindow : Window
 
         if (added == 0)
         {
+            DiscardLastVideoUndo();
             ConvertStatusText.Text =
                 "Could not read those videos’ duration (need FFmpeg). Run scripts/download-ffmpeg.ps1.";
             return;
@@ -3994,6 +4003,7 @@ public partial class PreviewWindow : Window
         PushVideoUndo();
         if (!_videoEdit.ApplyOrder(ordered))
         {
+            DiscardLastVideoUndo();
             ConvertStatusText.Text = "Could not apply that clip order.";
             return;
         }
@@ -4739,6 +4749,8 @@ public partial class PreviewWindow : Window
     }
 
     private void PushVideoUndo() => _videoEdit.PushUndo();
+
+    private void DiscardLastVideoUndo() => _videoEdit.TryUndo();
 
     private void UndoVideoEdit()
     {
