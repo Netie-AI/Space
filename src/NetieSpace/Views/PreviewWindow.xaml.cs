@@ -5196,6 +5196,15 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        // Speed / drag / Order remapped cues onto a temp SRT. Clips came
+        // back; the sidecar used to stay remapped so Export burned the
+        // post-edit times on the restored order.
+        if (!string.IsNullOrWhiteSpace(_timeline.SubtitleBurnPath) &&
+            IoFile.Exists(_timeline.SubtitleBurnPath))
+            LoadCaptionCuesFromSrt(_timeline.SubtitleBurnPath);
+        else
+            _captionCues.Clear();
+
         SyncTimelineFromSession();
         SyncPackedSlider();
         RefreshDeleteVisibility();

@@ -36,6 +36,8 @@ def test_append_and_import_pack_without_overlap():
     assert "WritePackedCaptions" in timeline
     assert "RemapPackedCuesAfterSpeed" in timeline
     assert "RemapPackedCuesAfterRepack" in timeline
+    assert "project?.SubtitleBurnPath" in session
+    assert "project.SubtitleBurnPath = frame.SubtitleBurnPath" in session
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline

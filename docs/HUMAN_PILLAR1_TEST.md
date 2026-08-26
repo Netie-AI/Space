@@ -122,6 +122,7 @@ Export should land near that.
     Auto captions after + Clip whisper each source and place cues on
     packed time (clip 2 used to stay silent). Speed / drag / Order / ripple
     remaps those packed cues (used to leave text on the old clip).
+    Ctrl+Z after Speed / drag restores the previous sidecar too.
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).

@@ -512,6 +512,19 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Undo_restores_subtitle_burn_path()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        project.SubtitleBurnPath = @"C:\clips\before.srt";
+        session.PushUndo(project);
+        project.SubtitleBurnPath = @"C:\clips\after.srt";
+        Assert.True(session.TryUndo(project));
+        Assert.Equal(@"C:\clips\before.srt", project.SubtitleBurnPath);
+    }
+
+    [Fact]
     public void Leave_black_undo_removes_overlay_card()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
