@@ -148,8 +148,9 @@ If all of that works, tick the parking-lot line:
 
 - Cursor-origin CI: `./scripts/ci-cursor.sh` PASS. That run includes
   `ExportTimelineAsync` (the Export all function) for Fade+Wipe,
-  hard-cut concat, last-clip Leave black, and caption/Add-text burn
-  into a Mom's clips folder.
+  hard-cut concat, last-clip Leave black, caption/Add-text burn
+  into a Mom's clips folder, and More... Export range (`SlicePacked`
+  clip 2 ~2.0s plus the full packed window wipe 2.8..3.4s).
 - Linux ffmpeg wipe encode: 3.2s mp4, 145528 bytes.
 - Windows xunit + live ffmpeg encode: GitHub Actions, last green run
   before billing lock (`2f4b64b`, all four jobs SUCCESS).
