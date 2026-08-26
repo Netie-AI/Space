@@ -21,6 +21,9 @@ registration. Stripe will otherwise collect $0 tax with no error.
    `customer.subscription.deleted`.
 4. Copy the webhook signing secret (`whsec_...`).
 
+Login, Setup Buy, and Activate share one host: `NETIE_LICENSE_API` (wins) or
+`appsettings` `License.ApiBaseUrl`. Do not point those at different Workers.
+
 Local test instead of a public Worker:
 
 ```
