@@ -393,6 +393,36 @@ def test_export_as_docx_xlsx_to_pdf() -> None:
         assert res.get("tool") == "copy", res
 
 
+def test_export_as_preview_text_to_pdf() -> None:
+    """Share default Export as PDF on previewed text/code used to need markitdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".json"' in src
+    assert '".py"' in src
+    assert '".cs"' in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    assert '".json"' in parser and '".py"' in parser
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        js = d / "config.json"
+        js.write_text('{"name": "netie", "n": 1}\n', encoding="utf-8")
+        pdf = d / "config.pdf"
+        res = run_engine(["export-as", str(js), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        html = d / "config.html"
+        res = run_engine(["export-as", str(js), str(html)])
+        assert res.get("success"), res
+        assert "netie" in html.read_text(encoding="utf-8")
+
+        py = d / "hello.py"
+        py.write_text("print('hello space')\n", encoding="utf-8")
+        pypdf = d / "hello.pdf"
+        res = run_engine(["export-as", str(py), str(pypdf)])
+        assert res.get("success"), res
+        assert pypdf.is_file() and pypdf.stat().st_size > 200
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -451,6 +481,7 @@ if __name__ == "__main__":
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
     test_export_as_docx_xlsx_to_pdf()
+    test_export_as_preview_text_to_pdf()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
