@@ -78,6 +78,10 @@ def test_wpf_buy_calls_checkout():
     assert "CreateCheckoutAsync" in client
     assert "HttpRequestException" in client
     assert "worker_unreachable" in client
+    assert "UnreachableMessage" in client
+    assert "IsUnreachable" in client
+    assert "RegisterAsync" in client
+    assert client.count("catch (Exception ex) when (IsUnreachable(ex))") >= 4
     assert "CreatePortalAsync" in client
     assert "GetStripeStatusAsync" in client
     assert "checkout_url" in client
@@ -107,6 +111,8 @@ def test_wpf_buy_calls_checkout():
     assert "AlreadyPaid" in client
     assert "AlreadyPaid" in login
     assert "https://netie.space" in login
+    assert "ShowPayFirstButtons" in login
+    assert "worker_unreachable" in login
     assert "AlreadyPaid" in setup
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation

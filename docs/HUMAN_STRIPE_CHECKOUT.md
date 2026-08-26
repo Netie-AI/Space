@@ -87,7 +87,9 @@ If secrets are missing, the button shows `stripe_not_configured` and still
 opens netie.space. That is expected until step 2 is done. A dead Worker
 host (the committed `workers.dev` name does not resolve until
 `setup-license-api.ps1 -Deploy`) returns `worker_unreachable` instead of
-throwing; Setup and the login-gate Buy still open netie.space.
+throwing; Setup and the login-gate Buy still open netie.space. Sign in /
+Register on that miss still show **Get Netie subscription** so
+`SkipGate: false` is not a deadlock.
 
 ## 4. What to check
 

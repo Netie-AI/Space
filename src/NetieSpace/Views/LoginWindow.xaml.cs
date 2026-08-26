@@ -166,6 +166,10 @@ public partial class LoginWindow : Window
             if (!auth.Success || string.IsNullOrWhiteSpace(auth.Token))
             {
                 StatusText.Text = auth.Error ?? "Auth failed";
+                // Dead Worker used to throw; Buy never appeared so SkipGate:false
+                // was a deadlock (cancel = exit). Show pay-first chips anyway.
+                if (auth.Error?.Contains("worker_unreachable", StringComparison.OrdinalIgnoreCase) == true)
+                    ShowPayFirstButtons();
                 return;
             }
 
