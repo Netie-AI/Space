@@ -582,6 +582,47 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     raise RuntimeError(f"no markdown converter for {ext or 'unknown'} (need markitdown)")
 
 
+def _markdown_to_html_stdlib(text: str) -> str:
+    """Share dest 1 PDF on .md. The markdown package is not a Cursor CI dep."""
+    lines = text.replace("\r\n", "\n").split("\n")
+    parts: list[str] = []
+    para: list[str] = []
+
+    def flush() -> None:
+        if para:
+            parts.append("<p>" + " ".join(para) + "</p>")
+            para.clear()
+
+    for line in lines:
+        raw = line.rstrip()
+        if not raw.strip():
+            flush()
+            continue
+        if raw.startswith("### "):
+            flush()
+            parts.append(f"<h3>{html.escape(raw[4:])}</h3>")
+            continue
+        if raw.startswith("## "):
+            flush()
+            parts.append(f"<h2>{html.escape(raw[3:])}</h2>")
+            continue
+        if raw.startswith("# "):
+            flush()
+            parts.append(f"<h1>{html.escape(raw[2:])}</h1>")
+            continue
+        img = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", raw.strip())
+        if img:
+            flush()
+            alt, href = img.group(1), img.group(2)
+            parts.append(
+                f'<p><img src="{html.escape(href)}" alt="{html.escape(alt)}"></p>'
+            )
+            continue
+        para.append(html.escape(raw))
+    flush()
+    return "\n".join(parts) or "<p></p>"
+
+
 def markdown_to_html(text: str) -> str:
     mdlib = try_import("markdown")
     if mdlib is not None and hasattr(mdlib, "markdown"):
@@ -589,7 +630,55 @@ def markdown_to_html(text: str) -> str:
             return mdlib.markdown(text, extensions=["extra", "tables", "fenced_code"])
         except Exception:
             return mdlib.markdown(text)
-    return "<pre>" + html.escape(text) + "</pre>"
+    return _markdown_to_html_stdlib(text)
+
+
+def _bytes_to_png(raw: bytes) -> bytes | None:
+    import io
+
+    try:
+        from PIL import Image
+
+        im = Image.open(io.BytesIO(raw))
+        try:
+            buf = io.BytesIO()
+            im.convert("RGBA").save(buf, format="PNG")
+            return buf.getvalue()
+        finally:
+            im.close()
+    except Exception:
+        if raw[:8] == b"\x89PNG\r\n\x1a\n":
+            return raw
+    return None
+
+
+def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
+    """Story cannot load file:// or relative imgs. Share dest 2 HTML / dest 1 MD."""
+    import base64
+
+    n = 0
+    root = base.resolve()
+
+    def repl(m: re.Match[str]) -> str:
+        nonlocal n
+        href = m.group(1)
+        if href.startswith("data:") or n >= cap:
+            return m.group(0)
+        path = (base / href).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return m.group(0)
+        if not path.is_file():
+            return m.group(0)
+        png = _bytes_to_png(path.read_bytes())
+        if not png:
+            return m.group(0)
+        n += 1
+        b64 = base64.b64encode(png).decode("ascii")
+        return f'src="data:image/png;base64,{b64}"'
+
+    return re.sub(r'src=["\']([^"\']+)["\']', repl, markup)
 
 
 def wrap_html(body: str, title: str = "Preview") -> str:
@@ -804,6 +893,13 @@ def pdf_pages_to_markdown(src: Path) -> tuple[str, str]:
 def file_to_docx(src: Path, dest: Path) -> str:
     if src.suffix.lower() == ".docx":
         return copy_file(src, dest)
+    if src.suffix.lower() in HTML_EXTS:
+        raw = src.read_text(encoding="utf-8", errors="replace")
+        pngs = html_media_pngs(src)
+        visible = html_visible_text(raw)
+        if pngs and not visible:
+            return write_docx_images(dest, pngs)
+        return write_docx(dest, visible)
     if src.suffix.lower() == ".pdf":
         got = via_pymupdf_text(src) or via_pdfmd(src) or via_pymupdf4llm(src) or via_markitdown(src)
         if got:
@@ -818,6 +914,14 @@ def file_to_docx(src: Path, dest: Path) -> str:
     try:
         text, _tool = file_to_markdown(src)
         if text.strip() or src.suffix.lower() not in PHOTO_OFFICE_EXTS:
+            if src.suffix.lower() in MD_EXTS:
+                html = inline_sibling_images(markdown_to_html(text), src.parent)
+                pngs = html_string_media_pngs(html, src.parent)
+                stripped = re.sub(r"(?s)<[^>]+>", " ", html)
+                stripped = re.sub(r"\s+", " ", stripped).strip()
+                if not stripped and pngs:
+                    return write_docx_images(dest, pngs)
+                return write_docx(dest, stripped or text)
             if not text.strip() and src.suffix.lower() in HTML_EXTS:
                 pngs = html_media_pngs(src)
                 if pngs:
@@ -1447,13 +1551,9 @@ def require_pymupdf():
         raise RuntimeError(f"pymupdf missing: {e}") from e
 
 
-def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
-    """Photo-only HTML dest Word. html-strip used to write an empty .docx."""
+def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -> list[bytes]:
     import base64
-    import io
-    import re
 
-    text = src.read_text(encoding="utf-8", errors="replace")
     pngs: list[bytes] = []
     for m in re.finditer(
         r"data:image/(?:png|jpeg|jpg|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)",
@@ -1466,32 +1566,49 @@ def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
             raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
         except Exception:
             continue
+        png = _bytes_to_png(raw)
+        if png:
+            pngs.append(png)
+    if base is None:
+        return pngs
+    root = base.resolve()
+    for m in re.finditer(r'<img[^>]+src=["\'](?!data:)([^"\']+)["\']', text, re.I):
+        if len(pngs) >= cap:
+            break
+        path = (base / m.group(1)).resolve()
         try:
-            from PIL import Image
-
-            im = Image.open(io.BytesIO(raw))
-            try:
-                buf = io.BytesIO()
-                im.convert("RGBA").save(buf, format="PNG")
-                pngs.append(buf.getvalue())
-            finally:
-                im.close()
-        except Exception:
-            if raw[:8] == b"\x89PNG\r\n\x1a\n":
-                pngs.append(raw)
+            path.relative_to(root)
+        except ValueError:
+            continue
+        if not path.is_file():
+            continue
+        png = _bytes_to_png(path.read_bytes())
+        if png:
+            pngs.append(png)
     return pngs
 
 
-def html_to_pdf(src: Path, dest: Path) -> str:
-    """Share dest 2 on HTML. markdown_to_html dumped source tags into the PDF."""
+def html_visible_text(text: str) -> str:
+    text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
+    text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
+    text = re.sub(r"(?is)<img[^>]*>", "", text)
+    text = re.sub(r"(?s)<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    """Photo-only HTML dest Word. html-strip used to write an empty .docx."""
     text = src.read_text(encoding="utf-8", errors="replace")
+    return html_string_media_pngs(text, src.parent, cap)
+
+
+def html_string_to_pdf(story_html: str, dest: Path) -> str:
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    story_html = text
-    if "<html" not in text.lower():
+    if "<html" not in story_html.lower():
         story_html = (
             "<html><body style=\"font-family:sans-serif;font-size:11pt\">"
-            f"{text}</body></html>"
+            f"{story_html}</body></html>"
         )
     if hasattr(pymupdf, "Story") and hasattr(pymupdf, "DocumentWriter"):
         try:
@@ -1513,8 +1630,17 @@ def html_to_pdf(src: Path, dest: Path) -> str:
                     dest.unlink()
                 except OSError:
                     pass
-    stripped, _tool = file_to_markdown(src)
-    return markdown_to_pdf(stripped, dest)
+    raise RuntimeError("pymupdf Story could not write HTML PDF")
+
+
+def html_to_pdf(src: Path, dest: Path) -> str:
+    """Share dest 2 on HTML. markdown_to_html dumped source tags into the PDF."""
+    text = src.read_text(encoding="utf-8", errors="replace")
+    try:
+        return html_string_to_pdf(inline_sibling_images(text, src.parent), dest)
+    except RuntimeError:
+        stripped, _tool = file_to_markdown(src)
+        return markdown_to_pdf(stripped, dest)
 
 
 def markdown_to_pdf(text: str, dest: Path) -> str:
@@ -1657,6 +1783,12 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         if ext in HTML_EXTS:
             return html_to_pdf(src, dest)
         text = src.read_text(encoding="utf-8", errors="replace")
+        if ext in MD_EXTS:
+            html = inline_sibling_images(markdown_to_html(text), src.parent)
+            try:
+                return html_string_to_pdf(html, dest)
+            except RuntimeError:
+                return markdown_to_pdf(text, dest)
         return markdown_to_pdf(text, dest)
     try:
         text, _tool = file_to_markdown(src)
@@ -2234,7 +2366,10 @@ def action_export_as(argv: list[str]) -> dict:
         try:
             text, tool = file_to_markdown(src)
             if text.strip() or src_ext not in {".odp", ".odt", ".ods", ".xlsx", ".xlsm", ".pdf"}:
-                write_text(dest, wrap_html(markdown_to_html(text), src.name))
+                body = markdown_to_html(text)
+                if src_ext in MD_EXTS:
+                    body = inline_sibling_images(body, src.parent)
+                write_text(dest, wrap_html(body, src.name))
                 return ok(dest, tool)
         except RuntimeError:
             text = ""

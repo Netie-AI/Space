@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest 1 PDF on Markdown renders headings (stdlib fallback; `markdown` is not a CI dep). Used to dump `#` source. Sibling images on HTML dest 2/3 and MD dest 1/4 inline as data URIs so Story / Word keep the pictures.
 - Convert: Share dest 2 PDF on HTML feeds MuPDF Story the page (no markdown_to_html). Dest 2 used to dump source tags. Photo-only HTML dest 3 Word embeds data-URI pictures; html-strip used to write an empty .docx.
 - Convert: Share dest 1 on MP4 / keep-type audio (same folder + stem) no longer fails ffmpeg in-place. HTML dest 1 already skipped the copy.
 - Convert: Share dest 1 on HTML (same folder + stem) no longer raises SameFileError. PDF dest 1 already skipped the copy. Same-type Word / Excel / PowerPoint dest 2 uses that guard too.
