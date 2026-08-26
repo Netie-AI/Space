@@ -4641,12 +4641,13 @@ public partial class PreviewWindow : Window
         }
     }
 
-    private async Task<string> RasterizeForComfyAsync(string path)
+    private async Task<string> RasterizeForComfyAsync(string path, string? destDir = null)
     {
         var ext = IoPath.GetExtension(path).ToLowerInvariant();
         if (ext is not (".svg" or ".ico") || !_conversion.IsAvailable)
             return path;
-        var dest = IoPath.Combine(IoPath.GetTempPath(), $"netie_comfy_{Guid.NewGuid():N}.png");
+        var dir = string.IsNullOrWhiteSpace(destDir) ? IoPath.GetTempPath() : destDir;
+        var dest = IoPath.Combine(dir, $"netie_comfy_{Guid.NewGuid():N}.png");
         var result = await _conversion.ExportAsAsync(path, dest);
         return result.Success && IoFile.Exists(dest) ? dest : path;
     }
@@ -7203,12 +7204,19 @@ public partial class PreviewWindow : Window
         if (string.IsNullOrWhiteSpace(_currentFilePath) || !IoFile.Exists(_currentFilePath))
             return;
 
+        string? raster = null;
         try
         {
-            var dest = ImageEditService.PromptCompress(this, _currentFilePath!);
+            var path = _currentFilePath!;
+            // SVG/ICO preview as Image. WPF BitmapImage cannot decode those.
+            // Rasterize beside the source so the smaller file is not under %TEMP%.
+            var src = await RasterizeForComfyAsync(path, IoPath.GetDirectoryName(path));
+            if (!string.Equals(src, path, StringComparison.OrdinalIgnoreCase))
+                raster = src;
+            var dest = ImageEditService.PromptCompress(this, src);
             if (dest is null) return;
             ConvertStatusText.Text =
-                $"Compressed → {IoPath.GetFileName(dest)} · {FormatSize(new FileInfo(dest).Length)} (was {FormatSize(new FileInfo(_currentFilePath!).Length)})";
+                $"Compressed → {IoPath.GetFileName(dest)} · {FormatSize(new FileInfo(dest).Length)} (was {FormatSize(new FileInfo(path).Length)})";
             var open = GlassChoiceDialog.Show(this, "Compressed",
                 $"Saved:\n{dest}\n\nOpen the smaller file now?",
                 [("open", "Open it", true), ("stay", "Stay here", false)]);
@@ -7218,6 +7226,11 @@ public partial class PreviewWindow : Window
         catch (Exception ex)
         {
             ConvertStatusText.Text = $"Compress failed: {ex.Message}";
+        }
+        finally
+        {
+            if (raster is not null)
+                try { IoFile.Delete(raster); } catch { /* temp raster */ }
         }
     }
 
