@@ -31,6 +31,7 @@ def test_append_and_import_pack_without_overlap():
     assert "PackedEndOf" in session
     assert "source in-point" in session
     assert "public bool SlicePacked(" in timeline
+    assert "SliceSubtitleBurn" in timeline
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline

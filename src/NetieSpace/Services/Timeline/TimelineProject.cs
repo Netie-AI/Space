@@ -609,7 +609,97 @@ public sealed class TimelineProject
         }
 
         PackLinkedVideoAudio();
+        SliceSubtitleBurn(from, to);
         return true;
+    }
+
+    /// <summary>
+    /// Caption cue times are packed seconds (same ruler as Export range).
+    /// SlicePacked used to keep the original SRT, so a clip-2 range burned
+    /// clip-1 text. Writes a temp SRT; does not mutate the user's file.
+    /// </summary>
+    private void SliceSubtitleBurn(TimeSpan from, TimeSpan to)
+    {
+        if (string.IsNullOrWhiteSpace(SubtitleBurnPath) || !IoFile.Exists(SubtitleBurnPath))
+            return;
+
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var c in ReadSrtCues(SubtitleBurnPath))
+        {
+            var ovlIn = from > c.Start ? from : c.Start;
+            var ovlOut = to < c.End ? to : c.End;
+            if (ovlOut - ovlIn < TimeSpan.FromMilliseconds(40))
+                continue;
+            next.Add((ovlIn - from, ovlOut - from, c.Text));
+        }
+
+        if (next.Count == 0)
+        {
+            SubtitleBurnPath = null;
+            return;
+        }
+
+        var temp = IoPath.Combine(IoPath.GetTempPath(), $"_ns_range_{Guid.NewGuid():N}.srt");
+        WriteSrtCues(temp, next);
+        SubtitleBurnPath = temp;
+    }
+
+    private static List<(TimeSpan Start, TimeSpan End, string Text)> ReadSrtCues(string path)
+    {
+        var cues = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        var blocks = IoFile.ReadAllText(path)
+            .Replace("\r\n", "\n")
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries);
+        foreach (var block in blocks)
+        {
+            var lines = block.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 2)
+                continue;
+            var arrow = lines.FirstOrDefault(l => l.Contains("-->", StringComparison.Ordinal));
+            if (arrow is null)
+                continue;
+            var parts = arrow.Split("-->", StringSplitOptions.TrimEntries);
+            if (parts.Length != 2)
+                continue;
+            if (!TryParseSrtTs(parts[0], out var start) || !TryParseSrtTs(parts[1], out var end))
+                continue;
+            var textIdx = Array.IndexOf(lines, arrow) + 1;
+            var text = string.Join(" ", lines.Skip(Math.Max(1, textIdx))).Trim();
+            if (string.IsNullOrWhiteSpace(text))
+                continue;
+            cues.Add((start, end, text));
+        }
+
+        return cues;
+    }
+
+    private static void WriteSrtCues(string path, List<(TimeSpan Start, TimeSpan End, string Text)> cues)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (var i = 0; i < cues.Count; i++)
+        {
+            var c = cues[i];
+            sb.AppendLine((i + 1).ToString());
+            sb.AppendLine($"{FormatSrtTs(c.Start)} --> {FormatSrtTs(c.End)}");
+            sb.AppendLine(c.Text);
+            sb.AppendLine();
+        }
+
+        IoFile.WriteAllText(path, sb.ToString());
+    }
+
+    private static bool TryParseSrtTs(string raw, out TimeSpan ts)
+    {
+        ts = TimeSpan.Zero;
+        raw = raw.Trim().Replace(',', '.');
+        return TimeSpan.TryParse(raw, out ts);
+    }
+
+    private static string FormatSrtTs(TimeSpan t)
+    {
+        if (t < TimeSpan.Zero)
+            t = TimeSpan.Zero;
+        return $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00},{t.Milliseconds:000}";
     }
 
     /// <summary>Flatten V1 clips to kept source ranges (compat with legacy ExportKeptSegments).</summary>

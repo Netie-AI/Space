@@ -64,7 +64,9 @@ Export should land near that.
    + Clip expands In/Out and the packed slider max to the new length
    (MediaOpened used to leave both on clip 1, so a clip-2 seek clamped
    to the join and Split failed as an edge; Export range burned 1.6s).
-   More... Export range burns that packed window (not a trim of clip 1).
+   More... Export range burns that packed window (not a trim of clip 1)
+   and slices caption cues to that window (clip-1 text does not burn on
+   a clip-2 range).
 7. Select the extra piece. Press Delete (same ripple/black dialog as the
    ribbon Delete). The piece
    should disappear. Ripple (default) joins the gap.    "Leave black scene"
@@ -150,7 +152,8 @@ If all of that works, tick the parking-lot line:
   `ExportTimelineAsync` (the Export all function) for Fade+Wipe,
   hard-cut concat, last-clip Leave black, caption/Add-text burn
   into a Mom's clips folder, and More... Export range (`SlicePacked`
-  clip 2 ~2.0s plus the full packed window wipe 2.8..3.4s).
+  clip 2 ~2.0s plus the full packed window wipe 2.8..3.4s). Caption
+  cues in that window are sliced (clip-1 text does not burn on clip 2).
 - Linux ffmpeg wipe encode: 3.2s mp4, 145528 bytes.
 - Windows xunit + live ffmpeg encode: GitHub Actions, last green run
   before billing lock (`2f4b64b`, all four jobs SUCCESS).

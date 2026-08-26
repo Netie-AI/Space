@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: More... Export range slices caption cue times (`SlicePacked` writes a temp SRT). A clip-2 range used to burn clip-1 text because overlays remapped and the sidecar did not.
 - License: Buy without a session is `register_first` even when the email box matches a D1 user. Login used to POST `EmailBox` and the Worker looked up that address, so Checkout opened before Sign in.
 - CI: `ExportTimelineAsync` also encodes More... Export range (`Clone` + `SlicePacked`). Clip-2 marks burn ~2.0s (not clip-1 trim ~1.6s). Full packed window after + Clip still lands wipe 2.8..3.4s.
 - CI: `ExportTimelineAsync` also encodes last-clip Leave black (~3.6s hole, not 1.6s leftover) and caption + Add-text burn from `Mom's clips`.

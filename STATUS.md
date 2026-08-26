@@ -7,16 +7,16 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#120 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#121 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length. OV lane and the preview picture show the title card.
    Leave black seeks, pauses, keeps a V1 hole, and Export pads past V1.
-   Export range slices (`SlicePacked`); CI encodes clip-2 (~2.0s) and
-   the full packed window (wipe 2.8..3.4s). Concat lists use file names so
-   a folder like Mom's clips does not open as Moms.
+   Export range slices clips and caption times (`SlicePacked`). CI encodes
+   clip-2 (~2.0s) and the full packed window (wipe 2.8..3.4s). Concat
+   lists use file names so Mom's clips does not open as Moms.
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.
