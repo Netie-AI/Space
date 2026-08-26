@@ -374,13 +374,22 @@ public sealed class VideoEditSession
     }
 
     /// <summary>Map source playhead → packed timeline position for slider.</summary>
-    public TimeSpan SourceToPacked(TimeSpan sourceTime, bool? fillGaps = null)
+    public TimeSpan SourceToPacked(TimeSpan sourceTime, bool? fillGaps = null) =>
+        SourceToPacked(sourceTime, PrimarySourcePath, fillGaps);
+
+    /// <summary>
+    /// Map a source time on <paramref name="sourcePath"/> to packed seconds.
+    /// The open-file overload only sees the primary path, so a + Clip seek
+    /// into clip 2 must pass that file or the slider snaps back to clip 1.
+    /// </summary>
+    public TimeSpan SourceToPacked(TimeSpan sourceTime, string? sourcePath, bool? fillGaps = null)
     {
+        var want = string.IsNullOrWhiteSpace(sourcePath) ? PrimarySourcePath : sourcePath;
         foreach (var s in BuildPackedTimeline(fillGaps ?? FillGapsWithBlack))
         {
             if (s.IsBlack)
                 continue;
-            if (!ClipSourceEquals(s.ClipIndex, PrimarySourcePath) && HasMultipleSources)
+            if (!ClipSourceEquals(s.ClipIndex, want))
                 continue;
             if (sourceTime >= s.SourceIn && sourceTime <= s.SourceOut)
                 return s.TimelineIn + (sourceTime - s.SourceIn);

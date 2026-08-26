@@ -124,6 +124,18 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void SourceToPacked_uses_the_clip_file_not_only_primary()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        Assert.Equal(TimeSpan.FromSeconds(1), session.SourceToPacked(TimeSpan.FromSeconds(1)));
+        Assert.Equal(TimeSpan.FromSeconds(11),
+            session.SourceToPacked(TimeSpan.FromSeconds(1), @"C:\clips\b.mp4"));
+        Assert.Equal(TimeSpan.FromSeconds(1),
+            session.SourceToPacked(TimeSpan.FromSeconds(1), @"C:\clips\a.mp4"));
+    }
+
+    [Fact]
     public void PackedStartOf_second_clip_is_not_source_in()
     {
         var session = TenSecond(@"C:\clips\a.mp4");

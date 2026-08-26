@@ -36,8 +36,9 @@ produced 3.12s here. Your Windows Export should land near that.
    the timeline.
 4. Click a clip so it is selected (blue outline).
 5. Drag the clip left or right. It should move. Drop it.
-6. Move the playhead to the middle of a clip. Click **Split**. You should
-   now have three clips.
+6. Move the playhead to the middle of a clip (clip 2 is OK). Click **Split**.
+   You should now have three clips. The packed slider must stay on that
+   clip -- it used to snap back to clip 1 after + Clip.
 7. Select the extra piece. Press Delete (or the ribbon delete). The piece
    should disappear. Ripple (default) joins the gap. "Leave black scene"
    puts the title card at the packed clip start (not source in 0 on + Clip).
