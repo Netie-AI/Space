@@ -24,7 +24,9 @@
    the entitlement (later `unknown-board` cannot unlicense). Download URLs
    use the request host. Dead Worker DNS is `worker_unreachable` (Buy still
    opens netie.space). Sign-in on that miss still shows Buy so
-   `SkipGate: false` is not a deadlock. You still put secrets.
+   `SkipGate: false` is not a deadlock. After the Worker is up, Buy
+   without a session is `register_first` (does not open netie.space).
+   You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
    (WinAI sidecar only when WinML is down). History waits for image outputs
    (not `completed` alone). Live GPU still human.

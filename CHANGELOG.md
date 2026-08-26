@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: Buy on a live Worker with no session is `register_first` and stays in-app (Sign in first). After #87 showed Buy on a dead Worker, that click used to open netie.space and look like Checkout was still down.
 - Video: Ctrl+Z after Leave black restores overlay cards. Session undo used to bring the clip back and leave the title card, so Export burned a leftover black overlay.
 - CI: `encode-pillar1-wipe.ps1` burns the same wipeleft graph and fails outside 2.8..3.4s. Windows + Ubuntu GHA now run that reference (Windows CI had no playbook encode).
 - CI: `encode-pillar1-wipe.sh` fails outside 2.8..3.4s and `ci-cursor.sh` runs it. The Linux reference used to echo ~3.1s and exit 0 on a hard-cut concat (~3.6s).

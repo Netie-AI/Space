@@ -51,7 +51,10 @@ public partial class LoginWindow : Window
         try
         {
             var session = LicenseStore.LoadSession();
-            var checkout = await _api.CreateCheckoutAsync(session?.Token, session?.Email);
+            var email = session?.Email;
+            if (string.IsNullOrWhiteSpace(email))
+                email = EmailBox.Text.Trim();
+            var checkout = await _api.CreateCheckoutAsync(session?.Token, email);
             if (checkout.Success && !string.IsNullOrWhiteSpace(checkout.CheckoutUrl))
             {
                 Process.Start(new ProcessStartInfo
@@ -66,6 +69,16 @@ public partial class LoginWindow : Window
             if (checkout.AlreadyPaid)
             {
                 StatusText.Text = checkout.Error ?? "Already paid. Activate this laptop.";
+                ShowPayFirstButtons();
+                return;
+            }
+
+            // #87 shows Buy on a dead Worker. After deploy, that click is
+            // register_first (no session). netie.space is only for
+            // worker_unreachable / stripe_not_configured.
+            if (checkout.NeedsAccount)
+            {
+                StatusText.Text = checkout.Error ?? "Sign in first, then Get Netie subscription.";
                 ShowPayFirstButtons();
                 return;
             }

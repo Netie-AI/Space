@@ -303,6 +303,15 @@ public sealed class CheckoutResult
         string.Equals(ErrorCode, "already_paid", StringComparison.OrdinalIgnoreCase)
         || (Error?.Contains("Already paid", StringComparison.OrdinalIgnoreCase) == true);
 
+    /// <summary>
+    /// Worker is up but this click has no account. Do not open netie.space
+    /// (that fallback is for dead Worker / missing secrets only).
+    /// </summary>
+    public bool NeedsAccount =>
+        string.Equals(ErrorCode, "register_first", StringComparison.OrdinalIgnoreCase)
+        || (Error?.Contains("Sign in first", StringComparison.OrdinalIgnoreCase) == true)
+        || (Error?.Contains("Create an account first", StringComparison.OrdinalIgnoreCase) == true);
+
     public static CheckoutResult Ok(string url, string? sessionId) => new()
     {
         Success = true,
