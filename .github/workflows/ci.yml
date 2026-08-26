@@ -81,18 +81,5 @@ jobs:
           npm ci --legacy-peer-deps
           npm run typecheck
 
-  ci:
-    name: ci
-    if: always()
-    needs: [build-windows, python-syntax, license-api]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require all jobs green
-        run: |
-          echo "windows=${{ needs.build-windows.result }}"
-          echo "python=${{ needs.python-syntax.result }}"
-          echo "license=${{ needs.license-api.result }}"
-          test "${{ needs.build-windows.result }}" = success
-          test "${{ needs.python-syntax.result }}" = success
-          test "${{ needs.license-api.result }}" = success
+  # No 4th aggregator job. Workflow already fails if any of the three fail.
+  # After #25, aggregator `ci` never started: GitHub billing/spending limit.

@@ -1,0 +1,4 @@
+{
+  "name": "Netie Space",
+  "install": "./scripts/ci-cursor-install.sh"
+}

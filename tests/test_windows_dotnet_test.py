@@ -17,7 +17,10 @@ def test_windows_ci_runs_dotnet_test():
     nle = NLE.read_text(encoding="utf-8")
     assert "dotnet test NetieSpace.sln" in yml
     assert "--blame-hang-timeout 2m" in yml
-    assert "needs: [build-windows, python-syntax, license-api]" in yml
+    assert "name: build (windows)" in yml
+    assert "name: python syntax" in yml
+    assert "name: license-api" in yml
+    assert "needs: [build-windows, python-syntax, license-api]" not in yml
     assert "npm ci --legacy-peer-deps" in yml
     assert "npm run typecheck" in yml
     assert "actions/setup-node@v5" in yml
@@ -35,6 +38,9 @@ def test_windows_ci_runs_dotnet_test():
     assert "Does not check the PARKING_LOT human Export gate" in nle
     assert "FedericoCarboni/setup-ffmpeg@v3" in yml
     assert "choco install ffmpeg" not in yml
+    cursor_ci = (ROOT / "scripts/ci-cursor.sh").read_text(encoding="utf-8")
+    assert "python3 -m compileall" in cursor_ci
+    assert "npm run typecheck" in cursor_ci
     live = (ROOT / "tests/NetieSpace.Tests/FfmpegExportLiveTests.cs").read_text(encoding="utf-8")
     assert "FfmpegExportGraph.XfadeWithAudio" in live
     assert "ffmpeg/ffprobe required on Windows CI" in live
