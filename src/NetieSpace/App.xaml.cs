@@ -840,6 +840,7 @@ public partial class App : Application
         catch (Exception ex)
         {
             AppLogger.Error(ex, "License gate");
+            Shutdown();
         }
     }
 

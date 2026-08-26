@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: `EnsureLicenseGate` exits on exception (`Shutdown`), same as cancel. A thrown login dialog used to leave `SkipGate: false` running unlicensed. `/v1/download` file URLs use `requestPublicBase` (local `:8787` no longer gets a committed `workers.dev` token URL).
 - License: Sign-in auto-activate and OpenVault auto-login go through `LicenseActivation` (Worker `license_key` via `ReadString`). Login used to save `auth.LicenseKey` from the login payload, so a post-pay Sign in could persist an empty key. Setup Activate already used this path.
 - Video: session Split matches `TimelineProject` blade -- wipe/fade-out stay on the outgoing half only. A `with` copy used to put wipe on both halves and burn a second xfade. Playbook Undo is Ctrl+Z.
 - Comfy: `/history` poll waits for an image in outputs. `status.completed` with empty outputs used to stop the poll, so `DownloadFirstOutput` failed and Space wrote a sidecar instead of `{stem}.comfy.png`. Pillar 1 playbook: Undo after Split/Delete so Wipe+Export still uses full 1.6s+2.0s clips (~3.1s).
