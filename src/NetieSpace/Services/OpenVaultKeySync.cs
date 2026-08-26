@@ -180,32 +180,13 @@ public static class OpenVaultKeySync
             }
 
             LicenseStore.SaveSession(auth.Token, auth.Email ?? email);
-            var deviceHash = DeviceFingerprint.ComputeHash(devicePepper);
-            var activate = await api.ActivateAsync(
-                auth.Token,
-                deviceHash,
-                DeviceFingerprint.DeviceLabel(),
-                auth.LicenseKey).ConfigureAwait(false);
-
-            if (!activate.Success || string.IsNullOrWhiteSpace(activate.EntitlementToken))
+            var (ok, message, _) = await LicenseActivation.ActivateCurrentSessionAsync(
+                auth.LicenseKey, ct).ConfigureAwait(false);
+            if (!ok)
             {
-                AppLogger.Warn($"openvault auto-login activate: {activate.Error}");
+                AppLogger.Warn($"openvault auto-login activate: {message}");
                 return false;
             }
-
-            LicenseStore.SaveEntitlement(new LicenseEntitlement
-            {
-                Email = auth.Email ?? email,
-                LicenseKey = auth.LicenseKey ?? "",
-                LicenseId = activate.Entitlement is not null &&
-                            activate.Entitlement.TryGetValue("license_id", out var lid)
-                    ? lid.GetString() ?? ""
-                    : "",
-                DeviceHash = deviceHash,
-                ActivatedAt = DateTime.UtcNow.ToString("O"),
-                EntitlementToken = activate.EntitlementToken,
-                PepperHint = devicePepper
-            });
 
             AppLogger.Info($"openvault auto-login OK for {email}");
             return true;

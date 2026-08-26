@@ -7,8 +7,8 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
 2. **Ready PRs #4-#41 landed**. Draft #1 stays draft.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
-   Register is `pending` until pay. Activate saves `license_key` and a
-   stable device token (not `GetHashCode`). You still put secrets.
+   Register is `pending` until pay. Sign-in, Setup, and vault activate all
+   persist Worker `license_key` via `LicenseActivation`. You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail.
    History waits for image outputs (not `completed` alone). Live GPU still human.
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Adobe panel still human.

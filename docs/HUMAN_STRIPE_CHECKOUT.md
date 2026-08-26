@@ -58,8 +58,10 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 1. `install.bat` / `run.bat` -> `dist\NetieSpace\NetieSpace.exe`.
 2. Tray -> Account / Sign in. Register if you have no account. Register does
    **not** unlock the app when Stripe secrets are live (`pending` until pay).
-   Sign-in auto-activate then shows **Get Netie subscription** + **Activate
-   this laptop** on the login gate (so `SkipGate: false` is not a deadlock).
+   Sign-in auto-activate uses the same `LicenseActivation` persist as Setup
+   (Worker `license_key`, not the login payload). Then **Get Netie
+   subscription** + **Activate this laptop** show on the login gate (so
+   `SkipGate: false` is not a deadlock).
 3. Login gate or Setup -> Get Netie subscription.
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
 5. You land on `/v1/checkout/success` on the same Worker host the app called

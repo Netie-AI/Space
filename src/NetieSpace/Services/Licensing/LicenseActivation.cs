@@ -40,13 +40,13 @@ public static class LicenseActivation
         return _configuredPepper ?? DefaultPepper;
     }
 
-    public static async Task<(bool Ok, string Message)> ActivateCurrentSessionAsync(
+    public static async Task<(bool Ok, string Message, bool PaymentRequired)> ActivateCurrentSessionAsync(
         string? licenseKey = null,
         CancellationToken ct = default)
     {
         var session = LicenseStore.LoadSession();
         if (string.IsNullOrWhiteSpace(session?.Token))
-            return (false, "Sign in first (tray -> Account), then Activate this laptop.");
+            return (false, "Sign in first (tray -> Account), then Activate this laptop.", false);
 
         try
         {
@@ -61,7 +61,12 @@ public static class LicenseActivation
                 ct).ConfigureAwait(false);
 
             if (!activate.Success || string.IsNullOrWhiteSpace(activate.EntitlementToken))
-                return (false, activate.Error ?? "Activate failed. Pay first, then retry.");
+            {
+                return (
+                    false,
+                    activate.Error ?? "Activate failed. Pay first, then retry.",
+                    activate.PaymentRequired);
+            }
 
             var licenseId = LicenseOffline.ReadString(activate.Entitlement, "license_id");
             var key = LicenseOffline.ReadString(activate.Entitlement, "license_key", licenseKey);
@@ -77,11 +82,11 @@ public static class LicenseActivation
                 PepperHint = pepper
             });
 
-            return (true, "Activated — you can use Netie offline (except AI / re-login).");
+            return (true, "Activated — you can use Netie offline (except AI / re-login).", false);
         }
         catch (Exception ex)
         {
-            return (false, $"Activate failed: {ex.Message}");
+            return (false, $"Activate failed: {ex.Message}", false);
         }
     }
 }
