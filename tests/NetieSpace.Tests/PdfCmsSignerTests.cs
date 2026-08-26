@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using NetieSpace.Services;
 
 namespace NetieSpace.Tests;
@@ -329,6 +330,36 @@ public class PdfCmsSignerTests
             Assert.Contains("/Type /Page", System.Text.Encoding.ASCII.GetString(after));
             using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
             Assert.True(PdfCmsSigner.TryVerify(PdfCmsSigner.Sign(after, cert), out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void Sign_after_disk_pfx_load_matches_ui()
+    {
+        // Playbook: make-test-pfx.ps1 then More... Cert sign (PFX)...
+        // UI used to new X509Certificate2(..., Exportable) only.
+        var dir = Path.Combine(Path.GetTempPath(), "netie-pfx-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            using var minted = PdfCmsSigner.CreateEphemeralSelfSigned();
+            var pfxPath = Path.Combine(dir, "netie-test.pfx");
+            File.WriteAllBytes(pfxPath, minted.Export(X509ContentType.Pfx, "test"));
+            using var ui = PdfCmsSigner.LoadPfx(pfxPath, "test");
+            Assert.NotNull(ui.GetRSAPrivateKey());
+
+            var sample = Path.Combine(AppContext.BaseDirectory, "Fixtures", "sample.pdf");
+            Assert.True(File.Exists(sample), sample);
+            var pdfPath = Path.Combine(dir, "sample.pdf");
+            File.Copy(sample, pdfPath);
+            if (PdfCmsSigner.NeedsClassicXrefRewrite(File.ReadAllBytes(pdfPath)))
+                Assert.True(PdfClassicXref.RewriteFile(pdfPath));
+            PdfCmsSigner.SignFile(pdfPath, ui);
+            Assert.True(PdfCmsSigner.TryVerify(File.ReadAllBytes(pdfPath), out var err), err);
         }
         finally
         {

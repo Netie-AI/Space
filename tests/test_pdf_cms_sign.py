@@ -26,6 +26,8 @@ def test_signer_is_cms_not_itext():
     assert "iTextSharp" not in src
     assert "CreateMinimalPdf" in src
     assert "SignFile" in src
+    assert "LoadPfx" in src
+    assert "EphemeralKeySet" in src
     assert "Leave original bytes untouched on failure" in src or "untouched on failure" in src
     assert "/Annots" in src
     assert "/AP << /N" in src
@@ -59,6 +61,7 @@ def test_ui_and_packages():
     assert "PdfCertSign_Click" in xaml
     assert "PdfCertSign_Click" in cs
     assert "PdfCmsSigner.SignFile" in cs
+    assert "PdfCmsSigner.LoadPfx" in cs
     assert "RewriteClassicXref" in cs
     assert "NeedsClassicXrefRewrite" in cs
     assert "Could not rewrite xref-stream/hybrid" in cs
@@ -95,6 +98,7 @@ def test_xunit_and_parking():
     assert "RewriteFile_strips_incremental_xref_stream_then_sign_verifies" in unit
     assert "RewriteFile_first_gen_xref_stream_then_sign_verifies" in unit
     assert "PdfSharp_new_document_is_classic_or_rewritable" in unit
+    assert "Sign_after_disk_pfx_load_matches_ui" in unit
     xref = _read(XREF)
     assert "TryStripToClassic" in xref
     assert "FindEofEnds" in xref

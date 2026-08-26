@@ -139,6 +139,15 @@ public static class PdfCmsSigner
             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
     }
 
+    /// <summary>
+    /// Playbook PFX load (More... Cert sign). Same flags as
+    /// <see cref="CreateEphemeralSelfSigned"/> so SignedCms can see the key.
+    /// Exportable-only can throw "keyset does not exist" on Windows CNG.
+    /// </summary>
+    public static X509Certificate2 LoadPfx(string path, string password) =>
+        new(path, password ?? "",
+            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+
     public static bool HasDetachedPkcs7Marker(ReadOnlySpan<byte> pdf) =>
         IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;
 

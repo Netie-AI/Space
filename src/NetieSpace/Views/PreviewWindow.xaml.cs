@@ -4939,10 +4939,7 @@ public partial class PreviewWindow : Window
         var backup = IoFile.ReadAllBytes(path);
         try
         {
-            using var cert = new System.Security.Cryptography.X509Certificates.X509Certificate2(
-                dlg.FileName,
-                password,
-                System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.Exportable);
+            using var cert = PdfCmsSigner.LoadPfx(dlg.FileName, password);
             var rewritten = false;
             try { rewritten = _pdfEdit.RewriteClassicXref(path); }
             catch (Exception ex)
