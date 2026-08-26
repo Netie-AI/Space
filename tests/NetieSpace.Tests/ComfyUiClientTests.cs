@@ -8,6 +8,16 @@ namespace NetieSpace.Tests;
 public class ComfyUiClientTests
 {
     [Fact]
+    public void RoutePrefixes_official_api_then_legacy()
+    {
+        Assert.Equal(new[] { "/api", "" }, ComfyUiClient.RoutePrefixes);
+        Assert.Equal("/api/system_stats", ComfyUiClient.RoutePath("/api", "system_stats"));
+        Assert.Equal("/system_stats", ComfyUiClient.RoutePath("", "system_stats"));
+        Assert.Equal("/api/prompt", ComfyUiClient.RoutePath("/api", "prompt"));
+        Assert.Equal("/prompt", ComfyUiClient.RoutePath("", "prompt"));
+    }
+
+    [Fact]
     public void Default_url_is_localhost_8188()
     {
         var prev = Environment.GetEnvironmentVariable(ComfyUiClient.UrlEnvName);

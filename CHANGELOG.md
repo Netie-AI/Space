@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: ComfyUI client tries `/api/` (2026 OpenAPI) then the unprefixed master routes. An `/api/`-only proxy used to false-offline the probe.
 - Video: Wipe export remap keeps a join-spanning cue. Per-edge shift used to invert 1.4..1.8 to 1.4..1.3 and drop the text.
 - Video: Export shifts caption / overlay times across wipe joins. A clip-2 cue at 1.8s used to burn at 1.8s on the 3.1s file (0.7s into clip 2). UI packed ruler stays pre-wipe.
 - Video: CC cue drag / merge push undo and restore the sidecar text. Drag used to overwrite the SRT with no stack frame, so extra Ctrl+Z popped + Clip (Export ~1.6s).
