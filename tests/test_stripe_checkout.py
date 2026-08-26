@@ -63,6 +63,9 @@ def test_worker_checkout_routes():
     setup = _read(ROOT / "scripts/setup-license-api.ps1")
     assert "STRIPE_SECRET_KEY" in setup
     assert "STRIPE_WEBHOOK_SECRET" in setup
+    assert "Find-NetieLicensesId" in setup
+    assert "d1', 'list', '--json'" in setup
+    assert "Reuse the existing" in setup or "Reusing existing netie-licenses" in setup
 
 
 def test_wpf_buy_calls_checkout():

@@ -34,6 +34,34 @@ function Invoke-Wrangler {
     if ($LASTEXITCODE -ne 0) { throw "wrangler $($Args -join ' ') failed ($LASTEXITCODE)" }
 }
 
+# Create fails (exit 1) when netie-licenses already exists. Do not throw.
+function Get-WranglerText {
+    param([string[]]$Args)
+    if (Test-Path (Join-Path $api 'node_modules\.bin\wrangler.cmd')) {
+        & (Join-Path $api 'node_modules\.bin\wrangler.cmd') @Args 2>&1 | Out-String
+    } else {
+        & npx wrangler @Args 2>&1 | Out-String
+    }
+}
+
+function Find-NetieLicensesId {
+    $raw = Get-WranglerText @('d1', 'list', '--json')
+    $start = $raw.IndexOf('[')
+    $end = $raw.LastIndexOf(']')
+    if ($start -lt 0 -or $end -le $start) { return $null }
+    $json = $raw.Substring($start, $end - $start + 1)
+    try {
+        foreach ($row in @($json | ConvertFrom-Json)) {
+            if ($row.name -ne 'netie-licenses') { continue }
+            if ($row.uuid) { return [string]$row.uuid }
+            if ($row.database_id) { return [string]$row.database_id }
+        }
+    } catch {
+        return $null
+    }
+    return $null
+}
+
 Write-Host "`nChecking Cloudflare auth (wrangler whoami)..." -ForegroundColor Gray
 try {
     Invoke-Wrangler @('whoami')
@@ -42,14 +70,23 @@ try {
     Invoke-Wrangler @('login')
 }
 
-# Create D1 if database_id still placeholder
+# Create D1 if database_id still placeholder. Reuse the existing
+# netie-licenses id -- d1 create fails if the name is already taken.
 $toml = Get-Content (Join-Path $api 'wrangler.toml') -Raw
 if ($toml -match 'REPLACE_AFTER_D1_CREATE') {
-    Write-Host "Creating D1 database netie-licenses..." -ForegroundColor Cyan
-    $createOut = & (Join-Path $api 'node_modules\.bin\wrangler.cmd') d1 create netie-licenses 2>&1 | Out-String
-    Write-Host $createOut
-    if ($createOut -match 'database_id\s*=\s*"([^"]+)"') {
-        $id = $Matches[1]
+    Write-Host "Resolving D1 database netie-licenses..." -ForegroundColor Cyan
+    $id = Find-NetieLicensesId
+    if (-not $id) {
+        $createOut = Get-WranglerText @('d1', 'create', 'netie-licenses')
+        Write-Host $createOut
+        if ($createOut -match 'database_id\s*=\s*"([^"]+)"') {
+            $id = $Matches[1]
+        }
+        if (-not $id) { $id = Find-NetieLicensesId }
+    } else {
+        Write-Host "[OK] Reusing existing netie-licenses ($id)" -ForegroundColor Green
+    }
+    if ($id) {
         $toml = $toml -replace 'REPLACE_AFTER_D1_CREATE', $id
         Set-Content (Join-Path $api 'wrangler.toml') $toml -Encoding UTF8
         Write-Host "[OK] Wrote database_id to wrangler.toml" -ForegroundColor Green
