@@ -81,7 +81,7 @@ VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 OFFICE_EXTS = {
     ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp",
-    ".xlsx", ".xls", ".ods", ".csv",
+    ".xlsx", ".xlsm", ".xls", ".ods", ".csv",
 }
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
@@ -447,7 +447,7 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         return "\n".join(" | ".join(r) for r in rows) + "\n", "ods-zip"
     if ext == ".docx":
         return docx_to_text(src), "docx-zip"
-    if ext == ".xlsx":
+    if ext in {".xlsx", ".xlsm"}:
         rows = xlsx_to_rows(src)
         return "\n".join(" | ".join(r) for r in rows) + "\n", "xlsx-zip"
 
@@ -763,7 +763,7 @@ def via_soffice_markdown(src: Path) -> tuple[str, str] | None:
 
 def file_to_xlsx(src: Path, dest: Path) -> str:
     ext = src.suffix.lower()
-    if ext == ".xlsx":
+    if ext in {".xlsx", ".xlsm"}:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         return "copy"

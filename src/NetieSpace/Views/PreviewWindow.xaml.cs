@@ -6639,7 +6639,7 @@ public partial class PreviewWindow : Window
         return ext switch
         {
             ".docx" or ".doc" or ".odt" or ".rtf" => "PDF, Word, HTML…",
-            ".xlsx" or ".xls" or ".ods" or ".csv" => "PDF, Excel, HTML…",
+            ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => "PDF, Excel, HTML…",
             ".pptx" or ".ppt" or ".odp" => "PDF, PowerPoint, HTML…",
             ".pdf" => "PDF, JPG, PNG, Word, HTML…",
             ".md" or ".markdown" => "PDF, Markdown, HTML, Word…",
@@ -6681,7 +6681,7 @@ public partial class PreviewWindow : Window
             ".docx" or ".doc" or ".odt" or ".rtf" => (
                 "PDF document|*.pdf|Word document|*.docx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
-            ".xlsx" or ".xls" or ".ods" or ".csv" => (
+            ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => (
                 "PDF document|*.pdf|Excel workbook|*.xlsx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
             ".pptx" or ".ppt" or ".odp" => (
