@@ -154,6 +154,8 @@ If all of that works, tick the parking-lot line:
   into a Mom's clips folder, and More... Export range (`SlicePacked`
   clip 2 ~2.0s plus the full packed window wipe 2.8..3.4s). Caption
   cues in that window are sliced (clip-1 text does not burn on clip 2).
+  More... LUT from that folder also copies the cube to %TEMP% (`lut3d`
+  used to open Mom's clips as Moms).
 - Linux ffmpeg wipe encode: 3.2s mp4, 145528 bytes.
 - Windows xunit + live ffmpeg encode: GitHub Actions, last green run
   before billing lock (`2f4b64b`, all four jobs SUCCESS).

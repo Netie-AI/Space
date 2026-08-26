@@ -79,6 +79,8 @@ def test_windows_ci_runs_dotnet_test():
     assert "ExportTimeline_caption_and_text_from_apostrophe_folder" in live
     assert "ExportTimeline_slice_packed_second_clip_is_not_clip1_trim" in live
     assert "ExportTimeline_slice_packed_full_window_keeps_wipe" in live
+    assert "ExportTimeline_lut_from_apostrophe_folder" in live
+    assert "CopyFilterFileToTemp" in (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
     assert "ExportTimelineAsync" in live
     assert "FfmpegService.cs" in csproj
     assert "ProjectRoot.cs" in csproj
