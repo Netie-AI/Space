@@ -431,10 +431,14 @@ public sealed class ComfyUiClient
         return ext switch
         {
             ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
             ".webp" => "image/webp",
             ".gif" => "image/gif",
             ".bmp" => "image/bmp",
             ".tif" or ".tiff" => "image/tiff",
+            ".svg" => "image/svg+xml",
+            ".ico" => "image/x-icon",
+            ".heic" or ".heif" => "image/heic",
             _ => "image/png"
         };
     }

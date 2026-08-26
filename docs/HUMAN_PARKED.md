@@ -54,8 +54,9 @@ Click path (image preview):
    reloads that file so Copy / drag-out work like rembg.
    If upload/queue/download fails, write `{file}.comfy-input.json` next to
    the image (not on success) and run that workflow in ComfyUI. Upload uses
-   the file's image Content-Type (`image/png`, `image/jpeg`, ...), not
-   `application/octet-stream`. Poll GET `/api/jobs/{id}` then
+   the file's image Content-Type (`image/png`, `image/svg+xml`, ...), not
+   `application/octet-stream`. SVG/ICO rasterize to PNG first (LoadImage).
+   Poll GET `/api/jobs/{id}` then
    `/api/history/{id}` (unprefixed last). Official 2026 OpenAPI superseded
    history with jobs; a jobs-only proxy used to 404 history and time out.
    A completed job that only sends `preview_output` (no `outputs` object)

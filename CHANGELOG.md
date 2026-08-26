@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: Send to Comfy rasterizes previewed SVG/ICO to PNG and sends the real image Content-Type (`image/svg+xml`, `image/x-icon`). Those files used to upload as `image/png` while LoadImage wants a raster.
 - Convert: Drop / merge a previewed SVG / ICO / HEIC onto a PDF uses the engine `to-pdf` path. `IsImagePath` stayed raster-only (PdfSharp `XImage`); those clicks were ignored. ICO PDF goes through Pillow first (MuPDF `insert_image` rejects `netie.ico`). Desktop probe also finds `.svg` / `.ico` / `.heic`.
 - Convert: Space a `.markdown` file previews as Markdown so Share Export as is visible. The Save dialog already listed `.markdown`; `ContentParser` only treated `.md`, so `ShellInfo` hid the row.
 - Convert: Space a desktop `.ppsx` previews as PowerPoint so Share Export as is visible. Same OOXML slides as `.pptx`; used to be `ShellInfo` + `need markitdown`. Merge / drop also accept `.ppsx` / `.xlsm` / `.ods` / `.odp`. OLE `.pps` stays soffice.
