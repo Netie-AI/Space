@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: pay-first when Stripe secrets are live. Register creates `pending` (not `active`). Activate returns `payment_required` until fulfill stamps `stripe_checkout_session_id`. Login gate shows **Get Netie subscription** + **Activate this laptop** so `SkipGate: false` is not a deadlock. Local Worker without secrets still grants `active`.
 - Image: **Windows AI...** fail-closed WinML probe (`WindowsAiClient`). No WinAppSDK. Down -> toast + `.winai-input.json`. rembg / Copy stay. Live enhance still human.
 - License: Setup **Activate this laptop** binds the saved session after Stripe pay (`LicenseActivation`). Same path as tray Account Activate. No WPF types in the helper.
 - Video: **Wipe** works from either clip at a join (playbook "Wipe on the join"). Fade/wipe live on `KeptClip` so Export `ApplyTo` cannot drop them.

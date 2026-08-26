@@ -48,13 +48,17 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 ## 3. App click path (Windows)
 
 1. `install.bat` / `run.bat` -> `dist\NetieSpace\NetieSpace.exe`.
-2. Tray -> Account / Sign in. Register if you have no account.
-3. Tray -> API Keys... -> Get Netie subscription.
+2. Tray -> Account / Sign in. Register if you have no account. Register does
+   **not** unlock the app when Stripe secrets are live (`pending` until pay).
+   Sign-in auto-activate then shows **Get Netie subscription** + **Activate
+   this laptop** on the login gate (so `SkipGate: false` is not a deadlock).
+3. Login gate or Setup -> Get Netie subscription.
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
 5. You land on `/v1/checkout/success`. The Worker retrieves that session and
    fulfills the license even if the webhook is a few seconds late.
-6. Setup -> **Activate this laptop** (or tray -> Account / Sign in). Needs a
-   session from step 2. Success page already fulfilled the license.
+6. Login / Setup -> **Activate this laptop**. Needs a session from step 2.
+   Success page already fulfilled the license. Activate without a Stripe
+   session id returns `payment_required`.
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
 

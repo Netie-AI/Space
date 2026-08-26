@@ -60,6 +60,20 @@ def test_wpf_buy_calls_checkout():
     assert "ManageBillingButton_Click" in setup
     assert "ActivateLaptopButton_Click" in setup
     assert "LicenseActivation.ActivateCurrentSessionAsync" in setup
+    login = _read(ROOT / "src/NetieSpace/Views/LoginWindow.xaml.cs")
+    login_xaml = _read(ROOT / "src/NetieSpace/Views/LoginWindow.xaml")
+    assert "ShowPayFirstButtons" in login
+    assert "BuyButton_Click" in login
+    assert "ActivateAfterPayButton_Click" in login
+    assert "PaymentRequired" in login
+    assert 'x:Name="BuyButton"' in login_xaml
+    assert 'x:Name="ActivateAfterPayButton"' in login_xaml
+    assert "payment_required" in _read(WORKER)
+    assert 'stripeConfigured(env) ? "pending" : "active"' in _read(WORKER)
+    assert "stripe_checkout_session_id" in _read(WORKER)
+    client = _read(CLIENT)
+    assert "ParseErrorCode" in client
+    assert "PaymentRequired" in client
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
     assert "System.Windows" not in activation
@@ -77,6 +91,8 @@ def test_human_docs_exist():
     assert "STRIPE_SECRET_KEY" in human
     assert "4242 4242 4242 4242" in human
     assert "stripe_not_configured" in human
+    assert "pending" in human
+    assert "payment_required" in human
     assert "Buy API flow" in parking
     assert "Stripe Checkout" in parking
     assert 'url.pathname === "/v1/billing-portal"' in _read(WORKER)

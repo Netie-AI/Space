@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Input;
 using NetieSpace.Helpers;
@@ -34,6 +35,73 @@ public partial class LoginWindow : Window
     {
         DialogResult = false;
         Close();
+    }
+
+    private void ShowPayFirstButtons()
+    {
+        BuyButton.Visibility = Visibility.Visible;
+        ActivateAfterPayButton.Visibility = Visibility.Visible;
+    }
+
+    private async void BuyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        _busy = true;
+        BuyButton.IsEnabled = false;
+        StatusText.Text = "Starting checkout…";
+        try
+        {
+            var session = LicenseStore.LoadSession();
+            var checkout = await _api.CreateCheckoutAsync(session?.Token, session?.Email);
+            if (checkout.Success && !string.IsNullOrWhiteSpace(checkout.CheckoutUrl))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = checkout.CheckoutUrl,
+                    UseShellExecute = true
+                });
+                StatusText.Text = "Opened Stripe Checkout. After pay: Activate this laptop.";
+                return;
+            }
+
+            StatusText.Text = checkout.Error ?? "Checkout is not live yet (stripe_not_configured).";
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Checkout failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            BuyButton.IsEnabled = true;
+        }
+    }
+
+    private async void ActivateAfterPayButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_busy) return;
+        _busy = true;
+        ActivateAfterPayButton.IsEnabled = false;
+        StatusText.Text = "Activating this laptop…";
+        try
+        {
+            var (ok, message) = await LicenseActivation.ActivateCurrentSessionAsync();
+            StatusText.Text = message;
+            if (!ok) return;
+
+            Entitled = true;
+            DialogResult = true;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = $"Activate failed: {ex.Message}";
+        }
+        finally
+        {
+            _busy = false;
+            ActivateAfterPayButton.IsEnabled = true;
+        }
     }
 
     private void OfflineButton_Click(object sender, RoutedEventArgs e)
@@ -95,7 +163,11 @@ public partial class LoginWindow : Window
 
             if (!activate.Success || string.IsNullOrWhiteSpace(activate.EntitlementToken))
             {
-                StatusText.Text = activate.Error ?? "Activate failed";
+                StatusText.Text = activate.PaymentRequired
+                    ? (activate.Error ?? "Pay first (Get Netie subscription), then Activate this laptop.")
+                    : (activate.Error ?? "Activate failed");
+                if (activate.PaymentRequired)
+                    ShowPayFirstButtons();
                 return;
             }
 

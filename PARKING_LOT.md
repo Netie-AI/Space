@@ -51,7 +51,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 ## P2 — API product
 
-- [ ] Buy API flow (Setup button calls `/v1/checkout`; live after Stripe secrets)
+- [ ] Buy API flow (Setup + login gate call `/v1/checkout`; register is `pending` until pay; live after Stripe secrets)
 - [x] Safer default models per provider
 - [ ] Stripe Checkout (test Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV` in Worker vars; secret key + webhook + live pay still human — `docs/HUMAN_STRIPE_CHECKOUT.md`)
 

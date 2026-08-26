@@ -113,7 +113,7 @@ public sealed class LicenseApiClient
         var res = await _http.SendAsync(req, ct);
         var body = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
-            return ActivateResult.Fail(ParseError(body));
+            return ActivateResult.Fail(ParseError(body), ParseErrorCode(body));
 
         var doc = JsonSerializer.Deserialize<ActivateDto>(body, JsonOpts);
         if (string.IsNullOrWhiteSpace(doc?.EntitlementToken))
@@ -148,6 +148,19 @@ public sealed class LicenseApiClient
         catch { /* ignore */ }
 
         return string.IsNullOrWhiteSpace(body) ? "Request failed" : body;
+    }
+
+    private static string? ParseErrorCode(string body)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("error", out var e) && e.GetString() is { Length: > 0 } err)
+                return err;
+        }
+        catch { /* ignore */ }
+
+        return null;
     }
 
     private sealed class AuthDto
@@ -215,8 +228,13 @@ public sealed class ActivateResult
 {
     public bool Success { get; init; }
     public string? Error { get; init; }
+    public string? ErrorCode { get; init; }
     public string? EntitlementToken { get; init; }
     public Dictionary<string, JsonElement>? Entitlement { get; init; }
+
+    public bool PaymentRequired =>
+        string.Equals(ErrorCode, "payment_required", StringComparison.OrdinalIgnoreCase)
+        || (Error?.Contains("Pay first", StringComparison.OrdinalIgnoreCase) == true);
 
     public static ActivateResult Ok(string token, Dictionary<string, JsonElement>? entitlement) => new()
     {
@@ -225,7 +243,8 @@ public sealed class ActivateResult
         Entitlement = entitlement
     };
 
-    public static ActivateResult Fail(string error) => new() { Success = false, Error = error };
+    public static ActivateResult Fail(string error, string? errorCode = null) =>
+        new() { Success = false, Error = error, ErrorCode = errorCode };
 }
 
 public sealed class CheckoutResult
