@@ -76,6 +76,8 @@ def test_wpf_buy_calls_checkout():
     client = _read(CLIENT)
     setup = _read(SETUP)
     assert "CreateCheckoutAsync" in client
+    assert "HttpRequestException" in client
+    assert "worker_unreachable" in client
     assert "CreatePortalAsync" in client
     assert "GetStripeStatusAsync" in client
     assert "checkout_url" in client
@@ -104,6 +106,7 @@ def test_wpf_buy_calls_checkout():
     assert "PaymentRequired" in client
     assert "AlreadyPaid" in client
     assert "AlreadyPaid" in login
+    assert "https://netie.space" in login
     assert "AlreadyPaid" in setup
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
@@ -161,6 +164,7 @@ def test_human_docs_exist():
     assert "STRIPE_SECRET_KEY" in human
     assert "4242 4242 4242 4242" in human
     assert "stripe_not_configured" in human
+    assert "worker_unreachable" in human
     assert "pending" in human
     assert "payment_required" in human
     assert "already_paid" in human

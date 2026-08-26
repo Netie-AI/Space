@@ -6,7 +6,7 @@
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
-2. **Ready PRs #4-#84 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#85 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
@@ -19,7 +19,8 @@
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
    (no unlicensed continue). WMI board-UUID is capped at 3s and saved on
    the entitlement (later `unknown-board` cannot unlicense). Download URLs
-   use the request host. You still put secrets.
+   use the request host. Dead Worker DNS is `worker_unreachable` (Buy still
+   opens netie.space). You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
    (WinAI sidecar only when WinML is down). History waits for image outputs
    (not `completed` alone). Live GPU still human.
