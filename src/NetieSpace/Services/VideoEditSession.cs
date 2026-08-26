@@ -398,6 +398,18 @@ public sealed class VideoEditSession
         return sourceTime;
     }
 
+    /// <summary>
+    /// Map a Mark In/Out source time to packed seconds. After + Clip,
+    /// marks are source times on the selected clip; primary-only
+    /// <see cref="SourceToPacked(TimeSpan, bool?)"/> draws them on clip 1.
+    /// </summary>
+    public TimeSpan MarkToPacked(TimeSpan mark, bool? fillGaps = null)
+    {
+        if (HasSelection)
+            return SourceToPacked(mark, _kept[SelectedIndex].SourcePath, fillGaps);
+        return SourceToPacked(mark, fillGaps);
+    }
+
     /// <summary>Hit-test a normalized 0–1 timeline position against kept segments (source time).</summary>
     public int IndexAtNormalized(double t01)
     {

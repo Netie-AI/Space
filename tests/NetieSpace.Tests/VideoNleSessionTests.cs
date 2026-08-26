@@ -136,6 +136,19 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void MarkToPacked_uses_selected_clip_file()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(1);
+        Assert.Equal(TimeSpan.FromSeconds(11),
+            session.MarkToPacked(TimeSpan.FromSeconds(1)));
+        session.Select(0);
+        Assert.Equal(TimeSpan.FromSeconds(1),
+            session.MarkToPacked(TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
     public void PackedStartOf_second_clip_is_not_source_in()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
