@@ -5858,7 +5858,9 @@ public partial class PreviewWindow : Window
                 : "OCR…";
         try
         {
-            var result = await ImageOcrService.RecognizeLayoutAsync(_currentFilePath);
+            // SVG/ICO preview as Image. Tesseract / GDI+ Image.FromFile cannot read those.
+            var ocrPath = await RasterizeForComfyAsync(_currentFilePath);
+            var result = await ImageOcrService.RecognizeLayoutAsync(ocrPath);
             if (!result.Ok || string.IsNullOrWhiteSpace(result.FullText))
             {
                 ConvertStatusText.Text = result.Error
