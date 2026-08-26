@@ -11,7 +11,7 @@
 2. **Ready PRs #4-#100 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider (MediaEnded used to
-   stop at clip 1; autoplay after + Clip now starts that clock too).
+   stop at clip 1; autoplay starts the clock; seek/click rebases it).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length.
    Export range slices (`SlicePacked`).
