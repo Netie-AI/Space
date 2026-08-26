@@ -2506,6 +2506,17 @@ public partial class PreviewWindow : Window
 
     private TimeSpan GetPlayhead() => PreviewVideo.Position;
 
+    /// <summary>
+    /// Overlay TimelineStart is packed. After + Clip the open file's
+    /// <see cref="GetPlayhead"/> is still clip-1 source time.
+    /// </summary>
+    private TimeSpan PackedPlayhead()
+    {
+        if (_editMode && _videoEdit.Kept.Count > 0)
+            return TimeSpan.FromSeconds(VideoSlider.Value);
+        return GetPlayhead();
+    }
+
     private void VideoSlider_PreviewMouseDown(object sender, MouseButtonEventArgs e)
     {
         BeginScrub();
@@ -3683,9 +3694,9 @@ public partial class PreviewWindow : Window
         menu.Items.Add(MakeEffectItem("Speed 0.5×", () => ApplySpeedToSelected(0.5)));
         menu.Items.Add(new Separator());
         menu.Items.Add(MakeEffectItem("Add black screen (1s)", () =>
-            _timeline.AddOverlay(OverlayKind.Black, GetPlayhead(), TimeSpan.FromSeconds(1))));
+            _timeline.AddOverlay(OverlayKind.Black, PackedPlayhead(), TimeSpan.FromSeconds(1))));
         menu.Items.Add(MakeEffectItem("Add white screen (1s)", () =>
-            _timeline.AddOverlay(OverlayKind.White, GetPlayhead(), TimeSpan.FromSeconds(1))));
+            _timeline.AddOverlay(OverlayKind.White, PackedPlayhead(), TimeSpan.FromSeconds(1))));
         menu.Items.Add(MakeEffectItem("Add text…", AddTextOverlayInteractive));
         menu.IsOpen = true;
         e.Handled = true;
@@ -3728,7 +3739,7 @@ public partial class PreviewWindow : Window
         var text = PromptDialog.Ask(this, "Timeline text", "Text to show (appear = clip In→Out):", "Title");
         if (string.IsNullOrWhiteSpace(text))
             return;
-        var start = GetPlayhead();
+        var start = PackedPlayhead();
         _timeline.AddOverlay(OverlayKind.Text, start, TimeSpan.FromSeconds(3), text);
     }
 
