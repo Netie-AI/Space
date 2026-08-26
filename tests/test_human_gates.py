@@ -46,6 +46,11 @@ def test_scripts_and_docs():
     end = preview.index("private ExportPreset ReadExportPreset")
     assert "_timeline.Clone()" in preview[start:end]
     assert "timelineSnapshot.SubtitleBurnPath" in preview[start:end]
+    fade_bool = preview.index("private void ApplyFadeToSelected(bool fadeIn)")
+    fade_bool_end = preview.index("private void ApplySpeedToSelected")
+    fade_bool_body = preview[fade_bool:fade_bool_end]
+    assert "ApplyFadeToSelected(fadeIn: TimeSpan.FromMilliseconds(500)" in fade_bool_body
+    assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     burned_line = [ln for ln in preview[start:end].splitlines() if "SubtitleBurnPath" in ln]
     assert burned_line, "export status must mention SubtitleBurnPath"
     assert all("timelineSnapshot.SubtitleBurnPath" in ln for ln in burned_line)

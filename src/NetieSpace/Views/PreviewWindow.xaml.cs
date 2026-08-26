@@ -3032,6 +3032,19 @@ public partial class PreviewWindow : Window
 
     private void FadeHandle_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        if (_fadeDragClip >= 0)
+        {
+            var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_fadeDragClip);
+            if (clip is not null)
+            {
+                // Export SyncTimelineFromSession() overwrites timeline fades from session.
+                if (_fadeDragIn)
+                    _videoEdit.ApplyFadeAt(_fadeDragClip, clip.FadeIn, null);
+                else
+                    _videoEdit.ApplyFadeAt(_fadeDragClip, null, clip.FadeOut);
+            }
+        }
+
         if (sender is Border b)
             b.ReleaseMouseCapture();
         _fadeDragClip = -1;
@@ -3677,28 +3690,12 @@ public partial class PreviewWindow : Window
 
     private void ApplyFadeToSelected(bool fadeIn)
     {
-        var clip = _timeline.SelectedClip ?? _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
-        if (clip is null && _timeline.VideoTrack?.Clips.Count > 0 && _videoEdit.HasSelection)
-        {
-            // Sync project then apply
-            if (!string.IsNullOrWhiteSpace(_currentFilePath))
-                SyncTimelineFromSession();
-            clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
-        }
-
-        if (clip is null)
-            return;
-
+        // Same write path as the ribbon. Timeline-only used to vanish on Export
+        // (SyncTimelineFromSession copies session fades onto _timeline).
         if (fadeIn)
-        {
-            clip.FadeIn = TimeSpan.FromMilliseconds(500);
-            clip.TransitionIn = TransitionKind.Fade;
-        }
+            ApplyFadeToSelected(fadeIn: TimeSpan.FromMilliseconds(500), fadeOut: null);
         else
-        {
-            clip.FadeOut = TimeSpan.FromMilliseconds(500);
-            clip.TransitionOut = TransitionKind.Fade;
-        }
+            ApplyFadeToSelected(fadeIn: null, fadeOut: TimeSpan.FromMilliseconds(500));
     }
 
     private void ApplySpeedToSelected(double speed)
