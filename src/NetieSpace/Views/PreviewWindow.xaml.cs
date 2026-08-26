@@ -1590,6 +1590,15 @@ public partial class PreviewWindow : Window
                 ov.TransitionIn = TransitionKind.Fade;
                 ov.TransitionOut = TransitionKind.Fade;
             }
+
+            // #108 only paints when PackedPlayhead is on the card. Playhead
+            // used to stay on the leftover clip, so the picture stayed
+            // clip-1 pixels until a manual seek.
+            var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+            _suppressSliderValueChanged = true;
+            try { VideoSlider.Maximum = Math.Max(0.001, packed); }
+            finally { _suppressSliderValueChanged = false; }
+            SeekTimelineSeconds(gapStart.TotalSeconds, force: true);
         }
 
         ConvertStatusText.Text = ok
