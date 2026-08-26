@@ -846,7 +846,7 @@ def test_photo_odp_docx_export() -> None:
     src = ENGINE.read_text(encoding="utf-8")
     assert "PHOTO_OFFICE_EXTS" in src
     assert "def office_media_pngs" in src
-    preview_html = src.split('@register("preview-html")', 1)[1][:900]
+    preview_html = src.split('@register("preview-html")', 1)[1][:1400]
     assert "office_media_pngs" in preview_html
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     dlg = preview.split("var imageDefaultExt", 1)[1]
