@@ -954,6 +954,7 @@ def test_photo_ods_xlsx_export() -> None:
     """Share default PDF on a photo ODS / image-only XLSX used empty cell text."""
     src = ENGINE.read_text(encoding="utf-8")
     assert '".ods", ".xlsx", ".xlsm"' in src
+    assert "def write_xlsx_images" in src
     parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
     xlsx_block = parser.split('extension is ".xlsx" or ".xlsm"', 1)[1][:1200]
     assert "PreviewHtmlAsync" in xlsx_block
@@ -1007,6 +1008,13 @@ def test_photo_ods_xlsx_export() -> None:
         assert res.get("success"), res
         assert res.get("tool") == "office-html-images", res
         assert "data:image/png;base64," in ods_preview.read_text(encoding="utf-8")
+        ods_xlsx = d / "ods.xlsx"
+        res = run_engine(["export-as", str(ods), str(ods_xlsx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "xlsx-zip-images", res
+        with zipfile.ZipFile(ods_xlsx) as zf:
+            assert "xl/media/image1.png" in zf.namelist()
+            assert "xl/drawings/drawing1.xml" in zf.namelist()
 
         xlsx = d / "chart.xlsx"
         with zipfile.ZipFile(xlsx, "w") as zf:
