@@ -224,6 +224,66 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void MapCuesToPacked_second_clip_offsets_by_packed_start()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.6), "hi") };
+        var mapped = TimelineProject.MapCuesToPacked(
+            cues, TimeSpan.Zero, TimeSpan.FromSeconds(2), 1, TimeSpan.FromSeconds(1.6));
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(1.8), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(2.2), mapped[0].End);
+        Assert.Equal("hi", mapped[0].Text);
+    }
+
+    [Fact]
+    public void MapCuesToPacked_speed_2x_shrinks_cue()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(0.8), TimeSpan.FromSeconds(1.2), "fast") };
+        var mapped = TimelineProject.MapCuesToPacked(
+            cues, TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 2, TimeSpan.Zero);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(0.4), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(0.6), mapped[0].End);
+    }
+
+    [Fact]
+    public void MapCuesToPacked_drops_cues_outside_source_range()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(1.0), TimeSpan.FromSeconds(1.4), "late") };
+        var mapped = TimelineProject.MapCuesToPacked(
+            cues, TimeSpan.Zero, TimeSpan.FromSeconds(0.8), 1, TimeSpan.Zero);
+        Assert.Empty(mapped);
+    }
+
+    [Fact]
+    public void WritePackedCaptions_merges_two_clip_srts()
+    {
+        var dir = Directory.CreateTempSubdirectory("ns-pack-");
+        try
+        {
+            var a = Path.Combine(dir.FullName, "a.srt");
+            var b = Path.Combine(dir.FullName, "b.srt");
+            var outSrt = Path.Combine(dir.FullName, "packed.srt");
+            File.WriteAllText(a, "1\n00:00:00,200 --> 00:00:00,600\nhi\n");
+            File.WriteAllText(b, "1\n00:00:00,100 --> 00:00:00,400\nthere\n");
+            var n = TimelineProject.WritePackedCaptions(outSrt,
+            [
+                (a, TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1, TimeSpan.Zero),
+                (b, TimeSpan.Zero, TimeSpan.FromSeconds(2), 1, TimeSpan.FromSeconds(1.6))
+            ]);
+            Assert.Equal(2, n);
+            var text = File.ReadAllText(outSrt);
+            Assert.Contains("00:00:00,200 --> 00:00:00,600", text);
+            Assert.Contains("00:00:01,700 --> 00:00:02,000", text);
+            Assert.Contains("there", text);
+        }
+        finally
+        {
+            try { dir.Delete(recursive: true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
     public void SlicePacked_across_join_keeps_both_files()
     {
         var project = new TimelineProject();

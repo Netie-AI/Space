@@ -119,6 +119,8 @@ Export should land near that.
     `tools/ffmpeg/ffprobe` as Export (not PATH only). Status says
     "captions burned in" only if the SRT was already on the snapshot
     when you clicked Export (a whisper finish after that does not count).
+    Auto captions after + Clip whisper each source and place cues on
+    packed time (clip 2 used to stay silent).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).
@@ -154,6 +156,7 @@ If all of that works, tick the parking-lot line:
   into a Mom's clips folder, and More... Export range (`SlicePacked`
   clip 2 ~2.0s plus the full packed window wipe 2.8..3.4s). Caption
   cues in that window are sliced (clip-1 text does not burn on clip 2).
+  Auto captions after + Clip map each source onto packed time.
   More... LUT from that folder also copies the cube to %TEMP% (`lut3d`
   used to open Mom's clips as Moms).
 - Linux ffmpeg wipe encode: 3.2s mp4, 145528 bytes.

@@ -644,7 +644,63 @@ public sealed class TimelineProject
         SubtitleBurnPath = temp;
     }
 
-    private static List<(TimeSpan Start, TimeSpan End, string Text)> ReadSrtCues(string path)
+    /// <summary>
+    /// Map source-time SRT cues onto packed seconds for one V1 clip.
+    /// Auto captions after + Clip used to whisper only the open file, so
+    /// clip 2 stayed silent on Export.
+    /// </summary>
+    public static List<(TimeSpan Start, TimeSpan End, string Text)> MapCuesToPacked(
+        IEnumerable<(TimeSpan Start, TimeSpan End, string Text)> cues,
+        TimeSpan sourceIn,
+        TimeSpan sourceOut,
+        double speed,
+        TimeSpan packedStart)
+    {
+        if (speed <= 0)
+            speed = 1;
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var c in cues)
+        {
+            var ovlIn = sourceIn > c.Start ? sourceIn : c.Start;
+            var ovlOut = sourceOut < c.End ? sourceOut : c.End;
+            if (ovlOut - ovlIn < TimeSpan.FromMilliseconds(40))
+                continue;
+            var packedIn = packedStart + TimeSpan.FromSeconds((ovlIn - sourceIn).TotalSeconds / speed);
+            var packedOut = packedStart + TimeSpan.FromSeconds((ovlOut - sourceIn).TotalSeconds / speed);
+            next.Add((packedIn, packedOut, c.Text));
+        }
+
+        return next;
+    }
+
+    /// <summary>
+    /// Merge per-clip source SRTs into one packed-time sidecar. Returns cue count.
+    /// </summary>
+    public static int WritePackedCaptions(
+        string outputPath,
+        IReadOnlyList<(string SrtPath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart)> clips)
+    {
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var clip in clips)
+        {
+            if (string.IsNullOrWhiteSpace(clip.SrtPath) || !IoFile.Exists(clip.SrtPath))
+                continue;
+            next.AddRange(MapCuesToPacked(
+                ReadSrtCues(clip.SrtPath),
+                clip.SourceIn,
+                clip.SourceOut,
+                clip.Speed,
+                clip.PackedStart));
+        }
+
+        next.Sort((a, b) => a.Start.CompareTo(b.Start));
+        if (next.Count == 0)
+            return 0;
+        WriteSrtCues(outputPath, next);
+        return next.Count;
+    }
+
+    public static List<(TimeSpan Start, TimeSpan End, string Text)> ReadSrtCues(string path)
     {
         var cues = new List<(TimeSpan Start, TimeSpan End, string Text)>();
         var blocks = IoFile.ReadAllText(path)

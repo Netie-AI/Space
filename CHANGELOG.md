@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Auto captions after + Clip whisper each source and map cues to packed time. The open-file-only path left clip 2 silent on Export.
 - Video: Export copies a LUT `.cube` to `%TEMP%` before `lut3d`. A cube under Mom's clips used to open as `Moms` (same apostrophe strip as `subtitles=`).
 - Video: More... Export range slices caption cue times (`SlicePacked` writes a temp SRT). A clip-2 range used to burn clip-1 text because overlays remapped and the sidecar did not.
 - License: Buy without a session is `register_first` even when the email box matches a D1 user. Login used to POST `EmailBox` and the Worker looked up that address, so Checkout opened before Sign in.
