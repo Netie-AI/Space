@@ -10,6 +10,7 @@ Code is in: PDF More... -> **Cert sign (PFX)...** (`PdfCmsSigner`,
 What you do:
 
 1. Pull `main`. Make a test PFX: `.\scripts\make-test-pfx.ps1` (password `test`).
+   Uses Windows `New-SelfSignedCertificate` (no openssl). openssl is fallback.
 2. Open a PDF (xref-stream and hybrid trailer+/Type /XRef are rewritten
    to classic xref first).
 3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.

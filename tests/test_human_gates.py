@@ -34,6 +34,11 @@ def test_scripts_and_docs():
     assert "1.6" in clips and "2.0" in clips
     assert "3.1" in clips
     assert "pass:test" in pfx
+    pfx_ps = (ROOT / "scripts/make-test-pfx.ps1").read_text(encoding="utf-8")
+    assert "New-SelfSignedCertificate" in pfx_ps
+    assert "Export-PfxCertificate" in pfx_ps
+    assert "password: test" in pfx_ps
+    assert "openssl not on PATH" not in pfx_ps
     assert "make-pillar1-clips.ps1" in pillar
     assert "3.1s" in pillar
     assert "2.3s" in pillar
@@ -41,6 +46,7 @@ def test_scripts_and_docs():
     assert "Ctrl+Z" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
+    assert "New-SelfSignedCertificate" in parked
     assert 'x:Name="ManageBillingButton"' in xaml
     assert 'x:Name="ActivateLaptopButton"' in xaml
     assert (ROOT / "scripts/make-pillar1-clips.ps1").is_file()
