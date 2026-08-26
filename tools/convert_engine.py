@@ -392,6 +392,16 @@ def office_pages_to_markdown(src: Path) -> tuple[str, str]:
     return pngs_to_markdown(office_media_pngs(src), label, "office-md-images")
 
 
+def photo_office_to_markdown(src: Path) -> tuple[str, str]:
+    """Share Markdown on photo office. Empty media used to write a 1-byte file."""
+    text, tool = office_pages_to_markdown(src)
+    if not (text or "").strip():
+        raise RuntimeError(
+            f"no markdown converter for {src.suffix.lower() or 'unknown'} (need LibreOffice for OLE)"
+        )
+    return text, tool
+
+
 def pngs_to_html(pngs: list[bytes], dest: Path, title: str) -> str:
     import base64
 
@@ -1647,7 +1657,7 @@ def action_to_md(argv: list[str]) -> dict:
     if not (text or "").strip() and ext == ".pdf":
         text, tool = pdf_pages_to_markdown(src)
     elif not (text or "").strip() and ext in PHOTO_OFFICE_EXTS:
-        text, tool = office_pages_to_markdown(src)
+        text, tool = photo_office_to_markdown(src)
     elif tool is None:
         raise RuntimeError(f"no markdown converter for {ext or 'unknown'}")
     write_text(dest, text if text.endswith("\n") else text + "\n")
@@ -1758,7 +1768,7 @@ def action_export_as(argv: list[str]) -> dict:
         if not (text or "").strip() and src_ext == ".pdf":
             text, tool = pdf_pages_to_markdown(src)
         elif not (text or "").strip() and src_ext in PHOTO_OFFICE_EXTS:
-            text, tool = office_pages_to_markdown(src)
+            text, tool = photo_office_to_markdown(src)
         elif tool is None:
             raise RuntimeError(f"no markdown converter for {src_ext or 'unknown'}")
         write_text(dest, text if text.endswith("\n") else text + "\n")
