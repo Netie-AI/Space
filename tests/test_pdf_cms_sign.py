@@ -46,6 +46,8 @@ def test_ui_and_packages():
     assert "PdfCertSign_Click" in cs
     assert "PdfCmsSigner.SignFile" in cs
     assert "RewriteClassicXref" in cs
+    assert "NeedsClassicXrefRewrite" in cs
+    assert "Could not rewrite xref-stream/hybrid" in cs
     assert "WriteAllBytes(path, backup)" in cs
     edit = _read(ROOT / "src/NetieSpace/Services/PdfEditService.cs")
     assert "RewriteClassicXref" in edit
@@ -62,8 +64,13 @@ def test_xunit_and_parking():
     assert "Sign_self_verifies_detached_cms" in unit
     assert "NeedsClassicXrefRewrite_detects_missing_trailer" in unit
     assert "NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream" in unit
+    assert "Sign_refuses_hybrid_trailer_plus_xref_stream" in unit
+    assert "Sign_refuses_catalog_without_pages_ref" in unit
     signer = _read(SIGNER)
     assert "/Type /XRef" in signer
+    assert "NeedsClassicXrefRewrite(pdf)" in signer
+    assert "could not read /Pages" in signer
+    assert "?? 2" not in signer
     assert "hybrid" in signer.lower() or "hybrid" in _read(TEST_CS).lower()
     assert "Cryptographic digital signature" in parking
     assert "PdfCmsSigner" in parking or "PKCS#7" in parking

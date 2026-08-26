@@ -34,6 +34,11 @@ Use the `whsec_...` that `stripe listen` prints.
 
 ## 2. Cloudflare Worker secrets
 
+If `license-api/wrangler.toml` still says `database_id = "REPLACE_AFTER_D1_CREATE"`,
+do not run `npx wrangler deploy`. That placeholder is not a D1 id. Wrangler will
+reject it or bind a new empty database. Run `.\scripts\setup-license-api.ps1 -Deploy`
+first (creates D1 and writes the id). After the id exists:
+
 ```
 cd license-api
 npx wrangler secret put STRIPE_SECRET_KEY
@@ -42,7 +47,7 @@ npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler deploy
 ```
 
-Or one prompt path: `.\scripts\setup-license-api.ps1 -Deploy` (Enter skips a secret).
+Or the same one-prompt path: `.\scripts\setup-license-api.ps1 -Deploy` (Enter skips a secret).
 Test Price is already in Worker `[vars]`; you still set the two secrets.
 
 Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from

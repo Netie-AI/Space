@@ -120,6 +120,8 @@ def test_human_docs_exist():
     assert "payment_required" in human
     assert "already_paid" in human
     assert "billing/return" in human or "Billing updated" in human
+    assert "REPLACE_AFTER_D1_CREATE" in human
+    assert "do not run `npx wrangler deploy`" in human or "do not run" in human.lower()
     assert "Buy API flow" in parking
     assert "Stripe Checkout" in parking
     assert 'url.pathname === "/v1/billing-portal"' in _read(WORKER)
