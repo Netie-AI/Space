@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- CI: `encode-pillar1-wipe.ps1` burns the same wipeleft graph and fails outside 2.8..3.4s. Windows + Ubuntu GHA now run that reference (Windows CI had no playbook encode).
 - CI: `encode-pillar1-wipe.sh` fails outside 2.8..3.4s and `ci-cursor.sh` runs it. The Linux reference used to echo ~3.1s and exit 0 on a hard-cut concat (~3.6s).
 - License: Register / Login / Activate / Portal map DNS/timeout to `worker_unreachable`. Sign-in on the dead default Worker used to throw, so Buy never appeared and `SkipGate: false` was a deadlock (cancel = exit).
 - License: `POST /v1/checkout` DNS/timeout is `worker_unreachable` (not a thrown `HttpRequestException`). Login-gate Buy used to show only "Checkout failed" and skip the netie.space fallback when the committed `workers.dev` host does not resolve.
