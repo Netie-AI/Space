@@ -5,16 +5,17 @@ param(
     [string]$Path
 )
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot '_ffmpeg.ps1')
 if (-not (Test-Path -LiteralPath $Path)) {
     Write-Error "missing file: $Path"
     exit 2
 }
-$ffprobe = Get-Command ffprobe -ErrorAction SilentlyContinue
+$ffprobe = Get-NetieFfprobe
 if (-not $ffprobe) {
-    Write-Error "ffprobe not on PATH"
+    Write-Error "ffprobe not found. Run install.bat (downloads tools/ffmpeg) or put ffprobe on PATH."
     exit 2
 }
-$dur = & ffprobe -v error -show_entries format=duration -of csv=p=0 -- $Path
+$dur = & $ffprobe -v error -show_entries format=duration -of csv=p=0 -- $Path
 $d = [double]$dur
 $ok = ($d -ge 2.8) -and ($d -le 3.4)
 $msg = "duration={0:N3}s expect 2.8..3.4 ({1})" -f $d, $(if ($ok) { 'OK' } else { 'FAIL' })
