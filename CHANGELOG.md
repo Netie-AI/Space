@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Fade / Wipe / clip-drag push the undo stack. After playbook Ctrl+Z (Split/Delete), an extra Ctrl+Z used to pop + Clip so Export was ~1.6s instead of ~3.1s.
 - PDF: `make-test-pfx.ps1` uses Windows `New-SelfSignedCertificate` (password `test`). It used to require openssl on PATH, so a stock Windows box could not start the Adobe cert-sign playbook.
 - Playbook: `make-pillar1-clips` / `check-pillar1-export` / `encode-pillar1-wipe` use `tools/ffmpeg` from `install.bat` (then PATH). They used to require ffmpeg on PATH, so a fresh clone after install still died before Export.
 - Install: `publish.ps1` and `ensure-ai-tools.ps1` run `download-ffmpeg.ps1` and copy `tools/ffmpeg` into `dist`. A fresh clone used to ship no ffmpeg (`tools/` is gitignored), so playbook Export after `install.bat` said FFmpeg is missing; "re-run install.bat" could not fix it.
