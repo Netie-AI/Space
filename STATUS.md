@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#119 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#120 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
@@ -34,7 +34,7 @@
    use the request host. Dead Worker DNS is `worker_unreachable` (Buy still
    opens netie.space). Sign-in on that miss still shows Buy so
    `SkipGate: false` is not a deadlock. After the Worker is up, Buy
-   without a session is `register_first` (does not open netie.space).
+   without a session is `register_first` even if the email box matches D1.
    You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
    (WinAI sidecar only when WinML is down). History waits for image outputs

@@ -41,6 +41,10 @@ def test_worker_checkout_routes():
     assert "stripeRefId(obj.subscription" in src
     assert 'error: "already_paid"' in src
     assert "Already paid. Activate this laptop" in src
+    checkout = src[src.index("async function handleCheckout"):src.index("async function handleBillingPortal")]
+    assert 'error: "register_first"' in checkout
+    assert "userId = existing.id" not in checkout
+    assert "SELECT id FROM users WHERE email" not in checkout
     assert 'body.set("customer"' in stripe
     assert "customer_email" in stripe
     assert 'url.pathname === "/v1/billing/return"' in src
@@ -113,6 +117,8 @@ def test_wpf_buy_calls_checkout():
     assert "register_first" in client
     assert "AlreadyPaid" in login
     assert "NeedsAccount" in login
+    assert "CreateCheckoutAsync(session?.Token, session?.Email)" in login
+    assert "EmailBox.Text" not in login.split("BuyButton_Click")[1].split("ActivateAfterPayButton_Click")[0]
     assert "https://netie.space" in login
     assert "ShowPayFirstButtons" in login
     assert "worker_unreachable" in login

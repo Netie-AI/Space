@@ -51,10 +51,9 @@ public partial class LoginWindow : Window
         try
         {
             var session = LicenseStore.LoadSession();
-            var email = session?.Email;
-            if (string.IsNullOrWhiteSpace(email))
-                email = EmailBox.Text.Trim();
-            var checkout = await _api.CreateCheckoutAsync(session?.Token, email);
+            // EmailBox is Sign in / Register. Buy without a session used
+            // to POST that box and start Checkout if the address was in D1.
+            var checkout = await _api.CreateCheckoutAsync(session?.Token, session?.Email);
             if (checkout.Success && !string.IsNullOrWhiteSpace(checkout.CheckoutUrl))
             {
                 Process.Start(new ProcessStartInfo

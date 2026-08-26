@@ -90,8 +90,10 @@ host (the committed `workers.dev` name does not resolve until
 throwing; Setup and the login-gate Buy still open netie.space. Sign in /
 Register on that miss still show **Get Netie subscription** so
 `SkipGate: false` is not a deadlock. After the Worker is up, Buy without
-a session is `register_first` -- Sign in first. That click does **not**
-open netie.space (used to look like Checkout was still down).
+a session is `register_first` -- Sign in first. A typed email that already
+exists in D1 does **not** start Checkout (used to skip Sign in). That
+click does **not** open netie.space (used to look like Checkout was still
+down).
 
 ## 4. What to check
 
@@ -123,4 +125,5 @@ open netie.space (used to look like Checkout was still down).
   `/v1/stripe/status`, and `/v1/webhooks/stripe`.
 - Missing secrets return 503 `stripe_not_configured` (no live charge).
 - Setup button calls `LicenseApiClient.CreateCheckoutAsync`.
+- Buy without a session is `register_first` even if the email box matches D1.
 - Live pay, webhook, and WPF clicks: only you on Windows + Stripe Dashboard.
