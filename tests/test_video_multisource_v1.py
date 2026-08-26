@@ -27,6 +27,7 @@ def test_append_and_import_pack_without_overlap():
     assert "ApplyBlade" in session
     assert "wipe on both halves" in session
     assert "ClipSourceEquals" in session
+    assert "public TimelineProject Clone(" in timeline
     assert "public TimelineClip? ImportClip(" in timeline
     assert "never lands on top" in timeline
     assert "PackLinkedVideoAudio()" in timeline

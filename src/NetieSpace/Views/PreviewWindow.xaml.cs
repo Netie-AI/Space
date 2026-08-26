@@ -1618,7 +1618,7 @@ public partial class PreviewWindow : Window
         _timeline.ExportPreset = ReadExportPreset();
         _timeline.FillGapsWithBlack = _videoEdit.FillGapsWithBlack;
 
-        var timelineSnapshot = _timeline;
+        var timelineSnapshot = _timeline.Clone();
         _exportCts = new CancellationTokenSource();
         _exportDetached = false;
         _busy = true;

@@ -144,6 +144,27 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Clone_is_independent_of_later_reset()
+    {
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(2));
+        var extra = project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        Assert.NotNull(extra);
+        project.VideoTrack!.Clips[0].TransitionOut = TransitionKind.Wipe;
+        project.VideoTrack.Clips[1].TransitionIn = TransitionKind.Wipe;
+        project.ExportPreset = ExportPreset.Hd1080;
+        var snap = project.Clone();
+
+        project.ResetFromSource(@"C:\other.mp4", TimeSpan.FromSeconds(9));
+        Assert.Equal(2, snap.VideoTrack!.Clips.Count);
+        Assert.Equal(TransitionKind.Wipe, snap.VideoTrack.Clips[0].TransitionOut);
+        Assert.Equal(TransitionKind.Wipe, snap.VideoTrack.Clips[1].TransitionIn);
+        Assert.Equal(@"C:\clips\a.mp4", snap.PrimarySourcePath, ignoreCase: true);
+        Assert.Equal(ExportPreset.Hd1080, snap.ExportPreset);
+        Assert.Single(project.VideoTrack!.Clips);
+    }
+
+    [Fact]
     public void Wipe_then_split_keeps_one_join()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
