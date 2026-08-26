@@ -4143,15 +4143,17 @@ public partial class PreviewWindow : Window
 
         try
         {
-            string? sidecar = null;
-            try { sidecar = WindowsAiClient.WriteInputSidecar(path); }
-            catch (Exception ex)
-            {
-                ConvertStatusText.Text = $"Could not write Windows AI sidecar: {ex.Message}";
-            }
-
             if (!WindowsAiClient.IsAvailable())
             {
+                // Sidecar only when WinML is down (matches Comfy: no leftover on success).
+                string? sidecar = null;
+                try { sidecar = WindowsAiClient.WriteInputSidecar(path); }
+                catch (Exception ex)
+                {
+                    ConvertStatusText.Text = $"Could not write Windows AI sidecar: {ex.Message}";
+                    return;
+                }
+
                 var msg = WindowsAiClient.OfflineMessage();
                 ConvertStatusText.Text = string.IsNullOrWhiteSpace(sidecar)
                     ? msg
@@ -4163,9 +4165,8 @@ public partial class PreviewWindow : Window
                 return;
             }
 
-            ConvertStatusText.Text = string.IsNullOrWhiteSpace(sidecar)
-                ? "Windows AI runtime present. Live enhance is still human. rembg / Copy still work."
-                : $"Windows AI runtime present. Wrote {IoPath.GetFileName(sidecar)}. Live enhance is still human. rembg / Copy still work.";
+            ConvertStatusText.Text =
+                "Windows AI runtime present. Live enhance is still human. rembg / Copy still work.";
         }
         catch (Exception ex)
         {
