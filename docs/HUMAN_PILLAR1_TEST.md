@@ -120,7 +120,8 @@ Export should land near that.
     "captions burned in" only if the SRT was already on the snapshot
     when you clicked Export (a whisper finish after that does not count).
     Auto captions after + Clip whisper each source and place cues on
-    packed time (clip 2 used to stay silent).
+    packed time (clip 2 used to stay silent). Speed remaps those packed
+    cues (2x used to leave clip-1 text on clip 2).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).

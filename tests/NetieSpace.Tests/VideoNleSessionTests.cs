@@ -284,6 +284,39 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void RemapPackedCuesAfterSpeed_2x_shrinks_clip1_cue()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(0.8), TimeSpan.FromSeconds(1.2), "fast") };
+        var mapped = TimelineProject.RemapPackedCuesAfterSpeed(
+            cues, TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1, 2);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(0.4), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(0.6), mapped[0].End);
+    }
+
+    [Fact]
+    public void RemapPackedCuesAfterSpeed_2x_shifts_later_clip_cues()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(1.8), TimeSpan.FromSeconds(2.2), "there") };
+        var mapped = TimelineProject.RemapPackedCuesAfterSpeed(
+            cues, TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1, 2);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(1.0), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(1.4), mapped[0].End);
+    }
+
+    [Fact]
+    public void RemapPackedCuesAfterSpeed_leaves_earlier_cues()
+    {
+        var cues = new[] { (TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.6), "hi") };
+        var mapped = TimelineProject.RemapPackedCuesAfterSpeed(
+            cues, TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.6), 1, 2);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(0.2), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(0.6), mapped[0].End);
+    }
+
+    [Fact]
     public void SlicePacked_across_join_keeps_both_files()
     {
         var project = new TimelineProject();
