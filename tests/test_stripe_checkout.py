@@ -124,6 +124,12 @@ def test_wpf_buy_calls_checkout():
     app = _read(ROOT / "src/NetieSpace/App.xaml.cs")
     assert "LicenseActivation.Configure" in app
     assert "LicenseActivation.ResolveApiBase()" in app
+    gate = app.split("private void EnsureLicenseGate")[1].split("private void ShowApiSetup")[0]
+    assert gate.count("Shutdown()") >= 2
+    assert "License gate cancelled" in gate
+    worker = _read(WORKER)
+    assert "PUBLIC_BASE_URL}/v1/download" not in worker
+    assert "${requestPublicBase(req, env)}/v1/download/file" in worker
     assert "OpenBuyFallback" in setup
     assert "HUMAN_STRIPE_CHECKOUT.md" in setup
     assert "HUMAN_PILLAR1_TEST.md" in setup

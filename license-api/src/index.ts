@@ -470,15 +470,9 @@ async function handleDownload(req: Request, env: Env): Promise<Response> {
     .bind(randomId("dlt"), license.id, deviceHash, jti, expires.toISOString(), now.toISOString())
     .run();
 
-  // Burn token immediately for v1 when no R2 object yet — client gets a signed stub URL.
-  // When INSTALLERS R2 is bound and object exists, return a real presigned-style Worker URL.
-  let downloadUrl = `${env.PUBLIC_BASE_URL}/v1/download/file?jti=${encodeURIComponent(jti)}`;
-  if (env.INSTALLERS) {
-    const obj = await env.INSTALLERS.head("NetieSpace-Setup.exe");
-    if (obj) {
-      downloadUrl = `${env.PUBLIC_BASE_URL}/v1/download/file?jti=${encodeURIComponent(jti)}`;
-    }
-  }
+  // Same host the client called (local :8787 or this Worker). PUBLIC_BASE_URL
+  // is fallback only -- a committed workers.dev URL used to steal local tokens.
+  const downloadUrl = `${requestPublicBase(req, env)}/v1/download/file?jti=${encodeURIComponent(jti)}`;
 
   await notifyOwner(env, "download issued", [
     `event: download_token`,

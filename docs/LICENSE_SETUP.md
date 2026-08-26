@@ -40,9 +40,9 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"` (or `NETIE_LICENSE_API`; e
 - `POST /v1/register` — email + password → user + license key + Resend. License is `pending` when Stripe secrets are live, `active` only on a local/dev Worker without secrets
 - `POST /v1/login`
 - `POST /v1/activate` — Bearer + `device_hash` → one laptop bind + entitlement token. 403 `payment_required` until Stripe fulfill stamps `stripe_checkout_session_id` (when Stripe is configured)
-- `POST /v1/download` — one-shot download token (burns on GET)
+- `POST /v1/download` — one-shot download token (burns on GET). File URL uses `requestPublicBase` (same host you called)
 - `GET /v1/me`
-- `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). Success/cancel/portal return use the request host (`requestPublicBase`), not only `PUBLIC_BASE_URL`. 503 `stripe_not_configured` until secrets are set. Sign in first. 409 `already_paid` if the license is already active with a Stripe session. Re-subscribe after expire reuses `customer` (not a second `customer_email`).
+- `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). Success/cancel/portal return (and download file URLs) use the request host (`requestPublicBase`), not only `PUBLIC_BASE_URL`. 503 `stripe_not_configured` until secrets are set. Sign in first. 409 `already_paid` if the license is already active with a Stripe session. Re-subscribe after expire reuses `customer` (not a second `customer_email`).
 - `POST /v1/webhooks/stripe` — verifies `Stripe-Signature`; fulfills `checkout.session.completed`. Customer/subscription IDs accept string or `{ id }`; a later retrieve backfills null portal ids
 - `POST /v1/billing-portal` — Stripe Customer Portal (Bearer + existing `stripe_customer_id`). Return URL is `/v1/billing/return` (not checkout success)
 - `GET /v1/billing/return` — portal return. Does not claim a new charge

@@ -101,7 +101,8 @@ opens netie.space. That is expected until step 2 is done.
   parseable (string or `{ id }`), the success page retrieve backfills them.
   Manage billing should still open.
 - After Activate, preview / edit works offline (`SkipGate` can stay true on
-  your own PC while you test).
+  your own PC while you test). To prove the gate, set `SkipGate: false`.
+  If the login dialog throws, Space exits (does not continue unlicensed).
 
 ## 5. What this agent already proved
 
