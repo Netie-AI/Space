@@ -875,9 +875,10 @@ def image_to_pdf(src: Path, dest: Path) -> str:
         return "pymupdf"
     raster = src
     tmp: Path | None = None
-    if src.suffix.lower() in {".ico", ".webp"}:
-        # MuPDF insert_image rejects .ico and .webp. Preview already treats
-        # them as images; Share / drop-on-PDF used to fail.
+    if src.suffix.lower() in {".ico", ".webp", ".heic", ".heif"}:
+        # MuPDF insert_image rejects .ico / .webp / .heic. Preview already
+        # treats them as images; Share / drop-on-PDF used to fail. HEIC
+        # needs pillow_heif (optional; JPG export already used this path).
         im = load_pil_image(src)
         try:
             fd, name = tempfile.mkstemp(suffix=".png")

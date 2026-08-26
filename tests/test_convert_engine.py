@@ -590,6 +590,28 @@ def test_webp_tif_drop_uses_engine() -> None:
         assert tif_pdf.is_file() and tif_pdf.stat().st_size > 200
 
 
+def test_heic_pdf_uses_pillow() -> None:
+    """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
+    engine = ENGINE.read_text(encoding="utf-8")
+    assert '".heic", ".heif"' in engine
+    assert "pillow_heif" in engine
+    try:
+        from PIL import Image
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except Exception:
+        print("SKIP heic pdf -- pillow_heif missing (optional, not a Cursor CI dep)")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        heic = d / "sample.heic"
+        Image.new("RGB", (64, 48), (180, 90, 30)).save(heic)
+        pdf = d / "sample.pdf"
+        res = run_engine(["export-as", str(heic), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+
+
 def test_text_markdown_drop_merge_lists() -> None:
     """Drop .text / .markdown onto a PDF used to ignore the file (lists had .txt / no markdown)."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -764,6 +786,7 @@ if __name__ == "__main__":
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
+    test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
     test_export_as_preview_video_gif()
