@@ -25,6 +25,7 @@ def test_scripts_and_docs():
     assert "3.1s" in pillar
     assert "2.3s" in pillar
     assert "Undo" in pillar
+    assert "Ctrl+Z" in pillar
     assert "make-test-pfx.ps1" in parked
     assert 'x:Name="ManageBillingButton"' in xaml
     assert 'x:Name="ActivateLaptopButton"' in xaml

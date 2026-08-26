@@ -41,10 +41,10 @@ produced 3.12s here. Your Windows Export should land near that.
 7. Select the extra piece. Press Delete (or the ribbon delete). The piece
    should disappear. The hint text says: "Move playhead -> Split ->
    select clip -> Delete".
-8. Split/Delete is the click check. Undo (or close and + Clip both
+8. Split/Delete is the click check. Ctrl+Z Undo (or close and + Clip both
    originals) so the timeline is full `clip_a` (1.6s) + `clip_b` (2.0s)
    again. A leftover half-clip makes Export ~2.3s and fails the 3.1s gate.
-   Split before Wipe (wipe-then-split copies wipe onto both halves).
+   Wipe-then-split keeps wipe on the outgoing half only (one join).
 9. Select the first remaining clip. Click **Fade In**. Select the last
    clip. Click **Fade Out**.
 10. Click **Wipe** on either clip at the join (first or second). Export

@@ -207,9 +207,7 @@ public sealed class VideoEditSession
             clip.End - playhead < TimeSpan.FromMilliseconds(120))
             return false;
 
-        _kept[i] = clip with { End = playhead };
-        _kept.Insert(i + 1, clip with { Start = playhead });
-        SelectedIndex = i;
+        ApplyBlade(i, clip, playhead);
         return true;
     }
 
@@ -244,10 +242,30 @@ public sealed class VideoEditSession
         if (playhead - clip.Start < TimeSpan.FromMilliseconds(120) ||
             clip.End - playhead < TimeSpan.FromMilliseconds(120))
             return false;
-        _kept[i] = clip with { End = playhead };
-        _kept.Insert(i + 1, clip with { Start = playhead });
-        SelectedIndex = i;
+        ApplyBlade(i, clip, playhead);
         return true;
+    }
+
+    /// <summary>
+    /// Same blade as TimelineProject.SplitAt: wipe/fade-out stay on the
+    /// outgoing half, wipe/fade-in stay on the incoming half. A raw
+    /// <c>with</c> copy put wipe on both halves and burned a second xfade.
+    /// </summary>
+    private void ApplyBlade(int i, KeptClip clip, TimeSpan playhead)
+    {
+        _kept[i] = clip with
+        {
+            End = playhead,
+            TransitionOut = TransitionKind.None,
+            FadeOut = default
+        };
+        _kept.Insert(i + 1, clip with
+        {
+            Start = playhead,
+            TransitionIn = TransitionKind.None,
+            FadeIn = default
+        });
+        SelectedIndex = i;
     }
 
     /// <summary>Ripple-delete the selected clip, or the segment that contains playhead.</summary>
