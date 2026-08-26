@@ -4829,6 +4829,38 @@ public partial class PreviewWindow : Window
             ct => _conversion.PdfOcrAsync(path, outPath, ct: ct));
     }
 
+    private void PdfCertSign_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryRequirePdf(out var path))
+            return;
+
+        var dlg = new OpenFileDialog
+        {
+            Title = "PKCS#12 certificate (PFX / P12)",
+            Filter = "PKCS#12|*.pfx;*.p12|All files|*.*"
+        };
+        if (dlg.ShowDialog(this) != true)
+            return;
+
+        var password = PromptDialog.Ask(this, "Cert sign", "PFX password (empty if none):", "") ?? "";
+        var backup = IoFile.ReadAllBytes(path);
+        try
+        {
+            using var cert = new System.Security.Cryptography.X509Certificates.X509Certificate2(
+                dlg.FileName,
+                password,
+                System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.Exportable);
+            PdfCmsSigner.SignFile(path, cert);
+            ConvertStatusText.Text = "Cert sign written. Open in Adobe Reader to check the Signature panel.";
+            _ = LoadFileAsync(path);
+        }
+        catch (Exception ex)
+        {
+            try { IoFile.WriteAllBytes(path, backup); } catch { /* keep backup attempt best-effort */ }
+            ConvertStatusText.Text = $"Cert sign failed — original bytes restored. {ex.Message}";
+        }
+    }
+
     private bool TryRequirePdf(out string path)
     {
         path = _currentFilePath ?? "";

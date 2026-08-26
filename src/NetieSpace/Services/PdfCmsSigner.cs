@@ -1,0 +1,291 @@
+using System.Security.Cryptography;
+using System.Security.Cryptography.Pkcs;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+using System.Text.RegularExpressions;
+
+namespace NetieSpace.Services;
+
+/// <summary>
+/// Incremental PDF PKCS#7 detached signature (adbe.pkcs7.detached).
+/// Uses in-box SignedCms -- no iText. Classic xref only (PdfSharpCore saves).
+/// Does not replace the visual Sign stamp path.
+/// </summary>
+public static class PdfCmsSigner
+{
+    public const int ContentsReserveBytes = 8192;
+    public const string SubFilter = "adbe.pkcs7.detached";
+
+    public static byte[] CreateMinimalPdf()
+    {
+        var body = string.Join('\n',
+            "%PDF-1.4",
+            "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj",
+            "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj",
+            "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>endobj",
+            "4 0 obj<< /Length 51 >>stream",
+            "BT /F1 12 Tf 40 120 Td (Hello Netie) Tj ET",
+            "endstream",
+            "endobj",
+            "");
+        var bodyBytes = Encoding.ASCII.GetBytes(body.Replace("\r\n", "\n").Replace('\r', '\n'));
+        var offsets = FindObjOffsets(bodyBytes, 1, 4);
+        var xref = new StringBuilder();
+        xref.Append("xref\n0 5\n");
+        xref.Append("0000000000 65535 f \n");
+        for (var i = 1; i <= 4; i++)
+            xref.Append($"{offsets[i]:D10} 00000 n \n");
+        var startxref = bodyBytes.Length;
+        var tail = "trailer<< /Size 5 /Root 1 0 R >>\nstartxref\n" + startxref + "\n%%EOF\n";
+        return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
+    }
+
+    public static X509Certificate2 CreateEphemeralSelfSigned(string cn = "Netie Space Test")
+    {
+        using var rsa = RSA.Create(2048);
+        var req = new CertificateRequest($"CN={cn}", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, true));
+        var cert = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddYears(2));
+        return new X509Certificate2(cert.Export(X509ContentType.Pfx, "tmp"), "tmp",
+            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+    }
+
+    public static bool HasDetachedPkcs7Marker(ReadOnlySpan<byte> pdf) =>
+        IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;
+
+    public static void SignFile(string pdfPath, X509Certificate2 cert)
+    {
+        var original = File.ReadAllBytes(pdfPath);
+        byte[] signed;
+        try
+        {
+            signed = Sign(original, cert);
+        }
+        catch
+        {
+            // Leave original bytes untouched on failure.
+            throw;
+        }
+
+        var dir = Path.GetDirectoryName(pdfPath) ?? ".";
+        var tmp = Path.Combine(dir, $".{Path.GetFileName(pdfPath)}.cms-sign.tmp");
+        File.WriteAllBytes(tmp, signed);
+        File.Replace(tmp, pdfPath, destinationBackupFileName: null);
+    }
+
+    public static byte[] Sign(byte[] pdf, X509Certificate2 cert)
+    {
+        if (cert.GetRSAPrivateKey() is null)
+            throw new InvalidOperationException("Certificate has no RSA private key.");
+        if (IndexOf(pdf, "%PDF-"u8) != 0)
+            throw new InvalidOperationException("Not a PDF.");
+        if (IndexOf(pdf, "xref"u8) < 0 || LastIndexOf(pdf, "startxref"u8) < 0)
+            throw new InvalidOperationException("Cert sign needs a classic xref PDF. Save from Space (PdfSharp) and retry.");
+
+        var trailer = ReadTrailer(pdf);
+        var nextId = trailer.Size;
+        var catalogId = nextId++;
+        var acroId = nextId++;
+        var fieldId = nextId++;
+        var sigId = nextId++;
+
+        var hexZeros = new string('0', ContentsReserveBytes * 2);
+        var byteRangePlaceholder = "[0 ********** ********** **********]";
+        var when = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
+        var name = EscapePdf(cert.GetNameInfo(X509NameType.SimpleName, false) ?? "Netie");
+
+        var pageRef = TryFirstPageRef(pdf, trailer.RootId);
+        var fieldRect = pageRef is null ? "[0 0 0 0]" : "[36 36 180 90]";
+        var pageKey = pageRef is { } p ? $" /P {p} 0 R" : "";
+
+        var block = new StringBuilder();
+        block.Append('\n');
+        var objStarts = new Dictionary<int, int>();
+
+        void Mark(int id) => objStarts[id] = pdf.Length + Encoding.ASCII.GetByteCount(block.ToString());
+
+        Mark(catalogId);
+        var pagesRef = TryPagesRef(pdf, trailer.RootId) ?? 2;
+        block.Append($"{catalogId} 0 obj<< /Type /Catalog /Pages {pagesRef} 0 R /AcroForm {acroId} 0 R >>endobj\n");
+        Mark(acroId);
+        block.Append($"{acroId} 0 obj<< /Fields [{fieldId} 0 R] /SigFlags 3 >>endobj\n");
+        Mark(fieldId);
+        block.Append($"{fieldId} 0 obj<< /FT /Sig /Type /Annot /Subtype /Widget /F 4 /Rect {fieldRect} /V {sigId} 0 R /T (Signature1){pageKey} >>endobj\n");
+        Mark(sigId);
+        block.Append($"{sigId} 0 obj<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /{SubFilter} /ByteRange {byteRangePlaceholder} /Contents <{hexZeros}> /M (D:{when}Z) /Name ({name}) >>endobj\n");
+
+        var insert = Encoding.ASCII.GetBytes(block.ToString());
+        var withObjs = Concat(pdf, insert);
+
+        var xrefStart = withObjs.Length;
+        var xref = new StringBuilder();
+        xref.Append("xref\n0 1\n0000000000 65535 f \n");
+        xref.Append($"{catalogId} 4\n");
+        foreach (var id in new[] { catalogId, acroId, fieldId, sigId })
+            xref.Append($"{objStarts[id]:D10} 00000 n \n");
+        xref.Append($"trailer<< /Size {nextId} /Root {catalogId} 0 R /Prev {trailer.StartXref} >>\n");
+        xref.Append($"startxref\n{xrefStart}\n%%EOF\n");
+        var assembled = Concat(withObjs, Encoding.ASCII.GetBytes(xref.ToString()));
+
+        var contentsToken = Encoding.ASCII.GetBytes("/Contents <");
+        var contentsOpen = LastIndexOf(assembled, contentsToken);
+        if (contentsOpen < 0)
+            throw new InvalidOperationException("Contents placeholder missing.");
+        var hexStart = contentsOpen + contentsToken.Length;
+        var hexEnd = hexStart + (ContentsReserveBytes * 2);
+        if (hexEnd >= assembled.Length || assembled[hexEnd] != (byte)'>')
+            throw new InvalidOperationException("Contents placeholder size mismatch.");
+
+        var range1Len = hexStart - 1;
+        var range2Start = hexEnd + 1;
+        var range2Len = assembled.Length - range2Start;
+        var byteRange = $"[0 {range1Len} {range2Start} {range2Len}]";
+        var padded = byteRange.PadRight(byteRangePlaceholder.Length);
+        if (padded.Length != byteRangePlaceholder.Length)
+            throw new InvalidOperationException("ByteRange overflow.");
+
+        var brToken = Encoding.ASCII.GetBytes("/ByteRange ");
+        var brAt = LastIndexOf(assembled, brToken);
+        if (brAt < 0)
+            throw new InvalidOperationException("ByteRange placeholder missing.");
+        var brVal = brAt + brToken.Length;
+        var brBytes = Encoding.ASCII.GetBytes(padded);
+        Array.Copy(brBytes, 0, assembled, brVal, brBytes.Length);
+
+        var toSign = new byte[range1Len + range2Len];
+        Buffer.BlockCopy(assembled, 0, toSign, 0, range1Len);
+        Buffer.BlockCopy(assembled, range2Start, toSign, range1Len, range2Len);
+
+        var cms = CreateDetachedCms(toSign, cert);
+        if (cms.Length > ContentsReserveBytes)
+            throw new InvalidOperationException($"CMS {cms.Length} bytes exceeds reserve {ContentsReserveBytes}.");
+
+        var hex = Convert.ToHexString(cms).ToLowerInvariant().PadRight(ContentsReserveBytes * 2, '0');
+        var hexBytes = Encoding.ASCII.GetBytes(hex);
+        Array.Copy(hexBytes, 0, assembled, hexStart, hexBytes.Length);
+        return assembled;
+    }
+
+    private static byte[] CreateDetachedCms(byte[] data, X509Certificate2 cert)
+    {
+        var content = new ContentInfo(data);
+        var signed = new SignedCms(content, detached: true);
+        var signer = new CmsSigner(SubjectIdentifierType.IssuerAndSerialNumber, cert)
+        {
+            IncludeOption = X509IncludeOption.EndCertOnly,
+            DigestAlgorithm = new Oid("2.16.840.1.101.3.4.2.1")
+        };
+        signed.ComputeSignature(signer);
+        return signed.Encode();
+    }
+
+    private readonly record struct TrailerInfo(int Size, int RootId, int StartXref);
+
+    private static TrailerInfo ReadTrailer(byte[] pdf)
+    {
+        var sx = LastIndexOf(pdf, "startxref"u8);
+        if (sx < 0)
+            throw new InvalidOperationException("startxref missing.");
+        var after = Encoding.ASCII.GetString(pdf, sx, Math.Min(80, pdf.Length - sx));
+        var m = Regex.Match(after, @"startxref\s+(\d+)");
+        if (!m.Success)
+            throw new InvalidOperationException("startxref offset missing.");
+        var startxref = int.Parse(m.Groups[1].Value);
+
+        var tr = LastIndexOf(pdf.AsSpan(0, sx), "trailer"u8);
+        if (tr < 0)
+            throw new InvalidOperationException("trailer missing (xref stream PDFs are not signed).");
+        var trailerText = Encoding.ASCII.GetString(pdf, tr, sx - tr);
+        var size = MatchInt(trailerText, @"/Size\s+(\d+)");
+        var root = MatchInt(trailerText, @"/Root\s+(\d+)\s+0\s+R");
+        return new TrailerInfo(size, root, startxref);
+    }
+
+    private static int? TryPagesRef(byte[] pdf, int catalogId)
+    {
+        var obj = TryReadObject(pdf, catalogId);
+        if (obj is null) return null;
+        var m = Regex.Match(obj, @"/Pages\s+(\d+)\s+0\s+R");
+        return m.Success ? int.Parse(m.Groups[1].Value) : null;
+    }
+
+    private static int? TryFirstPageRef(byte[] pdf, int catalogId)
+    {
+        var pagesId = TryPagesRef(pdf, catalogId);
+        if (pagesId is null) return null;
+        var obj = TryReadObject(pdf, pagesId.Value);
+        if (obj is null) return null;
+        var m = Regex.Match(obj, @"/Kids\s*\[\s*(\d+)\s+0\s+R");
+        return m.Success ? int.Parse(m.Groups[1].Value) : null;
+    }
+
+    private static string? TryReadObject(byte[] pdf, int id)
+    {
+        var token = Encoding.ASCII.GetBytes($"\n{id} 0 obj");
+        var at = IndexOf(pdf, token);
+        if (at < 0)
+        {
+            token = Encoding.ASCII.GetBytes($"{id} 0 obj");
+            at = IndexOf(pdf, token);
+        }
+        if (at < 0) return null;
+        var end = IndexOf(pdf.AsSpan(at), "endobj"u8);
+        if (end < 0) return null;
+        return Encoding.ASCII.GetString(pdf, at, end + 6);
+    }
+
+    private static Dictionary<int, int> FindObjOffsets(byte[] pdf, int fromId, int toId)
+    {
+        var map = new Dictionary<int, int>();
+        for (var id = fromId; id <= toId; id++)
+        {
+            var token = Encoding.ASCII.GetBytes($"{id} 0 obj");
+            var at = IndexOf(pdf, token);
+            if (at < 0)
+                throw new InvalidOperationException($"object {id} missing");
+            map[id] = at;
+        }
+        return map;
+    }
+
+    private static int MatchInt(string text, string pattern)
+    {
+        var m = Regex.Match(text, pattern);
+        if (!m.Success)
+            throw new InvalidOperationException($"trailer field missing: {pattern}");
+        return int.Parse(m.Groups[1].Value);
+    }
+
+    private static string EscapePdf(string s)
+    {
+        return s.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)").Replace("\n", " ").Replace("\r", " ");
+    }
+
+    private static byte[] Concat(byte[] a, byte[] b)
+    {
+        var n = new byte[a.Length + b.Length];
+        Buffer.BlockCopy(a, 0, n, 0, a.Length);
+        Buffer.BlockCopy(b, 0, n, a.Length, b.Length);
+        return n;
+    }
+
+    private static int IndexOf(ReadOnlySpan<byte> hay, ReadOnlySpan<byte> needle)
+    {
+        for (var i = 0; i <= hay.Length - needle.Length; i++)
+        {
+            if (hay[i] == needle[0] && hay.Slice(i, needle.Length).SequenceEqual(needle))
+                return i;
+        }
+        return -1;
+    }
+
+    private static int LastIndexOf(ReadOnlySpan<byte> hay, ReadOnlySpan<byte> needle)
+    {
+        for (var i = hay.Length - needle.Length; i >= 0; i--)
+        {
+            if (hay[i] == needle[0] && hay.Slice(i, needle.Length).SequenceEqual(needle))
+                return i;
+        }
+        return -1;
+    }
+}

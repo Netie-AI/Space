@@ -96,7 +96,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Merge arrange UI; Organize page thumbs
 - [x] Annotate / highlight (pdf.js overlay; PdfSharpCore appearance, no iText AGPL)
 - [x] Form fill / OCR / in-place text — Tier B
-- [ ] Cryptographic digital signature — Tier C park (stamp is visual only; no iText AGPL). Human: `docs/HUMAN_PARKED.md`
+- [ ] Cryptographic digital signature — PKCS#7 incremental (`PdfCmsSigner`, no iText). Adobe Reader Signature panel is still human (`docs/HUMAN_PARKED.md`)
 - [x] Toolbar discipline polish (primary chips + More...)
 
 ## P8 — Office fidelity
