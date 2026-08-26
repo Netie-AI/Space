@@ -49,6 +49,9 @@ public sealed class ContentParserService
         // SVG must not go through WPF BitmapImage — Chromium (WebView2) paints it like a picture.
         if (extension == ".svg")
             return await Task.Run(() => ParseSvg(filePath, fileName, fileInfo.Length), ct);
+        // WebP: WPF BitmapImage has no decoder. ParseImage catch was ShellInfo and hid Share.
+        if (extension == ".webp")
+            return await Task.Run(() => ParseHtmlPicture(filePath, fileName, fileInfo.Length, "image/webp", "WebP"), ct);
 
         if (ImageExtensions.Contains(extension))
             return await Task.Run(() => ParseImage(filePath, fileName, fileInfo.Length, maxImageDimension), ct);
@@ -271,7 +274,12 @@ public sealed class ContentParserService
         };
     }
     /// <summary>Render SVG as a vector picture in WebView2 (checkerboard + centered art).</summary>
-    private static PreviewContent ParseSvg(string filePath, string fileName, long size)
+    private static PreviewContent ParseSvg(string filePath, string fileName, long size) =>
+        ParseHtmlPicture(filePath, fileName, size, "image/svg+xml", "SVG");
+
+    /// <summary>WebView2 paints the file. Used when WPF BitmapImage has no decoder.</summary>
+    private static PreviewContent ParseHtmlPicture(
+        string filePath, string fileName, long size, string mime, string label)
     {
         var fileUri = new Uri(filePath).AbsoluteUri;
         var html = $$"""
@@ -316,9 +324,9 @@ public sealed class ContentParserService
             FileName = fileName,
             Kind = PreviewKind.Image,
             FileSizeBytes = size,
-            MimeType = "image/svg+xml",
+            MimeType = mime,
             RenderedHtml = html,
-            RawText = $"SVG: {fileName}"
+            RawText = $"{label}: {fileName}"
         };
     }
 

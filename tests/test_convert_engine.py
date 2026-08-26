@@ -599,6 +599,11 @@ def test_webp_tif_drop_uses_engine() -> None:
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     organize = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(encoding="utf-8")
     engine = ENGINE.read_text(encoding="utf-8")
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    # WPF BitmapImage has no WebP decoder; ParseImage catch was ShellInfo and hid Share.
+    assert 'extension == ".webp"' in parser
+    assert "ParseHtmlPicture" in parser
+    assert 'extension == ".svg"' in parser
     assert '".webp" or ".tif" or ".tiff"' in preview
     image_path = organize.split("public static bool IsImagePath", 1)[1][:500]
     assert '".webp"' not in image_path
