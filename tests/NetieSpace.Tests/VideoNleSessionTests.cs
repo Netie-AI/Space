@@ -317,6 +317,55 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void RemapPackedCuesAfterRepack_swap_moves_clip1_cue_onto_clip2()
+    {
+        var cues = new[]
+        {
+            (TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.6), "hi"),
+            (TimeSpan.FromSeconds(1.8), TimeSpan.FromSeconds(2.2), "there")
+        };
+        var before = new[]
+        {
+            (@"C:\a.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1.0, TimeSpan.Zero, TimeSpan.FromSeconds(1.6)),
+            (@"C:\b.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(2), 1.0, TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.6))
+        };
+        var after = new[]
+        {
+            (@"C:\b.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(2), 1.0, TimeSpan.Zero, TimeSpan.FromSeconds(2)),
+            (@"C:\a.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1.0, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(3.6))
+        };
+        var mapped = TimelineProject.RemapPackedCuesAfterRepack(cues, before, after);
+        Assert.Equal(2, mapped.Count);
+        Assert.Equal("there", mapped[0].Text);
+        Assert.Equal(TimeSpan.FromSeconds(0.2), mapped[0].Start);
+        Assert.Equal("hi", mapped[1].Text);
+        Assert.Equal(TimeSpan.FromSeconds(2.2), mapped[1].Start);
+    }
+
+    [Fact]
+    public void RemapPackedCuesAfterRepack_ripple_delete_drops_removed_clip_cues()
+    {
+        var cues = new[]
+        {
+            (TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.6), "hi"),
+            (TimeSpan.FromSeconds(1.8), TimeSpan.FromSeconds(2.2), "there")
+        };
+        var before = new[]
+        {
+            (@"C:\a.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(1.6), 1.0, TimeSpan.Zero, TimeSpan.FromSeconds(1.6)),
+            (@"C:\b.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(2), 1.0, TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(3.6))
+        };
+        var after = new[]
+        {
+            (@"C:\b.mp4", TimeSpan.Zero, TimeSpan.FromSeconds(2), 1.0, TimeSpan.Zero, TimeSpan.FromSeconds(2))
+        };
+        var mapped = TimelineProject.RemapPackedCuesAfterRepack(cues, before, after);
+        Assert.Single(mapped);
+        Assert.Equal("there", mapped[0].Text);
+        Assert.Equal(TimeSpan.FromSeconds(0.2), mapped[0].Start);
+    }
+
+    [Fact]
     public void SlicePacked_across_join_keeps_both_files()
     {
         var project = new TimelineProject();

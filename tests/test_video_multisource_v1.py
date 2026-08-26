@@ -35,6 +35,7 @@ def test_append_and_import_pack_without_overlap():
     assert "MapCuesToPacked" in timeline
     assert "WritePackedCaptions" in timeline
     assert "RemapPackedCuesAfterSpeed" in timeline
+    assert "RemapPackedCuesAfterRepack" in timeline
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline
@@ -109,6 +110,11 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     speed = preview[preview.index("private void ApplySpeedToSelected"):preview.index("private void AddTextOverlayInteractive")]
     assert "RemapPackedCuesAfterSpeed" in speed
     assert "_ns_spd_" in speed
+    assert "RemapCaptionsAfterRepack" in preview
+    assert "SnapshotCaptionClipPacked" in preview
+    drag = preview[preview.index("private void EndClipDrag"):preview.index("private void ApplyFadeToSelected")]
+    assert "RemapCaptionsAfterRepack" in drag
+    assert "beforeCaptions" in preview[preview.index("private void OrderClipsButton_Click"):preview.index("private async void RemoveBgButton_Click")]
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 

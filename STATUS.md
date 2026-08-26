@@ -7,15 +7,15 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#124 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#125 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length. OV lane and the preview picture show the title card.
    Leave black seeks, pauses, keeps a V1 hole, and Export pads past V1.
-   Captions after + Clip / Speed use packed time (2x used to burn clip-1
-   text onto clip 2). Export range slices clips and caption times. CI
+   Captions after + Clip / Speed / drag / Order use packed time. Export
+   range slices clips and caption times. CI
    encodes clip-2 (~2.0s) and the full packed window (wipe 2.8..3.4s). Concat
    lists use file names; LUT `lut3d` copies the cube to %TEMP% so
    Mom's clips does not open as Moms.
