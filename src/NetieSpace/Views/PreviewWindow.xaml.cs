@@ -4119,7 +4119,16 @@ public partial class PreviewWindow : Window
             var result = await client.QueuePromptAsync(workflow);
             if (result.Success)
             {
-                ConvertStatusText.Text = result.Message;
+                var saved = await client.DownloadFirstOutputAsync(path, result.OutputJson);
+                if (!string.IsNullOrWhiteSpace(saved) && IoFile.Exists(saved))
+                {
+                    ConvertStatusText.Text =
+                        $"ComfyUI wrote {IoPath.GetFileName(saved)} -- Copy / drag-out still work.";
+                    await LoadFileAsync(saved);
+                    return;
+                }
+
+                ConvertStatusText.Text = result.Message + " Copy / drag-out still work.";
                 return;
             }
 

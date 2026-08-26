@@ -45,6 +45,10 @@ def test_client_file_exists():
     assert "/upload/image" in text
     assert "UploadImageAsync" in text
     assert "UploadTimeoutMs = 10_000" in text
+    assert "/view" in text
+    assert "SaveImage" in text
+    assert "TryFirstOutputImage" in text
+    assert "DownloadFirstOutputAsync" in text
 
 
 def test_timeout_and_fail_closed():
@@ -69,6 +73,7 @@ def test_menu_and_handler_names():
     assert "IsAvailableAsync" in cs
     assert "QueuePromptAsync" in cs
     assert "UploadImageAsync" in cs
+    assert "DownloadFirstOutputAsync" in cs
     assert "WriteInputSidecar" in cs
     assert "ToastHud.Show" in cs
     assert "rembg / Copy still work" in cs
@@ -84,6 +89,8 @@ def test_xunit_compile_include():
     assert "127.0.0.1:8188" in tests
     assert "Does not talk to a live" in tests
     assert "UploadImage_missing_or_down_returns_null" in tests
+    assert "TryFirstOutputImage_reads_filename" in tests
+    assert "DownloadFirstOutput_down_server_returns_null" in tests
 
 
 def test_docs_code_ready():

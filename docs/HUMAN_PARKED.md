@@ -32,15 +32,18 @@ Click path (image preview):
 1. Space an image.
 2. Image ribbon -> Send to Comfy...
 3. If 8188 is down: status/toast, no hang, no crash. rembg / Copy still work.
-4. If up: POST `/upload/image` (so the file is in Comfy's input folder), then
-   POST a LoadImage workflow. If upload/queue fails, write
-   `{file}.comfy-input.json` next to the image and run that workflow in ComfyUI.
+4. If up: POST `/upload/image`, then a LoadImage + SaveImage workflow.
+   Space GETs `/view` and writes `{stem}.comfy.png` next to the source, then
+   reloads that file so Copy / drag-out work like rembg.
+   If upload/queue/download fails, write `{file}.comfy-input.json` next to
+   the image and run that workflow in ComfyUI.
 
 What you do on a Windows GPU:
 
 1. Install ComfyUI. Confirm `http://127.0.0.1:8188` loads.
-2. Click Send to Comfy... on an image. Confirm queue or sidecar.
-3. Keep rembg / Copy as the offline path when Comfy is down.
+2. Click Send to Comfy... on an image. Confirm `{stem}.comfy.png` (or sidecar).
+3. Copy / drag-out the reloaded output like rembg.
+4. Keep rembg / Copy as the offline path when Comfy is down.
 
 What to check: Space still previews if Comfy is offline; no hang; output
 image can Copy / drag-out like rembg.

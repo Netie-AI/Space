@@ -43,4 +43,38 @@ public class ComfyUiClientTests
             try { Directory.Delete(dir, true); } catch { /* temp */ }
         }
     }
+
+    [Fact]
+    public void BuildLoadImageWorkflow_includes_save_image()
+    {
+        var json = ComfyUiClient.BuildLoadImageWorkflow("shot.png");
+        Assert.Contains("LoadImage", json);
+        Assert.Contains("SaveImage", json);
+        Assert.Contains("shot.png", json);
+    }
+
+    [Fact]
+    public void TryFirstOutputImage_reads_filename()
+    {
+        const string outputs = """
+            {"9":{"images":[{"filename":"netie_00001.png","subfolder":"","type":"output"}]}}
+            """;
+        Assert.True(ComfyUiClient.TryFirstOutputImage(outputs, out var name, out var sub, out var type));
+        Assert.Equal("netie_00001.png", name);
+        Assert.Equal("", sub);
+        Assert.Equal("output", type);
+        Assert.False(ComfyUiClient.TryFirstOutputImage("{}", out _, out _, out _));
+        Assert.False(ComfyUiClient.TryFirstOutputImage(null, out _, out _, out _));
+    }
+
+    [Fact]
+    public async Task DownloadFirstOutput_down_server_returns_null()
+    {
+        var client = new ComfyUiClient("http://127.0.0.1:1");
+        const string outputs = """
+            {"9":{"images":[{"filename":"x.png","subfolder":"","type":"output"}]}}
+            """;
+        Assert.Null(await client.DownloadFirstOutputAsync("/tmp/x.png", outputs));
+        Assert.Null(await client.DownloadFirstOutputAsync("/tmp/x.png", "{}"));
+    }
 }
