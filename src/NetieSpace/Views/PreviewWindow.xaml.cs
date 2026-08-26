@@ -1564,8 +1564,11 @@ public partial class PreviewWindow : Window
         var gapStart = _videoEdit.HasSelection
             ? _videoEdit.PackedStartOf(_videoEdit.SelectedIndex)
             : GetPlayhead();
+        // Source End-Start ignores Speed. After 2x the visible clip is half
+        // width; a source-length black card covered the rest of Export
+        // ("picture is not black").
         var gapDur = _videoEdit.HasSelection
-            ? _videoEdit.Kept[_videoEdit.SelectedIndex].End - _videoEdit.Kept[_videoEdit.SelectedIndex].Start
+            ? _videoEdit.PackedEndOf(_videoEdit.SelectedIndex) - _videoEdit.PackedStartOf(_videoEdit.SelectedIndex)
             : TimeSpan.FromSeconds(1);
 
         var ok = _videoEdit.DeleteSelectedOrAt(GetPlayhead());

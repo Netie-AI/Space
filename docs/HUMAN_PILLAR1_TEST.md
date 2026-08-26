@@ -55,8 +55,9 @@ Export should land near that.
    More... Export range burns that packed window (not a trim of clip 1).
 7. Select the extra piece. Press Delete (same ripple/black dialog as the
    ribbon Delete). The piece
-   should disappear. Ripple (default) joins the gap. "Leave black scene"
-   puts the title card at the packed clip start (not source in 0 on + Clip).
+   should disappear. Ripple (default) joins the gap.    "Leave black scene"
+   puts the title card at the packed clip start for the packed clip length
+   (not source in 0 on + Clip, and not source duration after Speed 2x).
    Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
    on and insert same-source holes later). A2 clicks use packed start too
    (not source in 0). A2 is preview-only -- Export does not amix.

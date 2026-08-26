@@ -115,6 +115,8 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in clip_drag
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
+    assert "PackedEndOf" in delete_body
+    assert "Kept[_videoEdit.SelectedIndex].End -" not in delete_body
     a2 = preview[preview.index("private void AudioTrack_PreviewMouseLeftButtonDown"):preview.index("private void TimelineTrack_PreviewMouseRightButtonUp")]
     assert "PackedStartOf" in a2
     assert "TimelineStart = a" not in a2
