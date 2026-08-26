@@ -42,7 +42,12 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"`
 - `POST /v1/activate` — Bearer + `device_hash` → one laptop bind + entitlement token
 - `POST /v1/download` — one-shot download token (burns on GET)
 - `GET /v1/me`
-- D1 columns `stripe_customer_id`, `stripe_subscription_id`, `stripe_checkout_session_id` reserved for Checkout later
+- `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). 503 `stripe_not_configured` until secrets are set. Sign in first.
+- `POST /v1/webhooks/stripe` — verifies `Stripe-Signature`; fulfills `checkout.session.completed`
+- `POST /v1/billing-portal` — Stripe Customer Portal (Bearer + existing `stripe_customer_id`)
+- `GET /v1/checkout/success` · `GET /v1/checkout/cancel`
+- D1 columns `stripe_customer_id`, `stripe_subscription_id`, `stripe_checkout_session_id` written by the webhook
+- Human secrets + click path: [`docs/HUMAN_STRIPE_CHECKOUT.md`](HUMAN_STRIPE_CHECKOUT.md)
 
 Password hashing: **PBKDF2-SHA256** (310k) via Web Crypto — Workers-native. Field `password_algo` allows future Argon2id without schema break.
 
@@ -63,4 +68,5 @@ After activate, entitlement is DPAPI-sealed under `%LOCALAPPDATA%\NetieSpace\lic
 - [ ] Resend secrets set
 - [ ] Authenticode-sign `NetieSpace-Setup.exe` (optional but recommended)
 - [ ] Do not ship `.env` with AI keys to customers
-- [ ] Stripe Checkout webhook → insert/update `licenses` (Phase 4)
+- [ ] Stripe secrets (`STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, `STRIPE_WEBHOOK_SECRET`) + live test pay (`docs/HUMAN_STRIPE_CHECKOUT.md`)
+- [ ] Do not enable Stripe Tax / `automatic_tax` until you have an active registration

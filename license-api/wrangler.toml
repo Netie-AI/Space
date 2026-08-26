@@ -28,3 +28,6 @@ PUBLIC_BASE_URL = "https://netie-space-license.workers.dev"
 # RESEND_FROM_EMAIL
 # JWT_SECRET
 # DEVICE_PEPPER
+# STRIPE_SECRET_KEY   (restricted rk_ preferred)
+# STRIPE_PRICE_ID     (price_... from Dashboard; one Product per plan)
+# STRIPE_WEBHOOK_SECRET  (whsec_... from Dashboard or `stripe listen`)

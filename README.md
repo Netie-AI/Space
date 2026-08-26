@@ -75,7 +75,7 @@ Keys load from `.env` and from **tray → API Keys…** (`%LOCALAPPDATA%\NetieSp
 | Switch AI | Preview **AI:** button or tray → **Switch AI** (auto-fallback on quota/429) |
 | Look up word | Highlight → right-click → **Look Up with AI** |
 | API keys | Tray (blue dot) → **API Keys…** |
-| Buy API | Shown in setup — **currently unavailable** |
+| Buy API | Setup **Get Netie subscription** -> `/v1/checkout` (503 until Stripe secrets; `docs/HUMAN_STRIPE_CHECKOUT.md`) |
 
 Without an API key you can still preview and convert. AI summary/chat/lookup prompt you to add a key.
 

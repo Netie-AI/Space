@@ -235,7 +235,38 @@ public partial class ApiSetupWindow : Window
         StatusText.Text = "OpenRouter key saved (masked).";
     }
 
-    private void BuyNetieButton_Click(object sender, RoutedEventArgs e)
+    private async void BuyNetieButton_Click(object sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Starting checkout…";
+        try
+        {
+            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "https://netie-space-license.workers.dev";
+
+            var session = LicenseStore.LoadSession();
+            var api = new LicenseApiClient(baseUrl);
+            var checkout = await api.CreateCheckoutAsync(session?.Token, session?.Email).ConfigureAwait(true);
+            if (checkout.Success && !string.IsNullOrWhiteSpace(checkout.CheckoutUrl))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = checkout.CheckoutUrl,
+                    UseShellExecute = true
+                });
+                StatusText.Text = "Opened Stripe Checkout. After pay: tray -> Account / Sign in -> Activate.";
+                return;
+            }
+
+            OpenBuyFallback(checkout.Error);
+        }
+        catch (Exception ex)
+        {
+            OpenBuyFallback(ex.Message);
+        }
+    }
+
+    private void OpenBuyFallback(string? reason)
     {
         try
         {
@@ -247,14 +278,18 @@ public partial class ApiSetupWindow : Window
         }
         catch { /* ignore */ }
 
-        StatusText.Text =
-            "Opened netie.space — subscribe / activate, then return here. Tray → account login if you already have a code.";
+        var detail = string.IsNullOrWhiteSpace(reason)
+            ? "Checkout is not live yet (stripe_not_configured)."
+            : reason;
+        StatusText.Text = detail;
         MessageBox.Show(
-            "Step 1: Get a Netie Space plan (recommended).\n" +
-            "Step 2: Activate this device (login / license).\n" +
-            "Step 3 (optional): Connect OpenVault or Add a free Gemini/Groq key for FreeRoute/BYO until Ult hosted AI is live.\n\n" +
-            "OpenVault is the custody SoT for keys and high-security secrets.",
-            "Netie subscription first",
+            detail + "\n\n" +
+            "1. Tray -> Account / Sign in (register if new).\n" +
+            "2. Setup -> Get Netie subscription again.\n" +
+            "3. If still blocked: set Worker secrets in docs/HUMAN_STRIPE_CHECKOUT.md.\n" +
+            "4. After pay: tray -> Account -> Activate.\n\n" +
+            "Video Export clicks (Playwright cannot open this WPF app): docs/HUMAN_PILLAR1_TEST.md.",
+            "Netie subscription",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }

@@ -35,6 +35,27 @@ public sealed class LicenseApiClient
         return await ReadAuthAsync(res, ct);
     }
 
+    public async Task<CheckoutResult> CreateCheckoutAsync(
+        string? token,
+        string? email,
+        CancellationToken ct = default)
+    {
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/checkout");
+        if (!string.IsNullOrWhiteSpace(token))
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Content = JsonContent.Create(new { email });
+        var res = await _http.SendAsync(req, ct);
+        var body = await res.Content.ReadAsStringAsync(ct);
+        if (!res.IsSuccessStatusCode)
+            return CheckoutResult.Fail(ParseError(body));
+
+        var dto = JsonSerializer.Deserialize<CheckoutDto>(body, JsonOpts);
+        if (string.IsNullOrWhiteSpace(dto?.CheckoutUrl))
+            return CheckoutResult.Fail("No checkout URL returned");
+
+        return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
+    }
+
     public async Task<ActivateResult> ActivateAsync(
         string token,
         string deviceHash,
@@ -102,6 +123,12 @@ public sealed class LicenseApiClient
         [JsonPropertyName("entitlement_token")] public string? EntitlementToken { get; set; }
         [JsonPropertyName("entitlement")] public Dictionary<string, JsonElement>? Entitlement { get; set; }
     }
+
+    private sealed class CheckoutDto
+    {
+        [JsonPropertyName("checkout_url")] public string? CheckoutUrl { get; set; }
+        [JsonPropertyName("session_id")] public string? SessionId { get; set; }
+    }
 }
 
 public sealed class LicenseAuthResult
@@ -138,6 +165,23 @@ public sealed class ActivateResult
     };
 
     public static ActivateResult Fail(string error) => new() { Success = false, Error = error };
+}
+
+public sealed class CheckoutResult
+{
+    public bool Success { get; init; }
+    public string? Error { get; init; }
+    public string? CheckoutUrl { get; init; }
+    public string? SessionId { get; init; }
+
+    public static CheckoutResult Ok(string url, string? sessionId) => new()
+    {
+        Success = true,
+        CheckoutUrl = url,
+        SessionId = sessionId
+    };
+
+    public static CheckoutResult Fail(string error) => new() { Success = false, Error = error };
 }
 
 public static class DeviceFingerprint

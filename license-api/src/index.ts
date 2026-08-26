@@ -11,6 +11,15 @@ import {
   verifySessionToken,
 } from "./crypto";
 import { emailBuyer, notifyOwner } from "./email";
+import {
+  createCheckoutSession,
+  createPortalSession,
+  fulfillCheckoutSession,
+  markSubscriptionStatus,
+  stripeConfigured,
+  stripeWebhookConfigured,
+  verifyStripeSignature,
+} from "./stripe";
 
 function corsHeaders(env: Env, req: Request): HeadersInit {
   const origin = req.headers.get("Origin") ?? "*";
@@ -26,6 +35,16 @@ function corsHeaders(env: Env, req: Request): HeadersInit {
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
   };
+}
+
+function html(env: Env, req: Request, message: string): Response {
+  const safe = message.replace(/[<>&]/g, "");
+  return new Response(
+    `<!doctype html><meta charset="utf-8"><title>${env.APP_NAME}</title><p>${safe}</p>`,
+    {
+      headers: { "Content-Type": "text/html; charset=utf-8", ...corsHeaders(env, req) },
+    }
+  );
 }
 
 function json(env: Env, req: Request, body: unknown, status = 200): Response {
@@ -95,8 +114,31 @@ export default {
       if (url.pathname === "/v1/me" && req.method === "GET") {
         return await handleMe(req, env);
       }
+      if (url.pathname === "/v1/checkout" && req.method === "POST") {
+        return await handleCheckout(req, env);
+      }
+      if (url.pathname === "/v1/billing-portal" && req.method === "POST") {
+        return await handleBillingPortal(req, env);
+      }
+      if (url.pathname === "/v1/webhooks/stripe" && req.method === "POST") {
+        return await handleStripeWebhook(req, env);
+      }
+      if (url.pathname === "/v1/checkout/success" && req.method === "GET") {
+        return html(
+          env,
+          req,
+          "Payment received. Return to Netie Space: tray -> Account / Sign in -> Activate."
+        );
+      }
+      if (url.pathname === "/v1/checkout/cancel" && req.method === "GET") {
+        return html(
+          env,
+          req,
+          "Checkout cancelled. Setup -> Get Netie subscription to try again."
+        );
+      }
 
-            if (url.pathname === "/v1/download/file" && req.method === "GET") {
+      if (url.pathname === "/v1/download/file" && req.method === "GET") {
         return await handleDownloadFile(req, env, url);
       }
 
@@ -472,4 +514,141 @@ async function handleMe(req: Request, env: Env): Promise<Response> {
     license,
     devices: devices.results ?? [],
   });
+}
+
+async function handleCheckout(req: Request, env: Env): Promise<Response> {
+  if (!stripeConfigured(env)) {
+    return json(
+      env,
+      req,
+      {
+        error: "stripe_not_configured",
+        message:
+          "Stripe Checkout is not live. Set Worker secrets STRIPE_SECRET_KEY, STRIPE_PRICE_ID, STRIPE_WEBHOOK_SECRET. See docs/HUMAN_STRIPE_CHECKOUT.md.",
+      },
+      503
+    );
+  }
+
+  const body = await readJson(req);
+  const auth = await requireUser(env, req);
+  let userId = "";
+  let email = normalizeEmail(String(body.email ?? ""));
+
+  if (!(auth instanceof Response)) {
+    userId = auth.userId;
+    const row = await env.DB.prepare("SELECT email FROM users WHERE id = ?")
+      .bind(userId)
+      .first<{ email: string }>();
+    if (row?.email) email = normalizeEmail(row.email);
+  }
+
+  if (!userId) {
+    if (!email.includes("@")) {
+      return json(
+        env,
+        req,
+        {
+          error: "register_first",
+          message: "Sign in first (tray -> Account), then click Get Netie subscription.",
+        },
+        400
+      );
+    }
+    const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
+      .bind(email)
+      .first<{ id: string }>();
+    if (!existing) {
+      return json(
+        env,
+        req,
+        {
+          error: "register_first",
+          message: "Create an account first (tray -> Account / Sign in), then click Get Netie subscription.",
+        },
+        400
+      );
+    }
+    userId = existing.id;
+  }
+
+  try {
+    const session = await createCheckoutSession(env, { userId, email });
+    return json(env, req, { checkout_url: session.url, session_id: session.id });
+  } catch (err) {
+    return json(env, req, { error: "stripe_error", message: String(err) }, 502);
+  }
+}
+
+async function handleBillingPortal(req: Request, env: Env): Promise<Response> {
+  if (!stripeConfigured(env)) {
+    return json(env, req, { error: "stripe_not_configured" }, 503);
+  }
+  const auth = await requireUser(env, req);
+  if (auth instanceof Response) return auth;
+
+  const user = await env.DB.prepare("SELECT stripe_customer_id FROM users WHERE id = ?")
+    .bind(auth.userId)
+    .first<{ stripe_customer_id: string | null }>();
+  if (!user?.stripe_customer_id) {
+    return json(
+      env,
+      req,
+      { error: "no_customer", message: "Pay first (Setup -> Get Netie subscription), then manage billing." },
+      404
+    );
+  }
+
+  try {
+    const portal = await createPortalSession(env, user.stripe_customer_id);
+    return json(env, req, { portal_url: portal.url });
+  } catch (err) {
+    return json(env, req, { error: "stripe_error", message: String(err) }, 502);
+  }
+}
+
+async function handleStripeWebhook(req: Request, env: Env): Promise<Response> {
+  if (!stripeWebhookConfigured(env)) {
+    return json(env, req, { error: "stripe_not_configured" }, 503);
+  }
+
+  const raw = await req.text();
+  const header = req.headers.get("Stripe-Signature") ?? "";
+  if (!(await verifyStripeSignature(raw, header, env.STRIPE_WEBHOOK_SECRET!))) {
+    return json(env, req, { error: "invalid_signature" }, 400);
+  }
+
+  let event: { type?: string; data?: { object?: Record<string, unknown> } };
+  try {
+    event = JSON.parse(raw) as typeof event;
+  } catch {
+    return json(env, req, { error: "invalid_json" }, 400);
+  }
+
+  const obj = event.data?.object ?? {};
+  if (event.type === "checkout.session.completed") {
+    await fulfillCheckoutSession(env, {
+      id: String(obj.id ?? ""),
+      customer: typeof obj.customer === "string" ? obj.customer : null,
+      subscription: typeof obj.subscription === "string" ? obj.subscription : null,
+      customer_email: typeof obj.customer_email === "string" ? obj.customer_email : null,
+      customer_details:
+        obj.customer_details && typeof obj.customer_details === "object"
+          ? (obj.customer_details as { email?: string | null })
+          : null,
+      client_reference_id:
+        typeof obj.client_reference_id === "string" ? obj.client_reference_id : null,
+      metadata:
+        obj.metadata && typeof obj.metadata === "object"
+          ? (obj.metadata as Record<string, string>)
+          : null,
+    });
+  } else if (
+    event.type === "customer.subscription.deleted" ||
+    event.type === "customer.subscription.updated"
+  ) {
+    await markSubscriptionStatus(env, String(obj.id ?? ""), String(obj.status ?? ""));
+  }
+
+  return json(env, req, { received: true });
 }

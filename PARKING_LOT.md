@@ -51,9 +51,9 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 ## P2 — API product
 
-- [ ] Buy API flow (intentionally disabled)
+- [ ] Buy API flow (Setup button calls `/v1/checkout`; live after Stripe secrets)
 - [x] Safer default models per provider
-- [ ] Stripe Checkout (schema ready in license-api) — after Space pillars PASS
+- [ ] Stripe Checkout (Worker routes ready; secrets + live pay still human — `docs/HUMAN_STRIPE_CHECKOUT.md`)
 
 ## P5 — Video (multi-track NLE — ACTIVE · Loop Pillar 1)
 
@@ -69,7 +69,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] A1 ripple pack with V1 drag/delete
 - [x] Export progress + background toast (Space-safe)
 - [x] Delete UX: timeline toolbar + merge/black dialog
-- [ ] User-validated Select→Split→Drag→Delete→Fade→Export (gate to leave Pillar 1; Windows+ubuntu ffmpeg encode Space's graph, not a human on the app)
+- [ ] User-validated Select->Split->Drag->Delete->Fade->Export (Windows human; playbook `docs/HUMAN_PILLAR1_TEST.md`. Playwright cannot open WPF.)
 - [x] Multi-source V1 polish (+ Clip)
 - [x] Transitions beyond fade; overlay text on canvas
 - [x] Phase 3: richer ordered multi-clip merge UX
@@ -96,7 +96,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Merge arrange UI; Organize page thumbs
 - [x] Annotate / highlight (pdf.js overlay; PdfSharpCore appearance, no iText AGPL)
 - [x] Form fill / OCR / in-place text — Tier B
-- [ ] Cryptographic digital signature — Tier C park (stamp is visual only)
+- [ ] Cryptographic digital signature — Tier C park (stamp is visual only; no iText AGPL). Human: `docs/HUMAN_PARKED.md`
 - [x] Toolbar discipline polish (primary chips + More...)
 
 ## P8 — Office fidelity
@@ -110,7 +110,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 - [x] rembg Remove BG
 - [x] Copy / drag-out cleaned image
-- [ ] ComfyUI / Windows AI — park
+- [ ] ComfyUI / Windows AI — park (needs your Windows GPU). Human: `docs/HUMAN_PARKED.md`
 
 ## P6 — Product / Mac Space (Loop Pillar 3)
 
