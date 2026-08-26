@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: CC cue drag / merge push undo and restore the sidecar text. Drag used to overwrite the SRT with no stack frame, so extra Ctrl+Z popped + Clip (Export ~1.6s).
 - Video: More... LUT pushes undo and Ctrl+Z restores `GlobalLutPath`. Extra Ctrl+Z after a cube used to pop + Clip so Export was ~1.6s.
 - Video: Auto captions pushes undo. Extra Ctrl+Z after captions used to pop + Clip so Export was ~1.6s (same stack hole Fade / Wipe had).
 - Video: Ctrl+Z restores `SubtitleBurnPath` and reloads caption cues. Speed / drag remap wrote a temp SRT; undo used to keep those times on the restored order.

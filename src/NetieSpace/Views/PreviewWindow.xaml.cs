@@ -3424,6 +3424,13 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        var cue = _captionCues[_captionDragIndex];
+        var changed = cue.Start != _captionDragBaseStart || cue.End != _captionDragBaseEnd;
+        // Fade / LUT push undo so extra Ctrl+Z undoes the chip, not + Clip.
+        // Cue drag used to overwrite the sidecar with no stack frame, so one
+        // extra Ctrl+Z popped + Clip and Export was ~1.6s.
+        if (changed)
+            PushVideoUndo();
         PersistCaptionCuesToSrt();
         _captionDragIndex = -1;
         b?.ReleaseMouseCapture();
@@ -3448,6 +3455,7 @@ public partial class PreviewWindow : Window
                 var b = _captionCues[idx + 1];
                 _captionCues[idx] = (a.Start, b.End, (a.Text + " " + b.Text).Trim());
                 _captionCues.RemoveAt(idx + 1);
+                PushVideoUndo();
                 PersistCaptionCuesToSrt();
                 ScheduleTimelineLayout();
             };
@@ -3466,6 +3474,7 @@ public partial class PreviewWindow : Window
                 var b = _captionCues[idx];
                 _captionCues[idx - 1] = (a.Start, b.End, (a.Text + " " + b.Text).Trim());
                 _captionCues.RemoveAt(idx);
+                PushVideoUndo();
                 PersistCaptionCuesToSrt();
                 ScheduleTimelineLayout();
             };
