@@ -52,7 +52,9 @@ public class FfmpegExportLiveTests
 
         Assert.True(new FileInfo(outPath).Length > 1000);
         var dur = ProbeDuration(ffprobe, outPath);
-        Assert.True(dur > 2.5 && dur < 4.0, $"duration {dur}");
+        // Same 2.8..3.4 as check-pillar1-export. Hard-cut concat is ~3.6s
+        // and used to pass the old 2.5..4.0 window.
+        Assert.True(dur is >= 2.8 and <= 3.4, $"duration {dur} expect 2.8..3.4 (wipe ~3.1; hard-cut ~3.6)");
     }
 
     private static bool IsCi()

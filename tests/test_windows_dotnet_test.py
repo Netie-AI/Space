@@ -54,6 +54,11 @@ def test_windows_ci_runs_dotnet_test():
     live = (ROOT / "tests/NetieSpace.Tests/FfmpegExportLiveTests.cs").read_text(encoding="utf-8")
     assert "FfmpegExportGraph.XfadeWithAudio" in live
     assert "ffmpeg/ffprobe required on CI" in live
+    assert "2.8" in live and "3.4" in live
+    assert "dur > 2.5 && dur < 4.0" not in live
+    nle_py = (ROOT / "tests/test_ffmpeg_nle_export.py").read_text(encoding="utf-8")
+    assert "assertGreaterEqual(dur, 2.8)" in nle_py
+    assert "assertLessEqual(dur, 3.4)" in nle_py
 
 
 if __name__ == "__main__":
