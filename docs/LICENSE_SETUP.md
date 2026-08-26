@@ -48,6 +48,7 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"`
 - `GET /v1/checkout/success` — retrieves `session_id` and fulfills if paid (webhook backup)
 - `GET /v1/checkout/cancel`
 - `GET /v1/stripe/status` — `{stripe_configured, webhook_configured, price_id_set}` (no secrets)
+- Setup **Activate this laptop** — `POST /v1/activate` with the saved session (after pay)
 - D1 columns `stripe_customer_id`, `stripe_subscription_id`, `stripe_checkout_session_id` written by the webhook
 - Human secrets + click path: [`docs/HUMAN_STRIPE_CHECKOUT.md`](HUMAN_STRIPE_CHECKOUT.md)
 

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: Setup **Activate this laptop** binds the saved session after Stripe pay (`LicenseActivation`). Same path as tray Account Activate. No WPF types in the helper.
 - Video: **Wipe** works from either clip at a join (playbook "Wipe on the join"). Fade/wipe live on `KeptClip` so Export `ApplyTo` cannot drop them.
 - PDF: Cert sign rewrites xref-stream to classic xref via PdfSharp before PKCS#7. `NeedsClassicXrefRewrite` has no PdfSharp types. Failed rewrite leaves original bytes.
 - Export: toast includes ffprobe duration; 2.8..3.4s adds `(wipe expect ~3.1s)` for the pillar1 human check.
