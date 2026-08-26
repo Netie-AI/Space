@@ -1599,7 +1599,7 @@ public partial class PreviewWindow : Window
             try { PreviewVideo.Pause(); }
             catch { /* ignore */ }
             StopPackedPlayClock();
-            var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+            var packed = PackedRulerSeconds();
             _suppressSliderValueChanged = true;
             try { VideoSlider.Maximum = Math.Max(0.001, packed); }
             finally { _suppressSliderValueChanged = false; }
@@ -1621,7 +1621,7 @@ public partial class PreviewWindow : Window
         if (_videoEdit.Kept.Count > 0)
         {
             _markIn = TimeSpan.Zero;
-            _markOut = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+            _markOut = TimeSpan.FromSeconds(PackedRulerSeconds());
         }
         else
         {
@@ -2540,7 +2540,7 @@ public partial class PreviewWindow : Window
         // After + Clip the open file ends at clip-1 duration. Stopping here
         // froze Play at the join, so Split at the playing frame used slider 0.
         var packedMax = _editMode && _videoEdit.Kept.Count > 0
-            ? _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds
+            ? PackedRulerSeconds()
             : 0;
         if (UsePackedPlayClock() &&
             VideoEditSession.PackedPlayContinuesAfterSourceEnded(VideoSlider.Value, packedMax))
@@ -2575,7 +2575,7 @@ public partial class PreviewWindow : Window
     {
         if (!_editMode || _content?.Kind != PreviewKind.Video || _videoEdit.Kept.Count == 0)
             return false;
-        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+        var packed = PackedRulerSeconds();
         var source = PreviewVideo.NaturalDuration.HasTimeSpan
             ? PreviewVideo.NaturalDuration.TimeSpan.TotalSeconds
             : 0;
@@ -2681,13 +2681,21 @@ public partial class PreviewWindow : Window
     {
         if (_editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0)
         {
-            var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+            var packed = PackedRulerSeconds();
             if (packed > 0)
                 return packed;
         }
 
         return VideoSlider.Maximum > 0 ? VideoSlider.Maximum : 0.001;
     }
+
+    /// <summary>
+    /// Packed V1 plus overlay cards that sit past the last clip.
+    /// Leave black on clip 2 used PackedDuration after ripple, so the
+    /// title card was off the ruler.
+    /// </summary>
+    private double PackedRulerSeconds() =>
+        _videoEdit.RulerDuration(_timeline.OverlayTrack?.Clips).TotalSeconds;
 
     private void SeekTimelineSeconds(double seconds, bool force = true)
     {
@@ -3085,9 +3093,7 @@ public partial class PreviewWindow : Window
         TimelineClipCanvas.Width = w;
         // CapCut-style: pack clips left-to-right; black fillers for holes in source time
         var packed = _videoEdit.BuildPackedTimeline(_videoEdit.FillGapsWithBlack);
-        var total = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
-        if (total <= TimeSpan.Zero)
-            total = TimeSpan.FromSeconds(Math.Max(max, 0.001));
+        var total = TimeSpan.FromSeconds(Math.Max(max, 0.001));
 
         foreach (var seg in packed)
         {
@@ -3590,7 +3596,7 @@ public partial class PreviewWindow : Window
         {
             var w = Math.Max(1, TimelineClipCanvas.ActualWidth);
             var packed = _videoEdit.BuildPackedTimeline(true);
-            var total = _videoEdit.PackedDuration(true);
+            var total = TimeSpan.FromSeconds(Math.Max(PackedRulerSeconds(), 0.001));
             var t = TimeSpan.FromSeconds(Math.Clamp(pos.X / w, 0, 1) * total.TotalSeconds);
             var target = 0;
             for (var i = 0; i < packed.Count; i++)
@@ -3804,8 +3810,7 @@ public partial class PreviewWindow : Window
             if (trackName == "A1")
             {
                 var packed = _videoEdit.BuildPackedTimeline(_videoEdit.FillGapsWithBlack);
-                var totalPacked = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
-                var denom = totalPacked.TotalSeconds > 0 ? totalPacked.TotalSeconds : Math.Max(max, 0.001);
+                var denom = Math.Max(max, 0.001);
                 foreach (var seg in packed.Where(s => !s.IsBlack))
                 {
                     var x0 = seg.TimelineIn.TotalSeconds / denom * w;
@@ -4171,7 +4176,7 @@ public partial class PreviewWindow : Window
 
         if (_editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0)
         {
-            var packedMax = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+            var packedMax = PackedRulerSeconds();
             if (packedMax > 0)
                 VideoSlider.Maximum = packedMax;
             if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
@@ -5051,7 +5056,7 @@ public partial class PreviewWindow : Window
     /// </summary>
     private void SyncPackedSlider(bool resetMarks = false)
     {
-        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+        var packed = TimeSpan.FromSeconds(PackedRulerSeconds());
         _suppressSliderValueChanged = true;
         try { VideoSlider.Maximum = Math.Max(0.001, packed.TotalSeconds); }
         finally { _suppressSliderValueChanged = false; }

@@ -353,6 +353,44 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Leave_black_last_clip_keeps_ruler_for_overlay()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        Assert.Equal(TimeSpan.FromSeconds(12), session.PackedDuration(false));
+
+        session.Select(1);
+        session.FillGapsWithBlack = true;
+        var gapStart = session.PackedStartOf(1);
+        var gapDur = session.PackedEndOf(1) - gapStart;
+        Assert.Equal(TimeSpan.FromSeconds(10), gapStart);
+        Assert.Equal(TimeSpan.FromSeconds(2), gapDur);
+
+        Assert.True(session.DeleteSelectedOrAt(TimeSpan.Zero));
+        // Ripple drops clip 2. FillGaps only inserts same-source holes.
+        Assert.Equal(TimeSpan.FromSeconds(10), session.PackedDuration(true));
+
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        project.AddOverlay(OverlayKind.Black, gapStart, gapDur);
+
+        Assert.Equal(TimeSpan.FromSeconds(12),
+            session.RulerDuration(project.OverlayTrack?.Clips));
+        Assert.Equal(TimeSpan.FromSeconds(10),
+            VideoEditSession.RulerDuration(TimeSpan.FromSeconds(10), null));
+        Assert.Equal(TimeSpan.FromSeconds(10),
+            VideoEditSession.RulerDuration(TimeSpan.FromSeconds(10), []));
+        var inside = new TimelineClip
+        {
+            SourceOut = TimeSpan.FromSeconds(1),
+            TimelineStart = TimeSpan.FromSeconds(1)
+        };
+        Assert.Equal(TimeSpan.FromSeconds(10),
+            VideoEditSession.RulerDuration(TimeSpan.FromSeconds(10), [inside]));
+    }
+
+    [Fact]
     public void Speed_survives_ApplyTo()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
