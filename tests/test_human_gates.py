@@ -27,6 +27,11 @@ def test_scripts_and_docs():
     assert 'x:Name="ManageBillingButton"' in xaml
     assert (ROOT / "scripts/make-pillar1-clips.ps1").is_file()
     assert (ROOT / "scripts/make-test-pfx.ps1").is_file()
+    check_sh = (ROOT / "scripts/check-pillar1-export.sh").read_text(encoding="utf-8")
+    check_ps = (ROOT / "scripts/check-pillar1-export.ps1").read_text(encoding="utf-8")
+    assert "2.8" in check_sh and "3.4" in check_sh
+    assert "2.8" in check_ps and "3.4" in check_ps
+    assert "check-pillar1-export.ps1" in pillar
     enc = (ROOT / "scripts/encode-pillar1-wipe.sh").read_text(encoding="utf-8")
     assert "wipeleft" in enc
     assert "offset=1.1" in enc

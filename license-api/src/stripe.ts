@@ -109,6 +109,8 @@ export async function createCheckoutSession(
 
 type CheckoutSession = {
   id: string;
+  status?: string | null;
+  payment_status?: string | null;
   customer?: string | null;
   subscription?: string | null;
   customer_email?: string | null;
@@ -116,6 +118,35 @@ type CheckoutSession = {
   client_reference_id?: string | null;
   metadata?: Record<string, string> | null;
 };
+
+export function checkoutSessionPaid(session: {
+  status?: string | null;
+  payment_status?: string | null;
+}): boolean {
+  return session.status === "complete" || session.payment_status === "paid";
+}
+
+/** GET /v1/checkout/sessions/:id. Null on HTTP/parse failure. Never throws. */
+export async function retrieveCheckoutSession(
+  env: Env,
+  sessionId: string
+): Promise<CheckoutSession | null> {
+  try {
+    if (!sessionId.startsWith("cs_") || !env.STRIPE_SECRET_KEY) return null;
+    const res = await fetch(`${STRIPE_CHECKOUT_API}/${encodeURIComponent(sessionId)}`, {
+      headers: {
+        Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+        "Stripe-Version": STRIPE_VERSION,
+      },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as CheckoutSession;
+    if (!json?.id) return null;
+    return json;
+  } catch {
+    return null;
+  }
+}
 
 export async function fulfillCheckoutSession(env: Env, session: CheckoutSession): Promise<void> {
   const sessionId = session.id;

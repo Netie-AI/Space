@@ -33,6 +33,29 @@ public partial class ApiSetupWindow : Window
 
         GlassHelper.ApplyGlass(this, 0.90);
         _ = RefreshVaultStatusAsync();
+        _ = RefreshStripeStatusAsync();
+    }
+
+    private async System.Threading.Tasks.Task RefreshStripeStatusAsync()
+    {
+        try
+        {
+            var baseUrl = Environment.GetEnvironmentVariable("NETIE_LICENSE_API");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+                baseUrl = "https://netie-space-license.workers.dev";
+            var api = new LicenseApiClient(baseUrl);
+            var st = await api.GetStripeStatusAsync().ConfigureAwait(true);
+            if (!st.Known)
+                return;
+            LicenseStatusText.Text = (LicenseStatusText.Text ?? "") +
+                (st.StripeConfigured
+                    ? " Worker Stripe is configured -- Get Netie subscription should open Checkout."
+                    : " Worker Stripe secrets are not set yet (stripe_not_configured). See docs/HUMAN_STRIPE_CHECKOUT.md.");
+        }
+        catch
+        {
+            // Probe must never block Setup.
+        }
     }
 
     private void Window_Loaded(object sender, RoutedEventArgs e) =>

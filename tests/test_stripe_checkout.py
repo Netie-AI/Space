@@ -28,6 +28,11 @@ def test_worker_checkout_routes():
     assert "createCheckoutSession" in src
     assert "verifyStripeSignature" in src
     assert "fulfillCheckoutSession" in stripe
+    assert "retrieveCheckoutSession" in stripe
+    assert "checkoutSessionPaid" in stripe
+    assert "handleCheckoutSuccess" in src
+    assert 'url.pathname === "/v1/stripe/status"' in src
+    assert "payment_status === \"paid\"" in stripe or 'payment_status === "paid"' in stripe
     assert "payment_method_types" not in stripe
     assert "automatic_tax" not in stripe
     assert 'mode", "subscription"' in stripe or 'body.set("mode", "subscription")' in stripe
@@ -46,10 +51,12 @@ def test_wpf_buy_calls_checkout():
     setup = _read(SETUP)
     assert "CreateCheckoutAsync" in client
     assert "CreatePortalAsync" in client
+    assert "GetStripeStatusAsync" in client
     assert "checkout_url" in client
     assert "portal_url" in client
     assert "CreateCheckoutAsync" in setup
     assert "CreatePortalAsync" in setup
+    assert "RefreshStripeStatusAsync" in setup
     assert "ManageBillingButton_Click" in setup
     assert "OpenBuyFallback" in setup
     assert "HUMAN_STRIPE_CHECKOUT.md" in setup

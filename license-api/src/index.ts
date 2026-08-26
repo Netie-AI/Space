@@ -12,10 +12,12 @@ import {
 } from "./crypto";
 import { emailBuyer, notifyOwner } from "./email";
 import {
+  checkoutSessionPaid,
   createCheckoutSession,
   createPortalSession,
   fulfillCheckoutSession,
   markSubscriptionStatus,
+  retrieveCheckoutSession,
   stripeConfigured,
   stripeWebhookConfigured,
   verifyStripeSignature,
@@ -123,12 +125,15 @@ export default {
       if (url.pathname === "/v1/webhooks/stripe" && req.method === "POST") {
         return await handleStripeWebhook(req, env);
       }
+      if (url.pathname === "/v1/stripe/status" && req.method === "GET") {
+        return json(env, req, {
+          stripe_configured: stripeConfigured(env),
+          webhook_configured: stripeWebhookConfigured(env),
+          price_id_set: Boolean(env.STRIPE_PRICE_ID),
+        });
+      }
       if (url.pathname === "/v1/checkout/success" && req.method === "GET") {
-        return html(
-          env,
-          req,
-          "Payment received. Return to Netie Space: tray -> Account / Sign in -> Activate."
-        );
+        return await handleCheckoutSuccess(req, env, url);
       }
       if (url.pathname === "/v1/checkout/cancel" && req.method === "GET") {
         return html(
@@ -514,6 +519,25 @@ async function handleMe(req: Request, env: Env): Promise<Response> {
     license,
     devices: devices.results ?? [],
   });
+}
+
+async function handleCheckoutSuccess(req: Request, env: Env, url: URL): Promise<Response> {
+  const sessionId = url.searchParams.get("session_id") ?? "";
+  if (stripeConfigured(env) && sessionId.startsWith("cs_")) {
+    try {
+      const session = await retrieveCheckoutSession(env, sessionId);
+      if (session && checkoutSessionPaid(session)) {
+        await fulfillCheckoutSession(env, session);
+      }
+    } catch {
+      // Webhook may still fulfill. Never fail the buyer-facing page.
+    }
+  }
+  return html(
+    env,
+    req,
+    "Payment received. Return to Netie Space: tray -> Account / Sign in -> Activate."
+  );
 }
 
 async function handleCheckout(req: Request, env: Env): Promise<Response> {

@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: `GET /v1/checkout/success?session_id=` retrieves the Stripe session and fulfills if paid (webhook backup). `GET /v1/stripe/status` is a no-secret probe; Setup shows configured vs `stripe_not_configured`.
+- Export: `scripts/check-pillar1-export.ps1` / `.sh` ffprobes a Windows Export (2.8..3.4s). Not a substitute for the click path.
 - CI: `scripts/ci-cursor.sh` now runs `dotnet test` on `tests/NetieSpace.Tests` (net8, no WPF). `ci-cursor-install.sh` installs the 8.0 SDK. Same suite as Windows CI; live ffmpeg wipe encodes here too.
 - PDF: `PdfCmsSigner.TryVerify` checks the detached CMS against `/ByteRange`. `Sign` fail-closes if self-check fails. Adobe Reader panel is still human.
 - License: `setup-license-api.ps1 -Deploy` prompts for `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (Enter skips).
