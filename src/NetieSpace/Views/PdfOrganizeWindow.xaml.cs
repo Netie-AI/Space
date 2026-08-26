@@ -18,6 +18,7 @@ public partial class PdfOrganizeWindow : Window
 {
     private readonly string _pdfPath;
     private readonly PdfEditService _pdfEdit = new();
+    private readonly ConversionService _conversion = new();
     private readonly ObservableCollection<PageRow> _pages = new();
     private Point _dragStart;
     private PageRow? _dragItem;
@@ -171,13 +172,14 @@ public partial class PdfOrganizeWindow : Window
         StatusText.Text = $"{_pages.Count} page{(_pages.Count == 1 ? "" : "s")}";
     }
 
-    private void InsertImage_Click(object sender, RoutedEventArgs e)
+    private async void InsertImage_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog
         {
             Title = "Add files as pages",
             Filter =
-                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|" +
+                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff;" +
+                "*.svg;*.ico;*.heic;*.heif|" +
                 "All files|*.*",
             Multiselect = true
         };
@@ -186,7 +188,7 @@ public partial class PdfOrganizeWindow : Window
 
         var at = PageList.SelectedIndex < 0 ? _pages.Count : PageList.SelectedIndex + 1;
         foreach (var f in dlg.FileNames)
-            InsertImageAt(f, at++);
+            await InsertConvertibleAt(f, at++);
     }
 
     private void OpenMerge_Click(object sender, RoutedEventArgs e)
@@ -203,6 +205,48 @@ public partial class PdfOrganizeWindow : Window
         {
             StatusText.Text = ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Engine-first images. PdfSharp XImage cannot decode these; Organize
+    /// rasterizes to PNG then uses <see cref="IsImagePath"/>.
+    /// </summary>
+    public static bool IsEngineImagePath(string path)
+    {
+        var ext = IoPath.GetExtension(path).ToLowerInvariant();
+        return ext is ".webp" or ".tif" or ".tiff" or ".svg" or ".ico" or ".heic" or ".heif";
+    }
+
+    private async Task InsertConvertibleAt(string path, int insertIndex)
+    {
+        if (IsImagePath(path) && IoFile.Exists(path))
+        {
+            InsertImageAt(path, insertIndex);
+            return;
+        }
+
+        if (!IsEngineImagePath(path) || !IoFile.Exists(path))
+        {
+            StatusText.Text = "Not a supported image file.";
+            return;
+        }
+
+        if (!_conversion.IsAvailable)
+        {
+            StatusText.Text = "Convert engine missing — cannot add this image type.";
+            return;
+        }
+
+        StatusText.Text = $"Converting {IoPath.GetFileName(path)}…";
+        var dest = IoPath.Combine(IoPath.GetTempPath(), $"netie_org_{Guid.NewGuid():N}.png");
+        var result = await _conversion.ExportAsAsync(path, dest);
+        if (!result.Success || !IoFile.Exists(dest))
+        {
+            StatusText.Text = result.Error ?? "Could not convert image.";
+            return;
+        }
+
+        InsertImageAt(dest, insertIndex);
     }
 
     private void InsertImageAt(string imagePath, int insertIndex)
@@ -261,13 +305,13 @@ public partial class PdfOrganizeWindow : Window
         e.Handled = true;
     }
 
-    private void Window_Drop(object sender, DragEventArgs e)
+    private async void Window_Drop(object sender, DragEventArgs e)
     {
         if (!TryGetImagePaths(e, out var paths))
             return;
         var at = PageList.SelectedIndex < 0 ? _pages.Count : PageList.SelectedIndex + 1;
         foreach (var path in paths)
-            InsertImageAt(path, at++);
+            await InsertConvertibleAt(path, at++);
         e.Handled = true;
     }
 
@@ -327,14 +371,14 @@ public partial class PdfOrganizeWindow : Window
         if (DropGhost is not null) DropGhost.Visibility = Visibility.Collapsed;
     }
 
-    private void PageList_Drop(object sender, DragEventArgs e)
+    private async void PageList_Drop(object sender, DragEventArgs e)
     {
         HideDropPreview();
         if (TryGetImagePaths(e, out var paths))
         {
             var target = GetDropIndex(e.GetPosition(PageList));
             foreach (var path in paths)
-                InsertImageAt(path, target++);
+                await InsertConvertibleAt(path, target++);
             e.Handled = true;
             return;
         }
@@ -449,7 +493,7 @@ public partial class PdfOrganizeWindow : Window
             return false;
         if (e.Data.GetData(DataFormats.FileDrop) is not string[] files)
             return false;
-        paths = files.Where(IsImagePath).Where(IoFile.Exists).ToList();
+        paths = files.Where(p => IsImagePath(p) || IsEngineImagePath(p)).Where(IoFile.Exists).ToList();
         return paths.Count > 0;
     }
 

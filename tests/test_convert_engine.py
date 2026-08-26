@@ -625,6 +625,34 @@ def test_webp_tif_drop_uses_engine() -> None:
         assert tif_pdf.is_file() and tif_pdf.stat().st_size > 200
 
 
+def test_organize_engine_image_insert() -> None:
+    """Organize Add files / drop used IsImagePath so WebP/HEIC/SVG said not supported."""
+    organize = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(encoding="utf-8")
+    assert "IsEngineImagePath" in organize
+    assert "InsertConvertibleAt" in organize
+    image_path = organize.split("public static bool IsImagePath", 1)[1][:500]
+    assert '".webp"' not in image_path
+    engine_path = organize.split("public static bool IsEngineImagePath", 1)[1][:400]
+    assert '".webp"' in engine_path and '".heic"' in engine_path and '".svg"' in engine_path
+    filt = organize.split("Add files as pages", 1)[1][:500]
+    assert "*.webp" in filt and "*.heic" in filt and "*.svg" in filt
+    drop = organize.split("private static bool TryGetImagePaths", 1)[1][:400]
+    assert "IsEngineImagePath" in drop
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP organize webp raster -- Pillow missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        webp = d / "photo.webp"
+        Image.new("RGB", (32, 24), (20, 80, 180)).save(webp, "WEBP")
+        png = d / "photo.png"
+        res = run_engine(["export-as", str(webp), str(png)])
+        assert res.get("success"), res
+        assert png.is_file() and png.stat().st_size > 50
+
+
 def test_heic_pdf_uses_pillow() -> None:
     """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
     engine = ENGINE.read_text(encoding="utf-8")
@@ -822,6 +850,7 @@ if __name__ == "__main__":
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
+    test_organize_engine_image_insert()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
