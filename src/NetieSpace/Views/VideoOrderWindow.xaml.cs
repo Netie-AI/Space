@@ -25,15 +25,18 @@ public partial class VideoOrderWindow : Window
         for (var i = 0; i < clips.Count; i++)
         {
             var c = clips[i];
-            var dur = c.End - c.Start;
+            var dur = c.OutputDuration;
             var name = string.IsNullOrWhiteSpace(c.SourcePath)
                 ? $"Clip {i + 1}"
                 : IoPath.GetFileName(c.SourcePath);
+            var label = Math.Abs(c.Speed - 1) > 0.01
+                ? $"{Format(dur)} {c.Speed:0.#}x"
+                : Format(dur);
             _rows.Add(new ClipOrderRow
             {
                 OriginalIndex = i,
                 Title = name,
-                Duration = Format(dur)
+                Duration = label
             });
         }
 

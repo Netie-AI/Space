@@ -495,7 +495,8 @@ public sealed class VideoEditSession
                 var name = string.IsNullOrWhiteSpace(s.SourcePath)
                     ? ""
                     : $" {IoPath.GetFileName(s.SourcePath)}";
-                return $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}]{name} {Format(s.Start)}–{Format(s.End)}";
+                var speed = Math.Abs(s.Speed - 1) > 0.01 ? $" {s.Speed:0.#}x" : "";
+                return $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}]{name} {Format(s.Start)}–{Format(s.End)}{speed}";
             }));
 
     /// <summary>
@@ -632,12 +633,7 @@ public sealed class VideoEditSession
 
     private static double ClipSpeed(KeptClip c) => c.Speed <= 0 ? 1.0 : c.Speed;
 
-    /// <summary>Packed output length. Speed 2x halves this so the clip block shrinks.</summary>
-    private static TimeSpan OutputDuration(KeptClip c)
-    {
-        var src = c.End - c.Start;
-        return TimeSpan.FromSeconds(Math.Max(0, src.TotalSeconds / ClipSpeed(c)));
-    }
+    private static TimeSpan OutputDuration(KeptClip c) => c.OutputDuration;
 }
 
 public readonly record struct KeptClip(
@@ -648,7 +644,19 @@ public readonly record struct KeptClip(
     TimeSpan FadeOut = default,
     TransitionKind TransitionIn = TransitionKind.None,
     TransitionKind TransitionOut = TransitionKind.None,
-    double Speed = 1.0);
+    double Speed = 1.0)
+{
+    /// <summary>Packed output length. Speed 2x halves this so Order... and the clip block match Export.</summary>
+    public TimeSpan OutputDuration
+    {
+        get
+        {
+            var src = End - Start;
+            var speed = Speed <= 0 ? 1.0 : Speed;
+            return TimeSpan.FromSeconds(Math.Max(0, src.TotalSeconds / speed));
+        }
+    }
+}
 
 public readonly record struct TimelineSegment(
     int ClipIndex,

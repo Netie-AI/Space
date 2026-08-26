@@ -46,6 +46,8 @@ def test_order_window_top_plays_first():
     xaml = _read(ORDER_XAML)
     assert "class VideoOrderWindow" in cs
     assert "OrderedIndices" in cs
+    assert "OutputDuration" in cs
+    assert "c.End - c.Start" not in cs
     assert "_rows.Move" in cs
     assert "Top clip plays first" in xaml
     assert "Apply order" in xaml
