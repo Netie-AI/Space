@@ -100,6 +100,8 @@ class FillSaveContractTests(unittest.TestCase):
         self.assertIn("exportPagePng", preview)
         self.assertIn("PdfOcrSeed_Click", preview)
         self.assertIn("OcrImageButton_Click", preview)
+        ocr = preview.split("OcrImageButton_Click", 1)[1].split("SeedOcrFillTextsAsync", 1)[0]
+        self.assertIn("RasterizeForComfyAsync", ocr)
 
     def test_viewer_seed_and_export(self) -> None:
         html = VIEWER.read_text(encoding="utf-8")
