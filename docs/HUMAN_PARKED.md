@@ -10,7 +10,8 @@ Code is in: PDF More... -> **Cert sign (PFX)...** (`PdfCmsSigner`,
 What you do:
 
 1. Pull `main`. Make a test PFX: `.\scripts\make-test-pfx.ps1` (password `test`).
-2. Open a PDF (xref-stream is rewritten to classic xref first).
+2. Open a PDF (xref-stream and hybrid trailer+/Type /XRef are rewritten
+   to classic xref first).
 3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.
 4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".

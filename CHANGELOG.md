@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: cert sign rewrites hybrid files (classic trailer plus `/Type /XRef` stream). A trailer alone is not enough -- Adobe incremental PKCS#7 still fails on those.
 - License: Customer Portal return is `/v1/billing/return` ("Billing updated", not a new charge). Checkout success only says "Payment received" when the session is actually paid.
 - License: `POST /v1/checkout` returns 409 `already_paid` when the license is active and already has a Stripe session. Buy buttons tell you to Activate instead of opening a second Checkout. Re-subscribe after expire reuses `stripe_customer_id`.
 - License: fulfill accepts Stripe customer/subscription as string or `{ id }`. A second fulfill for the same session backfills null portal ids (`COALESCE`) so Manage billing is not stuck after a thin webhook.

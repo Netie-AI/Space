@@ -62,6 +62,17 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream()
+    {
+        var hybrid = System.Text.Encoding.ASCII.GetBytes(
+            "%PDF-1.5\n1 0 obj<< /Type /Catalog >>endobj\n" +
+            "trailer<< /Size 2 /Root 1 0 R >>\n" +
+            "2 0 obj<< /Type /XRef /W [1 2 1] >>endobj\nstartxref\n80\n%%EOF\n");
+        Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(hybrid));
+        Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(PdfCmsSigner.CreateMinimalPdf()));
+    }
+
+    [Fact]
     public void Sign_self_verifies_detached_cms()
     {
         var src = PdfCmsSigner.CreateMinimalPdf();

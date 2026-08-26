@@ -61,6 +61,10 @@ def test_xunit_and_parking():
     assert "Sign_embeds_detached_pkcs7_and_keeps_hello" in unit
     assert "Sign_self_verifies_detached_cms" in unit
     assert "NeedsClassicXrefRewrite_detects_missing_trailer" in unit
+    assert "NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream" in unit
+    signer = _read(SIGNER)
+    assert "/Type /XRef" in signer
+    assert "hybrid" in signer.lower() or "hybrid" in _read(TEST_CS).lower()
     assert "Cryptographic digital signature" in parking
     assert "PdfCmsSigner" in parking or "PKCS#7" in parking
 

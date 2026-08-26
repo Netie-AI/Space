@@ -54,11 +54,14 @@ public static class PdfCmsSigner
         IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;
 
     /// <summary>
-    /// True when the file has no classic trailer (xref-stream / missing startxref).
+    /// True when the file is xref-stream or hybrid (trailer plus /Type /XRef).
+    /// A trailer alone is not enough -- hybrid files still break incremental PKCS#7.
     /// PdfSharp rewrite comes first; this method has no PdfSharp types.
     /// </summary>
     public static bool NeedsClassicXrefRewrite(ReadOnlySpan<byte> pdf)
     {
+        if (IndexOf(pdf, "/Type /XRef"u8) >= 0 || IndexOf(pdf, "/Type/XRef"u8) >= 0)
+            return true;
         var sx = LastIndexOf(pdf, "startxref"u8);
         if (sx < 0)
             return true;
