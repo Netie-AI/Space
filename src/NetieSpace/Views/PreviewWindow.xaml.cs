@@ -3776,9 +3776,15 @@ public partial class PreviewWindow : Window
         menu.Items.Add(MakeEffectItem("Speed 0.5×", () => ApplySpeedToSelected(0.5)));
         menu.Items.Add(new Separator());
         menu.Items.Add(MakeEffectItem("Add black screen (1s)", () =>
-            _timeline.AddOverlay(OverlayKind.Black, PackedPlayhead(), TimeSpan.FromSeconds(1))));
+        {
+            PushVideoUndo();
+            _timeline.AddOverlay(OverlayKind.Black, PackedPlayhead(), TimeSpan.FromSeconds(1));
+        }));
         menu.Items.Add(MakeEffectItem("Add white screen (1s)", () =>
-            _timeline.AddOverlay(OverlayKind.White, PackedPlayhead(), TimeSpan.FromSeconds(1))));
+        {
+            PushVideoUndo();
+            _timeline.AddOverlay(OverlayKind.White, PackedPlayhead(), TimeSpan.FromSeconds(1));
+        }));
         menu.Items.Add(MakeEffectItem("Add text…", AddTextOverlayInteractive));
         menu.IsOpen = true;
         e.Handled = true;
@@ -3808,12 +3814,16 @@ public partial class PreviewWindow : Window
 
     private void ApplySpeedToSelected(double speed)
     {
+        PushVideoUndo();
+        if (!_videoEdit.ApplySpeedAt(_videoEdit.SelectedIndex, speed))
+        {
+            DiscardLastVideoUndo();
+            ConvertStatusText.Text = "Speed already set on that clip.";
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
             SyncTimelineFromSession();
-        var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
-        if (clip is null)
-            return;
-        clip.Speed = speed;
     }
 
     private void AddTextOverlayInteractive()
@@ -3821,6 +3831,7 @@ public partial class PreviewWindow : Window
         var text = PromptDialog.Ask(this, "Timeline text", "Text to show (appear = clip In→Out):", "Title");
         if (string.IsNullOrWhiteSpace(text))
             return;
+        PushVideoUndo();
         var start = PackedPlayhead();
         _timeline.AddOverlay(OverlayKind.Text, start, TimeSpan.FromSeconds(3), text);
     }

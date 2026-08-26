@@ -168,6 +168,7 @@ public sealed class VideoEditSession
             v.Clips[i].FadeOut = k.FadeOut;
             v.Clips[i].TransitionIn = k.TransitionIn;
             v.Clips[i].TransitionOut = k.TransitionOut;
+            v.Clips[i].Speed = k.Speed <= 0 ? 1.0 : k.Speed;
         }
     }
 
@@ -204,6 +205,24 @@ public sealed class VideoEditSession
         if (nextIn == c.FadeIn && nextOut == c.FadeOut)
             return false;
         _kept[index] = c with { FadeIn = nextIn, FadeOut = nextOut };
+        return true;
+    }
+
+    /// <summary>
+    /// Context-menu Speed. Timeline-only used to survive Export via prior
+    /// match but could not Ctrl+Z, so an accidental 2x blew the 3.1s gate.
+    /// </summary>
+    public bool ApplySpeedAt(int index, double speed)
+    {
+        if (index < 0 || index >= _kept.Count)
+            return false;
+        if (speed <= 0)
+            speed = 1;
+        var c = _kept[index];
+        var next = c.Speed <= 0 ? 1 : c.Speed;
+        if (Math.Abs(next - speed) < 0.01)
+            return false;
+        _kept[index] = c with { Speed = speed };
         return true;
     }
 
@@ -597,7 +616,8 @@ public readonly record struct KeptClip(
     TimeSpan FadeIn = default,
     TimeSpan FadeOut = default,
     TransitionKind TransitionIn = TransitionKind.None,
-    TransitionKind TransitionOut = TransitionKind.None);
+    TransitionKind TransitionOut = TransitionKind.None,
+    double Speed = 1.0);
 
 public readonly record struct TimelineSegment(
     int ClipIndex,
