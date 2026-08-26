@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as HTML on an image-only / scan PDF embeds page PNGs (data URIs). Word already did this; HTML still went through `file_to_markdown` and said `need markitdown`. Text PDFs stay the markdown path.
 - Convert: Share Export as Word on an image-only / scan PDF embeds page PNGs in the .docx. Those files have no text layer so `file_to_markdown` said `need markitdown`. Share Export as MP3 on a silent clip retries with `anullsrc` (no audio stream used to fail ffmpeg).
 - Convert: Share Export as on a previewed `.tiff` keeps TIFF (filter `*.tif;*.tiff`). The default dest used to be JPG because only `.tif` mapped to itself; `.tiff` fell through to `jpg`. Engine already writes TIFF.
 - PDF: Sign stamp picker rasterizes WebP / TIF / SVG / ICO / HEIC through the engine to PNG first. The Images filter hid those; All files + WebP fed `XImage.FromFile` (no WebP decoder) and a `data:image/png` data URL of raw WebP bytes. `IsImagePath` stayed raster-only.
