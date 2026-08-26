@@ -24,6 +24,8 @@ def test_append_and_import_pack_without_overlap():
     assert "HasMultipleSources" in session
     assert "ApplyTo(TimelineProject" in session
     assert "SplitAtPacked" in session
+    assert "ApplyBlade" in session
+    assert "wipe on both halves" in session
     assert "ClipSourceEquals" in session
     assert "public TimelineClip? ImportClip(" in timeline
     assert "never lands on top" in timeline

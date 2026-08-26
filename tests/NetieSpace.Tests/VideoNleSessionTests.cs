@@ -142,4 +142,19 @@ public class VideoNleSessionTests
         var session = TenSecond();
         Assert.False(session.SplitAt(TimeSpan.FromMilliseconds(50)));
     }
+
+    [Fact]
+    public void Wipe_then_split_keeps_one_join()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(0);
+        Assert.True(session.ApplyWipeAtJoin());
+        Assert.True(session.SplitAtPacked(TimeSpan.FromSeconds(4)));
+        Assert.Equal(3, session.Clips.Count);
+        Assert.Equal(TransitionKind.None, session.Clips[0].TransitionOut);
+        Assert.Equal(TransitionKind.Wipe, session.Clips[1].TransitionOut);
+        Assert.Equal(TransitionKind.None, session.Clips[1].TransitionIn);
+        Assert.Equal(TransitionKind.Wipe, session.Clips[2].TransitionIn);
+    }
 }
