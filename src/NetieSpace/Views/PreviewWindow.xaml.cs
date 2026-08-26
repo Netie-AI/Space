@@ -4373,7 +4373,8 @@ public partial class PreviewWindow : Window
         var dlg = new OpenFileDialog
         {
             Title = "Add clip onto V1",
-            Filter = "Video|*.mp4;*.webm;*.mkv;*.mov;*.avi;*.m4v;*.wmv|All|*.*",
+            Filter = "Video|*.mp4;*.webm;*.mkv;*.avi;*.mov;*.wmv;*.m4v;*.mpeg;*.mpg;" +
+                     "*.hevc;*.h265;*.h264;*.3gp;*.flv;*.ts;*.m2ts;*.mts;*.ogv;*.vob|All|*.*",
             Multiselect = true
         };
         if (dlg.ShowDialog(this) != true || dlg.FileNames.Length == 0)

@@ -127,6 +127,16 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     assert "beforeCaptions" in preview[preview.index("private void OrderClipsButton_Click"):preview.index("private async void RemoveBgButton_Click")]
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
+    # + Clip Video filter used to omit parser suffixes (.mpeg / .3gp / .flv / .ts).
+    # Desktop Space already finds those; the picker hid them.
+    filt = body[body.index("Filter"): body.index("All|")]
+    parser = _read(ROOT / "src/NetieSpace/Services/ContentParserService.cs")
+    vstart = parser.index("private static readonly HashSet<string> VideoExtensions")
+    vend = parser.index("];", vstart)
+    for token in parser[vstart:vend].replace("[", " ").replace(",", " ").split():
+        ext = token.strip().strip('"')
+        if ext.startswith("."):
+            assert f"*{ext}" in filt, ext
 
 
 def test_parking_lot_p5_checked():
