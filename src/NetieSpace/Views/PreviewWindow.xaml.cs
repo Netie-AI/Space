@@ -1574,11 +1574,15 @@ public partial class PreviewWindow : Window
             : TimeSpan.FromSeconds(1);
         var insertAt = _videoEdit.HasSelection ? _videoEdit.SelectedIndex : _videoEdit.Clips.Count;
 
+        var beforeCaptions = SnapshotCaptionClipPacked();
         var ok = _videoEdit.DeleteSelectedOrAt(GetPlayhead());
         if (ok && choice == "black")
             _videoEdit.InsertBlackPlaceholder(insertAt, gapDur);
         if (ok)
+        {
+            RemapCaptionsAfterRepack(beforeCaptions);
             SyncTimelineFromSession();
+        }
 
         if (ok && choice == "black")
         {
@@ -3611,8 +3615,10 @@ public partial class PreviewWindow : Window
 
             if (_dragClipIndex != target)
                 PushVideoUndo();
+            var beforeCaptions = SnapshotCaptionClipPacked();
             if (_videoEdit.MoveClip(_dragClipIndex, target))
             {
+                RemapCaptionsAfterRepack(beforeCaptions);
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
                     SyncTimelineFromSession();
                 ConvertStatusText.Text = $"Moved clip → position {target + 1}. A1 audio rebuilt to stay locked.";
@@ -4073,6 +4079,47 @@ public partial class PreviewWindow : Window
             ApplyFadeToSelected(fadeIn: null, fadeOut: TimeSpan.FromMilliseconds(500));
     }
 
+    private List<(string SourcePath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart, TimeSpan PackedEnd)>
+        SnapshotCaptionClipPacked()
+    {
+        var list = new List<(string, TimeSpan, TimeSpan, double, TimeSpan, TimeSpan)>();
+        for (var i = 0; i < _videoEdit.Clips.Count; i++)
+        {
+            var c = _videoEdit.Clips[i];
+            list.Add((
+                c.SourcePath ?? "",
+                c.Start,
+                c.End,
+                c.Speed,
+                _videoEdit.PackedStartOf(i),
+                _videoEdit.PackedEndOf(i)));
+        }
+
+        return list;
+    }
+
+    private void RemapCaptionsAfterRepack(
+        List<(string SourcePath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart, TimeSpan PackedEnd)> before)
+    {
+        if (_captionCues.Count == 0)
+            return;
+        var remapped = TimelineProject.RemapPackedCuesAfterRepack(
+            _captionCues, before, SnapshotCaptionClipPacked());
+        _captionCues.Clear();
+        _captionCues.AddRange(remapped);
+        if (_captionCues.Count == 0)
+        {
+            _timeline.SubtitleBurnPath = null;
+            ScheduleTimelineLayout();
+            return;
+        }
+
+        var temp = IoPath.Combine(IoPath.GetTempPath(), $"_ns_ord_{Guid.NewGuid():N}.srt");
+        TimelineProject.WriteSrtCues(temp, _captionCues);
+        _timeline.SubtitleBurnPath = temp;
+        ScheduleTimelineLayout();
+    }
+
     private void ApplySpeedToSelected(double speed)
     {
         var idx = _videoEdit.SelectedIndex;
@@ -4368,6 +4415,7 @@ public partial class PreviewWindow : Window
             return;
 
         PushVideoUndo();
+        var beforeCaptions = SnapshotCaptionClipPacked();
         if (!_videoEdit.ApplyOrder(ordered))
         {
             DiscardLastVideoUndo();
@@ -4375,6 +4423,7 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        RemapCaptionsAfterRepack(beforeCaptions);
         SyncTimelineFromSession();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();

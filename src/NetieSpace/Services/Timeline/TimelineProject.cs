@@ -725,6 +725,58 @@ public sealed class TimelineProject
     }
 
     /// <summary>
+    /// Caption cues are packed seconds. Drag / Order / ripple used to leave
+    /// them on the old ruler, so a swapped clip-2 still burned at 1.8s.
+    /// Cues on a deleted clip are dropped.
+    /// </summary>
+    public static List<(TimeSpan Start, TimeSpan End, string Text)> RemapPackedCuesAfterRepack(
+        IEnumerable<(TimeSpan Start, TimeSpan End, string Text)> cues,
+        IReadOnlyList<(string SourcePath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart, TimeSpan PackedEnd)> before,
+        IReadOnlyList<(string SourcePath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart, TimeSpan PackedEnd)> after)
+    {
+        var pairs = new List<(TimeSpan OldStart, TimeSpan OldEnd, TimeSpan NewStart)>();
+        var used = new bool[after.Count];
+        foreach (var b in before)
+        {
+            for (var i = 0; i < after.Count; i++)
+            {
+                if (used[i])
+                    continue;
+                var a = after[i];
+                if (!string.Equals(a.SourcePath, b.SourcePath, StringComparison.OrdinalIgnoreCase) ||
+                    a.SourceIn != b.SourceIn ||
+                    a.SourceOut != b.SourceOut ||
+                    Math.Abs(a.Speed - b.Speed) > 0.01)
+                    continue;
+                used[i] = true;
+                pairs.Add((b.PackedStart, b.PackedEnd, a.PackedStart));
+                break;
+            }
+        }
+
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var c in cues)
+        {
+            var hit = false;
+            foreach (var p in pairs)
+            {
+                if (c.Start < p.OldStart || c.Start >= p.OldEnd)
+                    continue;
+                var delta = p.NewStart - p.OldStart;
+                next.Add((c.Start + delta, c.End + delta, c.Text));
+                hit = true;
+                break;
+            }
+
+            if (!hit)
+                continue;
+        }
+
+        next.Sort((a, b) => a.Start.CompareTo(b.Start));
+        return next;
+    }
+
+    /// <summary>
     /// Merge per-clip source SRTs into one packed-time sidecar. Returns cue count.
     /// </summary>
     public static int WritePackedCaptions(
