@@ -290,6 +290,27 @@ public sealed class FfmpegService
                     continue;
 
                 var src = string.IsNullOrWhiteSpace(clip.SourcePath) ? project.PrimarySourcePath : clip.SourcePath;
+                if (Timeline.TimelineProject.IsBlackPlaceholder(clip.SourcePath) ||
+                    Timeline.TimelineProject.IsBlackPlaceholder(src))
+                {
+                    var black = IoPath.Combine(dir, $"_ns_hole_{Guid.NewGuid():N}.mp4");
+                    var dur = clip.Duration.TotalSeconds;
+                    if (dur < 0.04)
+                        dur = 1;
+                    var w = project.Width > 0 ? project.Width : 1920;
+                    var h = project.Height > 0 ? project.Height : 1080;
+                    var blackRes = await RunAsync(
+                        $"-y -f lavfi -i color=c=black:s={w}x{h}:d={dur:0.###} " +
+                        $"-f lavfi -i anullsrc=r=44100:cl=stereo -shortest " +
+                        $"-c:v libx264 -tune stillimage -pix_fmt yuv420p -c:a aac -t {dur:0.###} \"{black}\"",
+                        black, ct);
+                    if (!blackRes.Success)
+                        return blackRes;
+                    parts.Add(black);
+                    exportClips.Add(clip);
+                    continue;
+                }
+
                 if (string.IsNullOrWhiteSpace(src) || !IoFile.Exists(src))
                     return Fail($"Missing source for V1 clip: {src}");
                 var part = IoPath.Combine(dir, $"_ns_tlseg_{Guid.NewGuid():N}.mp4");

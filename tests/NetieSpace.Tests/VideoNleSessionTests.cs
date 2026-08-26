@@ -395,6 +395,37 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Leave_black_inserts_v1_hole_not_cover_next_clip()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        Assert.True(session.SplitAt(TimeSpan.FromSeconds(4)));
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(1);
+        var gapStart = session.PackedStartOf(1);
+        var gapDur = session.PackedEndOf(1) - gapStart;
+        Assert.Equal(TimeSpan.FromSeconds(4), gapStart);
+        Assert.Equal(TimeSpan.FromSeconds(6), gapDur);
+
+        Assert.True(session.DeleteSelectedOrAt(TimeSpan.Zero));
+        Assert.True(session.InsertBlackPlaceholder(1, gapDur));
+        Assert.Equal(3, session.Clips.Count);
+        Assert.True(TimelineProject.IsBlackPlaceholder(session.Clips[1].SourcePath));
+        Assert.Contains("black", session.Describe(), StringComparison.Ordinal);
+        Assert.Equal(TimeSpan.FromSeconds(12), session.PackedDuration(false));
+        // Ripple used to pack clip B onto 4s, so the title card covered it.
+        Assert.Equal(TimeSpan.FromSeconds(10), session.PackedStartOf(2));
+
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        Assert.Equal(TimelineProject.BlackSourcePath, project.VideoTrack!.Clips[1].SourcePath);
+        Assert.Equal(TimeSpan.FromSeconds(12), project.PackedVideoDuration());
+        project.AddOverlay(OverlayKind.Black, gapStart, gapDur);
+        Assert.Equal(TimeSpan.Zero, project.BlackPadAfterVideo());
+        Assert.False(session.AppendClip(TimelineProject.BlackSourcePath, TimeSpan.FromSeconds(1)) >= 0);
+    }
+
+    [Fact]
     public void Speed_survives_ApplyTo()
     {
         var session = TenSecond(@"C:\clips\a.mp4");

@@ -52,6 +52,7 @@ def test_scripts_and_docs():
     assert "sliver" in pillar
     assert "ruler" in pillar
     assert "pads black" in pillar or "past V1" in pillar
+    assert "V1 black hole" in pillar or "not covered" in pillar
     assert "Mom's clips" in pillar or "apostrophe" in pillar.lower()
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
@@ -164,6 +165,7 @@ def test_scripts_and_docs():
     assert "SeekTimelineSeconds(gapStart" in delete_body
     assert "StopPackedPlayClock" in delete_body
     assert "PackedRulerSeconds" in delete_body
+    assert "InsertBlackPlaceholder" in delete_body
     assert "choice == \"black\"" in delete_body
     a2 = preview[preview.index("private void AudioTrack_PreviewMouseLeftButtonDown"):preview.index("private void TimelineTrack_PreviewMouseRightButtonUp")]
     assert "PackedStartOf" in a2

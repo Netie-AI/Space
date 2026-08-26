@@ -1572,8 +1572,11 @@ public partial class PreviewWindow : Window
         var gapDur = _videoEdit.HasSelection
             ? _videoEdit.PackedEndOf(_videoEdit.SelectedIndex) - _videoEdit.PackedStartOf(_videoEdit.SelectedIndex)
             : TimeSpan.FromSeconds(1);
+        var insertAt = _videoEdit.HasSelection ? _videoEdit.SelectedIndex : _videoEdit.Clips.Count;
 
         var ok = _videoEdit.DeleteSelectedOrAt(GetPlayhead());
+        if (ok && choice == "black")
+            _videoEdit.InsertBlackPlaceholder(insertAt, gapDur);
         if (ok)
             SyncTimelineFromSession();
 
