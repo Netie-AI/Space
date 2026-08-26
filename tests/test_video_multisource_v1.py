@@ -86,6 +86,10 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     assert "PackedPlayhead().TotalSeconds" in layout
     assert "GetPlayhead().TotalSeconds" not in layout
     assert "MarkToPacked" in layout
+    marks = preview[preview.index("private TimeSpan MarkFromPlayhead()"):preview.index("private void UpdateMarkLabel()")]
+    assert "PackedToSource(PackedPlayhead())" in marks
+    assert "_markIn = GetPlayhead()" not in marks
+    assert "_markOut = GetPlayhead()" not in marks
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 

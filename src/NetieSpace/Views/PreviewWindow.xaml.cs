@@ -2722,9 +2722,21 @@ public partial class PreviewWindow : Window
         ScheduleTimelineLayout();
     }
 
+    /// <summary>
+    /// Mark In/Out store source time (timeline-drag already uses
+    /// <see cref="VideoEditSession.PackedToSource"/>). After + Clip,
+    /// <see cref="GetPlayhead"/> is still clip-1 source time.
+    /// </summary>
+    private TimeSpan MarkFromPlayhead()
+    {
+        if (_editMode && _videoEdit.Kept.Count > 0)
+            return _videoEdit.PackedToSource(PackedPlayhead());
+        return GetPlayhead();
+    }
+
     private void MarkInButton_Click(object sender, RoutedEventArgs e)
     {
-        _markIn = GetPlayhead();
+        _markIn = MarkFromPlayhead();
         if (_markOut.HasValue && _markOut < _markIn)
             _markOut = _markIn;
         UpdateMarkLabel();
@@ -2732,7 +2744,7 @@ public partial class PreviewWindow : Window
 
     private void MarkOutButton_Click(object sender, RoutedEventArgs e)
     {
-        _markOut = GetPlayhead();
+        _markOut = MarkFromPlayhead();
         if (_markIn.HasValue && _markOut < _markIn)
             _markIn = _markOut;
         UpdateMarkLabel();

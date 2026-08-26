@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Mark In / Mark Out chips use `PackedToSource(PackedPlayhead())`, same as timeline-drag handles. After + Clip the chips used `GetPlayhead` (clip-1 source), so yellow marks jumped to clip 1.
 - License: `setup-license-api.ps1` reuses an existing `netie-licenses` D1 id (`d1 list --json`). `d1 create` used to exit 1 when the name was already taken, so `-Deploy` never wrote `database_id`.
 - License: Activate persists the WMI board UUID. The offline gate hashes that saved value, so a later CIMOM timeout (`unknown-board`) cannot fail `SkipGate: false` on a paid PC.
 - Video: clip-track playhead line and yellow cut marks use packed time (`PackedPlayhead` / `MarkToPacked`). After + Clip, `GetPlayhead` + primary `SourceToPacked` drew them on clip 1.

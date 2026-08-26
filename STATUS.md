@@ -5,8 +5,8 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#70 landed**. Draft #1 stays draft.
-   + Clip playhead line and yellow cut marks are packed (`MarkToPacked`).
+2. **Ready PRs #4-#71 landed**. Draft #1 stays draft.
+   + Clip playhead line, yellow marks, and Mark In/Out chips are packed.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits

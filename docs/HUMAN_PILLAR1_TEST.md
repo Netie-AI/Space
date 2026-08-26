@@ -41,6 +41,8 @@ produced 3.12s here. Your Windows Export should land near that.
    line on the clip track must stay on that clip -- both used to sit on
    clip 1 after + Clip (`GetPlayhead` is still the open file). Yellow
    cut marks should cover the split clip, not jump to clip 1.
+   Mark In / Mark Out chips use that packed playhead too (same as dragging
+   the yellow handles). They used to stamp clip-1 source time.
 7. Select the extra piece. Press Delete (or the ribbon delete). The piece
    should disappear. Ripple (default) joins the gap. "Leave black scene"
    puts the title card at the packed clip start (not source in 0 on + Clip).
