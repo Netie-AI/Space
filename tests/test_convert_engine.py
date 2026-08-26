@@ -164,6 +164,39 @@ def test_export_as_docx_from_text_sources() -> None:
         assert same.is_file() and same.stat().st_size == out.stat().st_size
 
 
+def test_export_as_xlsx_from_csv() -> None:
+    """Share Export as Excel on a CSV. Engine used to return unsupported target: .xlsx."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def write_xlsx" in src
+    assert "def file_to_xlsx" in src
+    assert "def via_soffice" in src
+    assert 'if dest_ext == ".xlsx"' in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    assert "Excel workbook|*.xlsx" in preview
+    assert "PowerPoint presentation|*.pptx" in preview
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        csv_path = d / "table.csv"
+        csv_path.write_text("name,qty\nwidget,2\n", encoding="utf-8")
+        out = d / "table.xlsx"
+        res = run_engine(["export-as", str(csv_path), str(out)])
+        assert res.get("success"), res
+        assert res.get("tool") == "xlsx-zip", res
+        assert out.is_file() and out.stat().st_size > 200
+        import zipfile
+
+        with zipfile.ZipFile(out) as zf:
+            sheet = zf.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        assert "widget" in sheet
+        assert "2" in sheet
+
+        same = d / "table-copy.xlsx"
+        res = run_engine(["export-as", str(out), str(same)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -218,6 +251,7 @@ if __name__ == "__main__":
     test_unknown_action_emits_json()
     test_watermark_protect_smoke()
     test_export_as_docx_from_text_sources()
+    test_export_as_xlsx_from_csv()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
