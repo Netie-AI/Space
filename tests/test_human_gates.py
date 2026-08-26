@@ -98,6 +98,8 @@ def test_scripts_and_docs():
     add = preview.index("private async void AddVideoButton_Click")
     add_end = preview.index("private void OrderClipsButton_Click")
     assert "DiscardLastVideoUndo" in preview[add:add_end]
+    assert "PackedDuration" in preview[add:add_end]
+    assert "_markOut =" in preview[add:add_end]
     handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     assert "ApplyFadeAt" in handle_up
     assert "DiscardLastVideoUndo" in handle_up

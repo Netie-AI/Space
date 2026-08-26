@@ -49,6 +49,8 @@ Export should land near that.
    clip 1 after + Clip (`GetPlayhead` is still the open file). Yellow
    cut marks should cover the split clip, not jump to clip 1.
    Mark In / Mark Out chips and yellow handles store packed seconds.
+   + Clip expands In/Out to the new packed length (MediaOpened used to
+   leave them on clip 1, so More... Export range burned 1.6s).
    More... Export range burns that packed window (not a trim of clip 1).
 7. Select the extra piece. Press Delete (same ripple/black dialog as the
    ribbon Delete). The piece
