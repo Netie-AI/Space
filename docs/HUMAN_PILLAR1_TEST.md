@@ -46,7 +46,8 @@ produced 3.12s here. Your Windows Export should land near that.
    again. A leftover half-clip makes Export ~2.3s and fails the 3.1s gate.
    Wipe-then-split keeps wipe on the outgoing half only (one join).
 9. Select the first remaining clip. Click **Fade In**. Select the last
-   clip. Click **Fade Out**.
+   clip. Click **Fade Out**. Context-menu Fade and timeline handles write
+   the same session (Export syncs from session, not a leftover timeline fade).
 10. Click **Wipe** on either clip at the join (first or second). Export
     burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
 11. Click **Export all**. Pick a folder. Wait for the toast. Space-close is
