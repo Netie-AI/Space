@@ -43,6 +43,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "Leave_black_undo_removes_overlay_card" in nle
     assert "Speed_survives_ApplyTo" in nle
     assert "Speed_2x_shrinks_packed_duration" in nle
+    assert "Packed_play_clock_continues_past_clip1_end" in nle
     assert "Unchanged_speed_undo_does_not_consume_plus_clip" in nle
     assert "Context_black_overlay_undo_removes_card" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle

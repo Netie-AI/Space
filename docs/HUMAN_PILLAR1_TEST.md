@@ -43,10 +43,13 @@ Export should land near that.
    the timeline.
 4. Click a clip so it is selected (blue outline).
 5. Drag the clip left or right. It should move. Drop it.
-6. Move the playhead to the middle of a clip (clip 2 is OK). Click **Split**.
+6.    Move the playhead to the middle of a clip (clip 2 is OK). Play after
+   + Clip advances the packed slider (MediaEnded used to stop at clip 1
+   so Split at the playing frame used slider 0). Click **Split**.
    You should now have three clips. The packed slider and the playhead
    line on the clip track must stay on that clip -- both used to sit on
-   clip 1 after + Clip (`GetPlayhead` is still the open file). Yellow
+   clip 1 after + Clip (`GetPlayhead` is still the open file). Preview
+   pixels on clip 2 stay clip 1 (do not switch Source). Yellow
    cut marks should cover the split clip, not jump to clip 1.
    Mark In / Mark Out chips and yellow handles store packed seconds.
    + Clip expands In/Out and the packed slider max to the new length

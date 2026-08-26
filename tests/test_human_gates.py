@@ -50,6 +50,7 @@ def test_scripts_and_docs():
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
+    assert "Play after" in pillar or "MediaEnded" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -100,6 +101,12 @@ def test_scripts_and_docs():
     add_end = preview.index("private void OrderClipsButton_Click")
     assert "DiscardLastVideoUndo" in preview[add:add_end]
     assert "SyncPackedSlider" in preview[add:add_end]
+    assert "PackedPlayheadAfterElapsed" in preview
+    assert "PackedPlayContinuesAfterSourceEnded" in preview
+    assert "BeginPackedPlayClock" in preview
+    ended = preview[preview.index("private void PreviewVideo_MediaEnded"):preview.index("private void PlayPauseButton_Click")]
+    assert "PackedPlayContinuesAfterSourceEnded" in ended
+    assert "PreviewVideo.Stop()" in ended
     sync = preview[preview.index("private void SyncPackedSlider"):preview.index("private void PushVideoUndo")]
     assert "PackedDuration" in sync
     assert "VideoSlider.Maximum" in sync

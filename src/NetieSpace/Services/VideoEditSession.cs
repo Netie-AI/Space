@@ -617,6 +617,32 @@ public sealed class VideoEditSession
         return matches[0];
     }
 
+    /// <summary>
+    /// After + Clip the packed ruler is longer than the open file.
+    /// Play must drive the slider from wall clock, not MediaElement.
+    /// </summary>
+    public static bool NeedsPackedPlayClock(double packedMaxSeconds, double openSourceSeconds) =>
+        packedMaxSeconds > openSourceSeconds + 0.05;
+
+    /// <summary>
+    /// MediaEnded on clip 1 is not the packed end. Split uses the slider.
+    /// </summary>
+    public static bool PackedPlayContinuesAfterSourceEnded(
+        double packedPlayheadSeconds,
+        double packedMaxSeconds) =>
+        packedPlayheadSeconds + 0.05 < packedMaxSeconds;
+
+    /// <summary>Packed playhead after wall-clock Play (does not switch Source).</summary>
+    public static double PackedPlayheadAfterElapsed(
+        double originSeconds,
+        double elapsedSeconds,
+        double packedMaxSeconds)
+    {
+        if (packedMaxSeconds <= 0)
+            return 0;
+        return Math.Clamp(originSeconds + Math.Max(0, elapsedSeconds), 0, packedMaxSeconds);
+    }
+
     private bool ClipSourceEquals(int index, string? path)
     {
         if (index < 0 || index >= _kept.Count)
