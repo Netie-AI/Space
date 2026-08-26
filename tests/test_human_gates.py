@@ -95,6 +95,9 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in preview[wipe:wipe_end]
     assert "PushUndo(_timeline)" in preview
     assert "TryUndo(_timeline)" in preview
+    undo = preview[preview.index("private void UndoVideoEdit"):preview.index("private async void PdfSaveStamps_Click")]
+    assert "LoadCaptionCuesFromSrt" in undo
+    assert "SubtitleBurnPath" in undo
     fx = preview[preview.index("private void TimelineTrack_PreviewMouseRightButtonUp"):preview.index("private void ApplySpeedToSelected")]
     assert "PushVideoUndo" in fx
     assert "AddOverlay(OverlayKind.Black" in fx
