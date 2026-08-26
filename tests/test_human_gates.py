@@ -26,6 +26,7 @@ def test_scripts_and_docs():
     assert "2.3s" in pillar
     assert "Undo" in pillar
     assert "Ctrl+Z" in pillar
+    assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert 'x:Name="ManageBillingButton"' in xaml
     assert 'x:Name="ActivateLaptopButton"' in xaml
@@ -40,6 +41,10 @@ def test_scripts_and_docs():
     toast = (ROOT / "src/NetieSpace/Views/ToastHud.xaml.cs").read_text(encoding="utf-8")
     assert "TryFormatDuration" in export
     assert "FfmpegService.ResolveFfprobe" in export
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    start = preview.index("private async Task ExportEditButton_ClickAsync")
+    end = preview.index("private ExportPreset ReadExportPreset")
+    assert "_timeline.Clone()" in preview[start:end]
     assert "wipe expect ~3.1s" in export
     ffmpeg_cs = (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs

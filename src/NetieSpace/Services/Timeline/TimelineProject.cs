@@ -164,6 +164,52 @@ public sealed class TimelineProject
         Tracks.Add(ov);
     }
 
+    /// <summary>
+    /// Deep copy for background export. Space-close + open another file
+    /// resets the live project; a shared reference used to mutate mid-encode.
+    /// </summary>
+    public TimelineProject Clone()
+    {
+        var copy = new TimelineProject
+        {
+            FrameRate = FrameRate,
+            Width = Width,
+            Height = Height,
+            ExportPreset = ExportPreset,
+            GlobalLutPath = GlobalLutPath,
+            SubtitleBurnPath = SubtitleBurnPath,
+            FillGapsWithBlack = FillGapsWithBlack
+        };
+        copy.PrimarySourcePath = PrimarySourcePath;
+        copy.SourceDuration = SourceDuration;
+        foreach (var t in Tracks)
+        {
+            var nt = new TimelineTrack { Name = t.Name, Kind = t.Kind, Muted = t.Muted };
+            foreach (var c in t.Clips)
+            {
+                nt.Clips.Add(new TimelineClip
+                {
+                    SourcePath = c.SourcePath,
+                    SourceIn = c.SourceIn,
+                    SourceOut = c.SourceOut,
+                    TimelineStart = c.TimelineStart,
+                    Speed = c.Speed,
+                    Muted = c.Muted,
+                    Opacity = c.Opacity,
+                    TransitionIn = c.TransitionIn,
+                    TransitionOut = c.TransitionOut,
+                    FadeIn = c.FadeIn,
+                    FadeOut = c.FadeOut,
+                    Overlay = c.Overlay,
+                    Text = c.Text,
+                    LutPath = c.LutPath
+                });
+            }
+            copy.Tracks.Add(nt);
+        }
+        return copy;
+    }
+
     public void SelectClip(Guid? id) => SelectedClipId = id;
 
     public void ClearSelection() => SelectedClipId = null;
