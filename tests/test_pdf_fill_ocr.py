@@ -171,7 +171,7 @@ class ParkingLotTests(unittest.TestCase):
     def test_tier_b_checked(self) -> None:
         text = PARKING.read_text(encoding="utf-8")
         self.assertIn("- [x] Form fill / OCR / in-place text — Tier B", text)
-        self.assertIn("- [ ] Cryptographic digital signature — Tier C park", text)
+        self.assertIn("- [ ] Cryptographic digital signature — PKCS#7 incremental", text)
 
 
 if __name__ == "__main__":

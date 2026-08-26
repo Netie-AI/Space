@@ -464,6 +464,8 @@
                                                           ToolTip="Remove password (needs the password)"/>
                                                 <MenuItem Header="Scan &amp; OCR…" Click="PdfOcr_Click"
                                                           ToolTip="Make a scanned PDF searchable (needs Tesseract)"/>
+                                                <MenuItem Header="Cert sign (PFX)..." Click="PdfCertSign_Click"
+                                                          ToolTip="Embed a PKCS#7 detached signature. Visual Sign stamp stays available."/>
                                             </ContextMenu>
                                         </Button.ContextMenu>
                                     </Button>

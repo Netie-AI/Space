@@ -6,20 +6,17 @@
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python contracts + license-api
    `tsc` + ffmpeg smoke). GitHub Actions hosted runners are billing-blocked; ignore them.
-2. **Ready PRs #4-#27 landed**. Draft #1 (stale demo path) stays draft.
-3. **Convert engine** -- `tools/convert_engine.py` is tracked. C# ConversionService
-   and PreviewWindow More menu (watermark / protect / unlock / OCR) call it.
-4. **Buy / Stripe** -- Worker `/v1/checkout` + webhook + portal. Live pay needs
-   your Stripe secrets (`docs/HUMAN_STRIPE_CHECKOUT.md`).
-5. **ComfyUI** -- code-ready local client (`ComfyUiClient`, Image ribbon
-   Send to Comfy...). Live GPU still human (`docs/HUMAN_PARKED.md`).
+2. **Ready PRs #4-#29 landed**. Draft #1 stays draft.
+3. **PDF CMS** -- More... Cert sign (PFX)... writes PKCS#7. Adobe panel is human.
+4. **ComfyUI** -- local client fail-closes when 8188 is down. Live GPU is human.
+5. **Buy / Stripe** -- Worker routes ready. Live pay needs your secrets.
 
 ## Next
 
 - Human Windows: Select->Split->Drag->Delete->Fade->Wipe->Export
   (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open this WPF app.
-- Human: Stripe secrets + test card, then tick Buy API / Stripe.
-- Parked: cert signatures, Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
+- Human: Stripe secrets + test card; Adobe Reader on a cert-signed PDF.
+- Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 
 ## Later
 

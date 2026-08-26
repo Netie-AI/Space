@@ -4,20 +4,19 @@ These stay parked on purpose. Do not start P7.
 
 ## Cryptographic PDF signatures (Tier C)
 
-Stamp in the PDF ribbon is visual only. Real cert signing needs a licensed
-PDF library (iText AGPL is not allowed in this repo).
+Code is in: PDF More... -> **Cert sign (PFX)...** (`PdfCmsSigner`,
+`SignedCms`, no iText). Visual **Sign** stamp is unchanged.
 
 What you do:
 
-1. Pick a license you accept (paid iText, or another commercial SDK).
-2. Add the NuGet on a Windows machine and wire Sign to embed a PKCS#7
-   signature, not only a stamp image.
-3. Test: open the signed PDF in Adobe Reader. Signature panel must show
-   valid (or valid with your test cert), not "unsigned appearance".
-4. Keep the existing stamp path for people without a cert.
+1. Pull `main`. Open a PDF that Space itself saved (classic xref).
+2. More... -> Cert sign (PFX)... Pick a `.pfx`. Enter the password.
+3. Open the same file in Adobe Reader. Signature panel should list a
+   signature. A self-signed test cert shows as untrusted, not "unsigned".
+4. If sign fails, Space restores the original bytes. Stamp path still works.
 
-What to check: file still opens if signing fails; original bytes untouched
-on error (same rule as highlight persist).
+Needs a classic xref PDF (PdfSharp / Space save). xref-stream files get a
+clear error -- save from Space and retry.
 
 ## ComfyUI / Windows AI
 
