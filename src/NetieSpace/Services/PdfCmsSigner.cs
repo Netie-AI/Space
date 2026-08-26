@@ -69,6 +69,36 @@ public static class PdfCmsSigner
         return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
     }
 
+    /// <summary>
+    /// One-page file whose /Annots is an indirect array (Chrome/Word links).
+    /// Sign must inline those refs plus the widget, not <c>[widget arrayObj]</c>.
+    /// </summary>
+    public static byte[] CreateMinimalPdfWithIndirectAnnots()
+    {
+        var body = string.Join('\n',
+            "%PDF-1.4",
+            "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj",
+            "2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj",
+            "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Annots 5 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>endobj",
+            "4 0 obj<< /Length 51 >>stream",
+            "BT /F1 12 Tf 40 120 Td (Hello Netie) Tj ET",
+            "endstream",
+            "endobj",
+            "5 0 obj[6 0 R]endobj",
+            "6 0 obj<< /Type /Annot /Subtype /Link /Rect [10 10 40 20] /Border [0 0 0] >>endobj",
+            "");
+        var bodyBytes = Encoding.ASCII.GetBytes(body.Replace("\r\n", "\n").Replace('\r', '\n'));
+        var offsets = FindObjOffsets(bodyBytes, 1, 6);
+        var xref = new StringBuilder();
+        xref.Append("xref\n0 7\n");
+        xref.Append("0000000000 65535 f \n");
+        for (var i = 1; i <= 6; i++)
+            xref.Append($"{offsets[i]:D10} 00000 n \n");
+        var startxref = bodyBytes.Length;
+        var tail = xref + "trailer<< /Size 7 /Root 1 0 R >>\nstartxref\n" + startxref + "\n%%EOF\n";
+        return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
+    }
+
     public static X509Certificate2 CreateEphemeralSelfSigned(string cn = "Netie Space Test")
     {
         using var rsa = RSA.Create(2048);
@@ -408,11 +438,11 @@ public static class PdfCmsSigner
         if (start < 0 || endTok < 0)
             return null;
         var inner = obj[start..endTok];
-        inner = AddAnnotsToPageDict(inner, fieldId);
+        inner = AddAnnotsToPageDict(pdf, inner, fieldId);
         return $"{pageId} 0 obj\n{inner.Trim()}\nendobj\n";
     }
 
-    private static string AddAnnotsToPageDict(string pageBody, int fieldId)
+    private static string AddAnnotsToPageDict(byte[] pdf, string pageBody, int fieldId)
     {
         var refTok = $"{fieldId} 0 R";
         var annotsOpen = Regex.Match(pageBody, @"/Annots\s*\[");
@@ -422,8 +452,17 @@ public static class PdfCmsSigner
         var annotsRef = Regex.Match(pageBody, @"/Annots\s+(\d+)\s+0\s+R");
         if (annotsRef.Success)
         {
+            var arrId = int.Parse(annotsRef.Groups[1].Value);
+            var refs = new List<string> { refTok };
+            var arrObj = TryReadObject(pdf, arrId);
+            if (arrObj is not null)
+            {
+                foreach (Match m in Regex.Matches(arrObj, @"(\d+)\s+0\s+R"))
+                    refs.Add($"{m.Groups[1].Value} 0 R");
+            }
+
             return pageBody.Remove(annotsRef.Index, annotsRef.Length)
-                .Insert(annotsRef.Index, $"/Annots [{refTok} {annotsRef.Groups[1].Value} 0 R]");
+                .Insert(annotsRef.Index, $"/Annots [{string.Join(" ", refs)}]");
         }
 
         var streamAt = pageBody.IndexOf("stream", StringComparison.Ordinal);
