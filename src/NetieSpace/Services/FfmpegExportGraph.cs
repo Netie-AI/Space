@@ -104,9 +104,10 @@ public static class FfmpegExportGraph
     /// </summary>
     public static string ConcatDemuxerLine(string mediaPathInListDir)
     {
-        var name = IoPath.GetFileName(mediaPathInListDir);
-        if (string.IsNullOrWhiteSpace(name))
-            name = mediaPathInListDir;
+        var name = mediaPathInListDir ?? "";
+        var slash = Math.Max(name.LastIndexOf('/'), name.LastIndexOf('\\'));
+        if (slash >= 0 && slash + 1 < name.Length)
+            name = name[(slash + 1)..];
         return $"file '{name}'";
     }
 }
