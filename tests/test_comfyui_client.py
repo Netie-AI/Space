@@ -98,6 +98,8 @@ def test_menu_and_handler_names():
     assert "SendToComfyButton.Visibility = isImage" in cs
     assert "RasterizeForComfyAsync" in cs
     assert 'ext is not (".svg" or ".ico")' in cs
+    copy = cs.split("CopyImageButton_Click", 1)[1].split("SendToComfyButton_Click", 1)[0]
+    assert "RasterizeForComfyAsync" in copy
 
 
 def test_xunit_compile_include():
