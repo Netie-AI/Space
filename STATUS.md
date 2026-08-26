@@ -4,10 +4,9 @@
 
 ## Now
 
-1. **main CI gate** — Windows `dotnet test` + ffmpeg encode + python contracts +
-   license-api `tsc` (three jobs; no 4th aggregator — billing killed that runner).
-   Merge only when **all** checks on the head SHA succeed (never `gh pr merge --auto`).
-2. **Ready PRs #4–#25 landed** after green CI. Draft #1 (stale demo path) stays draft.
+1. **Cursor-origin CI** — `scripts/ci-cursor.sh` (python contracts + license-api
+   `tsc` + ffmpeg smoke). GitHub Actions hosted runners are billing-blocked; ignore them.
+2. **Ready PRs #4–#25 landed**. #26 drops the extra GHA aggregator. Draft #1 stays draft.
 3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
 
 ## Next
