@@ -337,6 +337,77 @@ def docx_plain_html(src: Path) -> str | None:
     return "\n".join(paras)
 
 
+def docx_to_text(src: Path) -> str:
+    """Share default Export as PDF on .docx used markitdown."""
+    body = docx_plain_html(src)
+    if body is None:
+        raise RuntimeError("not a valid .docx")
+    text = re.sub(r"</p>", "\n", body)
+    text = re.sub(r"<[^>]+>", "", text)
+    return html.unescape(text).strip() + "\n"
+
+
+def _xlsx_col_index(ref: str) -> int:
+    letters = "".join(c for c in ref if c.isalpha())
+    n = 0
+    for c in letters.upper():
+        n = n * 26 + (ord(c) - 64)
+    return max(0, n - 1)
+
+
+def xlsx_to_rows(src: Path) -> list[list[str]]:
+    """Read first worksheet (inlineStr + shared strings + numbers)."""
+    try:
+        with zipfile.ZipFile(src) as zf:
+            shared: list[str] = []
+            if "xl/sharedStrings.xml" in zf.namelist():
+                sroot = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+                for si in sroot:
+                    if si.tag.endswith("}si"):
+                        shared.append("".join(si.itertext()))
+            sheets = sorted(
+                n
+                for n in zf.namelist()
+                if n.startswith("xl/worksheets/sheet") and n.endswith(".xml") and "/_rels/" not in n
+            )
+            if not sheets:
+                raise RuntimeError("xlsx has no worksheet")
+            root = ET.fromstring(zf.read(sheets[0]))
+    except (zipfile.BadZipFile, KeyError, OSError, ET.ParseError) as exc:
+        raise RuntimeError(f"not a valid .xlsx: {exc}") from exc
+
+    rows: list[list[str]] = []
+    for row in root.iter():
+        if not row.tag.endswith("}row"):
+            continue
+        cells: dict[int, str] = {}
+        for c in row:
+            if not c.tag.endswith("}c"):
+                continue
+            ref = c.attrib.get("r") or ""
+            kind = c.attrib.get("t")
+            val = ""
+            if kind == "inlineStr":
+                val = "".join(c.itertext())
+            else:
+                v_el = next((el for el in c if el.tag.endswith("}v")), None)
+                raw = (v_el.text or "") if v_el is not None else ""
+                if kind == "s":
+                    try:
+                        val = shared[int(raw)]
+                    except (ValueError, IndexError):
+                        val = raw
+                else:
+                    val = raw
+            idx = _xlsx_col_index(ref) if ref else len(cells)
+            cells[idx] = val
+        if not cells:
+            continue
+        width = max(cells) + 1
+        rows.append([cells.get(i, "") for i in range(width)])
+    return rows or [[""]]
+
+
 def file_to_markdown(src: Path) -> tuple[str, str]:
     ext = src.suffix.lower()
     if ext in MD_EXTS or ext in TEXT_EXTS:
@@ -374,6 +445,11 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     if ext == ".ods":
         rows = ods_to_rows(src)
         return "\n".join(" | ".join(r) for r in rows) + "\n", "ods-zip"
+    if ext == ".docx":
+        return docx_to_text(src), "docx-zip"
+    if ext == ".xlsx":
+        rows = xlsx_to_rows(src)
+        return "\n".join(" | ".join(r) for r in rows) + "\n", "xlsx-zip"
 
     got = via_markitdown(src)
     if got:

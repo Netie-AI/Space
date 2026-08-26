@@ -340,6 +340,40 @@ def test_export_as_odp() -> None:
         assert "Slide two body" in xml
 
 
+def test_export_as_docx_xlsx_to_pdf() -> None:
+    """Share default Export as PDF on Word/Excel used to need markitdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def docx_to_text" in src
+    assert "def xlsx_to_rows" in src
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        md = d / "note.md"
+        md.write_text("Hello DOCX source\n", encoding="utf-8")
+        docx = d / "note.docx"
+        res = run_engine(["export-as", str(md), str(docx)])
+        assert res.get("success"), res
+        pdf = d / "note.pdf"
+        res = run_engine(["export-as", str(docx), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story" or (pdf.is_file() and pdf.stat().st_size > 200), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+
+        csv_path = d / "table.csv"
+        csv_path.write_text("name,qty\nwidget,2\n", encoding="utf-8")
+        xlsx = d / "table.xlsx"
+        res = run_engine(["export-as", str(csv_path), str(xlsx)])
+        assert res.get("success"), res
+        xpdf = d / "table.pdf"
+        res = run_engine(["export-as", str(xlsx), str(xpdf)])
+        assert res.get("success"), res
+        assert xpdf.is_file() and xpdf.stat().st_size > 200
+        xhtml = d / "table.html"
+        res = run_engine(["export-as", str(xlsx), str(xhtml)])
+        assert res.get("success"), res
+        assert "widget" in xhtml.read_text(encoding="utf-8")
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -397,6 +431,7 @@ if __name__ == "__main__":
     test_export_as_xlsx_from_csv()
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
+    test_export_as_docx_xlsx_to_pdf()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
