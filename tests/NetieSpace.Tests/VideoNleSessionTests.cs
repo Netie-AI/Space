@@ -372,6 +372,22 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Packed_play_clock_continues_past_clip1_end()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        var packed = session.PackedDuration(false).TotalSeconds;
+        Assert.Equal(12, packed, 3);
+        Assert.True(VideoEditSession.NeedsPackedPlayClock(packed, 10));
+        Assert.False(VideoEditSession.NeedsPackedPlayClock(10, 10));
+        Assert.True(VideoEditSession.PackedPlayContinuesAfterSourceEnded(10, packed));
+        Assert.False(VideoEditSession.PackedPlayContinuesAfterSourceEnded(packed, packed));
+        Assert.Equal(11, VideoEditSession.PackedPlayheadAfterElapsed(10, 1, packed), 3);
+        Assert.Equal(packed, VideoEditSession.PackedPlayheadAfterElapsed(10, 5, packed), 3);
+        Assert.Equal(0, VideoEditSession.PackedPlayheadAfterElapsed(0, 0, 0), 3);
+    }
+
+    [Fact]
     public void Speed_2x_shrinks_packed_duration()
     {
         var session = TenSecond(@"C:\clips\a.mp4");

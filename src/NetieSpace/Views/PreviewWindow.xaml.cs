@@ -46,6 +46,8 @@ public partial class PreviewWindow : Window
     private DateTime _lastScrubSeekUtc = DateTime.MinValue;
     private double? _pendingSeekSourceSeconds;
     private DateTime _suppressPositionSyncUntilUtc = DateTime.MinValue;
+    private DateTime? _packedPlayUtc;
+    private double _packedPlayOrigin;
     private const int SeekSettleMs = 450;
     private const double SeekToleranceSec = 0.4;
     private bool _suppressSliderValueChanged;
@@ -2520,8 +2522,22 @@ public partial class PreviewWindow : Window
 
     private void PreviewVideo_MediaEnded(object sender, RoutedEventArgs e)
     {
+        // After + Clip the open file ends at clip-1 duration. Stopping here
+        // froze Play at the join, so Split at the playing frame used slider 0.
+        var packedMax = _editMode && _videoEdit.Kept.Count > 0
+            ? _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds
+            : 0;
+        if (UsePackedPlayClock() &&
+            VideoEditSession.PackedPlayContinuesAfterSourceEnded(VideoSlider.Value, packedMax))
+        {
+            try { PreviewVideo.Pause(); }
+            catch { /* ignore */ }
+            return;
+        }
+
         PlayPauseButton.Content = "Play";
         PreviewVideo.Stop();
+        StopPackedPlayClock();
     }
 
     private void PlayPauseButton_Click(object sender, RoutedEventArgs e)
@@ -2530,13 +2546,34 @@ public partial class PreviewWindow : Window
         {
             PreviewVideo.Pause();
             PlayPauseButton.Content = "Play";
+            StopPackedPlayClock();
         }
         else
         {
             PreviewVideo.Play();
             PlayPauseButton.Content = "Pause";
+            BeginPackedPlayClock();
         }
     }
+
+    private bool UsePackedPlayClock()
+    {
+        if (!_editMode || _content?.Kind != PreviewKind.Video || _videoEdit.Kept.Count == 0)
+            return false;
+        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
+        var source = PreviewVideo.NaturalDuration.HasTimeSpan
+            ? PreviewVideo.NaturalDuration.TimeSpan.TotalSeconds
+            : 0;
+        return VideoEditSession.NeedsPackedPlayClock(packed, source);
+    }
+
+    private void BeginPackedPlayClock()
+    {
+        _packedPlayUtc = DateTime.UtcNow;
+        _packedPlayOrigin = VideoSlider.Value;
+    }
+
+    private void StopPackedPlayClock() => _packedPlayUtc = null;
 
     private TimeSpan GetPlayhead() => PreviewVideo.Position;
 
@@ -2661,6 +2698,7 @@ public partial class PreviewWindow : Window
 
         if (!shouldResume)
         {
+            StopPackedPlayClock();
             UpdateVideoUi();
             ScheduleTimelineLayout();
             return;
@@ -2683,6 +2721,7 @@ public partial class PreviewWindow : Window
             {
                 PreviewVideo.Play();
                 PlayPauseButton.Content = "Pause";
+                BeginPackedPlayClock();
             }
             catch
             {
@@ -3970,6 +4009,26 @@ public partial class PreviewWindow : Window
             if (packedMax > 0)
                 VideoSlider.Maximum = packedMax;
             if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
+                UsePackedPlayClock() &&
+                PlayPauseButton.Content?.ToString() == "Pause" &&
+                _packedPlayUtc is DateTime origin)
+            {
+                var next = VideoEditSession.PackedPlayheadAfterElapsed(
+                    _packedPlayOrigin,
+                    (now - origin).TotalSeconds,
+                    packedMax);
+                _suppressSliderValueChanged = true;
+                try { VideoSlider.Value = next; }
+                finally { _suppressSliderValueChanged = false; }
+                if (next >= packedMax - 0.001)
+                {
+                    PlayPauseButton.Content = "Play";
+                    try { PreviewVideo.Pause(); }
+                    catch { /* ignore */ }
+                    StopPackedPlayClock();
+                }
+            }
+            else if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
                 !_videoEdit.HasMultipleSources)
             {
                 _suppressSliderValueChanged = true;

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Play after + Clip advances the packed slider past clip 1. MediaEnded used to stop at the open-file duration, so Split at the playing frame used slider 0 and failed as an edge. Preview Source stays on clip 1.
 - Video: Order... lists packed output length (and `2x`) after Speed. Source End-Start made a 2x clip still look like 1.6s+2.0s in that dialog.
 - Video: Leave-black title card uses packed output length (`PackedEndOf - PackedStartOf`). Source in-out ignored Speed, so a 2x clip left a full-source black overlay and Export failed "picture is not black".
 - Video: packed timeline uses output duration (`source / Speed`). Accidental Speed 2x left the clip full width, so Export was ~2.3s with no visible cue to Ctrl+Z. `ApplyTo` repacks V1/A1 after Speed.
