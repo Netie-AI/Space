@@ -14,7 +14,7 @@
    skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length. OV lane and the preview picture show the title card.
-   Leave black seeks onto that packed start so the card is visible.
+   Leave black seeks onto that packed start and pauses so the card stays.
    Export range slices (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
