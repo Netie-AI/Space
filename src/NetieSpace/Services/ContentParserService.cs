@@ -91,6 +91,30 @@ public sealed class ContentParserService
         if (extension is ".xlsx" or ".xlsm")
         {
             var native = await Task.Run(() => _officePreview.TryParse(filePath, fileName, fileInfo.Length), ct);
+            // Photo workbooks: OpenXML grid has no pictures. preview-html embeds
+            // xl/media when cell text is empty (same as Share HTML). Text sheets
+            // stay TryParse (tool is xlsx-zip, not office-html-images).
+            if (_conversion.IsAvailable)
+            {
+                var pictured = await _conversion.PreviewHtmlAsync(filePath, ct);
+                if (pictured.Success
+                    && pictured.Tool == "office-html-images"
+                    && !string.IsNullOrWhiteSpace(pictured.OutputPath)
+                    && IoFile.Exists(pictured.OutputPath))
+                {
+                    var html = await File.ReadAllTextAsync(pictured.OutputPath, ct);
+                    return new PreviewContent
+                    {
+                        FilePath = filePath,
+                        FileName = fileName,
+                        Kind = PreviewKind.Office,
+                        FileSizeBytes = fileInfo.Length,
+                        RawText = "XLSX preview",
+                        RenderedHtml = html,
+                        HtmlFilePath = pictured.OutputPath
+                    };
+                }
+            }
             if (native is not null)
                 return native;
             return await Task.Run(() => ShellInfoPreview.Build(filePath), ct);

@@ -954,6 +954,10 @@ def test_photo_ods_xlsx_export() -> None:
     """Share default PDF on a photo ODS / image-only XLSX used empty cell text."""
     src = ENGINE.read_text(encoding="utf-8")
     assert '".ods", ".xlsx", ".xlsm"' in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    xlsx_block = parser.split('extension is ".xlsx" or ".xlsm"', 1)[1][:1200]
+    assert "PreviewHtmlAsync" in xlsx_block
+    assert "office-html-images" in xlsx_block
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     dlg = preview.split("var imageDefaultExt", 1)[1]
     assert "PDF document|*.pdf" in dlg.split('".ods"', 1)[1][:220]
@@ -1018,6 +1022,11 @@ def test_photo_ods_xlsx_export() -> None:
         assert res.get("success"), res
         assert res.get("tool") == "pymupdf-office-images", res
         assert xpdf.is_file() and xpdf.stat().st_size > 2000
+        xlsx_preview = d / "xlsx-preview.html"
+        res = run_engine(["preview-html", str(xlsx), str(xlsx_preview)])
+        assert res.get("success"), res
+        assert res.get("tool") == "office-html-images", res
+        assert "data:image/png;base64," in xlsx_preview.read_text(encoding="utf-8")
         xlsm = d / "chart.xlsm"
         xlsm.write_bytes(xlsx.read_bytes())
         xmpdf = d / "xlsm.pdf"
