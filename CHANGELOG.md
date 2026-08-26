@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: **Windows AI...** fail-closed WinML probe (`WindowsAiClient`). No WinAppSDK. Down -> toast + `.winai-input.json`. rembg / Copy stay. Live enhance still human.
 - License: Setup **Activate this laptop** binds the saved session after Stripe pay (`LicenseActivation`). Same path as tray Account Activate. No WPF types in the helper.
 - Video: **Wipe** works from either clip at a join (playbook "Wipe on the join"). Fade/wipe live on `KeptClip` so Export `ApplyTo` cannot drop them.
 - PDF: Cert sign rewrites xref-stream to classic xref via PdfSharp before PKCS#7. `NeedsClassicXrefRewrite` has no PdfSharp types. Failed rewrite leaves original bytes.

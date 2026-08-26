@@ -448,6 +448,8 @@ public partial class PreviewWindow : Window
             CompressImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (SendToComfyButton is not null)
             SendToComfyButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
+        if (WindowsAiButton is not null)
+            WindowsAiButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
 
         if (VideoEditorChrome is not null)
             VideoEditorChrome.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
@@ -4140,6 +4142,43 @@ public partial class PreviewWindow : Window
         catch (Exception ex)
         {
             ConvertStatusText.Text = $"ComfyUI: {ex.Message}. rembg / Copy still work.";
+        }
+    }
+
+    private void WindowsAiButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_content?.Kind != PreviewKind.Image || !TryRequireFile(out var path))
+            return;
+
+        try
+        {
+            string? sidecar = null;
+            try { sidecar = WindowsAiClient.WriteInputSidecar(path); }
+            catch (Exception ex)
+            {
+                ConvertStatusText.Text = $"Could not write Windows AI sidecar: {ex.Message}";
+            }
+
+            if (!WindowsAiClient.IsAvailable())
+            {
+                var msg = WindowsAiClient.OfflineMessage();
+                ConvertStatusText.Text = string.IsNullOrWhiteSpace(sidecar)
+                    ? msg
+                    : $"{msg} Wrote {IoPath.GetFileName(sidecar)}.";
+                if (StatusText is not null)
+                    StatusText.Text = "Windows AI offline";
+                try { ToastHud.Show("Windows AI is not available -- rembg / Copy still work"); }
+                catch { /* toast must never crash Space */ }
+                return;
+            }
+
+            ConvertStatusText.Text = string.IsNullOrWhiteSpace(sidecar)
+                ? "Windows AI runtime present. Live enhance is still human. rembg / Copy still work."
+                : $"Windows AI runtime present. Wrote {IoPath.GetFileName(sidecar)}. Live enhance is still human. rembg / Copy still work.";
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"Windows AI: {ex.Message}. rembg / Copy still work.";
         }
     }
 

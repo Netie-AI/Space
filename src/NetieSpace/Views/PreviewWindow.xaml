@@ -151,6 +151,10 @@
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="SendToComfyButton_Click"
                                 ToolTip="Queue this image in local ComfyUI (127.0.0.1:8188). rembg / Copy still work if Comfy is down."/>
+                        <Button x:Name="WindowsAiButton" Content="Windows AI..." Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                Click="WindowsAiButton_Click"
+                                ToolTip="Probe local WinML / Windows AI. rembg / Copy still work if it is down."/>
                         <!-- Share replaces the old text "convert" entry: icon only, sheet does the rest -->
                         <Button x:Name="ShareButton"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"

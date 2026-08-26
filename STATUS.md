@@ -8,7 +8,7 @@
 2. **Ready PRs #4-#38 landed**. Draft #1 stays draft.
 3. **Stripe test catalog** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Success page fulfills if paid. Setup Activate this laptop after pay. You still put secrets.
-4. **ComfyUI** -- code-ready local client (upload + queue + /view); live GPU still human.
+4. **ComfyUI / Windows AI** -- code-ready local clients; live GPU still human.
 
 ## Next
 
