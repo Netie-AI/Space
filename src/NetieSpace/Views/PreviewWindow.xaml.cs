@@ -4656,6 +4656,23 @@ public partial class PreviewWindow : Window
         return result.Success && IoFile.Exists(dest) ? dest : path;
     }
 
+    /// <summary>
+    /// PdfSharp XImage is BMP/JPEG/GIF/PNG only. Stamp / Organize leftovers
+    /// (WebP, TIF, SVG, ICO, HEIC) go through the engine first.
+    /// </summary>
+    private async Task<string?> RasterizeForXImageAsync(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
+            return null;
+        if (PdfOrganizeWindow.IsImagePath(path))
+            return path;
+        if (!PdfOrganizeWindow.IsEngineImagePath(path) || !_conversion.IsAvailable)
+            return null;
+        var dest = IoPath.Combine(IoPath.GetTempPath(), $"netie_stamp_{Guid.NewGuid():N}.png");
+        var result = await _conversion.ExportAsAsync(path, dest);
+        return result.Success && IoFile.Exists(dest) ? dest : null;
+    }
+
     private void WindowsAiButton_Click(object sender, RoutedEventArgs e)
     {
         if (_content?.Kind != PreviewKind.Image || !TryRequireFile(out var path))
@@ -5735,16 +5752,25 @@ public partial class PreviewWindow : Window
         var dlg = new OpenFileDialog
         {
             Title = "Choose signature image (PNG/JPG)",
-            Filter = "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*"
+            Filter =
+                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff;" +
+                "*.svg;*.ico;*.heic;*.heif|All files|*.*"
         };
         if (dlg.ShowDialog(this) != true)
             return;
 
-        try { _sigLibrary.AddImage(IoPath.GetFileNameWithoutExtension(dlg.FileName), dlg.FileName); }
+        var stamp = await RasterizeForXImageAsync(dlg.FileName);
+        if (stamp is null)
+        {
+            ConvertStatusText.Text = "Could not read that signature image.";
+            return;
+        }
+
+        try { _sigLibrary.AddImage(IoPath.GetFileNameWithoutExtension(dlg.FileName), stamp); }
         catch { /* non-fatal */ }
-        _pendingStampImage = dlg.FileName;
+        _pendingStampImage = stamp;
         _pendingStampName = null;
-        await PushStampToViewerAsync(dlg.FileName);
+        await PushStampToViewerAsync(stamp);
         ConvertStatusText.Text = "Click the PDF page to place the stamp";
     }
 
@@ -5796,10 +5822,17 @@ public partial class PreviewWindow : Window
             return;
         }
 
-        _pendingStampImage = entry.ImagePath;
+        var stamp = await RasterizeForXImageAsync(entry.ImagePath);
+        if (stamp is null)
+        {
+            ConvertStatusText.Text = "Could not read that signature image.";
+            return;
+        }
+
+        _pendingStampImage = stamp;
         _pendingStampName = entry.Label;
         _pendingStampFont = entry.Font;
-        await PushStampToViewerAsync(entry.ImagePath);
+        await PushStampToViewerAsync(stamp);
         ConvertStatusText.Text = $"Using “{entry.Label}” — click the page to place";
     }
 
