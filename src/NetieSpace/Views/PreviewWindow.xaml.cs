@@ -3054,6 +3054,7 @@ public partial class PreviewWindow : Window
         _fadeDragIn = parts[0] == "fi";
         _fadeDragStart = e.GetPosition(TimelineClipCanvas);
         _fadeDragBase = _fadeDragIn ? clip.FadeIn : clip.FadeOut;
+        PushVideoUndo();
         _videoEdit.Select(idx);
         b.CaptureMouse();
         e.Handled = true;
@@ -3359,6 +3360,8 @@ public partial class PreviewWindow : Window
                     target = packed[i].ClipIndex;
             }
 
+            if (_dragClipIndex != target)
+                PushVideoUndo();
             if (_videoEdit.MoveClip(_dragClipIndex, target))
             {
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
@@ -3409,7 +3412,16 @@ public partial class PreviewWindow : Window
         }
 
         var left = _videoEdit.WipeJoinIndex();
-        if (left is null || !_videoEdit.ApplyWipeAtJoin())
+        if (left is null)
+        {
+            ConvertStatusText.Text = "Wipe needs two clips — Split or + Clip, then click Wipe on either side of the join.";
+            return;
+        }
+
+        // Playbook Ctrl+Z after Split/Delete. Fade/Wipe used to skip the
+        // undo stack, so one extra Ctrl+Z popped + Clip and Export was 1.6s.
+        PushVideoUndo();
+        if (!_videoEdit.ApplyWipeAtJoin())
         {
             ConvertStatusText.Text = "Wipe needs two clips — Split or + Clip, then click Wipe on either side of the join.";
             return;
@@ -3446,6 +3458,7 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        PushVideoUndo();
         _videoEdit.ApplyFadeAt(_videoEdit.SelectedIndex, fadeIn, fadeOut);
         if (fadeIn.HasValue) clip.FadeIn = fadeIn.Value;
         if (fadeOut.HasValue) clip.FadeOut = fadeOut.Value;

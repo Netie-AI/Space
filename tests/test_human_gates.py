@@ -44,6 +44,7 @@ def test_scripts_and_docs():
     assert "2.3s" in pillar
     assert "Undo" in pillar
     assert "Ctrl+Z" in pillar
+    assert "extra Ctrl+Z" in pillar or "push undo" in pillar.lower()
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -69,6 +70,12 @@ def test_scripts_and_docs():
     fade_bool_end = preview.index("private void ApplySpeedToSelected")
     fade_bool_body = preview[fade_bool:fade_bool_end]
     assert "ApplyFadeToSelected(fadeIn: TimeSpan.FromMilliseconds(500)" in fade_bool_body
+    fade_span = preview.index("private void ApplyFadeToSelected(TimeSpan? fadeIn")
+    fade_span_end = preview.index("private void ApplyCaptionsFromBackground")
+    assert "PushVideoUndo" in preview[fade_span:fade_span_end]
+    wipe = preview.index("private void WipeButton_Click")
+    wipe_end = preview.index("private void OverlayTextButton_Click")
+    assert "PushVideoUndo" in preview[wipe:wipe_end]
     assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body

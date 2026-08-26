@@ -235,6 +235,27 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Undo_after_fade_and_wipe_keeps_plus_clip()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(0);
+        session.PushUndo();
+        Assert.True(session.ApplyFadeAt(0, TimeSpan.FromSeconds(0.5), null));
+        session.PushUndo();
+        Assert.True(session.ApplyWipeAtJoin());
+        Assert.Equal(TransitionKind.Wipe, session.Clips[0].TransitionOut);
+        Assert.True(session.TryUndo());
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Equal(TransitionKind.None, session.Clips[0].TransitionOut);
+        Assert.Equal(TimeSpan.FromSeconds(0.5), session.Clips[0].FadeIn);
+        Assert.True(session.TryUndo());
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Equal(TimeSpan.Zero, session.Clips[0].FadeIn);
+        Assert.Equal(@"C:\clips\b.mp4", session.Clips[1].SourcePath, ignoreCase: true);
+    }
+
+    [Fact]
     public void Wipe_then_split_keeps_one_join()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
