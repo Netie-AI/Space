@@ -1255,6 +1255,9 @@ def test_export_as_preview_video_gif() -> None:
     assert "PreviewKind.Video" not in convert_ok
     assert "ShareMdRow.Visibility = docFormats" in preview
     assert "ShareExportAsRow.Visibility = formats" in preview
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    video_dlg = dlg.split("PreviewKind.Video", 1)[1][:280]
+    assert "MP4 video|*.mp4" in video_dlg
     if shutil.which("ffmpeg") is None:
         print("SKIP video gif export -- ffmpeg missing")
         return
@@ -1271,6 +1274,11 @@ def test_export_as_preview_video_gif() -> None:
             timeout=30,
         )
         assert proc.returncode == 0 and mp4.is_file(), (proc.stderr or "")[-300:]
+        before = mp4.read_bytes()
+        res = run_engine(["export-as", str(mp4), str(mp4)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+        assert mp4.read_bytes() == before
         wmv = d / "clip.wmv"
         wmv.write_bytes(mp4.read_bytes())
         gif = d / "clip.gif"
@@ -1291,6 +1299,9 @@ def test_export_as_preview_audio() -> None:
     assert '".mp3" or ".wav"' in preview
     convert_ok = preview.split("var convertOk", 1)[1].split(";", 1)[0]
     assert "IsAudioPath" in convert_ok
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    audio_dlg = dlg.split("IsAudioPath(sourcePath)", 1)[1][:320]
+    assert "WAV audio|*.wav" in audio_dlg
     if shutil.which("ffmpeg") is None:
         print("SKIP audio export -- ffmpeg missing")
         return
@@ -1307,6 +1318,11 @@ def test_export_as_preview_audio() -> None:
             timeout=30,
         )
         assert proc.returncode == 0 and wav.is_file(), (proc.stderr or "")[-300:]
+        before = wav.read_bytes()
+        res = run_engine(["export-as", str(wav), str(wav)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+        assert wav.read_bytes() == before
         mp3 = d / "tone.mp3"
         res = run_engine(["export-as", str(wav), str(mp3)])
         assert res.get("success"), res
