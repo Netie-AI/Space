@@ -1026,6 +1026,16 @@ def test_silent_video_export_mp3() -> None:
         assert mp3.is_file() and mp3.stat().st_size > 200
 
 
+def test_ico_preview_uses_html() -> None:
+    """Space an ICO used ParseImage (WPF) then ShellInfo and hid Share. Chromium paints ICO."""
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    assert 'extension == ".ico"' in parser
+    assert 'ParseHtmlPicture(filePath, fileName, fileInfo.Length, "image/x-icon", "ICO")' in parser
+    # Still an Image suffix so Copy / Compress rasterize; do not add a new dest list.
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".svg" or ".ico" or ".heic" or ".heif" or ".webp"' in preview
+
+
 def test_heic_preview_uses_engine() -> None:
     """Space a HEIC used ParseImage (WPF) then ShellInfo and hid Share. Engine PNG keeps Image."""
     parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
@@ -1242,6 +1252,7 @@ if __name__ == "__main__":
     test_photo_odp_docx_export()
     test_photo_ods_xlsx_export()
     test_silent_video_export_mp3()
+    test_ico_preview_uses_html()
     test_heic_preview_uses_engine()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()

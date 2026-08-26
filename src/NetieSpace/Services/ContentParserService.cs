@@ -52,6 +52,11 @@ public sealed class ContentParserService
         // WebP: WPF BitmapImage has no decoder. ParseImage catch was ShellInfo and hid Share.
         if (extension == ".webp")
             return await Task.Run(() => ParseHtmlPicture(filePath, fileName, fileInfo.Length, "image/webp", "WebP"), ct);
+        // ICO: Copy/Compress comments say WPF BitmapImage cannot decode it. PNG-in-ICO
+        // (netie.ico) also misses older WIC. ParseImage catch was ShellInfo and hid Share.
+        // Chromium paints ICO; FilePath stays the .ico so Copy still rasterizes.
+        if (extension == ".ico")
+            return await Task.Run(() => ParseHtmlPicture(filePath, fileName, fileInfo.Length, "image/x-icon", "ICO"), ct);
         // HEIC: WPF has no decoder unless the HEIF WIC pack is installed. Chromium often
         // cannot paint .heic either. Engine PNG keeps Kind=Image so Share stays visible.
         if (extension is ".heic" or ".heif")
