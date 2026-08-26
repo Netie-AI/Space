@@ -63,7 +63,8 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("XfadeOffsetSeconds", graph)
         yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn("apt-get install -y -qq ffmpeg", yml)
-        self.assertIn("choco install ffmpeg -y --no-progress", yml)
+        self.assertIn("FedericoCarboni/setup-ffmpeg@v3", yml)
+        self.assertNotIn("choco install ffmpeg", yml)
         self.assertIn("cache: true", yml)
         self.assertIn("dotnet test NetieSpace.sln", yml)
 
