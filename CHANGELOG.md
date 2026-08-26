@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: clip/fade drag is not aborted by the 200ms playhead layout. `Children.Clear` used to fire LostMouseCapture mid-drag after + Clip autoplay, so playbook drag never dropped.
 - Video: packed Play clock rebases when seek settle lifts. The clock used to count the ~0.9s MediaElement hold, so a clip-2 click jumped to the edge and Split failed.
 - Video: packed Play clock rebases on seek/click. After #102 a clip-2 click while autoplay ran was overwritten ~200ms later by origin+elapsed, so Split missed that clip.
 - Video: packed Play clock auto-starts if the clip is already playing (open autoplay / Edit / + Clip). #101 only began the clock on the Play click, so the slider stayed frozen while clip-1 pixels ran and Split used the old packed time.

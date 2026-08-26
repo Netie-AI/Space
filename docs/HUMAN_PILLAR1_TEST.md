@@ -43,6 +43,8 @@ Export should land near that.
    the timeline.
 4. Click a clip so it is selected (blue outline).
 5. Drag the clip left or right. It should move. Drop it.
+   The clip track does not rebuild under the mouse (the 200ms playhead
+   timer used to Clear the canvas and abort the drag).
 6.    Move the playhead to the middle of a clip (clip 2 is OK). Play after
    + Clip advances the packed slider -- including if the clip was already
    playing from open (autoplay used to leave the slider frozen). MediaEnded

@@ -2949,6 +2949,11 @@ public partial class PreviewWindow : Window
         if (TimelineOutHandle is not null)
             TimelineOutHandle.Margin = new Thickness(Math.Clamp(xOut - handleW / 2, 0, Math.Max(0, w - handleW)), 0, 0, 0);
 
+        // Playhead timer rebuilds this canvas every 200ms. Children.Clear
+        // fired LostMouseCapture and aborted playbook drag / fade-handle.
+        if (_dragClipIndex >= 0 || _fadeDragClip >= 0)
+            return;
+
         RenderKeptClipSegments(w, max);
         RenderAudioTrackClips(AudioTrack1Canvas, AudioTrack1Host, "A1", w, max);
         RenderAudioTrackClips(AudioTrack2Canvas, AudioTrack2Host, "A2", w, max);
