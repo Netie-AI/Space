@@ -32,6 +32,8 @@ def test_append_and_import_pack_without_overlap():
     assert "source in-point" in session
     assert "public bool SlicePacked(" in timeline
     assert "SliceSubtitleBurn" in timeline
+    assert "MapCuesToPacked" in timeline
+    assert "WritePackedCaptions" in timeline
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline
@@ -99,6 +101,10 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     trim = preview[preview.index("private async void TrimVideoButton_Click"):preview.index("private void PreviewWebView_NavigationCompleted")]
     assert "SlicePacked" in trim
     assert "ExportTimelineAsync" in trim
+    caps = preview[preview.index("private async void AutoCaptionsButton_Click"):preview.index("private void RenderAudioTrackClips")]
+    assert "WritePackedCaptions" in caps
+    assert "PackedStartOf" in caps
+    assert "srtBySource" in caps
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 

@@ -3762,6 +3762,52 @@ public partial class PreviewWindow : Window
 
         try
         {
+            if (_editMode && _videoEdit.Clips.Count > 0)
+            {
+                var srtBySource = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var clip in _videoEdit.Clips)
+                {
+                    var src = string.IsNullOrWhiteSpace(clip.SourcePath) ? videoPath : clip.SourcePath;
+                    if (string.IsNullOrWhiteSpace(src) ||
+                        TimelineProject.IsBlackPlaceholder(src) ||
+                        srtBySource.ContainsKey(src))
+                        continue;
+                    var one = await BackgroundExportService.Instance.RunCaptionAsync(
+                        src, _ffmpeg, progress, CancellationToken.None);
+                    if (_captionDetached)
+                        return;
+                    if (!one.Success)
+                    {
+                        ConvertStatusText.Text = one.Error
+                            ?? "Captions need whisper.cpp — run scripts\\download-whisper.ps1";
+                        return;
+                    }
+
+                    srtBySource[src] = one.SrtPath!;
+                }
+
+                var specs = new List<(string SrtPath, TimeSpan SourceIn, TimeSpan SourceOut, double Speed, TimeSpan PackedStart)>();
+                for (var i = 0; i < _videoEdit.Clips.Count; i++)
+                {
+                    var clip = _videoEdit.Clips[i];
+                    var src = string.IsNullOrWhiteSpace(clip.SourcePath) ? videoPath : clip.SourcePath;
+                    if (!srtBySource.TryGetValue(src, out var srt))
+                        continue;
+                    specs.Add((srt, clip.Start, clip.End, clip.Speed, _videoEdit.PackedStartOf(i)));
+                }
+
+                var merged = IoPath.Combine(IoPath.GetTempPath(), $"_ns_packed_{Guid.NewGuid():N}.srt");
+                var cueCount = TimelineProject.WritePackedCaptions(merged, specs);
+                if (cueCount <= 0)
+                {
+                    ConvertStatusText.Text = "No caption cues on the packed timeline.";
+                    return;
+                }
+
+                ApplyCaptionsFromBackground(merged, cueCount);
+                return;
+            }
+
             var result = await BackgroundExportService.Instance.RunCaptionAsync(
                 videoPath,
                 _ffmpeg,
