@@ -682,6 +682,20 @@ def pdf_pages_to_html(src: Path, dest: Path) -> str:
     return "pymupdf-html-images"
 
 
+def pdf_pages_to_markdown(src: Path) -> tuple[str, str]:
+    """Scan / image-only PDF -> Markdown. Share Markdown used to need a text layer."""
+    import base64
+
+    pngs = pdf_page_pngs(src)
+    chunks: list[str] = []
+    for i, blob in enumerate(pngs, 1):
+        b64 = base64.b64encode(blob).decode("ascii")
+        chunks.append(f"## Page {i}\n\n![Page {i}](data:image/png;base64,{b64})\n")
+    if not chunks:
+        chunks.append("\n")
+    return "\n".join(chunks), "pymupdf-md-images"
+
+
 def file_to_docx(src: Path, dest: Path) -> str:
     if src.suffix.lower() == ".docx":
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -1474,7 +1488,12 @@ def action_to_md(argv: list[str]) -> dict:
     if isinstance(src, dict):
         return src
     dest = Path(positionals[1]) if len(positionals) > 1 else sibling(src, ".md")
-    text, tool = file_to_markdown(src)
+    try:
+        text, tool = file_to_markdown(src)
+    except RuntimeError:
+        if src.suffix.lower() != ".pdf":
+            raise
+        text, tool = pdf_pages_to_markdown(src)
     write_text(dest, text if text.endswith("\n") else text + "\n")
     return ok(dest, tool)
 
@@ -1565,7 +1584,12 @@ def action_export_as(argv: list[str]) -> dict:
     if dest_ext == ".pdf":
         return ok(dest, file_to_pdf(src, dest))
     if dest_ext in MD_EXTS:
-        text, tool = file_to_markdown(src)
+        try:
+            text, tool = file_to_markdown(src)
+        except RuntimeError:
+            if src_ext != ".pdf":
+                raise
+            text, tool = pdf_pages_to_markdown(src)
         write_text(dest, text if text.endswith("\n") else text + "\n")
         return ok(dest, tool)
     if dest_ext in HTML_EXTS:
