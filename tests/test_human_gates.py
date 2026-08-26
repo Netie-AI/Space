@@ -47,6 +47,7 @@ def test_scripts_and_docs():
     assert "extra Ctrl+Z" in pillar or "push undo" in pillar.lower()
     assert "Leave black" in pillar
     assert "title card" in pillar
+    assert "mouse capture" in pillar.lower()
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -92,6 +93,9 @@ def test_scripts_and_docs():
     handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     assert "ApplyFadeAt" in handle_up
     assert "DiscardLastVideoUndo" in handle_up
+    assert "EndFadeHandleDrag" in handle_up
+    assert "FadeHandle_LostMouseCapture" in handle_up
+    assert "LostMouseCapture += FadeHandle_LostMouseCapture" in preview
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
     keys = preview.index("private void Window_KeyDown")

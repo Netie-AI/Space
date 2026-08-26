@@ -64,7 +64,8 @@ Export should land near that.
    chips undoes the chip -- not + Clip. Ctrl+Z after Leave black also
    removes that title card (Export used to burn the leftover overlay).
    A failed Split (playhead on
-   an edge), a fade-handle click that does not move the diamond, or a
+   an edge), a fade-handle click that does not move the diamond, a
+   fade-handle drag that loses mouse capture, or a
    second Wipe on an already-wiped join discards that undo so Ctrl+Z
    cannot pop + Clip.
 9. Select the first remaining clip. Click **Fade In**. Select the last
