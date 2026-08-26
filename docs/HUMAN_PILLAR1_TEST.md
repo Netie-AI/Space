@@ -43,9 +43,8 @@ produced 3.12s here. Your Windows Export should land near that.
    select clip -> Delete".
 8. Select the first remaining clip. Click **Fade In**. Select the last
    clip. Click **Fade Out**.
-9. Click **Wipe** on the join between the two remaining clips (or the
-   wipe control on the transition). Export should burn a wipeleft xfade
-   of 0.5s.
+9. Click **Wipe** on either clip at the join (first or second). Export
+   burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
 10. Click **Export all**. Pick a folder. Wait for the toast. The toast should
     show the duration (about 3.1s / `wipe expect ~3.1s` on these clips).
 

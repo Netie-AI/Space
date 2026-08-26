@@ -31,6 +31,21 @@ public sealed class VideoEditSession
     /// <summary>True when the selected clip has a following clip to wipe/crossfade into.</summary>
     public bool CanJoinToNext => HasSelection && SelectedIndex < _kept.Count - 1;
 
+    /// <summary>
+    /// Left clip index for a wipe at the selected join. Works from either side
+    /// (playbook: "Wipe on the join"). Null if only one clip.
+    /// </summary>
+    public int? WipeJoinIndex()
+    {
+        if (!HasSelection || _kept.Count < 2)
+            return null;
+        if (CanJoinToNext)
+            return SelectedIndex;
+        if (SelectedIndex > 0)
+            return SelectedIndex - 1;
+        return null;
+    }
+
     public bool HasMultipleSources
     {
         get
@@ -129,6 +144,48 @@ public sealed class VideoEditSession
             return (c.Start, c.End, path);
         }).ToList();
         project.SyncFromKeptRanges(rows, fallback);
+        var v = project.VideoTrack;
+        if (v is null)
+            return;
+        for (var i = 0; i < _kept.Count && i < v.Clips.Count; i++)
+        {
+            var k = _kept[i];
+            v.Clips[i].FadeIn = k.FadeIn;
+            v.Clips[i].FadeOut = k.FadeOut;
+            v.Clips[i].TransitionIn = k.TransitionIn;
+            v.Clips[i].TransitionOut = k.TransitionOut;
+        }
+    }
+
+    /// <summary>Mark the join at the selection as wipeleft. Either adjacent clip works.</summary>
+    public bool ApplyWipeAtJoin()
+    {
+        var left = WipeJoinIndex();
+        if (left is not { } i || i + 1 >= _kept.Count)
+            return false;
+        var fade = TimeSpan.FromMilliseconds(500);
+        var a = _kept[i];
+        var b = _kept[i + 1];
+        _kept[i] = a with
+        {
+            TransitionOut = TransitionKind.Wipe,
+            FadeOut = a.FadeOut > TimeSpan.Zero ? a.FadeOut : fade
+        };
+        _kept[i + 1] = b with { TransitionIn = TransitionKind.Wipe };
+        return true;
+    }
+
+    public bool ApplyFadeAt(int index, TimeSpan? fadeIn, TimeSpan? fadeOut)
+    {
+        if (index < 0 || index >= _kept.Count)
+            return false;
+        var c = _kept[index];
+        _kept[index] = c with
+        {
+            FadeIn = fadeIn ?? c.FadeIn,
+            FadeOut = fadeOut ?? c.FadeOut
+        };
+        return true;
     }
 
     /// <summary>Select clip under playhead (or nearest containing range).</summary>
@@ -450,7 +507,14 @@ public sealed class VideoEditSession
         $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
 }
 
-public readonly record struct KeptClip(TimeSpan Start, TimeSpan End, string SourcePath);
+public readonly record struct KeptClip(
+    TimeSpan Start,
+    TimeSpan End,
+    string SourcePath,
+    TimeSpan FadeIn = default,
+    TimeSpan FadeOut = default,
+    TransitionKind TransitionIn = TransitionKind.None,
+    TransitionKind TransitionOut = TransitionKind.None);
 
 public readonly record struct TimelineSegment(
     int ClipIndex,

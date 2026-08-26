@@ -35,6 +35,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "<ProjectReference" not in csproj
     assert "Do not ProjectReference the WPF WinExe" in csproj
     assert "Select_split_drag_delete_ripples" in nle
+    assert "Wipe_from_either_clip_survives_ApplyTo" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle
     assert "FedericoCarboni/setup-ffmpeg@v3" in yml
     assert "choco install ffmpeg" not in yml
