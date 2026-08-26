@@ -1638,6 +1638,13 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _svg_data_uri_to_png(href)
         if png:
             pngs.append(png)
+    # Inline <svg> (no <img>). Share dest Word/MD used empty / 1-byte files.
+    for m in re.finditer(r"(?is)<svg\b[^>]*>.*?</svg>", text):
+        if len(pngs) >= cap:
+            break
+        png = _svg_bytes_to_png(m.group(0).encode("utf-8"))
+        if png:
+            pngs.append(png)
     if base is None:
         return pngs
     root = base.resolve()
