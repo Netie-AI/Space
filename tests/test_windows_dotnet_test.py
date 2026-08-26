@@ -55,6 +55,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "RemapPackedCuesAfterRepack_swap_moves_clip1_cue_onto_clip2" in nle
     assert "RemapPackedCuesAfterRepack_ripple_delete_drops_removed_clip_cues" in nle
     assert "RemapPackedCuesAfterWipe_shifts_clip2_cue" in nle
+    assert "RemapPackedCuesAfterWipe_join_spanning_cue_keeps_duration" in nle
     assert "ApplyWipeExportRemap_shifts_overlay_onto_wiped_clock" in nle
     graph_cs = (ROOT / "tests/NetieSpace.Tests/FfmpegExportGraphTests.cs").read_text(encoding="utf-8")
     assert "Pad_black_after_video_uses_add_not_clone" in graph_cs

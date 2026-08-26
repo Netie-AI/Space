@@ -808,10 +808,15 @@ public sealed class TimelineProject
         var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
         foreach (var c in cues)
         {
+            var dur = c.End - c.Start;
             var start = c.Start - WipeExportShift(clips, c.Start);
             var end = c.End - WipeExportShift(clips, c.End);
             if (start < TimeSpan.Zero)
                 start = TimeSpan.Zero;
+            // Start before the join / end after it: per-edge shift inverts
+            // (1.4..1.8 -> 1.4..1.3) and the 40ms gate dropped the cue.
+            if (end <= start)
+                end = start + dur;
             if (end - start < TimeSpan.FromMilliseconds(40))
                 continue;
             next.Add((start, end, c.Text));
