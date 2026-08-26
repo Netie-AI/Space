@@ -172,6 +172,11 @@ def test_export_as_markdown_suffix() -> None:
     assert 'extension is ".md" or ".markdown"' in parser
     assert '".md" or ".markdown"' in preview
     assert '".markdown"' in explorer
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _markdown_to_html_stdlib" in src
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    md_dlg = dlg.split('".md"', 1)[1][:240]
+    assert "PDF document|*.pdf" in md_dlg
 
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
@@ -181,9 +186,25 @@ def test_export_as_markdown_suffix() -> None:
         res = run_engine(["export-as", str(md), str(pdf)])
         assert res.get("success"), res
         assert pdf.is_file() and pdf.stat().st_size > 200
+        if pymupdf_available():
+            import pymupdf
+
+            doc = pymupdf.open(pdf)
+            try:
+                text = doc[0].get_text()
+            finally:
+                doc.close()
+            assert "Hello markdown" in text
+            assert "# Hello" not in text
         docx = d / "README.docx"
         res = run_engine(["export-as", str(md), str(docx)])
         assert res.get("success"), res
+        import zipfile
+
+        with zipfile.ZipFile(docx) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+        assert "Hello markdown suffix" in xml
+        assert "# Hello" not in xml
 
 
 def test_export_as_xlsx_from_csv() -> None:
@@ -638,6 +659,36 @@ def test_html_photo_export() -> None:
         with zipfile.ZipFile(docx) as zf:
             media = [n for n in zf.namelist() if n.startswith("word/media/")]
             assert media, zf.namelist()
+        sib = d / "pic.png"
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(sib, format="PNG")
+        rel = d / "rel.html"
+        rel.write_text('<html><body><img src="pic.png" alt="pic"></body></html>', encoding="utf-8")
+        rpdf = d / "rel.pdf"
+        res = run_engine(["export-as", str(rel), str(rpdf)])
+        assert res.get("success"), res
+        doc = pymupdf.open(rpdf)
+        try:
+            images = doc[0].get_images()
+        finally:
+            doc.close()
+        assert images
+        rdocx = d / "rel.docx"
+        res = run_engine(["export-as", str(rel), str(rdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(rdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist())
+        md_img = d / "img.md"
+        md_img.write_text("![pic](pic.png)\n", encoding="utf-8")
+        mpdf = d / "img.pdf"
+        res = run_engine(["export-as", str(md_img), str(mpdf)])
+        assert res.get("success"), res
+        doc = pymupdf.open(mpdf)
+        try:
+            assert doc[0].get_images()
+            assert "![pic]" not in doc[0].get_text()
+        finally:
+            doc.close()
 
 
 def test_export_as_svg() -> None:
