@@ -3732,6 +3732,10 @@ public partial class PreviewWindow : Window
 
     private void ApplyCaptionsFromBackground(string srtPath, int cueCount)
     {
+        // Fade / Wipe / Speed push undo so extra Ctrl+Z undoes the chip,
+        // not + Clip. Auto captions used to skip that stack, so one extra
+        // Ctrl+Z after captions popped + Clip and Export was ~1.6s.
+        PushVideoUndo();
         _timeline.SubtitleBurnPath = srtPath;
         LoadCaptionCuesFromSrt(srtPath);
         ScheduleTimelineLayout();
