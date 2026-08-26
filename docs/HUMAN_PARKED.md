@@ -58,6 +58,8 @@ Click path (image preview):
    `application/octet-stream`. Poll GET `/api/jobs/{id}` then
    `/api/history/{id}` (unprefixed last). Official 2026 OpenAPI superseded
    history with jobs; a jobs-only proxy used to 404 history and time out.
+   A completed job that only sends `preview_output` (no `outputs` object)
+   still counts -- official JobDetail does not require `outputs`.
    `status.completed` / job `completed` with empty outputs is not done
    (Comfy can mark completed before SaveImage lands).
 

@@ -42,7 +42,7 @@
    You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
    (WinAI sidecar only when WinML is down). Probe `/api/` then unprefixed.
-   Poll `/api/jobs` then `/history`. Live GPU still human.
+   Poll `/api/jobs` then `/history`; `preview_output` is enough. Live GPU still human.
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
    match is not a substring (`12` != `2`). Indirect `/Kids` and `/Annots`
    plus compact MuPDF `/Kids[4 0 R]` resolve so the first-page box lands.

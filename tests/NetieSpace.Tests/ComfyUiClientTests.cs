@@ -162,6 +162,25 @@ public class ComfyUiClientTests
     }
 
     [Fact]
+    public void TryReadJob_preview_output_without_outputs_is_done()
+    {
+        const string job = """
+            {"id":"abc-1","status":"completed","preview_output":{"filename":"netie_00001.png","type":"output","subfolder":"","mediaType":"images"}}
+            """;
+        Assert.True(ComfyUiClient.TryReadJob(job, out var outputs, out var noErr));
+        Assert.Null(noErr);
+        Assert.True(ComfyUiClient.TryFirstOutputImage(outputs, out var name, out var sub, out var type));
+        Assert.Equal("netie_00001.png", name);
+        Assert.Equal("", sub);
+        Assert.Equal("output", type);
+
+        const string video = """
+            {"id":"abc-1","status":"completed","preview_output":{"filename":"clip.mp4","type":"output","mediaType":"video"}}
+            """;
+        Assert.False(ComfyUiClient.TryReadJob(video, out _, out _));
+    }
+
+    [Fact]
     public async Task DownloadFirstOutput_down_server_returns_null()
     {
         var client = new ComfyUiClient("http://127.0.0.1:1");
