@@ -836,6 +836,88 @@ def test_pptx_photo_export() -> None:
             assert "word/media/image1.png" in zf.namelist()
 
 
+def test_photo_odp_docx_export() -> None:
+    """Share default PDF on a photo ODP / image-only DOCX used empty markdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "PHOTO_OFFICE_EXTS" in src
+    assert "def office_media_pngs" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "PDF document|*.pdf" in dlg.split('".odp"', 1)[1][:200]
+    assert "PDF document|*.pdf" in dlg.split('".docx"', 1)[1][:200]
+    if not pymupdf_available():
+        print("SKIP photo odp/docx export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP photo odp/docx export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (30, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        odp = d / "photos.odp"
+        content = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+            ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"'
+            ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+            ' xmlns:xlink="http://www.w3.org/1999/xlink">'
+            "<office:body><office:presentation>"
+            '<draw:page><draw:frame><draw:image xlink:href="Pictures/image1.png"/>'
+            "</draw:frame></draw:page></office:presentation></office:body>"
+            "</office:document-content>"
+        )
+        with zipfile.ZipFile(odp, "w") as zf:
+            zf.writestr("mimetype", "application/vnd.oasis.opendocument.presentation")
+            zf.writestr("content.xml", content)
+            zf.writestr("Pictures/image1.png", png)
+        pdf = d / "odp.pdf"
+        res = run_engine(["export-as", str(odp), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        assert pdf.is_file() and pdf.stat().st_size > 2000
+        html_out = d / "odp.html"
+        res = run_engine(["export-as", str(odp), str(html_out)])
+        assert res.get("success"), res
+        assert "data:image/png;base64," in html_out.read_text(encoding="utf-8")
+        md = d / "odp.md"
+        res = run_engine(["to-md", str(odp), str(md)])
+        assert res.get("success"), res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+
+        docx = d / "scan.docx"
+        with zipfile.ZipFile(docx, "w") as zf:
+            zf.writestr(
+                "[Content_Types].xml",
+                '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                '<Override PartName="/word/document.xml" '
+                'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+                "</Types>",
+            )
+            zf.writestr(
+                "word/document.xml",
+                '<?xml version="1.0"?><w:document '
+                'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                "<w:body><w:p/></w:body></w:document>",
+            )
+            zf.writestr("word/media/image1.png", png)
+        dpdf = d / "docx.pdf"
+        res = run_engine(["export-as", str(docx), str(dpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        assert dpdf.is_file() and dpdf.stat().st_size > 2000
+        dhtml = d / "docx.html"
+        res = run_engine(["export-as", str(docx), str(dhtml)])
+        assert res.get("success"), res
+        assert "data:image/png;base64," in dhtml.read_text(encoding="utf-8")
+
+
 def test_silent_video_export_mp3() -> None:
     """Share Export as MP3 on a silent clip failed (no audio stream)."""
     import shutil
@@ -1071,6 +1153,7 @@ if __name__ == "__main__":
     test_pdf_html_image_only()
     test_pdf_markdown_image_only()
     test_pptx_photo_export()
+    test_photo_odp_docx_export()
     test_silent_video_export_mp3()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
