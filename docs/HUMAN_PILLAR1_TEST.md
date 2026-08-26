@@ -41,11 +41,15 @@ produced 3.12s here. Your Windows Export should land near that.
 7. Select the extra piece. Press Delete (or the ribbon delete). The piece
    should disappear. The hint text says: "Move playhead -> Split ->
    select clip -> Delete".
-8. Select the first remaining clip. Click **Fade In**. Select the last
+8. Split/Delete is the click check. Undo (or close and + Clip both
+   originals) so the timeline is full `clip_a` (1.6s) + `clip_b` (2.0s)
+   again. A leftover half-clip makes Export ~2.3s and fails the 3.1s gate.
+   Split before Wipe (wipe-then-split copies wipe onto both halves).
+9. Select the first remaining clip. Click **Fade In**. Select the last
    clip. Click **Fade Out**.
-9. Click **Wipe** on either clip at the join (first or second). Export
-   burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
-10. Click **Export all**. Pick a folder. Wait for the toast. The toast should
+10. Click **Wipe** on either clip at the join (first or second). Export
+    burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
+11. Click **Export all**. Pick a folder. Wait for the toast. The toast should
     show the duration (about 3.1s / `wipe expect ~3.1s` on these clips).
     Duration uses the same `tools/ffmpeg/ffprobe` as Export (not PATH only).
 

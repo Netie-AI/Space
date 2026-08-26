@@ -51,6 +51,8 @@ def test_client_file_exists():
     assert "/view" in text
     assert "SaveImage" in text
     assert "TryFirstOutputImage" in text
+    assert "TryReadHistory" in text
+    assert "status.completed with empty outputs is not done" in text
     assert "DownloadFirstOutputAsync" in text
 
 
@@ -96,6 +98,7 @@ def test_xunit_compile_include():
     assert "ImageContentType_uses_extension_not_octet_stream" in tests
     assert "UploadImage_missing_or_down_returns_null" in tests
     assert "TryFirstOutputImage_reads_filename" in tests
+    assert "TryReadHistory_completed_without_images_keeps_polling" in tests
     assert "DownloadFirstOutput_down_server_returns_null" in tests
 
 

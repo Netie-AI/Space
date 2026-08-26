@@ -108,7 +108,8 @@ public sealed class ComfyUiClient
     }
 
     /// <summary>
-    /// POST /prompt then poll /history/{id} until outputs or ~30s timeout.
+    /// POST /prompt then poll /history/{id} until an image output or ~30s.
+    /// status.completed with empty outputs is not done (Comfy history race).
     /// Down / error -> Success=false. Never throws to the UI.
     /// </summary>
     public async Task<ComfyUiResult> QueuePromptAsync(string workflowJson, CancellationToken cancellationToken = default)
@@ -362,7 +363,11 @@ public sealed class ComfyUiClient
         });
     }
 
-    private static bool TryReadHistory(
+    /// <summary>
+    /// True when history is terminal. Image outputs -> success. status_str
+    /// error -> error. completed with no images -> false (keep polling).
+    /// </summary>
+    public static bool TryReadHistory(
         string json,
         string promptId,
         out string? outputsJson,
@@ -390,19 +395,14 @@ public sealed class ComfyUiClient
             }
 
             if (entry.TryGetProperty("outputs", out var outputs) &&
-                outputs.ValueKind == JsonValueKind.Object &&
-                outputs.EnumerateObject().Any())
+                outputs.ValueKind == JsonValueKind.Object)
             {
-                outputsJson = outputs.GetRawText();
-                return true;
-            }
-
-            if (entry.TryGetProperty("status", out var done) &&
-                done.TryGetProperty("completed", out var completed) &&
-                completed.ValueKind == JsonValueKind.True)
-            {
-                outputsJson = "{}";
-                return true;
+                var raw = outputs.GetRawText();
+                if (TryFirstOutputImage(raw, out _, out _, out _))
+                {
+                    outputsJson = raw;
+                    return true;
+                }
             }
         }
         catch (JsonException)

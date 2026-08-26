@@ -77,6 +77,32 @@ public class ComfyUiClientTests
     }
 
     [Fact]
+    public void TryReadHistory_completed_without_images_keeps_polling()
+    {
+        const string pid = "abc-1";
+        const string racing = """
+            {"abc-1":{"status":{"completed":true,"status_str":"success"},"outputs":{}}}
+            """;
+        Assert.False(ComfyUiClient.TryReadHistory(racing, pid, out var empty, out var err));
+        Assert.Null(empty);
+        Assert.Null(err);
+
+        const string ready = """
+            {"abc-1":{"status":{"completed":true},"outputs":{"2":{"images":[{"filename":"netie_00001.png","type":"output"}]}}}}
+            """;
+        Assert.True(ComfyUiClient.TryReadHistory(ready, pid, out var outputs, out var noErr));
+        Assert.Null(noErr);
+        Assert.True(ComfyUiClient.TryFirstOutputImage(outputs, out var name, out _, out _));
+        Assert.Equal("netie_00001.png", name);
+
+        const string failed = """
+            {"abc-1":{"status":{"status_str":"error","completed":true},"outputs":{}}}
+            """;
+        Assert.True(ComfyUiClient.TryReadHistory(failed, pid, out _, out var histError));
+        Assert.Contains("failed", histError);
+    }
+
+    [Fact]
     public async Task DownloadFirstOutput_down_server_returns_null()
     {
         var client = new ComfyUiClient("http://127.0.0.1:1");
