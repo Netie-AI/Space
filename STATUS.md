@@ -8,13 +8,14 @@
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
    `ci-cursor.sh` runs `encode-pillar1-wipe.sh` (same window).
    Windows CI runs `encode-pillar1-wipe.ps1`.
-2. **Ready PRs #4-#88 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#89 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.
    Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
    Failed Split / + Clip / cancel Delete / no-op fade-handle / second Wipe discard that undo.
+   Ctrl+Z after Leave black removes the title card (Export must not burn it).
    Delete key runs the same ribbon Delete dialog.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all

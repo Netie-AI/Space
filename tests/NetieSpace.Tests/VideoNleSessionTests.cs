@@ -320,4 +320,31 @@ public class VideoNleSessionTests
         Assert.Equal(TransitionKind.None, session.Clips[1].TransitionIn);
         Assert.Equal(TransitionKind.Wipe, session.Clips[2].TransitionIn);
     }
+
+    [Fact]
+    public void Leave_black_undo_removes_overlay_card()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.PushUndo();
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+
+        session.Select(1);
+        session.PushUndo(project);
+        Assert.True(session.DeleteSelectedOrAt(TimeSpan.Zero));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        project.AddOverlay(OverlayKind.Black, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(2));
+        Assert.Single(project.OverlayTrack!.Clips);
+        Assert.Equal(OverlayKind.Black, project.OverlayTrack.Clips[0].Overlay);
+
+        Assert.True(session.TryUndo(project));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        Assert.Equal(2, session.Clips.Count);
+        Assert.Equal(@"C:\clips\b.mp4", session.Clips[1].SourcePath, ignoreCase: true);
+        Assert.Empty(project.OverlayTrack!.Clips);
+        Assert.True(session.TryUndo());
+        Assert.Single(session.Clips);
+    }
 }

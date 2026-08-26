@@ -61,7 +61,9 @@ Export should land near that.
    again. A leftover half-clip makes Export ~2.3s and fails the 3.1s gate.
    Wipe-then-split keeps wipe on the outgoing half only (one join).
    Fade / Wipe / drag now push undo, so an extra Ctrl+Z after those
-   chips undoes the chip -- not + Clip. A failed Split (playhead on
+   chips undoes the chip -- not + Clip. Ctrl+Z after Leave black also
+   removes that title card (Export used to burn the leftover overlay).
+   A failed Split (playhead on
    an edge), a fade-handle click that does not move the diamond, or a
    second Wipe on an already-wiped join discards that undo so Ctrl+Z
    cannot pop + Clip.

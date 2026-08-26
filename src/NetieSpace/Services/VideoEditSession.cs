@@ -9,7 +9,9 @@ namespace NetieSpace.Services;
 public sealed class VideoEditSession
 {
     private readonly List<KeptClip> _kept = [];
-    private readonly Stack<List<KeptClip>> _undo = new();
+    private readonly Stack<UndoFrame> _undo = new();
+
+    private readonly record struct UndoFrame(List<KeptClip> Kept, List<TimelineClip> Overlays);
 
     public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept =>
         _kept.ConvertAll(c => (c.Start, c.End));
@@ -102,9 +104,17 @@ public sealed class VideoEditSession
         SelectedIndex = -1;
     }
 
-    public void PushUndo()
+    public void PushUndo() => PushUndo(null);
+
+    /// <summary>
+    /// Snapshot kept clips plus overlay cards. Leave-black writes OV after
+    /// this push; TryUndo must restore OV or Export burns the leftover card.
+    /// </summary>
+    public void PushUndo(TimelineProject? project)
     {
-        _undo.Push(_kept.Select(c => c).ToList());
+        _undo.Push(new UndoFrame(
+            _kept.Select(c => c).ToList(),
+            project?.SnapshotOverlays() ?? []));
         if (_undo.Count <= 40)
             return;
         var keep = _undo.Take(30).Reverse().ToList();
@@ -113,11 +123,15 @@ public sealed class VideoEditSession
             _undo.Push(s);
     }
 
-    public bool TryUndo()
+    public bool TryUndo() => TryUndo(null);
+
+    public bool TryUndo(TimelineProject? project)
     {
         if (_undo.Count == 0)
             return false;
-        RestoreKept(_undo.Pop());
+        var frame = _undo.Pop();
+        RestoreKept(frame.Kept);
+        project?.RestoreOverlays(frame.Overlays);
         return true;
     }
 
