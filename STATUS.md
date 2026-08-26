@@ -5,9 +5,10 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#73 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#74 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
+   `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
@@ -27,7 +28,7 @@
 - Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Wipe on either side of the join.
   Export clones the timeline (Space-close cannot mutate the encode). Caption
   status matches that snapshot. Ribbon / context-menu / handle Fade all write
-  the session. Toast uses bundled ffprobe.
+  the session. Toast uses bundled ffprobe. Fresh clone: install downloads ffmpeg.
 - Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (hybrid rewrite + Sign refuse leftover hybrid).
 - Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 

@@ -65,6 +65,12 @@ def test_scripts_and_docs():
     assert "wipeleft" in enc
     assert "offset=1.1" in enc
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in (ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md").read_text(encoding="utf-8")
+    publish_ps = (ROOT / "scripts/publish.ps1").read_text(encoding="utf-8")
+    ensure_ps = (ROOT / "scripts/ensure-ai-tools.ps1").read_text(encoding="utf-8")
+    assert "download-ffmpeg.ps1" in publish_ps
+    assert "download-ffmpeg.ps1" in ensure_ps
+    assert "ffmpeg copied to dist" in ensure_ps
+    assert "gitignored" in pillar or "download-ffmpeg" in pillar
 
 
 if __name__ == "__main__":
