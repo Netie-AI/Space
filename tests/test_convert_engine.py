@@ -345,6 +345,9 @@ def test_export_as_docx_xlsx_to_pdf() -> None:
     src = ENGINE.read_text(encoding="utf-8")
     assert "def docx_to_text" in src
     assert "def xlsx_to_rows" in src
+    assert 'if ext in {".xlsx", ".xlsm"}' in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".xlsx" or ".xlsm" or ".xls"' in preview
 
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
@@ -372,6 +375,22 @@ def test_export_as_docx_xlsx_to_pdf() -> None:
         res = run_engine(["export-as", str(xlsx), str(xhtml)])
         assert res.get("success"), res
         assert "widget" in xhtml.read_text(encoding="utf-8")
+
+        # Preview already treats .xlsm as Excel; default Export as PDF used to need markitdown.
+        xlsm = d / "table.xlsm"
+        xlsm.write_bytes(xlsx.read_bytes())
+        xmpdf = d / "table-xlsm.pdf"
+        res = run_engine(["export-as", str(xlsm), str(xmpdf)])
+        assert res.get("success"), res
+        assert xmpdf.is_file() and xmpdf.stat().st_size > 200
+        xmhtml = d / "table-xlsm.html"
+        res = run_engine(["export-as", str(xlsm), str(xmhtml)])
+        assert res.get("success"), res
+        assert "widget" in xmhtml.read_text(encoding="utf-8")
+        xmxlsx = d / "table-from-xlsm.xlsx"
+        res = run_engine(["export-as", str(xlsm), str(xmxlsx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
 
 
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
