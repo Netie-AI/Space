@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Auto captions pushes undo. Extra Ctrl+Z after captions used to pop + Clip so Export was ~1.6s (same stack hole Fade / Wipe had).
 - Video: Ctrl+Z restores `SubtitleBurnPath` and reloads caption cues. Speed / drag remap wrote a temp SRT; undo used to keep those times on the restored order.
 - Video: Drag / Order / ripple remaps packed caption cues (temp SRT). A swapped clip-2 still burned at 1.8s; a deleted clip left leftover text on the next source.
 - Video: Speed remaps packed caption cues and writes a temp SRT. A 2x clip used to leave cue times on the old ruler, so Export burned clip-1 text onto clip 2.

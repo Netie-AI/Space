@@ -105,7 +105,8 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     trim = preview[preview.index("private async void TrimVideoButton_Click"):preview.index("private void PreviewWebView_NavigationCompleted")]
     assert "SlicePacked" in trim
     assert "ExportTimelineAsync" in trim
-    caps = preview[preview.index("private async void AutoCaptionsButton_Click"):preview.index("private void RenderAudioTrackClips")]
+    caps = preview[preview.index("private void ApplyCaptionsFromBackground"):preview.index("private void RenderAudioTrackClips")]
+    assert "PushVideoUndo" in caps
     assert "WritePackedCaptions" in caps
     assert "PackedStartOf" in caps
     assert "srtBySource" in caps

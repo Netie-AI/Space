@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#126 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#127 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
@@ -23,7 +23,7 @@
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.
-   Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
+   Fade / Wipe / drag / Auto captions push undo so extra Ctrl+Z keeps + Clip.
    Failed Split / + Clip / cancel Delete / no-op fade-handle / fade-handle
    or clip-drag capture-loss / second Wipe discard that undo.
    Ctrl+Z after Leave black restores the title card and fill-gaps flag.
