@@ -100,6 +100,9 @@ def test_menu_and_handler_names():
     assert 'ext is not (".svg" or ".ico")' in cs
     copy = cs.split("CopyImageButton_Click", 1)[1].split("SendToComfyButton_Click", 1)[0]
     assert "RasterizeForComfyAsync" in copy
+    compress = cs.split("CompressImageButton_Click", 1)[1].split("Window_Loaded", 1)[0]
+    assert "RasterizeForComfyAsync" in compress
+    assert "GetDirectoryName" in compress
 
 
 def test_xunit_compile_include():

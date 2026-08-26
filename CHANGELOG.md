@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: Compress on a previewed SVG/ICO rasterizes to PNG beside the source first. WPF `BitmapImage` cannot decode those; a temp PNG would have written the smaller file under `%TEMP%`.
 - Image: OCR on a previewed SVG/ICO rasterizes to PNG first. Tesseract / GDI+ `Image.FromFile` cannot read those; the button is visible because they preview as Image.
 - Image: Copy on a previewed SVG/ICO rasterizes to PNG first. Those files preview as Image so the button is visible; WPF `BitmapImage` cannot decode them.
 - Convert: Space a `.text` file previews as Text so Share Export as is visible. Engine `TEXT_EXTS` already listed `.text`; `ContentParser` only treated `.txt`, so `ShellInfo` hid the row.
