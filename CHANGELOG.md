@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as PDF and drop/merge `.heic` / `.heif` rasterize through Pillow first (same as ICO/WebP). MuPDF `insert_image` has no HEIC decoder; JPG export already worked when `pillow_heif` is present. That package stays optional (not a Cursor CI dep).
 - Convert: Share Export as PDF and drop/merge `.webp` go through Pillow (then MuPDF). PdfSharpCore `XImage` and MuPDF `insert_image` have no WebP decoder; `.tif` drop used the same `XImage` path (engine PDF already worked).
 - Video: + Clip picker lists every `VideoExtensions` suffix (`.mpeg` / `.3gp` / `.flv` / `.ts` / …). Desktop Space already found those; the Video filter hid them so the click never reached `ProbeDuration`.
 - Convert: Share Export as is visible on previewed audio (`.mp3` / `.wav` / …). Those files are `ShellInfo`; engine `AUDIO_EXTS` already writes MP3/WAV. Markdown / PDF share rows stay hidden.
