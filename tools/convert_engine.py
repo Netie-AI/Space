@@ -875,8 +875,8 @@ def image_to_pdf(src: Path, dest: Path) -> str:
         return "pymupdf"
     raster = src
     tmp: Path | None = None
-    if src.suffix.lower() == ".ico":
-        # MuPDF insert_image rejects many .ico files. Preview already treats
+    if src.suffix.lower() in {".ico", ".webp"}:
+        # MuPDF insert_image rejects .ico and .webp. Preview already treats
         # them as images; Share / drop-on-PDF used to fail.
         im = load_pil_image(src)
         try:

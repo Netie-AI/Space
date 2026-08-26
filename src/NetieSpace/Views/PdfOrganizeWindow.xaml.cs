@@ -177,7 +177,7 @@ public partial class PdfOrganizeWindow : Window
         {
             Title = "Add files as pages",
             Filter =
-                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff|" +
+                "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|" +
                 "All files|*.*",
             Multiselect = true
         };
@@ -456,7 +456,9 @@ public partial class PdfOrganizeWindow : Window
     public static bool IsImagePath(string path)
     {
         var ext = IoPath.GetExtension(path).ToLowerInvariant();
-        return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif" or ".webp" or ".tif" or ".tiff";
+        // PdfSharpCore XImage decoders: BMP / JPEG / GIF / PNG only.
+        // .webp / .tif go through the engine to-pdf path (drop / merge).
+        return ext is ".png" or ".jpg" or ".jpeg" or ".bmp" or ".gif";
     }
 
     private sealed class PageRow : INotifyPropertyChanged

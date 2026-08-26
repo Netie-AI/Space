@@ -545,7 +545,10 @@ def test_svg_ico_drop_merge_lists() -> None:
     assert '".svg" or ".ico" or ".heic" or ".heif"' in preview
     assert '".svg"' in merge and '".ico"' in merge and '".heic"' in merge and '".heif"' in merge
     # Organize still uses PdfSharp XImage -- do not treat SVG as a raster insert.
-    assert '".svg"' not in organize.split("public static bool IsImagePath", 1)[1][:400]
+    image_path = organize.split("public static bool IsImagePath", 1)[1][:500]
+    assert '".svg"' not in image_path
+    assert '".webp"' not in image_path
+    assert '".tif"' not in image_path
     assert '".svg"' in explorer and '".ico"' in explorer and '".heif"' in explorer
     ico = ROOT / "src/NetieSpace/Assets/netie.ico"
     if ico.is_file() and pymupdf_available():
@@ -554,6 +557,37 @@ def test_svg_ico_drop_merge_lists() -> None:
             res = run_engine(["export-as", str(ico), str(pdf)])
             assert res.get("success"), res
             assert pdf.is_file() and pdf.stat().st_size > 200
+
+
+def test_webp_tif_drop_uses_engine() -> None:
+    """Drop / Share Export as PDF on .webp used XImage / MuPDF insert_image (no webp decoder)."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    organize = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(encoding="utf-8")
+    engine = ENGINE.read_text(encoding="utf-8")
+    assert '".webp" or ".tif" or ".tiff"' in preview
+    image_path = organize.split("public static bool IsImagePath", 1)[1][:500]
+    assert '".webp"' not in image_path
+    assert '".tif"' not in image_path
+    assert '".ico", ".webp"' in engine or '".webp"' in engine
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP webp export -- Pillow missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        webp = d / "photo.webp"
+        Image.new("RGB", (32, 24), (20, 80, 180)).save(webp, "WEBP")
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(webp), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        tif = d / "photo.tif"
+        Image.new("RGB", (32, 24), (20, 80, 180)).save(tif, "TIFF")
+        tif_pdf = d / "photo-tif.pdf"
+        res = run_engine(["export-as", str(tif), str(tif_pdf)])
+        assert res.get("success"), res
+        assert tif_pdf.is_file() and tif_pdf.stat().st_size > 200
 
 
 def test_text_markdown_drop_merge_lists() -> None:
@@ -729,6 +763,7 @@ if __name__ == "__main__":
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
+    test_webp_tif_drop_uses_engine()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
     test_export_as_preview_video_gif()
