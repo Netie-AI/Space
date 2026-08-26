@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest 1 on MP4 / keep-type audio (same folder + stem) no longer fails ffmpeg in-place. HTML dest 1 already skipped the copy.
 - Convert: Share dest 1 on HTML (same folder + stem) no longer raises SameFileError. PDF dest 1 already skipped the copy. Same-type Word / Excel / PowerPoint dest 2 uses that guard too.
 - Convert: Share Export as PowerPoint on a photo ODP embeds `Pictures/` as slides. Dest 2 used to raise LibreOffice required. Text ODP still needs soffice.
 - Convert: Share Export as Excel on a photo ODS embeds `Pictures/` as sheet drawings. Empty cell text used to write a workbook with no `xl/media`. Sheets with cell text stay the row path.

@@ -1710,10 +1710,12 @@ def pdf_to_images(src: Path, dest: Path) -> str:
 
 
 def export_media(src: Path, dest: Path) -> str:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if src.resolve() == dest.resolve():
+        return "copy"
     ffmpeg = find_ffmpeg()
     if not ffmpeg:
         raise RuntimeError("ffmpeg missing (tools/ffmpeg/ffmpeg or PATH)")
-    dest.parent.mkdir(parents=True, exist_ok=True)
     ext = dest.suffix.lower()
     cmd = [ffmpeg, "-y", "-i", str(src)]
     if ext == ".gif":
