@@ -22,6 +22,19 @@ export function stripeWebhookConfigured(env: Env): boolean {
   return Boolean(env.STRIPE_WEBHOOK_SECRET);
 }
 
+/** Host that received this request (local :8787 or this Worker). PUBLIC_BASE_URL is fallback only. */
+export function requestPublicBase(req: Request, env: Env): string {
+  try {
+    const u = new URL(req.url);
+    if ((u.protocol === "http:" || u.protocol === "https:") && u.host) {
+      return `${u.protocol}//${u.host}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return (env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
+}
+
 function randomSuffix(n = 8): string {
   const bytes = crypto.getRandomValues(new Uint8Array(n));
   return [...bytes].map((b) => (b % 26 + 10).toString(36)).join("").slice(0, n);
@@ -73,17 +86,18 @@ export async function verifyStripeSignature(
 
 export async function createCheckoutSession(
   env: Env,
-  opts: { userId: string; email: string; customerId?: string | null }
+  opts: { userId: string; email: string; customerId?: string | null; publicBase: string }
 ): Promise<{ url: string; id: string }> {
+  const base = opts.publicBase.replace(/\/$/, "");
   const body = new URLSearchParams();
   body.set("mode", "subscription");
   body.set("line_items[0][price]", env.STRIPE_PRICE_ID!);
   body.set("line_items[0][quantity]", "1");
   body.set(
     "success_url",
-    `${env.PUBLIC_BASE_URL}/v1/checkout/success?session_id={CHECKOUT_SESSION_ID}`
+    `${base}/v1/checkout/success?session_id={CHECKOUT_SESSION_ID}`
   );
-  body.set("cancel_url", `${env.PUBLIC_BASE_URL}/v1/checkout/cancel`);
+  body.set("cancel_url", `${base}/v1/checkout/cancel`);
   body.set("client_reference_id", opts.userId);
   // Stripe rejects customer + customer_email together.
   const customerId = stripeRefId(opts.customerId, "cus_");
@@ -276,11 +290,13 @@ export async function fulfillCheckoutSession(env: Env, session: CheckoutSession)
 
 export async function createPortalSession(
   env: Env,
-  customerId: string
+  customerId: string,
+  publicBase: string
 ): Promise<{ url: string }> {
+  const base = publicBase.replace(/\/$/, "");
   const body = new URLSearchParams();
   body.set("customer", customerId);
-  body.set("return_url", `${env.PUBLIC_BASE_URL}/v1/billing/return`);
+  body.set("return_url", `${base}/v1/billing/return`);
 
   const res = await fetch(STRIPE_PORTAL_API, {
     method: "POST",
