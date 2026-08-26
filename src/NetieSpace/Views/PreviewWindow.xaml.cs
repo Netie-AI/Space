@@ -477,7 +477,8 @@ public partial class PreviewWindow : Window
         // Share is always useful (copy / mail / reveal); only the format rows depend on the kind.
         // Video gets Share Export as (GIF / MP4 / …). Markdown / PDF rows stay off
         // (those used to be tied to convertOk, which hid the GIF click after #149).
-        var convertOk = kind is not PreviewKind.ShellInfo and not PreviewKind.Binary;
+        var convertOk = (kind is not PreviewKind.ShellInfo and not PreviewKind.Binary)
+            || IsAudioPath(_currentFilePath);
         _convertTargetsAvailable = convertOk;
 
         // Region marquee is a PDF-viewer feature; images fall back to a whole-frame clip.
@@ -6609,7 +6610,7 @@ public partial class PreviewWindow : Window
 
         var haveFile = !string.IsNullOrWhiteSpace(_currentFilePath) && IoFile.Exists(_currentFilePath);
         var formats = haveFile && _convertTargetsAvailable;
-        var docFormats = formats && _content?.Kind != PreviewKind.Video;
+        var docFormats = formats && _content?.Kind is not PreviewKind.Video and not PreviewKind.ShellInfo;
         ShareFormatsLabel.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
         ShareMdRow.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
         SharePdfRow.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
@@ -6677,8 +6678,15 @@ public partial class PreviewWindow : Window
             _ when kind == PreviewKind.Image => "JPG, PNG, WEBP, GIF, PDF…",
             _ when kind == PreviewKind.Video => "MP4, MOV, MKV, WEBM, GIF, MP3…",
             ".html" or ".htm" => "HTML, PDF, Word…",
+            _ when IsAudioPath(sourcePath) => "MP3, WAV, M4A, AAC…",
             _ => "PDF, HTML, Word…"
         };
+    }
+
+    private static bool IsAudioPath(string? path)
+    {
+        var ext = IoPath.GetExtension(path ?? "").ToLowerInvariant();
+        return ext is ".mp3" or ".wav" or ".m4a" or ".aac" or ".flac" or ".ogg";
     }
 
     private static (string filter, string defaultExt, int filterIndex, string defaultName) BuildExportAsDialog(
@@ -6733,6 +6741,19 @@ public partial class PreviewWindow : Window
             _ when kind == PreviewKind.Video => (
                 "MP4 video|*.mp4|MOV video|*.mov|MKV video|*.mkv|WEBM video|*.webm|Animated GIF|*.gif|MP3 audio|*.mp3|All files|*.*",
                 "mp4", 1, stem),
+            _ when IsAudioPath(sourcePath) => (
+                "MP3 audio|*.mp3|WAV audio|*.wav|M4A audio|*.m4a|AAC audio|*.aac|FLAC audio|*.flac|OGG audio|*.ogg|All files|*.*",
+                ext is ".wav" or ".m4a" or ".aac" or ".flac" or ".ogg" ? ext.TrimStart('.') : "mp3",
+                ext switch
+                {
+                    ".wav" => 2,
+                    ".m4a" => 3,
+                    ".aac" => 4,
+                    ".flac" => 5,
+                    ".ogg" => 6,
+                    _ => 1
+                },
+                stem),
             _ => (
                 "PDF document|*.pdf|Web page|*.html|Word document|*.docx|Markdown|*.md|All files|*.*",
                 "pdf", 1, stem)
