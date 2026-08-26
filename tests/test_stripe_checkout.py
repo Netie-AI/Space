@@ -39,6 +39,12 @@ def test_worker_checkout_routes():
     assert "Already paid. Activate this laptop" in src
     assert 'body.set("customer"' in stripe
     assert "customer_email" in stripe
+    assert 'url.pathname === "/v1/billing/return"' in src
+    assert "/v1/billing/return" in stripe
+    assert "This was not a new charge" in src
+    assert "Payment is not complete yet" in src
+    assert 'body.set("return_url"' in stripe
+    assert "/v1/checkout/success" not in stripe.split("return_url")[1][:80]
     assert "handleCheckoutSuccess" in src
     assert 'url.pathname === "/v1/stripe/status"' in src
     assert "payment_status === \"paid\"" in stripe or 'payment_status === "paid"' in stripe
@@ -113,6 +119,7 @@ def test_human_docs_exist():
     assert "pending" in human
     assert "payment_required" in human
     assert "already_paid" in human
+    assert "billing/return" in human or "Billing updated" in human
     assert "Buy API flow" in parking
     assert "Stripe Checkout" in parking
     assert 'url.pathname === "/v1/billing-portal"' in _read(WORKER)

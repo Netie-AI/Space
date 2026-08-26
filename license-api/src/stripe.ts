@@ -280,7 +280,7 @@ export async function createPortalSession(
 ): Promise<{ url: string }> {
   const body = new URLSearchParams();
   body.set("customer", customerId);
-  body.set("return_url", `${env.PUBLIC_BASE_URL}/v1/checkout/success`);
+  body.set("return_url", `${env.PUBLIC_BASE_URL}/v1/billing/return`);
 
   const res = await fetch(STRIPE_PORTAL_API, {
     method: "POST",

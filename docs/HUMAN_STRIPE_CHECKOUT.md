@@ -81,8 +81,10 @@ opens netie.space. That is expected until step 2 is done.
   returns `already_paid` (409). Do not checkout again -- Activate.
   Expired licenses can checkout again and reuse the Stripe customer id.
 - After a customer id exists, `POST /v1/billing-portal` (signed in) returns a
-  `billing.stripe.com` URL. Cancel / update card there, then license status
-  follows `customer.subscription.updated` / `deleted`.
+  `billing.stripe.com` URL. After you leave the portal you land on
+  `/v1/billing/return` ("Billing updated", not "Payment received").
+  Cancel / update card there, then license status follows
+  `customer.subscription.updated` / `deleted`.
 - If the webhook wrote the session before customer/subscription IDs were
   parseable (string or `{ id }`), the success page retrieve backfills them.
   Manage billing should still open.
