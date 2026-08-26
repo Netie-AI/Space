@@ -97,6 +97,18 @@ Invoke-WithRetry -Description 'Publishing Netie Space' -Operation {
     }
 }
 
+# Fresh clone has no tools/ffmpeg (gitignored). Playbook Export and
+# "re-run install.bat" need ffmpeg next to the exe. Download is a no-op
+# when ffmpeg.exe is already there. Network fail must not abort publish.
+$ffmpegGet = Join-Path $PSScriptRoot 'download-ffmpeg.ps1'
+if (Test-Path $ffmpegGet) {
+    try {
+        & $ffmpegGet
+    } catch {
+        Write-Host "[WARN] ffmpeg download: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+}
+
 # Bundle tools + config for portable use
 $toolsSrc = Join-Path $root 'tools'
 if (Test-Path $toolsSrc) {

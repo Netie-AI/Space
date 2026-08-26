@@ -10,6 +10,9 @@ Cloud agents run Linux. They cannot launch `NetieSpace.exe`.
 
 1. Clone or pull `main` on Windows.
 2. Double-click `install.bat` (or `run.bat` after the first build).
+   `install.bat` / `publish.ps1` download `tools/ffmpeg` when missing
+   (that folder is gitignored) and copy it next to the exe. Re-run
+   `install.bat` if Export says FFmpeg is missing.
 3. Wait until `dist\NetieSpace\NetieSpace.exe` exists.
 4. Launch that `.exe`. Do not expect a browser window.
 

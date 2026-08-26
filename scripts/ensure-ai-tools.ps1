@@ -6,7 +6,27 @@
 #>
 $ErrorActionPreference = 'Continue'
 $root = Split-Path $PSScriptRoot -Parent
-Write-Host "=== Ensure AI tools (whisper + rembg) ===" -ForegroundColor Cyan
+Write-Host "=== Ensure AI tools (ffmpeg + whisper + rembg) ===" -ForegroundColor Cyan
+
+# 0) ffmpeg for Export (gitignored tools/ is empty on a fresh clone)
+$ffmpegScript = Join-Path $PSScriptRoot 'download-ffmpeg.ps1'
+if (Test-Path $ffmpegScript) {
+    try {
+        & powershell -ExecutionPolicy Bypass -File $ffmpegScript
+    } catch {
+        Write-Host "[WARN] ffmpeg download: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[WARN] missing scripts\download-ffmpeg.ps1" -ForegroundColor Yellow
+}
+
+$ffmpegSrc = Join-Path $root 'tools\ffmpeg'
+$ffmpegDst = Join-Path $root 'dist\NetieSpace\tools\ffmpeg'
+if ((Test-Path (Join-Path $ffmpegSrc 'ffmpeg.exe')) -and (Test-Path (Join-Path $root 'dist\NetieSpace'))) {
+    New-Item -ItemType Directory -Force -Path $ffmpegDst | Out-Null
+    Copy-Item (Join-Path $ffmpegSrc '*') $ffmpegDst -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "[OK] ffmpeg copied to dist" -ForegroundColor Green
+}
 
 # 1) Whisper captions
 $whisperScript = Join-Path $PSScriptRoot 'download-whisper.ps1'

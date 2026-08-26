@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Install: `publish.ps1` and `ensure-ai-tools.ps1` run `download-ffmpeg.ps1` and copy `tools/ffmpeg` into `dist`. A fresh clone used to ship no ffmpeg (`tools/` is gitignored), so playbook Export after `install.bat` said FFmpeg is missing; "re-run install.bat" could not fix it.
 - PDF: cert-sign xunit covers in-app `sample.pdf` / `Q3_Report.pdf` (MuPDF compact `/Kids[4 0 R]` + `/Type/Page`). A `/Kids [`-only regex would miss page 1 and write a zero-size widget.
 - License: `setup-license-api.ps1` writes `wrangler.toml` UTF-8 without BOM (Windows PowerShell 5.1 `Set-Content -Encoding UTF8` used to prefix EF BB BF). Secret-put uses `Invoke-Wrangler` (npx fallback), not a hardcoded `wrangler.cmd`.
 - Video: edit-mode Mark In/Out are packed seconds. More... Export range clones + `SlicePacked` so + Clip no longer TrimAsyncs clip 1 at clip-2 source times. Marks that span the join used to fail `EnsureMarks` (0.9 < 1.0).
