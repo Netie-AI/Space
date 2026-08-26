@@ -120,6 +120,50 @@ def test_watermark_protect_smoke() -> None:
         assert res.get("success") is False and res.get("error")
 
 
+def test_export_as_docx_from_text_sources() -> None:
+    """Share Export as Word. Engine used to return unsupported target: .docx."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def write_docx" in src
+    assert "def file_to_docx" in src
+    assert 'if dest_ext == ".docx"' in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dialog = preview.split("private static (string filter", 1)[1]
+    assert "Word document|*.docx" in dialog
+    assert "OpenDocument Text|*.odt" not in dialog
+    assert "OpenDocument Spreadsheet|*.ods" not in dialog
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        md = d / "note.md"
+        md.write_text("Hello export\nSecond line\n", encoding="utf-8")
+        out = d / "note.docx"
+        res = run_engine(["export-as", str(md), str(out)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        assert out.is_file() and out.stat().st_size > 200
+        import zipfile
+
+        with zipfile.ZipFile(out) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+        assert "Hello export" in xml
+        assert "Second line" in xml
+
+        sample = ROOT / "src" / "NetieSpace" / "Assets" / "pdfjs" / "sample.pdf"
+        if sample.is_file() and pymupdf_available():
+            pdf_out = d / "sample.docx"
+            res = run_engine(["export-as", str(sample), str(pdf_out)])
+            assert res.get("success"), res
+            assert pdf_out.is_file() and pdf_out.stat().st_size > 200
+            with zipfile.ZipFile(pdf_out) as zf:
+                assert "word/document.xml" in zf.namelist()
+
+        same = d / "note-copy.docx"
+        res = run_engine(["export-as", str(out), str(same)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+        assert same.is_file() and same.stat().st_size == out.stat().st_size
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -173,6 +217,7 @@ if __name__ == "__main__":
     test_actions_registered()
     test_unknown_action_emits_json()
     test_watermark_protect_smoke()
+    test_export_as_docx_from_text_sources()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")

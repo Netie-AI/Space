@@ -401,6 +401,67 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+_XML_ILLEGAL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def write_docx(dest: Path, text: str) -> str:
+    """Minimal Office Open XML .docx (stdlib zip). Share Export as Word used this."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    raw = _XML_ILLEGAL.sub("", (text or "").replace("\r\n", "\n").replace("\r", "\n"))
+    paragraphs = [p.strip() for p in raw.split("\n") if p.strip()]
+    if not paragraphs:
+        paragraphs = [""]
+
+    def esc(s: str) -> str:
+        return html.escape(s, quote=False)
+
+    body = "".join(
+        f'<w:p><w:r><w:t xml:space="preserve">{esc(p)}</w:t></w:r></w:p>'
+        for p in paragraphs
+    )
+    document_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+        f"<w:body>{body}<w:sectPr/></w:body></w:document>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/word/document.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        "</Types>"
+    )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="word/document.xml"/>'
+        "</Relationships>"
+    )
+    word_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'
+    )
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels)
+        zf.writestr("word/document.xml", document_xml)
+        zf.writestr("word/_rels/document.xml.rels", word_rels)
+    return "docx-zip"
+
+
+def file_to_docx(src: Path, dest: Path) -> str:
+    if src.suffix.lower() == ".docx":
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        return "copy"
+    text, _tool = file_to_markdown(src)
+    return write_docx(dest, text)
+
+
 # ---------------------------------------------------------------------------
 # PDF write helpers (pymupdf)
 # ---------------------------------------------------------------------------
@@ -983,6 +1044,14 @@ def action_export_as(argv: list[str]) -> dict:
         dest_ext == ".gif" and src_ext in VIDEO_EXTS
     ):
         return ok(dest, export_media(src, dest))
+    if dest_ext in OFFICE_EXTS:
+        if dest_ext == src_ext:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dest)
+            return ok(dest, "copy")
+        if dest_ext == ".docx":
+            return ok(dest, file_to_docx(src, dest))
+        return fail(f"unsupported target: {dest_ext}")
     return fail(f"unsupported target: {dest_ext or '(none)'}")
 
 
