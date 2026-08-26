@@ -136,6 +136,13 @@ export default {
       if (url.pathname === "/v1/checkout/success" && req.method === "GET") {
         return await handleCheckoutSuccess(req, env, url);
       }
+      if (url.pathname === "/v1/billing/return" && req.method === "GET") {
+        return html(
+          env,
+          req,
+          "Billing updated. Return to Netie Space. This was not a new charge."
+        );
+      }
       if (url.pathname === "/v1/checkout/cancel" && req.method === "GET") {
         return html(
           env,
@@ -555,21 +562,33 @@ async function handleMe(req: Request, env: Env): Promise<Response> {
 
 async function handleCheckoutSuccess(req: Request, env: Env, url: URL): Promise<Response> {
   const sessionId = url.searchParams.get("session_id") ?? "";
+  let paid = false;
   if (stripeConfigured(env) && sessionId.startsWith("cs_")) {
     try {
       const session = await retrieveCheckoutSession(env, sessionId);
       if (session && checkoutSessionPaid(session)) {
         await fulfillCheckoutSession(env, session);
+        paid = true;
       }
     } catch {
       // Webhook may still fulfill. Never fail the buyer-facing page.
     }
   }
-  return html(
-    env,
-    req,
-    "Payment received. Return to Netie Space: tray -> Account / Sign in -> Activate."
-  );
+  if (paid) {
+    return html(
+      env,
+      req,
+      "Payment received. Return to Netie Space: Activate this laptop."
+    );
+  }
+  if (sessionId.startsWith("cs_")) {
+    return html(
+      env,
+      req,
+      "Payment is not complete yet. If you were charged, wait and Activate. Otherwise Setup -> Get Netie subscription."
+    );
+  }
+  return html(env, req, "Return to Netie Space.");
 }
 
 async function handleCheckout(req: Request, env: Env): Promise<Response> {
