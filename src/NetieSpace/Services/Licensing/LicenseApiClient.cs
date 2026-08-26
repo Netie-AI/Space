@@ -307,19 +307,41 @@ public static class DeviceFingerprint
         catch { return "unknown-guid"; }
     }
 
+    private static string? _boardUuid;
+
+    /// <summary>
+    /// WMI <c>Win32_ComputerSystemProduct</c> has no default timeout.
+    /// <see cref="LicenseStore.IsLicensedOffline"/> and Activate used to hang
+    /// the UI forever on a stuck CIMOM (<c>SkipGate: false</c> launch).
+    /// </summary>
     private static string GetBoardUuid()
     {
+        if (_boardUuid is not null)
+            return _boardUuid;
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct");
-            foreach (ManagementObject mo in searcher.Get())
-            {
-                var uuid = mo["UUID"]?.ToString();
-                if (!string.IsNullOrWhiteSpace(uuid))
-                    return uuid;
-            }
+            var task = Task.Run(ReadBoardUuid);
+            _boardUuid = task.Wait(TimeSpan.FromSeconds(3)) ? task.Result : "unknown-board";
         }
-        catch { /* ignore */ }
+        catch
+        {
+            _boardUuid = "unknown-board";
+        }
+
+        return _boardUuid ?? "unknown-board";
+    }
+
+    private static string ReadBoardUuid()
+    {
+        using var searcher = new ManagementObjectSearcher("SELECT UUID FROM Win32_ComputerSystemProduct");
+        searcher.Options.Timeout = TimeSpan.FromSeconds(2);
+        foreach (ManagementObject mo in searcher.Get())
+        {
+            var uuid = mo["UUID"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(uuid))
+                return uuid;
+        }
+
         return "unknown-board";
     }
 
