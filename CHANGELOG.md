@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: `LoadPfx` falls back to PersistKeySet when EphemeralKeySet rejects a Windows PKI / openssl playbook PFX. Ephemeral-only could fail `make-test-pfx.ps1` certs before Adobe opens.
 - PDF: Cert sign loads the playbook PFX via `PdfCmsSigner.LoadPfx` (`Exportable | EphemeralKeySet`). The click path used `Exportable` only, which can throw "keyset does not exist" on Windows CNG before Adobe opens.
 - Video: Fade / Wipe / clip-drag push the undo stack. After playbook Ctrl+Z (Split/Delete), an extra Ctrl+Z used to pop + Clip so Export was ~1.6s instead of ~3.1s.
 - PDF: `make-test-pfx.ps1` uses Windows `New-SelfSignedCertificate` (password `test`). It used to require openssl on PATH, so a stock Windows box could not start the Adobe cert-sign playbook.

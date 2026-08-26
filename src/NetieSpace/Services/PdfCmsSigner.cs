@@ -140,13 +140,34 @@ public static class PdfCmsSigner
     }
 
     /// <summary>
-    /// Playbook PFX load (More... Cert sign). Same flags as
-    /// <see cref="CreateEphemeralSelfSigned"/> so SignedCms can see the key.
-    /// Exportable-only can throw "keyset does not exist" on Windows CNG.
+    /// Playbook PFX load (More... Cert sign). Try EphemeralKeySet first
+    /// (SignedCms can see the key). Windows PKI PFX from
+    /// New-SelfSignedCertificate often rejects that flag -- fall back to
+    /// PersistKeySet so Adobe cert-sign still opens.
     /// </summary>
-    public static X509Certificate2 LoadPfx(string path, string password) =>
-        new(path, password ?? "",
-            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+    public static X509Certificate2 LoadPfx(string path, string password)
+    {
+        var pwd = password ?? "";
+        try
+        {
+            var ephemeral = new X509Certificate2(
+                path,
+                pwd,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
+            if (ephemeral.GetRSAPrivateKey() is not null)
+                return ephemeral;
+            ephemeral.Dispose();
+        }
+        catch (CryptographicException)
+        {
+            // CNG store-exported PFX: EphemeralKeySet throws.
+        }
+
+        return new X509Certificate2(
+            path,
+            pwd,
+            X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet | X509KeyStorageFlags.UserKeySet);
+    }
 
     public static bool HasDetachedPkcs7Marker(ReadOnlySpan<byte> pdf) =>
         IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;

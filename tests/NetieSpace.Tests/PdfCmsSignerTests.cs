@@ -368,6 +368,72 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void LoadPfx_signs_openssl_playbook_pfx()
+    {
+        // make-test-pfx.sh / openssl fallback. Same password: test.
+        var openssl = Which("openssl");
+        if (openssl is null)
+        {
+            Assert.False(
+                Environment.GetEnvironmentVariable("CI") is "1" or "true" or "True",
+                "openssl required on CI for playbook PFX load");
+            return;
+        }
+
+        var dir = Path.Combine(Path.GetTempPath(), "netie-ossl-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        try
+        {
+            var key = Path.Combine(dir, "key.pem");
+            var crt = Path.Combine(dir, "cert.pem");
+            var pfx = Path.Combine(dir, "netie-test.pfx");
+            Run(openssl, "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+                "-keyout", key, "-out", crt, "-days", "1",
+                "-subj", "/CN=Netie Space Test");
+            Run(openssl, "pkcs12", "-export", "-out", pfx,
+                "-inkey", key, "-in", crt, "-passout", "pass:test");
+            using var ui = PdfCmsSigner.LoadPfx(pfx, "test");
+            Assert.NotNull(ui.GetRSAPrivateKey());
+            var signed = PdfCmsSigner.Sign(PdfCmsSigner.CreateMinimalPdf(), ui);
+            Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    private static string? Which(string name)
+    {
+        var file = OperatingSystem.IsWindows() ? name + ".exe" : name;
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var d in path.Split(Path.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(d)) continue;
+            var candidate = Path.Combine(d, file);
+            if (File.Exists(candidate)) return candidate;
+        }
+        return null;
+    }
+
+    private static void Run(string exe, params string[] args)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = exe,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+        foreach (var a in args)
+            psi.ArgumentList.Add(a);
+        using var p = System.Diagnostics.Process.Start(psi);
+        Assert.NotNull(p);
+        p.WaitForExit(30_000);
+        Assert.Equal(0, p.ExitCode);
+    }
+
+    [Fact]
     public void PdfSharp_new_document_is_classic_or_rewritable()
     {
         var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
