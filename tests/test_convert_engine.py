@@ -285,6 +285,61 @@ def test_export_as_rtf_odt_ods() -> None:
         assert "widget" in sheet
 
 
+def _write_odp(path: Path, slides: list[str]) -> None:
+    pages = "".join(
+        "<draw:page><draw:frame><draw:text-box>"
+        f"<text:p>{title}</text:p>"
+        "</draw:text-box></draw:frame></draw:page>"
+        for title in slides
+    )
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+        ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"'
+        ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+        f"<office:body><office:presentation>{pages}</office:presentation></office:body>"
+        "</office:document-content>"
+    )
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("mimetype", "application/vnd.oasis.opendocument.presentation")
+        zf.writestr("content.xml", content)
+        zf.writestr(
+            "META-INF/manifest.xml",
+            '<?xml version="1.0"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+        )
+
+
+def test_export_as_odp() -> None:
+    """Share default Export as PDF on ODP used to need pptx2md."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def odp_to_text" in src
+    assert "def via_soffice_markdown" in src
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        odp = d / "deck.odp"
+        _write_odp(odp, ["Slide one title", "Slide two body"])
+        pdf = d / "deck.pdf"
+        res = run_engine(["export-as", str(odp), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        html_out = d / "deck.html"
+        res = run_engine(["export-as", str(odp), str(html_out)])
+        assert res.get("success"), res
+        html_text = html_out.read_text(encoding="utf-8")
+        assert "Slide one title" in html_text
+        docx = d / "deck.docx"
+        res = run_engine(["export-as", str(odp), str(docx)])
+        assert res.get("success"), res
+        with zipfile.ZipFile(docx) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+        assert "Slide one title" in xml
+        assert "Slide two body" in xml
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -341,6 +396,7 @@ if __name__ == "__main__":
     test_export_as_docx_from_text_sources()
     test_export_as_xlsx_from_csv()
     test_export_as_rtf_odt_ods()
+    test_export_as_odp()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
