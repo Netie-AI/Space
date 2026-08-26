@@ -361,6 +361,14 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
             return got
         return f"![{src.name}]({src.name})\n", "image-stub"
 
+    if ext == ".rtf":
+        return rtf_to_text(src), "rtf-text"
+    if ext == ".odt":
+        return odt_to_text(src), "odt-zip"
+    if ext == ".ods":
+        rows = ods_to_rows(src)
+        return "\n".join(" | ".join(r) for r in rows) + "\n", "ods-zip"
+
     got = via_markitdown(src)
     if got:
         return got
@@ -543,6 +551,68 @@ def write_xlsx(dest: Path, rows: list[list[str]]) -> str:
     return "xlsx-zip"
 
 
+def rtf_to_text(src: Path) -> str:
+    """Best-effort RTF -> plain text. Share Export as PDF/Word on .rtf used markitdown."""
+    s = src.read_bytes().decode("latin-1", errors="replace")
+    s = re.sub(
+        r"\\'([0-9a-fA-F]{2})",
+        lambda m: bytes.fromhex(m.group(1)).decode("latin-1"),
+        s,
+    )
+    s = re.sub(r"\\par[d]?\b", "\n", s)
+    s = re.sub(r"\\line\b", "\n", s)
+    s = re.sub(r"\\tab\b", "\t", s)
+    for _ in range(8):
+        n = re.sub(r"\{\\\*[^{}]*\}", "", s)
+        if n == s:
+            break
+        s = n
+    s = re.sub(r"\\[a-zA-Z]+-?\d* ?", "", s)
+    s = re.sub(r"[{}]", "", s)
+    s = s.replace("\\", "")
+    return re.sub(r"[ \t]+\n", "\n", s).strip() + "\n"
+
+
+def _odf_content_root(src: Path) -> ET.Element:
+    try:
+        with zipfile.ZipFile(src) as zf:
+            xml = zf.read("content.xml")
+    except (zipfile.BadZipFile, KeyError, OSError) as exc:
+        raise RuntimeError(f"not a valid OpenDocument file: {exc}") from exc
+    return ET.fromstring(xml)
+
+
+def odt_to_text(src: Path) -> str:
+    root = _odf_content_root(src)
+    paras = [
+        "".join(p.itertext()).strip()
+        for p in root.iter("{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p")
+    ]
+    return "\n".join(t for t in paras if t) + ("\n" if any(paras) else "")
+
+
+def ods_to_rows(src: Path) -> list[list[str]]:
+    root = _odf_content_root(src)
+    ns = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+    rows: list[list[str]] = []
+    for row in root.iter(f"{ns}table-row"):
+        cells: list[str] = []
+        for cell in row.findall(f"{ns}table-cell"):
+            raw_rep = cell.attrib.get(f"{ns}number-columns-repeated", "1")
+            try:
+                repeat = int(raw_rep)
+            except ValueError:
+                repeat = 1
+            repeat = min(max(repeat, 1), 32)
+            text = "".join(cell.itertext()).strip()
+            if not text and repeat > 8:
+                continue
+            cells.extend([text] * repeat)
+        if any(cells):
+            rows.append(cells)
+    return rows or [[""]]
+
+
 def csv_to_rows(src: Path) -> list[list[str]]:
     text = src.read_text(encoding="utf-8", errors="replace")
     sample = text[:4096]
@@ -597,6 +667,8 @@ def file_to_xlsx(src: Path, dest: Path) -> str:
         return "copy"
     if ext == ".csv":
         return write_xlsx(dest, csv_to_rows(src))
+    if ext == ".ods":
+        return write_xlsx(dest, ods_to_rows(src))
     tool = via_soffice(src, dest)
     if tool:
         return tool

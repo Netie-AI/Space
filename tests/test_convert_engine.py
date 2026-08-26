@@ -197,6 +197,94 @@ def test_export_as_xlsx_from_csv() -> None:
         assert res.get("tool") == "copy", res
 
 
+def _write_odt(path: Path, paragraphs: list[str]) -> None:
+    paras = "".join(f"<text:p>{p}</text:p>" for p in paragraphs)
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+        ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+        f"<office:body><office:text>{paras}</office:text></office:body>"
+        "</office:document-content>"
+    )
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+        zf.writestr("content.xml", content)
+        zf.writestr(
+            "META-INF/manifest.xml",
+            '<?xml version="1.0"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+        )
+
+
+def _write_ods(path: Path, rows: list[list[str]]) -> None:
+    body = []
+    for row in rows:
+        cells = "".join(f"<table:table-cell><text:p>{c}</text:p></table:table-cell>" for c in row)
+        body.append(f"<table:table-row>{cells}</table:table-row>")
+    content = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+        ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
+        ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+        "<office:body><office:spreadsheet><table:table>"
+        f"{''.join(body)}</table:table></office:spreadsheet></office:body>"
+        "</office:document-content>"
+    )
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("mimetype", "application/vnd.oasis.opendocument.spreadsheet")
+        zf.writestr("content.xml", content)
+        zf.writestr(
+            "META-INF/manifest.xml",
+            '<?xml version="1.0"?><manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+        )
+
+
+def test_export_as_rtf_odt_ods() -> None:
+    """Share default Export as PDF on RTF/ODT/ODS used to need markitdown/LibreOffice."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def rtf_to_text" in src
+    assert "def odt_to_text" in src
+    assert "def ods_to_rows" in src
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        rtf = d / "note.rtf"
+        rtf.write_text(r"{\rtf1\ansi\deff0 Hello RTF\par}", encoding="ascii")
+        rtf_pdf = d / "note.pdf"
+        res = run_engine(["export-as", str(rtf), str(rtf_pdf)])
+        assert res.get("success"), res
+        assert rtf_pdf.is_file() and rtf_pdf.stat().st_size > 200
+        rtf_docx = d / "note.docx"
+        res = run_engine(["export-as", str(rtf), str(rtf_docx)])
+        assert res.get("success"), res
+        with zipfile.ZipFile(rtf_docx) as zf:
+            assert "Hello RTF" in zf.read("word/document.xml").decode("utf-8")
+
+        odt = d / "note.odt"
+        _write_odt(odt, ["Hello ODT", "Second para"])
+        odt_docx = d / "from-odt.docx"
+        res = run_engine(["export-as", str(odt), str(odt_docx)])
+        assert res.get("success"), res
+        with zipfile.ZipFile(odt_docx) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+        assert "Hello ODT" in xml
+        assert "Second para" in xml
+
+        ods = d / "table.ods"
+        _write_ods(ods, [["name", "qty"], ["widget", "2"]])
+        ods_xlsx = d / "from-ods.xlsx"
+        res = run_engine(["export-as", str(ods), str(ods_xlsx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "xlsx-zip", res
+        with zipfile.ZipFile(ods_xlsx) as zf:
+            sheet = zf.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        assert "widget" in sheet
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -252,6 +340,7 @@ if __name__ == "__main__":
     test_watermark_protect_smoke()
     test_export_as_docx_from_text_sources()
     test_export_as_xlsx_from_csv()
+    test_export_as_rtf_odt_ods()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
