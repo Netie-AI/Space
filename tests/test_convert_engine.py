@@ -423,6 +423,37 @@ def test_export_as_preview_text_to_pdf() -> None:
         assert pypdf.is_file() and pypdf.stat().st_size > 200
 
 
+def test_export_as_svg() -> None:
+    """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".svg"' in src
+    assert "convert_to_pdf" in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    assert 'extension == ".svg"' in parser
+    if not pymupdf_available():
+        print("SKIP svg export live -- pymupdf not importable")
+        return
+    svg = (
+        '<?xml version="1.0"?>\n'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80">'
+        '<rect width="120" height="80" fill="#1a2030"/>'
+        '<text x="12" y="46" fill="#9fd4c8" font-size="18">Netie</text>'
+        "</svg>\n"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        mark = d / "mark.svg"
+        mark.write_text(svg, encoding="utf-8")
+        pdf = d / "mark.pdf"
+        res = run_engine(["export-as", str(mark), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        jpg = d / "mark.jpg"
+        res = run_engine(["export-as", str(mark), str(jpg)])
+        assert res.get("success"), res
+        assert jpg.is_file() and jpg.stat().st_size > 200
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -482,6 +513,7 @@ if __name__ == "__main__":
     test_export_as_odp()
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
+    test_export_as_svg()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")

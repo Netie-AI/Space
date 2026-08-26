@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as PDF/JPG on a previewed SVG uses MuPDF (`convert_to_pdf` / pixmap). Preview already treated `.svg` as an image; export used to fail with `need markitdown` / `cannot export .svg as .jpg`.
 - Convert: Share default Export as PDF on previewed text/code (`.json` / `.py` / `.cs` / …) copies the file. `TEXT_EXTS` used to be only txt/log/csv, so those clicks failed with `need markitdown`.
 - Convert: Share default Export as PDF on `.xlsm` reads the same OOXML sheet zip as `.xlsx`. Preview already treated macro workbooks as Excel; export used to fail with `need markitdown`. `.xlsb` / OLE stay soffice.
 - Convert: Share default Export as PDF on `.docx` / `.xlsx` reads the OOXML zip (document.xml / sheet1). Used to fail with `need markitdown` after we could already write those files.
