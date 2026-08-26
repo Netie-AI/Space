@@ -38,6 +38,10 @@ def test_menu_and_handler():
     assert "WindowsAiClient.IsAvailable" in cs
     assert "WindowsAiButton.Visibility = isImage" in cs
     assert "rembg / Copy still work" in cs
+    click = cs[cs.index("WindowsAiButton_Click") : cs.index("PreviewImage_MouseLeftButtonDown")]
+    assert click.index("WindowsAiClient.IsAvailable") < click.index("WriteInputSidecar")
+    assert "Sidecar only when WinML is down" in click
+    assert "Wrote {IoPath.GetFileName(sidecar)}. Live enhance" not in click
 
 
 def test_xunit_and_docs():

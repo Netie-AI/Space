@@ -61,7 +61,8 @@ image can Copy / drag-out like rembg.
 
 Windows AI (same image ribbon): **Windows AI...** probes WinML / Windows AI
 without a WinAppSDK package. Down -> toast/status + `{file}.winai-input.json`.
-rembg / Copy still work. Live enhance / Copilot+ GPU is still human.
+Up (WinML present) -> toast only, no sidecar. rembg / Copy still work.
+Live enhance / Copilot+ GPU is still human.
 
 ## P7 — do not start
 
