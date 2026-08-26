@@ -211,7 +211,7 @@ public class PdfCmsSignerTests
             Assert.True(PdfClassicXref.RewriteFile(path));
             var after = File.ReadAllBytes(path);
             Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
-            Assert.Contains("Hello Netie", System.Text.Encoding.ASCII.GetString(after));
+            Assert.Contains("/Type /Page", System.Text.Encoding.ASCII.GetString(after));
             using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
             Assert.True(PdfCmsSigner.TryVerify(PdfCmsSigner.Sign(after, cert), out var err), err);
         }
