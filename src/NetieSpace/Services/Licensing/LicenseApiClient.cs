@@ -282,14 +282,18 @@ public sealed class PortalResult
 
 public static class DeviceFingerprint
 {
-    public static string ComputeHash(string pepper)
+    public static string ComputeHash(string pepper, string? boardUuid = null)
     {
-        var raw = $"{GetMachineGuid()}|{GetBoardUuid()}|{GetSystemVolumeSerial()}";
+        var board = string.IsNullOrWhiteSpace(boardUuid) ? GetBoardUuid() : boardUuid.Trim();
+        var raw = $"{GetMachineGuid()}|{board}|{GetSystemVolumeSerial()}";
         var sha = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
         using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(
             string.IsNullOrWhiteSpace(pepper) ? "netie-dev-pepper" : pepper));
         return Convert.ToHexString(hmac.ComputeHash(sha)).ToLowerInvariant();
     }
+
+    /// <summary>Live WMI probe (3s cap). Activate persists this onto the entitlement.</summary>
+    public static string ProbeBoardUuid() => GetBoardUuid();
 
     public static string DeviceLabel()
     {

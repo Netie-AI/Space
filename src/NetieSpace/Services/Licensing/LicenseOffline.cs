@@ -46,6 +46,14 @@ public static class LicenseOffline
     }
 
     /// <summary>
+    /// Board UUID saved at Activate wins. A later WMI timeout used to
+    /// hash <c>unknown-board</c> and fail <c>SkipGate: false</c> on a paid PC.
+    /// Null/empty persisted falls through to the live probe.
+    /// </summary>
+    public static string? PreferPersistedBoard(string? persistedUuid) =>
+        string.IsNullOrWhiteSpace(persistedUuid) ? null : persistedUuid.Trim();
+
+    /// <summary>
     /// Volume-serial fallback for DeviceFingerprint. Never use
     /// string.GetHashCode -- .NET Core randomizes it per process, so
     /// Activate would fail the offline gate on the next launch.

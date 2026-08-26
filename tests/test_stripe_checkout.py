@@ -115,13 +115,18 @@ def test_wpf_buy_calls_checkout():
     assert "IsLicensed" in offline
     assert "ReadString" in offline
     assert "StableVolumeToken" in offline
+    assert "PreferPersistedBoard" in offline
     assert "GetHashCode()" not in client
     assert "StableVolumeToken" in client
     assert "ReadBoardUuid" in client
+    assert "ProbeBoardUuid" in client
+    assert "ComputeHash(string pepper, string? boardUuid" in client
     assert "Options.Timeout" in client
     assert "TimeSpan.FromSeconds(3)" in client
     assert "unknown-board" in client
-    assert "Task.Run(() => DeviceFingerprint.ComputeHash" in activation
+    assert "PreferPersistedBoard(ent.BoardUuid)" in store
+    assert "BoardUuid = boardUuid" in activation
+    assert "ProbeBoardUuid" in activation
     tests = _read(ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj")
     assert "LicenseOffline.cs" in tests
     assert "LicenseActivation.ResolveApiBase()" in setup

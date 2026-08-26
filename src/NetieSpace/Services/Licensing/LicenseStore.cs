@@ -23,7 +23,9 @@ public static class LicenseStore
         {
             var ent = LoadEntitlement();
             if (ent is null) return false;
-            var device = DeviceFingerprint.ComputeHash(ent.PepperHint ?? "");
+            var device = DeviceFingerprint.ComputeHash(
+                ent.PepperHint ?? "",
+                LicenseOffline.PreferPersistedBoard(ent.BoardUuid));
             return LicenseOffline.IsLicensed(
                 ent.DeviceHash, device, ent.LicenseKey, ent.EntitlementToken);
         }
@@ -88,6 +90,8 @@ public sealed class LicenseEntitlement
     public string EntitlementToken { get; set; } = "";
     /// <summary>Local pepper used when hashing (not secret of server).</summary>
     public string? PepperHint { get; set; }
+    /// <summary>WMI board UUID hashed at Activate. Offline gate reuses it.</summary>
+    public string? BoardUuid { get; set; }
 }
 
 public sealed class SessionBlob

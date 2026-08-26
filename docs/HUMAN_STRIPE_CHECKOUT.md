@@ -75,6 +75,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
    The device hash uses a stable machine token (not `string.GetHashCode`,
    which .NET randomizes per process). WMI board-UUID is capped at 3s so
    a stuck CIMOM cannot hang Sign-in or a `SkipGate: false` launch.
+   Activate persists that UUID; the offline gate reuses it so a later
+   WMI timeout (`unknown-board`) cannot unlicense a paid PC.
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
 
