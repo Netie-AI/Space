@@ -340,10 +340,13 @@ public sealed class FfmpegService
                 var vf = new StringBuilder(FfmpegExportGraph.ClipVideoFilters(
                     clip, hasMultipleSources, project.Width, project.Height));
 
+                string? lutTemp = null;
                 if (!string.IsNullOrWhiteSpace(clip.LutPath) && IoFile.Exists(clip.LutPath))
                 {
+                    // lut3d strips ' the same way subtitles= does (Mom's clips -> Moms).
+                    lutTemp = CopyFilterFileToTemp(clip.LutPath, "lut");
                     if (vf.Length > 0) vf.Append(',');
-                    vf.Append($"lut3d='{clip.LutPath.Replace("\\", "/").Replace(":", "\\:")}'");
+                    vf.Append($"lut3d='{EscapeFilterPath(lutTemp)}'");
                 }
 
                 var vfArg = vf.Length > 0 ? $"-vf \"{vf}\"" : "";
@@ -356,6 +359,8 @@ public sealed class FfmpegService
                     $"-y -ss {FormatTs(clip.SourceIn)} -to {FormatTs(clip.SourceOut)} -i \"{src}\" " +
                     $"{vfArg} {afArg} -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{part}\"",
                     part, ct);
+                if (lutTemp is not null)
+                    TryDelete(lutTemp);
                 if (!cut.Success)
                     return cut;
                 parts.Add(part);
@@ -446,10 +451,12 @@ public sealed class FfmpegService
             if (hasLut && project.GlobalLutPath is not null)
             {
                 var lutOut = IoPath.Combine(dir, $"_ns_lut_{Guid.NewGuid():N}.mp4");
-                var lutPath = project.GlobalLutPath.Replace("\\", "/").Replace(":", "\\:");
+                var lutTemp = CopyFilterFileToTemp(project.GlobalLutPath, "lut");
+                var lutPath = EscapeFilterPath(lutTemp);
                 var lut = await RunAsync(
                     $"-y -i \"{current}\" -vf \"lut3d='{lutPath}'\" -c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{lutOut}\"",
                     lutOut, ct);
+                TryDelete(lutTemp);
                 if (!lut.Success)
                     return lut;
                 if (current != concatPath)
@@ -663,6 +670,20 @@ public sealed class FfmpegService
 
     private static string EscapeFilterPath(string path) =>
         FfmpegExportGraph.EscapeFilterPath(path);
+
+    /// <summary>
+    /// ffmpeg lut3d/subtitles strip apostrophes. Copy next to %TEMP% so a
+    /// folder like Mom's clips does not open as Moms.
+    /// </summary>
+    private static string CopyFilterFileToTemp(string path, string kind)
+    {
+        var ext = IoPath.GetExtension(path);
+        if (string.IsNullOrWhiteSpace(ext))
+            ext = ".bin";
+        var safe = IoPath.Combine(IoPath.GetTempPath(), $"_ns_{kind}_{Guid.NewGuid():N}{ext}");
+        IoFile.Copy(path, safe, overwrite: true);
+        return safe;
+    }
 
     private static string? ResolveDrawtextFont()
     {

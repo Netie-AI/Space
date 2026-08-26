@@ -259,6 +259,47 @@ public class FfmpegExportLiveTests
         Assert.True(dur is >= 2.8 and <= 3.4, $"Export range full window {dur} expect 2.8..3.4");
     }
 
+    [Fact]
+    public async Task ExportTimeline_lut_from_apostrophe_folder()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var folder = Path.Combine(tmp.Path, "Mom's clips");
+        Directory.CreateDirectory(folder);
+        var a = Path.Combine(folder, "clip_a.mp4");
+        var b = Path.Combine(folder, "clip_b.mp4");
+        var cube = Path.Combine(folder, "id.cube");
+        var outPath = Path.Combine(folder, "lut.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+        WriteIdentityCube(cube);
+
+        var project = PlaybookProject(a, b, wipe: true);
+        project.VideoTrack!.Clips[0].LutPath = cube;
+
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable);
+        var result = await svc.ExportTimelineAsync(project, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        // lut3d used to open Mom's clips as Moms and fail. Identity cube keeps wipe 2.8..3.4.
+        Assert.True(dur is >= 2.8 and <= 3.4, $"LUT from apostrophe folder {dur} expect 2.8..3.4");
+    }
+
+    private static void WriteIdentityCube(string path)
+    {
+        File.WriteAllText(path,
+            "TITLE \"identity\"\nLUT_3D_SIZE 2\n" +
+            "0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n");
+    }
+
     private static TimelineProject PlaybookProject(string clipA, string clipB, bool wipe)
     {
         var session = new VideoEditSession();
