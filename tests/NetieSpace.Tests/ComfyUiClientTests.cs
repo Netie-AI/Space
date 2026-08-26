@@ -113,6 +113,55 @@ public class ComfyUiClientTests
     }
 
     [Fact]
+    public void PollRoutes_official_jobs_then_history()
+    {
+        Assert.Equal(new[] { "jobs", "history" }, ComfyUiClient.PollRoutes);
+        Assert.Equal("/api/jobs/abc-1", ComfyUiClient.RoutePath("/api", "jobs/abc-1"));
+        Assert.Equal("/history/abc-1", ComfyUiClient.RoutePath("", "history/abc-1"));
+    }
+
+    [Fact]
+    public void TryReadHistory_does_not_read_job_payload()
+    {
+        const string pid = "abc-1";
+        const string job = """
+            {"id":"abc-1","status":"completed","outputs":{"2":{"images":[{"filename":"netie_00001.png","type":"output"}]}}}
+            """;
+        Assert.False(ComfyUiClient.TryReadHistory(job, pid, out var histOut, out var histErr));
+        Assert.Null(histOut);
+        Assert.Null(histErr);
+        Assert.True(ComfyUiClient.TryReadJob(job, out var outputs, out var noErr));
+        Assert.Null(noErr);
+        Assert.True(ComfyUiClient.TryFirstOutputImage(outputs, out var name, out _, out _));
+        Assert.Equal("netie_00001.png", name);
+        Assert.True(ComfyUiClient.TryReadPoll(job, pid, out var pollOut, out _));
+        Assert.True(ComfyUiClient.TryFirstOutputImage(pollOut, out var pollName, out _, out _));
+        Assert.Equal("netie_00001.png", pollName);
+    }
+
+    [Fact]
+    public void TryReadJob_completed_without_images_keeps_polling()
+    {
+        const string racing = """
+            {"id":"abc-1","status":"completed","outputs":{}}
+            """;
+        Assert.False(ComfyUiClient.TryReadJob(racing, out var empty, out var err));
+        Assert.Null(empty);
+        Assert.Null(err);
+
+        const string pending = """
+            {"id":"abc-1","status":"in_progress"}
+            """;
+        Assert.False(ComfyUiClient.TryReadJob(pending, out _, out _));
+
+        const string failed = """
+            {"id":"abc-1","status":"error","outputs":{}}
+            """;
+        Assert.True(ComfyUiClient.TryReadJob(failed, out _, out var jobError));
+        Assert.Contains("failed", jobError);
+    }
+
+    [Fact]
     public async Task DownloadFirstOutput_down_server_returns_null()
     {
         var client = new ComfyUiClient("http://127.0.0.1:1");

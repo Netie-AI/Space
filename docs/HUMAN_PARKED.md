@@ -55,9 +55,11 @@ Click path (image preview):
    If upload/queue/download fails, write `{file}.comfy-input.json` next to
    the image (not on success) and run that workflow in ComfyUI. Upload uses
    the file's image Content-Type (`image/png`, `image/jpeg`, ...), not
-   `application/octet-stream`. History poll waits for an image in
-   `/history/{id}` outputs. `status.completed` with empty outputs is not
-   done (Comfy can mark completed before SaveImage lands).
+   `application/octet-stream`. Poll GET `/api/jobs/{id}` then
+   `/api/history/{id}` (unprefixed last). Official 2026 OpenAPI superseded
+   history with jobs; a jobs-only proxy used to 404 history and time out.
+   `status.completed` / job `completed` with empty outputs is not done
+   (Comfy can mark completed before SaveImage lands).
 
 What you do on a Windows GPU:
 
