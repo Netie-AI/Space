@@ -8,7 +8,7 @@
    `tsc` + ffmpeg smoke). GitHub Actions hosted runners are billing-blocked; ignore them.
 2. **Ready PRs #4-#29 landed**. Draft #1 stays draft.
 3. **PDF CMS** -- More... Cert sign (PFX)... writes PKCS#7. Adobe panel is human.
-4. **ComfyUI** -- local client fail-closes when 8188 is down. Live GPU is human.
+4. **ComfyUI** -- code-ready local client; fail-closes when 8188 is down. Live GPU is human.
 5. **Buy / Stripe** -- Worker routes ready. Live pay needs your secrets.
 
 ## Next
