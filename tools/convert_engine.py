@@ -87,6 +87,7 @@ OFFICE_EXTS = {
     ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppsx", ".ppt", ".pps", ".odp",
     ".xlsx", ".xlsm", ".xls", ".ods", ".csv",
 }
+PPTX_EXTS = {".pptx", ".ppsx", ".ppt", ".pps"}
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
 # Matches ContentParserService.TextExtensions minus .html/.md (own paths).
@@ -287,7 +288,8 @@ def via_pptx2md(src: Path) -> tuple[str, str] | None:
     slides = pptx_slide_texts(src)
     if slides:
         chunks = [f"## Slide {i}\n\n{t}" for i, t in enumerate(slides, 1) if t.strip()]
-        return "\n\n".join(chunks), "pptx-zip"
+        if chunks:
+            return "\n\n".join(chunks), "pptx-zip"
     return None
 
 
@@ -311,6 +313,48 @@ def pptx_slide_texts(src: Path) -> list[str]:
     except Exception:
         return []
     return texts
+
+
+def pptx_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    """Photo / image-only deck media as PNG bytes. Share PDF used empty markdown."""
+    import io
+
+    pngs: list[bytes] = []
+    try:
+        with zipfile.ZipFile(src) as zf:
+            names = sorted(n for n in zf.namelist() if n.startswith("ppt/media/"))[:cap]
+            for name in names:
+                raw = zf.read(name)
+                try:
+                    from PIL import Image
+
+                    im = Image.open(io.BytesIO(raw))
+                    try:
+                        buf = io.BytesIO()
+                        im.convert("RGBA").save(buf, format="PNG")
+                        pngs.append(buf.getvalue())
+                    finally:
+                        im.close()
+                except Exception:
+                    if name.lower().endswith(".png") and raw:
+                        pngs.append(raw)
+    except Exception:
+        return []
+    return pngs
+
+
+def pptx_pages_to_markdown(src: Path) -> tuple[str, str]:
+    """Photo / image-only PPTX -> Markdown. Share Markdown used to write a blank file."""
+    import base64
+
+    pngs = pptx_media_pngs(src)
+    chunks: list[str] = []
+    for i, blob in enumerate(pngs, 1):
+        b64 = base64.b64encode(blob).decode("ascii")
+        chunks.append(f"## Slide {i}\n\n![Slide {i}](data:image/png;base64,{b64})\n")
+    if not chunks:
+        chunks.append("\n")
+    return "\n".join(chunks), "pptx-md-images"
 
 
 def pptx_extract_media(src: Path, dest_dir: Path) -> list[Path]:
@@ -714,12 +758,20 @@ def file_to_docx(src: Path, dest: Path) -> str:
             raise
     try:
         text, _tool = file_to_markdown(src)
-        return write_docx(dest, text)
+        if text.strip() or src.suffix.lower() not in PPTX_EXTS:
+            return write_docx(dest, text)
     except RuntimeError:
-        tool = via_soffice(src, dest)
-        if tool:
-            return tool
-        raise
+        text = None
+    if src.suffix.lower() in PPTX_EXTS:
+        pngs = pptx_media_pngs(src)
+        if pngs:
+            return write_docx_images(dest, pngs)
+    if text is not None:
+        return write_docx(dest, text)
+    tool = via_soffice(src, dest)
+    if tool:
+        return tool
+    raise RuntimeError("LibreOffice required to export this file as .docx")
 
 
 def _xlsx_col(index: int) -> str:
@@ -1012,6 +1064,34 @@ def markdown_to_pdf(text: str, dest: Path) -> str:
     return "pymupdf"
 
 
+def images_to_pdf(pngs: list[bytes], dest: Path) -> str:
+    """Photo / image-only PPTX -> PDF pages. Share default PDF used empty markdown."""
+    pymupdf = require_pymupdf()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    doc = pymupdf.open()
+    tmp_paths: list[Path] = []
+    try:
+        for blob in pngs:
+            fd, name = tempfile.mkstemp(suffix=".png")
+            os.close(fd)
+            tmp = Path(name)
+            tmp.write_bytes(blob)
+            tmp_paths.append(tmp)
+            img = pymupdf.open(str(tmp))
+            try:
+                rect = img[0].rect
+                page = doc.new_page(width=rect.width, height=rect.height)
+                page.insert_image(page.rect, filename=str(tmp))
+            finally:
+                img.close()
+        doc.save(str(dest))
+    finally:
+        doc.close()
+        for tmp in tmp_paths:
+            tmp.unlink(missing_ok=True)
+    return "pymupdf-pptx-images"
+
+
 def image_to_pdf(src: Path, dest: Path) -> str:
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -1074,8 +1154,19 @@ def file_to_pdf(src: Path, dest: Path) -> str:
             return markdown_to_pdf(text, dest)
         text = src.read_text(encoding="utf-8", errors="replace")
         return markdown_to_pdf(text, dest)
-    text, _tool = file_to_markdown(src)
-    return markdown_to_pdf(text, dest)
+    try:
+        text, _tool = file_to_markdown(src)
+        if text.strip() or ext not in PPTX_EXTS:
+            return markdown_to_pdf(text, dest)
+    except RuntimeError:
+        text = ""
+    if ext in PPTX_EXTS:
+        pngs = pptx_media_pngs(src)
+        if pngs:
+            return images_to_pdf(pngs, dest)
+    if text.strip() or ext not in PPTX_EXTS:
+        return markdown_to_pdf(text, dest)
+    raise RuntimeError(f"no PDF converter for {ext or 'unknown'}")
 
 
 # ---------------------------------------------------------------------------
@@ -1491,9 +1582,13 @@ def action_to_md(argv: list[str]) -> dict:
     try:
         text, tool = file_to_markdown(src)
     except RuntimeError:
-        if src.suffix.lower() != ".pdf":
+        ext = src.suffix.lower()
+        if ext == ".pdf":
+            text, tool = pdf_pages_to_markdown(src)
+        elif ext in PPTX_EXTS:
+            text, tool = pptx_pages_to_markdown(src)
+        else:
             raise
-        text, tool = pdf_pages_to_markdown(src)
     write_text(dest, text if text.endswith("\n") else text + "\n")
     return ok(dest, tool)
 
@@ -1587,9 +1682,12 @@ def action_export_as(argv: list[str]) -> dict:
         try:
             text, tool = file_to_markdown(src)
         except RuntimeError:
-            if src_ext != ".pdf":
+            if src_ext == ".pdf":
+                text, tool = pdf_pages_to_markdown(src)
+            elif src_ext in PPTX_EXTS:
+                text, tool = pptx_pages_to_markdown(src)
+            else:
                 raise
-            text, tool = pdf_pages_to_markdown(src)
         write_text(dest, text if text.endswith("\n") else text + "\n")
         return ok(dest, tool)
     if dest_ext in HTML_EXTS:

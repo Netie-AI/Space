@@ -785,6 +785,57 @@ def test_pdf_markdown_image_only() -> None:
         assert "Page 1" in text
 
 
+def test_pptx_photo_export() -> None:
+    """Share default PDF / Markdown / Word on a photo PPTX used empty markdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def pptx_media_pngs" in src
+    assert "def images_to_pdf" in src
+    assert "def pptx_pages_to_markdown" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "PDF document|*.pdf" in dlg.split('".pptx"', 1)[1][:280]
+    if not pymupdf_available():
+        print("SKIP pptx photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP pptx photo export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (200, 40, 40)).save(buf, format="PNG")
+        pptx = d / "photos.pptx"
+        with zipfile.ZipFile(pptx, "w") as zf:
+            zf.writestr(
+                "ppt/slides/slide1.xml",
+                '<?xml version="1.0"?>'
+                '<s:sld xmlns:s="http://schemas.openxmlformats.org/presentationml/2006/main"'
+                ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"></s:sld>',
+            )
+            zf.writestr("ppt/media/image1.png", buf.getvalue())
+        pdf = d / "photos.pdf"
+        res = run_engine(["export-as", str(pptx), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-pptx-images", res
+        assert pdf.is_file() and pdf.stat().st_size > 2000
+        md = d / "photos.md"
+        res = run_engine(["to-md", str(pptx), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pptx-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "photos.docx"
+        res = run_engine(["export-as", str(pptx), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert "word/media/image1.png" in zf.namelist()
+
+
 def test_silent_video_export_mp3() -> None:
     """Share Export as MP3 on a silent clip failed (no audio stream)."""
     import shutil
@@ -1019,6 +1070,7 @@ if __name__ == "__main__":
     test_pdf_word_image_only()
     test_pdf_html_image_only()
     test_pdf_markdown_image_only()
+    test_pptx_photo_export()
     test_silent_video_export_mp3()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
