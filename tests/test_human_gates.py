@@ -73,6 +73,7 @@ def test_scripts_and_docs():
     fade_span = preview.index("private void ApplyFadeToSelected(TimeSpan? fadeIn")
     fade_span_end = preview.index("private void ApplyCaptionsFromBackground")
     assert "PushVideoUndo" in preview[fade_span:fade_span_end]
+    assert "DiscardLastVideoUndo" in preview[fade_span:fade_span_end]
     wipe = preview.index("private void WipeButton_Click")
     wipe_end = preview.index("private void OverlayTextButton_Click")
     assert "PushVideoUndo" in preview[wipe:wipe_end]
@@ -83,7 +84,9 @@ def test_scripts_and_docs():
     add = preview.index("private async void AddVideoButton_Click")
     add_end = preview.index("private void OrderClipsButton_Click")
     assert "DiscardLastVideoUndo" in preview[add:add_end]
-    assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
+    handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
+    assert "ApplyFadeAt" in handle_up
+    assert "DiscardLastVideoUndo" in handle_up
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
     keys = preview.index("private void Window_KeyDown")

@@ -180,11 +180,11 @@ public sealed class VideoEditSession
         if (index < 0 || index >= _kept.Count)
             return false;
         var c = _kept[index];
-        _kept[index] = c with
-        {
-            FadeIn = fadeIn ?? c.FadeIn,
-            FadeOut = fadeOut ?? c.FadeOut
-        };
+        var nextIn = fadeIn ?? c.FadeIn;
+        var nextOut = fadeOut ?? c.FadeOut;
+        if (nextIn == c.FadeIn && nextOut == c.FadeOut)
+            return false;
+        _kept[index] = c with { FadeIn = nextIn, FadeOut = nextOut };
         return true;
     }
 
