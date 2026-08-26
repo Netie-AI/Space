@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Space a desktop `.pps` previews as PowerPoint so Share Export as and drop/merge work. Desktop probe already found it; parser was `ShellInfo` and engine `export-as` said `need markitdown`. Zip-based `.pps` uses the same OOXML path as `.ppsx`; OLE `.pps` still needs soffice.
 - Image: OCR / Copy / Compress / Comfy on a previewed HEIC/HEIF rasterize to PNG first. Those files can preview as Image; Tesseract returns `Error during processing` on native HEIC (same hole SVG/ICO had). `pillow_heif` stays optional.
 - Convert: Share Export as PDF and drop/merge `.heic` / `.heif` rasterize through Pillow first (same as ICO/WebP). MuPDF `insert_image` has no HEIC decoder; JPG export already worked when `pillow_heif` is present. That package stays optional (not a Cursor CI dep).
 - Convert: Share Export as PDF and drop/merge `.webp` go through Pillow (then MuPDF). PdfSharpCore `XImage` and MuPDF `insert_image` have no WebP decoder; `.tif` drop used the same `XImage` path (engine PDF already worked).

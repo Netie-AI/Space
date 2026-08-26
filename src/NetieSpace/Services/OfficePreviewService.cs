@@ -34,7 +34,7 @@ public sealed class OfficePreviewService
             {
                 ".docx" => FromHtml(filePath, fileName, size, DocxToHtml(filePath), "openxml-html"),
                 ".xlsx" or ".xlsm" => FromXlsx(filePath, fileName, size),
-                ".pptx" or ".ppsx" => FromHtml(filePath, fileName, size, PptxToHtml(filePath), "openxml-pptx-html"),
+                ".pptx" or ".ppsx" or ".pps" => FromHtml(filePath, fileName, size, PptxToHtml(filePath), "openxml-pptx-html"),
                 _ => null
             };
         }
