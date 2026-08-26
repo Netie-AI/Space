@@ -84,7 +84,10 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
    customer id from step 4). If you have not paid, the button says so.
 
 If secrets are missing, the button shows `stripe_not_configured` and still
-opens netie.space. That is expected until step 2 is done.
+opens netie.space. That is expected until step 2 is done. A dead Worker
+host (the committed `workers.dev` name does not resolve until
+`setup-license-api.ps1 -Deploy`) returns `worker_unreachable` instead of
+throwing; Setup and the login-gate Buy still open netie.space.
 
 ## 4. What to check
 

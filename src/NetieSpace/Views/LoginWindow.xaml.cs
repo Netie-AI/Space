@@ -63,11 +63,26 @@ public partial class LoginWindow : Window
                 return;
             }
 
-            StatusText.Text = checkout.AlreadyPaid
-                ? (checkout.Error ?? "Already paid. Activate this laptop.")
-                : (checkout.Error ?? "Checkout is not live yet (stripe_not_configured).");
             if (checkout.AlreadyPaid)
+            {
+                StatusText.Text = checkout.Error ?? "Already paid. Activate this laptop.";
                 ShowPayFirstButtons();
+                return;
+            }
+
+            // Same fallback as Setup Buy: dead Worker / missing secrets
+            // still open netie.space (playbook), not a thrown HttpRequestException.
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://netie.space",
+                    UseShellExecute = true
+                });
+            }
+            catch { /* ignore */ }
+
+            StatusText.Text = checkout.Error ?? "Checkout is not live yet (stripe_not_configured).";
         }
         catch (Exception ex)
         {

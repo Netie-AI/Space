@@ -40,20 +40,31 @@ public sealed class LicenseApiClient
         string? email,
         CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/checkout");
-        if (!string.IsNullOrWhiteSpace(token))
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        req.Content = JsonContent.Create(new { email });
-        var res = await _http.SendAsync(req, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        if (!res.IsSuccessStatusCode)
-            return CheckoutResult.Fail(ParseError(body), ParseErrorCode(body));
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/checkout");
+            if (!string.IsNullOrWhiteSpace(token))
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Content = JsonContent.Create(new { email });
+            var res = await _http.SendAsync(req, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return CheckoutResult.Fail(ParseError(body), ParseErrorCode(body));
 
-        var dto = JsonSerializer.Deserialize<CheckoutDto>(body, JsonOpts);
-        if (string.IsNullOrWhiteSpace(dto?.CheckoutUrl))
-            return CheckoutResult.Fail("No checkout URL returned");
+            var dto = JsonSerializer.Deserialize<CheckoutDto>(body, JsonOpts);
+            if (string.IsNullOrWhiteSpace(dto?.CheckoutUrl))
+                return CheckoutResult.Fail("No checkout URL returned");
 
-        return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
+            return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // Default appsettings host is workers.dev. Until setup-license-api
+            // deploys it, DNS fails and used to throw out of Login Buy.
+            return CheckoutResult.Fail(
+                "License API unreachable (worker_unreachable). Set License.ApiBaseUrl / NETIE_LICENSE_API to your Worker. Until then: stripe_not_configured.",
+                "worker_unreachable");
+        }
     }
 
     public async Task<StripeStatusResult> GetStripeStatusAsync(CancellationToken ct = default)
