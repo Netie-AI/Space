@@ -567,6 +567,77 @@ def test_html_export_same_file() -> None:
         res = run_engine(["export-as", str(docx), str(docx)])
         assert res.get("success"), res
         assert res.get("tool") == "copy", res
+        pdf = d / "page.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story-html", res
+        if pymupdf_available():
+            import pymupdf
+
+            doc = pymupdf.open(pdf)
+            try:
+                text = doc[0].get_text()
+            finally:
+                doc.close()
+            assert "Hello leftover" in text
+            assert "<html" not in text.lower()
+
+
+def test_html_photo_export() -> None:
+    """Share dest 2 PDF / dest 3 Word on photo-only HTML dumped source / empty Word."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def html_to_pdf" in src
+    assert "def html_media_pngs" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    html_dlg = dlg.split('".html"', 1)[1][:280]
+    assert "PDF document|*.pdf" in html_dlg
+    assert "Word document|*.docx" in html_dlg
+    if not pymupdf_available():
+        print("SKIP html photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html photo export -- Pillow missing")
+        return
+    import base64
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    b64 = base64.b64encode(png).decode("ascii")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        html = d / "only.html"
+        html.write_text(
+            f'<html><body><img src="data:image/png;base64,{b64}" alt="pic"></body></html>',
+            encoding="utf-8",
+        )
+        pdf = d / "only.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story-html", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            page = doc[0]
+            text = page.get_text()
+            images = page.get_images()
+        finally:
+            doc.close()
+        assert "<html" not in text.lower()
+        assert images
+        docx = d / "only.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
 
 
 def test_export_as_svg() -> None:
@@ -1393,6 +1464,7 @@ if __name__ == "__main__":
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
     test_html_export_same_file()
+    test_html_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
