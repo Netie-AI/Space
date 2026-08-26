@@ -63,17 +63,13 @@ public static class LicenseActivation
             if (!activate.Success || string.IsNullOrWhiteSpace(activate.EntitlementToken))
                 return (false, activate.Error ?? "Activate failed. Pay first, then retry.");
 
-            var licenseId = "";
-            if (activate.Entitlement is not null &&
-                activate.Entitlement.TryGetValue("license_id", out var lid))
-            {
-                licenseId = lid.GetString() ?? "";
-            }
+            var licenseId = LicenseOffline.ReadString(activate.Entitlement, "license_id");
+            var key = LicenseOffline.ReadString(activate.Entitlement, "license_key", licenseKey);
 
             LicenseStore.SaveEntitlement(new LicenseEntitlement
             {
                 Email = session.Email ?? "",
-                LicenseKey = licenseKey ?? "",
+                LicenseKey = key,
                 LicenseId = licenseId,
                 DeviceHash = deviceHash,
                 ActivatedAt = DateTime.UtcNow.ToString("O"),

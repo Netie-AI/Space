@@ -24,8 +24,8 @@ public static class LicenseStore
             var ent = LoadEntitlement();
             if (ent is null) return false;
             var device = DeviceFingerprint.ComputeHash(ent.PepperHint ?? "");
-            return string.Equals(ent.DeviceHash, device, StringComparison.OrdinalIgnoreCase)
-                   && !string.IsNullOrWhiteSpace(ent.LicenseKey);
+            return LicenseOffline.IsLicensed(
+                ent.DeviceHash, device, ent.LicenseKey, ent.EntitlementToken);
         }
         catch (Exception ex)
         {
