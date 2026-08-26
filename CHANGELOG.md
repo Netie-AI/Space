@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: `TryReadObject` / xref offsets match `id 0 obj` only when the previous byte is not a digit. `12 0 obj` used to resolve as object 2, so the signature widget could land on the wrong page.
 - Export: **Export all** clones `TimelineProject` before the background job. Space-close + open another file used to `ResetFromSource` the live project mid-encode (same object as `timelineSnapshot`).
 - License: `EnsureLicenseGate` exits on exception (`Shutdown`), same as cancel. A thrown login dialog used to leave `SkipGate: false` running unlicensed. `/v1/download` file URLs use `requestPublicBase` (local `:8787` no longer gets a committed `workers.dev` token URL).
 - License: Sign-in auto-activate and OpenVault auto-login go through `LicenseActivation` (Worker `license_key` via `ReadString`). Login used to save `auth.LicenseKey` from the login payload, so a post-pay Sign in could persist an empty key. Setup Activate already used this path.

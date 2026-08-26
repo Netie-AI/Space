@@ -35,6 +35,10 @@ def test_signer_is_cms_not_itext():
     assert "CheckSignature" in src
     assert "self-check" in src
     assert "NeedsClassicXrefRewrite" in src
+    assert "IndexOfObj" in src
+    assert "12 0 obj" in src
+    tests = _read(TEST_CS)
+    assert "TryReadObject_does_not_match_12_as_2" in tests
 
 
 def test_ui_and_packages():

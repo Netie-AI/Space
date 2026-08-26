@@ -423,15 +423,13 @@ public static class PdfCmsSigner
         return m.Success ? int.Parse(m.Groups[1].Value) : null;
     }
 
-    private static string? TryReadObject(byte[] pdf, int id)
+    /// <summary>
+    /// Read <c>id 0 obj ... endobj</c>. Must not treat "12 0 obj" as object 2
+    /// (Adobe widget would land on the wrong page).
+    /// </summary>
+    public static string? TryReadObject(byte[] pdf, int id)
     {
-        var token = Encoding.ASCII.GetBytes($"\n{id} 0 obj");
-        var at = IndexOf(pdf, token);
-        if (at < 0)
-        {
-            token = Encoding.ASCII.GetBytes($"{id} 0 obj");
-            at = IndexOf(pdf, token);
-        }
+        var at = IndexOfObj(pdf, id);
         if (at < 0) return null;
         var end = IndexOf(pdf.AsSpan(at), "endobj"u8);
         if (end < 0) return null;
@@ -443,13 +441,30 @@ public static class PdfCmsSigner
         var map = new Dictionary<int, int>();
         for (var id = fromId; id <= toId; id++)
         {
-            var token = Encoding.ASCII.GetBytes($"{id} 0 obj");
-            var at = IndexOf(pdf, token);
+            var at = IndexOfObj(pdf, id);
             if (at < 0)
                 throw new InvalidOperationException($"object {id} missing");
             map[id] = at;
         }
         return map;
+    }
+
+    /// <summary>Object header whose previous byte is not a digit (so 12 != 2).</summary>
+    private static int IndexOfObj(byte[] pdf, int id)
+    {
+        var needle = Encoding.ASCII.GetBytes($"{id} 0 obj");
+        var start = 0;
+        while (start <= pdf.Length - needle.Length)
+        {
+            var found = IndexOf(pdf.AsSpan(start), needle);
+            if (found < 0)
+                return -1;
+            var abs = start + found;
+            if (abs == 0 || pdf[abs - 1] < (byte)'0' || pdf[abs - 1] > (byte)'9')
+                return abs;
+            start = abs + 1;
+        }
+        return -1;
     }
 
     private static int MatchInt(string text, string pattern)
