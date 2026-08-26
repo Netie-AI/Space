@@ -765,13 +765,24 @@ def pdf_ocr(src: Path, dest: Path, lang: str, force: bool) -> str:
         raise RuntimeError("ocrmypdf missing; install ocrmypdf and system Tesseract")
     if shutil.which("tesseract") is None:
         raise RuntimeError("tesseract missing; install Tesseract-OCR and add it to PATH")
-    ocrmypdf.ocr(
-        str(src),
-        str(dest),
-        language=lang or "eng",
-        skip_text=not force,
-        deskew=True,
-    )
+    # ocrmypdf 17: skip_text=False is the default (abort if text exists),
+    # not "force OCR". --force must send force_ocr / mode=force.
+    if force:
+        ocrmypdf.ocr(
+            str(src),
+            str(dest),
+            language=lang or "eng",
+            force_ocr=True,
+            deskew=True,
+        )
+    else:
+        ocrmypdf.ocr(
+            str(src),
+            str(dest),
+            language=lang or "eng",
+            skip_text=True,
+            deskew=True,
+        )
     if not dest.is_file():
         raise RuntimeError("ocrmypdf produced no output")
     return "ocrmypdf"
