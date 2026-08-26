@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Cursor-origin CI gate. Linux: python + license-api + ffmpeg + net8 xunit.
-# WPF WinExe cannot build here. Same xunit project as Windows CI (#25).
+# Cursor-origin CI gate. Linux: python + license-api + ffmpeg + net8 xunit
+# + WinExe compile (`EnableWindowsTargeting`; no run). Same xunit as Windows CI.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -26,7 +26,7 @@ echo "== license-api typecheck"
   npm run typecheck
 )
 
-echo "== xunit (net8, no WPF WinExe)"
+echo "== xunit (net8, no WPF ProjectReference)"
 export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
 export PATH="$DOTNET_ROOT:$PATH"
 if ! command -v dotnet >/dev/null 2>&1; then
@@ -35,6 +35,9 @@ if ! command -v dotnet >/dev/null 2>&1; then
 fi
 export CI=1
 dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo --blame-hang-timeout 2m
+
+echo "== winexe (EnableWindowsTargeting; no run)"
+dotnet build src/NetieSpace/NetieSpace.csproj -c Debug --nologo -p:EnableWindowsTargeting=true
 
 echo "== pillar1 wipe reference encode"
 tmp="$(mktemp -d)"

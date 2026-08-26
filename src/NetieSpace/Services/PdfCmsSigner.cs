@@ -232,7 +232,7 @@ public static class PdfCmsSigner
 
     public static void SignFile(string pdfPath, X509Certificate2 cert)
     {
-        var original = File.ReadAllBytes(pdfPath);
+        var original = IoFile.ReadAllBytes(pdfPath);
         byte[] signed;
         try
         {
@@ -244,10 +244,10 @@ public static class PdfCmsSigner
             throw;
         }
 
-        var dir = Path.GetDirectoryName(pdfPath) ?? ".";
-        var tmp = Path.Combine(dir, $".{Path.GetFileName(pdfPath)}.cms-sign.tmp");
-        File.WriteAllBytes(tmp, signed);
-        File.Replace(tmp, pdfPath, destinationBackupFileName: null);
+        var dir = IoPath.GetDirectoryName(pdfPath) ?? ".";
+        var tmp = IoPath.Combine(dir, $".{IoPath.GetFileName(pdfPath)}.cms-sign.tmp");
+        IoFile.WriteAllBytes(tmp, signed);
+        IoFile.Replace(tmp, pdfPath, destinationBackupFileName: null);
     }
 
     public static byte[] Sign(byte[] pdf, X509Certificate2 cert)

@@ -46,7 +46,7 @@ public static class PdfClassicXref
     public static bool RewriteFile(string pdfPath)
     {
         if (string.IsNullOrWhiteSpace(pdfPath) || !IoFile.Exists(pdfPath))
-            throw new FileNotFoundException("PDF not found", pdfPath);
+            throw new System.IO.FileNotFoundException("PDF not found", pdfPath);
 
         var bytes = IoFile.ReadAllBytes(pdfPath);
         if (!PdfCmsSigner.NeedsClassicXrefRewrite(bytes))
