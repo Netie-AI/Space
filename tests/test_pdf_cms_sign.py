@@ -70,6 +70,7 @@ def test_xunit_and_parking():
     unit = _read(TEST_CS)
     parking = _read(PARKING)
     assert "Sign_embeds_detached_pkcs7_and_keeps_hello" in unit
+    assert "TryReadObject_does_not_match_12_as_2" in unit
     assert "Sign_self_verifies_detached_cms" in unit
     assert "NeedsClassicXrefRewrite_detects_missing_trailer" in unit
     assert "NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream" in unit
