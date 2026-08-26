@@ -38,6 +38,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "Wipe_from_either_clip_survives_ApplyTo" in nle
     assert "Undo_after_fade_and_wipe_keeps_plus_clip" in nle
     assert "Failed_split_undo_does_not_consume_plus_clip" in nle
+    assert "Unchanged_fade_undo_does_not_consume_plus_clip" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle
     assert "FedericoCarboni/setup-ffmpeg@v3" in yml
     assert "choco install ffmpeg" not in yml

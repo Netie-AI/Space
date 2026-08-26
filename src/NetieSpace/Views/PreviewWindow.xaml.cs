@@ -3089,6 +3089,7 @@ public partial class PreviewWindow : Window
 
     private void FadeHandle_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        var changed = false;
         if (_fadeDragClip >= 0)
         {
             var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_fadeDragClip);
@@ -3096,10 +3097,15 @@ public partial class PreviewWindow : Window
             {
                 // Export SyncTimelineFromSession() overwrites timeline fades from session.
                 if (_fadeDragIn)
-                    _videoEdit.ApplyFadeAt(_fadeDragClip, clip.FadeIn, null);
+                    changed = _videoEdit.ApplyFadeAt(_fadeDragClip, clip.FadeIn, null);
                 else
-                    _videoEdit.ApplyFadeAt(_fadeDragClip, null, clip.FadeOut);
+                    changed = _videoEdit.ApplyFadeAt(_fadeDragClip, null, clip.FadeOut);
             }
+
+            // MouseDown always PushVideoUndo. A click (no diamond move)
+            // used to leave a no-op undo so Ctrl+Z popped + Clip.
+            if (!changed)
+                DiscardLastVideoUndo();
         }
 
         if (sender is Border b)
@@ -3467,7 +3473,12 @@ public partial class PreviewWindow : Window
         }
 
         PushVideoUndo();
-        _videoEdit.ApplyFadeAt(_videoEdit.SelectedIndex, fadeIn, fadeOut);
+        if (!_videoEdit.ApplyFadeAt(_videoEdit.SelectedIndex, fadeIn, fadeOut))
+        {
+            DiscardLastVideoUndo();
+            ConvertStatusText.Text = "Fade already set on that clip.";
+            return;
+        }
         if (fadeIn.HasValue) clip.FadeIn = fadeIn.Value;
         if (fadeOut.HasValue) clip.FadeOut = fadeOut.Value;
         ConvertStatusText.Text =

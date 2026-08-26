@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: fade-handle click (no diamond move) and a second Fade chip discard the undo they pushed. `ApplyFadeAt` returns false when values are unchanged. A miss-click on the gold diamond after + Clip used to leave a no-op undo so Ctrl+Z popped + Clip.
 - Video: Delete key in edit mode opens the same ripple/black dialog as the ribbon Delete. Playbook "Press Delete" used to do nothing (only the chip worked).
 - Video: failed Split / empty + Clip / cancel Delete discard the undo they pushed. A miss-click Split after + Clip used to leave a no-op undo, so playbook Ctrl+Z popped + Clip and Export was ~1.6s.
 - PDF: `LoadPfx` falls back to PersistKeySet when EphemeralKeySet rejects a Windows PKI / openssl playbook PFX. Ephemeral-only could fail `make-test-pfx.ps1` certs before Adobe opens.
