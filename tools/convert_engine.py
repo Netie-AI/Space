@@ -85,7 +85,14 @@ OFFICE_EXTS = {
 }
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
-TEXT_EXTS = {".txt", ".text", ".log", ".csv"}
+# Matches ContentParserService.TextExtensions minus .html/.md (own paths).
+TEXT_EXTS = {
+    ".txt", ".text", ".log", ".csv",
+    ".json", ".xml", ".cs", ".js", ".ts", ".tsx", ".jsx",
+    ".py", ".java", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".rb", ".php",
+    ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sql", ".sh", ".ps1", ".bat",
+    ".css", ".scss", ".vue", ".swift", ".kt",
+}
 
 PIL_FORMAT = {
     ".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG", ".webp": "WEBP",
