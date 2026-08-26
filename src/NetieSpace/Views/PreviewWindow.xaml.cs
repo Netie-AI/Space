@@ -2950,8 +2950,9 @@ public partial class PreviewWindow : Window
             TimelineOutHandle.Margin = new Thickness(Math.Clamp(xOut - handleW / 2, 0, Math.Max(0, w - handleW)), 0, 0, 0);
 
         // Playhead timer rebuilds this canvas every 200ms. Children.Clear
-        // fired LostMouseCapture and aborted playbook drag / fade-handle.
-        if (_dragClipIndex >= 0 || _fadeDragClip >= 0)
+        // fired LostMouseCapture and aborted playbook drag / fade-handle /
+        // caption-cue drag (CC Clear also dropped capture before SRT save).
+        if (_dragClipIndex >= 0 || _fadeDragClip >= 0 || _captionDragIndex >= 0)
             return;
 
         RenderKeptClipSegments(w, max);
@@ -3285,6 +3286,7 @@ public partial class PreviewWindow : Window
             bdr.PreviewMouseLeftButtonDown += CaptionCue_PreviewMouseLeftButtonDown;
             bdr.PreviewMouseMove += CaptionCue_PreviewMouseMove;
             bdr.PreviewMouseLeftButtonUp += CaptionCue_PreviewMouseLeftButtonUp;
+            bdr.LostMouseCapture += CaptionCue_LostMouseCapture;
             bdr.PreviewMouseRightButtonUp += CaptionCue_PreviewMouseRightButtonUp;
             Canvas.SetLeft(bdr, x0);
             Canvas.SetTop(bdr, 2);
@@ -3317,17 +3319,42 @@ public partial class PreviewWindow : Window
         var start = TimeSpan.FromSeconds(Math.Max(0, (_captionDragBaseStart + delta).TotalSeconds));
         var end = start + dur;
         _captionCues[_captionDragIndex] = (start, end, _captionCues[_captionDragIndex].Text);
-        ScheduleTimelineLayout();
+        if (sender is Border b)
+        {
+            var x0 = start.TotalSeconds / max * w;
+            var x1 = end.TotalSeconds / max * w;
+            Canvas.SetLeft(b, x0);
+            b.Width = Math.Max(8, x1 - x0 - 1);
+        }
+        // Do not ScheduleTimelineLayout: RenderCaptionTrack Children.Clear
+        // fired LostMouseCapture and the old MouseUp-only persist never ran.
     }
 
     private void CaptionCue_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Border b)
-            b.ReleaseMouseCapture();
-        if (_captionDragIndex >= 0)
-            PersistCaptionCuesToSrt();
-        _captionDragIndex = -1;
+        EndCaptionDrag(sender as Border);
         e.Handled = true;
+    }
+
+    private void CaptionCue_LostMouseCapture(object sender, MouseEventArgs e) =>
+        EndCaptionDrag(sender as Border);
+
+    /// <summary>
+    /// CC cue drag. Alt-tab / 200ms canvas Clear used to skip MouseUp, so
+    /// the SRT never updated and Export burned the old times. Clear the
+    /// index before ReleaseMouseCapture so LostMouseCapture is a no-op.
+    /// </summary>
+    private void EndCaptionDrag(Border? b)
+    {
+        if (_captionDragIndex < 0)
+        {
+            b?.ReleaseMouseCapture();
+            return;
+        }
+
+        PersistCaptionCuesToSrt();
+        _captionDragIndex = -1;
+        b?.ReleaseMouseCapture();
     }
 
     private void CaptionCue_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)

@@ -132,8 +132,11 @@ def test_scripts_and_docs():
     layout = preview[preview.index("private void UpdateTimelineLayout"):preview.index("private void RenderKeptClipSegments")]
     assert "_dragClipIndex >= 0" in layout
     assert "_fadeDragClip >= 0" in layout
+    assert "_captionDragIndex >= 0" in layout
     assert "return" in layout
     assert "RenderOverlayTrack" in layout
+    assert "LostMouseCapture += CaptionCue_LostMouseCapture" in preview
+    assert "EndCaptionDrag" in preview
     xaml_preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml").read_text(encoding="utf-8")
     assert 'x:Name="OverlayTrackCanvas"' in xaml_preview
     ov = preview[preview.index("private void RenderOverlayTrack"):preview.index("private void RenderKeptClipSegments")]
