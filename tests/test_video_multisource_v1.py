@@ -74,6 +74,13 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     seek = preview[preview.index("private void SeekTimelineSeconds"):preview.index("private void VideoSlider_ValueChanged")]
     assert "updateSlider: false" in seek
     assert "VideoSlider.Value = seconds" in seek
+    assert "private TimeSpan PackedPlayhead()" in preview
+    assert "AddOverlay(OverlayKind.Black, PackedPlayhead()" in preview
+    assert "AddOverlay(OverlayKind.White, PackedPlayhead()" in preview
+    assert "AddOverlay(OverlayKind.Text, start" in preview
+    assert "AddOverlay(OverlayKind.Black, GetPlayhead()" not in preview
+    assert "AddOverlay(OverlayKind.White, GetPlayhead()" not in preview
+    assert "AddOverlay(OverlayKind.Text, GetPlayhead()" not in preview
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 
