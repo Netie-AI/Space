@@ -1013,7 +1013,7 @@ public sealed class ExplorerFileService
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff",
         ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".ppsx", ".pps", ".odp",
         ".xlsx", ".xlsm", ".xls", ".ods",
-        ".txt", ".md", ".csv", ".json", ".xml", ".html", ".htm",
+        ".txt", ".md", ".markdown", ".csv", ".json", ".xml", ".html", ".htm",
         ".zip", ".7z", ".rar", ".lnk"
     ];
 
