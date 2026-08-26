@@ -16,6 +16,7 @@ What you do:
    signature. A self-signed test cert shows as untrusted, not "unsigned".
    The first page should show a small "Digitally signed" box (page Annots +
    appearance). Untrusted is OK; missing from the Signature panel is not.
+   Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
 Needs a classic xref PDF (PdfSharp / Space save). xref-stream files get a

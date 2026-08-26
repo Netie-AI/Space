@@ -11,3 +11,8 @@ fi
 if [[ -f license-api/package-lock.json ]]; then
   (cd license-api && npm ci --legacy-peer-deps)
 fi
+
+if ! command -v dotnet >/dev/null 2>&1 && [[ ! -x "$HOME/.dotnet/dotnet" ]]; then
+  curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+  bash /tmp/dotnet-install.sh --channel 8.0 --install-dir "$HOME/.dotnet"
+fi

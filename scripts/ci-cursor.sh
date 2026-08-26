@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Cursor-origin CI gate. Linux can run python + license-api + ffmpeg smoke.
-# WPF WinExe cannot build here; Windows xunit already landed on main via #25.
+# Cursor-origin CI gate. Linux: python + license-api + ffmpeg + net8 xunit.
+# WPF WinExe cannot build here. Same xunit project as Windows CI (#25).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -25,5 +25,15 @@ echo "== license-api typecheck"
   fi
   npm run typecheck
 )
+
+echo "== xunit (net8, no WPF WinExe)"
+export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+export PATH="$DOTNET_ROOT:$PATH"
+if ! command -v dotnet >/dev/null 2>&1; then
+  echo "dotnet SDK missing. Run scripts/ci-cursor-install.sh"
+  exit 1
+fi
+export CI=1
+dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo --blame-hang-timeout 2m
 
 echo "PASS scripts/ci-cursor.sh"

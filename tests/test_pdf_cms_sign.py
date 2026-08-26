@@ -30,6 +30,9 @@ def test_signer_is_cms_not_itext():
     assert "/AP << /N" in src
     assert "RewritePageWithAnnot" in src
     assert "BuildAppearanceStream" in src
+    assert "TryVerify" in src
+    assert "CheckSignature" in src
+    assert "self-check" in src
 
 
 def test_ui_and_packages():
@@ -51,6 +54,7 @@ def test_xunit_and_parking():
     unit = _read(TEST_CS)
     parking = _read(PARKING)
     assert "Sign_embeds_detached_pkcs7_and_keeps_hello" in unit
+    assert "Sign_self_verifies_detached_cms" in unit
     assert "Cryptographic digital signature" in parking
     assert "PdfCmsSigner" in parking or "PKCS#7" in parking
 

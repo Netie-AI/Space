@@ -41,9 +41,14 @@ def test_windows_ci_runs_dotnet_test():
     cursor_ci = (ROOT / "scripts/ci-cursor.sh").read_text(encoding="utf-8")
     assert "python3 -m compileall" in cursor_ci
     assert "npm run typecheck" in cursor_ci
+    assert "dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj" in cursor_ci
+    assert "--blame-hang-timeout 2m" in cursor_ci
+    install = (ROOT / "scripts/ci-cursor-install.sh").read_text(encoding="utf-8")
+    assert "dotnet-install.sh" in install
+    assert "--channel 8.0" in install
     live = (ROOT / "tests/NetieSpace.Tests/FfmpegExportLiveTests.cs").read_text(encoding="utf-8")
     assert "FfmpegExportGraph.XfadeWithAudio" in live
-    assert "ffmpeg/ffprobe required on Windows CI" in live
+    assert "ffmpeg/ffprobe required on CI" in live
 
 
 if __name__ == "__main__":

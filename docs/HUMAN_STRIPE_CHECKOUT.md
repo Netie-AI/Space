@@ -39,6 +39,9 @@ npx wrangler secret put STRIPE_WEBHOOK_SECRET
 npx wrangler deploy
 ```
 
+Or one prompt path: `.\scripts\setup-license-api.ps1 -Deploy` (Enter skips a secret).
+Test Price is already in Worker `[vars]`; you still set the two secrets.
+
 Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 `docs/LICENSE_SETUP.md`.
 
