@@ -6229,6 +6229,7 @@ public partial class PreviewWindow : Window
                     ".md" or ".markdown" or ".html" or ".htm" or
                     ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
                     ".svg" or ".ico" or ".heic" or ".heif" or
+                    ".webp" or ".tif" or ".tiff" or
                     ".png" or ".jpg")
                 files.Add(f);
         }
