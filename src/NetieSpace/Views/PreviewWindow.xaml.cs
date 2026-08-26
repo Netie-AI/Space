@@ -6864,6 +6864,15 @@ public partial class PreviewWindow : Window
             if (_content?.Kind == PreviewKind.Video && _editMode)
                 UndoVideoEdit();
         }
+        else if (e.Key == Key.Delete && !IsTypingOrEditCapture)
+        {
+            // Playbook: Press Delete (or the ribbon delete).
+            if (_content?.Kind == PreviewKind.Video && _editMode)
+            {
+                e.Handled = true;
+                CutMiddleButton_Click(sender, e);
+            }
+        }
         else if (e.Key == Key.Home)
         {
             e.Handled = true;

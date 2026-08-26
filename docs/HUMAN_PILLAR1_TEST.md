@@ -48,7 +48,8 @@ produced 3.12s here. Your Windows Export should land near that.
    cut marks should cover the split clip, not jump to clip 1.
    Mark In / Mark Out chips and yellow handles store packed seconds.
    More... Export range burns that packed window (not a trim of clip 1).
-7. Select the extra piece. Press Delete (or the ribbon delete). The piece
+7. Select the extra piece. Press Delete (same ripple/black dialog as the
+   ribbon Delete). The piece
    should disappear. Ripple (default) joins the gap. "Leave black scene"
    puts the title card at the packed clip start (not source in 0 on + Clip).
    The hint text says: "Move playhead -> Split ->

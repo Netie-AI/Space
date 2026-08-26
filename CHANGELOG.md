@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Delete key in edit mode opens the same ripple/black dialog as the ribbon Delete. Playbook "Press Delete" used to do nothing (only the chip worked).
 - Video: failed Split / empty + Clip / cancel Delete discard the undo they pushed. A miss-click Split after + Clip used to leave a no-op undo, so playbook Ctrl+Z popped + Clip and Export was ~1.6s.
 - PDF: `LoadPfx` falls back to PersistKeySet when EphemeralKeySet rejects a Windows PKI / openssl playbook PFX. Ephemeral-only could fail `make-test-pfx.ps1` certs before Adobe opens.
 - PDF: Cert sign loads the playbook PFX via `PdfCmsSigner.LoadPfx` (`Exportable | EphemeralKeySet`). The click path used `Exportable` only, which can throw "keyset does not exist" on Windows CNG before Adobe opens.
