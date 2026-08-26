@@ -632,6 +632,40 @@ def test_export_as_preview_video_gif() -> None:
         assert gif.is_file() and gif.stat().st_size > 200
 
 
+def test_export_as_preview_audio() -> None:
+    """Share Export as on previewed .wav / .mp3. ShellInfo hid the row; engine already writes audio."""
+    import shutil
+
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    engine = ENGINE.read_text(encoding="utf-8")
+    assert 'AUDIO_EXTS = {".mp3"' in engine or '".mp3"' in engine
+    assert "IsAudioPath" in preview
+    assert '".mp3" or ".wav"' in preview
+    convert_ok = preview.split("var convertOk", 1)[1].split(";", 1)[0]
+    assert "IsAudioPath" in convert_ok
+    if shutil.which("ffmpeg") is None:
+        print("SKIP audio export -- ffmpeg missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        wav = d / "tone.wav"
+        proc = subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.3",
+                str(wav),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert proc.returncode == 0 and wav.is_file(), (proc.stderr or "")[-300:]
+        mp3 = d / "tone.mp3"
+        res = run_engine(["export-as", str(wav), str(mp3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "ffmpeg", res
+        assert mp3.is_file() and mp3.stat().st_size > 200
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -698,6 +732,7 @@ if __name__ == "__main__":
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
     test_export_as_preview_video_gif()
+    test_export_as_preview_audio()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")

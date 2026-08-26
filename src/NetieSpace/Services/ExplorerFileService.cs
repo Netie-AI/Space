@@ -1009,7 +1009,7 @@ public sealed class ExplorerFileService
     private static readonly string[] DesktopHiddenProbeExtensions =
     [
         ".mp4", ".mkv", ".mov", ".avi", ".webm", ".wmv", ".m4v", ".mpeg", ".mpg",
-        ".hevc", ".h265", ".mp3", ".wav", ".flac", ".m4a", ".aac",
+        ".hevc", ".h265", ".mp3", ".wav", ".flac", ".m4a", ".aac", ".ogg",
         ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tif", ".tiff",
         ".svg", ".ico", ".heic", ".heif",
         ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".ppsx", ".pps", ".odp",
