@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as on a previewed `.tiff` keeps TIFF (filter `*.tif;*.tiff`). The default dest used to be JPG because only `.tif` mapped to itself; `.tiff` fell through to `jpg`. Engine already writes TIFF.
 - PDF: Sign stamp picker rasterizes WebP / TIF / SVG / ICO / HEIC through the engine to PNG first. The Images filter hid those; All files + WebP fed `XImage.FromFile` (no WebP decoder) and a `data:image/png` data URL of raw WebP bytes. `IsImagePath` stayed raster-only.
 - PDF: Organize Add files / drop rasterizes WebP / TIF / SVG / ICO / HEIC through the engine to PNG first. Those clicks used `IsImagePath` (PdfSharp XImage: BMP/JPEG/GIF/PNG only) so the picker hid them and drop said not supported. Preview drop already used the engine. `IsImagePath` stayed raster-only.
 - Convert: Space a desktop `.pps` previews as PowerPoint so Share Export as and drop/merge work. Desktop probe already found it; parser was `ShellInfo` and engine `export-as` said `need markitdown`. Zip-based `.pps` uses the same OOXML path as `.ppsx`; OLE `.pps` still needs soffice.

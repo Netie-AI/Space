@@ -6734,7 +6734,7 @@ public partial class PreviewWindow : Window
         var imageDefaultExt = ext.TrimStart('.') switch
         {
             "jpeg" => "jpg",
-            "tif" => "tif",
+            "tif" or "tiff" => "tif",
             "jpg" or "png" or "webp" or "gif" or "bmp" or "ico" => ext.TrimStart('.'),
             _ => "jpg"
         };
@@ -6771,7 +6771,7 @@ public partial class PreviewWindow : Window
                 "Web page|*.html|PDF document|*.pdf|Word document|*.docx|All files|*.*",
                 "html", 1, stem),
             _ when kind == PreviewKind.Image => (
-                "JPG image|*.jpg|PNG image|*.png|WEBP image|*.webp|GIF image|*.gif|BMP image|*.bmp|TIFF image|*.tif|Icon|*.ico|PDF document|*.pdf|All files|*.*",
+                "JPG image|*.jpg|PNG image|*.png|WEBP image|*.webp|GIF image|*.gif|BMP image|*.bmp|TIFF image|*.tif;*.tiff|Icon|*.ico|PDF document|*.pdf|All files|*.*",
                 imageDefaultExt, imageFilterIndex, stem),
             _ when kind == PreviewKind.Video => (
                 "MP4 video|*.mp4|MOV video|*.mov|MKV video|*.mkv|WEBM video|*.webm|Animated GIF|*.gif|MP3 audio|*.mp3|All files|*.*",

@@ -669,6 +669,28 @@ def test_sign_stamp_engine_raster() -> None:
     assert '".webp"' not in image_path
 
 
+def test_tiff_export_as_keeps_tiff() -> None:
+    """Share Export as on a previewed .tiff defaulted to JPG (lossy). .tif already kept TIFF."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("BuildExportAsDialog", 1)[1]
+    default_ext = dlg.split("var imageDefaultExt", 1)[1].split("var imageFilterIndex", 1)[0]
+    assert '"tif" or "tiff" => "tif"' in default_ext
+    assert "TIFF image|*.tif;*.tiff" in dlg
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP tiff export -- Pillow missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        tiff = d / "scan.tiff"
+        Image.new("RGB", (40, 24), (30, 90, 40)).save(tiff, "TIFF")
+        tif = d / "scan.tif"
+        res = run_engine(["export-as", str(tiff), str(tif)])
+        assert res.get("success"), res
+        assert tif.is_file() and tif.stat().st_size > 50
+
+
 def test_heic_pdf_uses_pillow() -> None:
     """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
     engine = ENGINE.read_text(encoding="utf-8")
@@ -868,6 +890,7 @@ if __name__ == "__main__":
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
     test_sign_stamp_engine_raster()
+    test_tiff_export_as_keeps_tiff()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
