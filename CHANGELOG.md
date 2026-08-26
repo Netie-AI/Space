@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share default Export as PDF on `.docx` / `.xlsx` reads the OOXML zip (document.xml / sheet1). Used to fail with `need markitdown` after we could already write those files.
 - Convert: Share Export as PDF on ODP extracts ODF `text:p` (stdlib). Used to fail with `no PPTX-to-markdown backend`. OLE `.doc` / `.xls` / `.ppt` still use LibreOffice when `soffice` is installed.
 - Convert: Share Export as on RTF / ODT / ODS writes PDF / Word / Excel via stdlib extractors. Default PDF used to fail with `need markitdown` / `LibreOffice required`. `.xls` / `.ppt` still use `soffice` when installed.
 - Convert: Share Export as Excel writes a real `.xlsx` from CSV (stdlib OOXML). `export-as` used to return `unsupported target: .xlsx` while the Save dialog offered Excel on CSV / XLS / ODS. `.xls` / `.ppt` / `.odt` use LibreOffice when `soffice` is installed (P8). Same-type office copy still works.
