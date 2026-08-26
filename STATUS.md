@@ -10,8 +10,8 @@
    Windows CI runs `encode-pillar1-wipe.ps1`.
 2. **Ready PRs #4-#105 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
-   Play after + Clip advances the packed slider. Clip/fade drag skips
-   the 200ms canvas rebuild (Clear used to abort the drag).
+   Play after + Clip advances the packed slider. Clip/fade/caption drag
+   skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length. OV lane shows the title card (packed start + length).
    Export range slices (`SlicePacked`).
