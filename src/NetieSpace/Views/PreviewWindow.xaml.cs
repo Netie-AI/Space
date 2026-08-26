@@ -1593,7 +1593,12 @@ public partial class PreviewWindow : Window
 
             // #108 only paints when PackedPlayhead is on the card. Playhead
             // used to stay on the leftover clip, so the picture stayed
-            // clip-1 pixels until a manual seek.
+            // clip-1 pixels until a manual seek. + Clip autoplay then
+            // walked off the card (~200ms) after #109 sought onto it.
+            PlayPauseButton.Content = "Play";
+            try { PreviewVideo.Pause(); }
+            catch { /* ignore */ }
+            StopPackedPlayClock();
             var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
             _suppressSliderValueChanged = true;
             try { VideoSlider.Maximum = Math.Max(0.001, packed); }

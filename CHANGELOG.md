@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Leave black pauses after seeking onto the title card. + Clip autoplay used to walk the packed clock off that range ~200ms later, so the preview flash was gone before you could read it.
 - Video: Leave black seeks the packed playhead onto the title card. #108 only painted when the playhead was already on that range, so the picture stayed on the leftover clip until a manual seek.
 - Video: Leave-black / Add black / text show on the preview picture when the packed playhead is on that card. OV lane alone left the frame unchanged, so Export "picture is not black" was the first cue.
 - Video: caption-cue drag is not aborted by the 200ms playhead layout. `CaptionTrackCanvas.Children.Clear` used to fire LostMouseCapture, and MouseUp was the only SRT persist, so Export burned the old cue times.
