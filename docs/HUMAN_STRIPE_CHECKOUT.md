@@ -70,6 +70,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
    Success page already fulfilled the license. Activate without a Stripe
    session id returns `payment_required`. Activate writes the Worker
    `license_key` so the next `SkipGate: false` launch stays offline-licensed.
+   The device hash uses a stable machine token (not `string.GetHashCode`,
+   which .NET randomizes per process).
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
 

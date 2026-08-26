@@ -327,7 +327,7 @@ public static class DeviceFingerprint
     {
         try
         {
-            return Environment.MachineName.GetHashCode().ToString("X8");
+            return LicenseOffline.StableVolumeToken(Environment.MachineName);
         }
         catch { /* ignore */ }
         return "00000000";

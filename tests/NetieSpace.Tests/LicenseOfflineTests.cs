@@ -29,4 +29,16 @@ public class LicenseOfflineTests
         Assert.False(LicenseOffline.IsLicensed("abc", "other", "NS-KEY", "ent.tok"));
         Assert.False(LicenseOffline.IsLicensed("", "", "NS-KEY", "ent.tok"));
     }
+
+    [Fact]
+    public void StableVolumeToken_is_deterministic_not_gethashcode()
+    {
+        Assert.Equal("DESKTOP-1", LicenseOffline.StableVolumeToken("DESKTOP-1"));
+        Assert.Equal("DESKTOP-1", LicenseOffline.StableVolumeToken(" DESKTOP-1 "));
+        Assert.Equal("00000000", LicenseOffline.StableVolumeToken(""));
+        Assert.Equal("00000000", LicenseOffline.StableVolumeToken(null));
+        Assert.NotEqual(
+            "DESKTOP-1".GetHashCode().ToString("X8"),
+            LicenseOffline.StableVolumeToken("DESKTOP-1"));
+    }
 }
