@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: + Clip picker lists every `VideoExtensions` suffix (`.mpeg` / `.3gp` / `.flv` / `.ts` / …). Desktop Space already found those; the Video filter hid them so the click never reached `ProbeDuration`.
 - Convert: Share Export as is visible on previewed audio (`.mp3` / `.wav` / …). Those files are `ShellInfo`; engine `AUDIO_EXTS` already writes MP3/WAV. Markdown / PDF share rows stay hidden.
 - Convert: Share Export as is visible on previewed video (GIF / MP4 / …). `convertOk` used to exclude `Video`, so the #149 GIF path never appeared; Markdown / PDF share rows stay hidden.
 - Convert: Drop / merge a `.heif` onto a PDF uses the engine `to-pdf` path. Engine `IMAGE_EXTS` and Compress already listed `.heif`; drop/merge / parser only had `.heic`, so those clicks were ignored. `IsImagePath` stayed raster-only.
