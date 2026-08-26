@@ -4648,7 +4648,7 @@ public partial class PreviewWindow : Window
     private async Task<string> RasterizeForComfyAsync(string path, string? destDir = null)
     {
         var ext = IoPath.GetExtension(path).ToLowerInvariant();
-        if (ext is not (".svg" or ".ico" or ".heic" or ".heif") || !_conversion.IsAvailable)
+        if (ext is not (".svg" or ".ico" or ".heic" or ".heif" or ".webp") || !_conversion.IsAvailable)
             return path;
         var dir = string.IsNullOrWhiteSpace(destDir) ? IoPath.GetTempPath() : destDir;
         var dest = IoPath.Combine(dir, $"netie_comfy_{Guid.NewGuid():N}.png");

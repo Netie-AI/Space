@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: Copy / Compress / OCR / Comfy on a previewed WebP rasterize to PNG first. Those files preview as Image so the buttons are visible; WPF `BitmapImage` cannot decode WebP (Compress already warned, then `LoadBitmap` still failed). HEIC/SVG/ICO already used this path.
 - Convert: Share default PDF / HTML on a photo ODS or image-only XLSX/XLSM embeds `Pictures/` / `xl/media`. Those dests used empty cell text (573-byte blank PDF). `.xls` still needs soffice. Sheets with cell text stay the zip path.
 - Convert: Share default PDF / Markdown / HTML on a photo ODP or image-only DOCX embeds `Pictures/` / `word/media`. Those dests used empty markdown (573-byte blank PDF). ODP->PPTX still needs soffice. Text files stay the zip text path.
 - Convert: Share default PDF / Markdown / Word on a photo PPTX (slides with pictures, no text) embeds those images. Empty `<a:t>` used to write a blank PDF / one-newline Markdown. Text decks stay the zip text path.
