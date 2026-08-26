@@ -52,7 +52,8 @@ public static class LicenseActivation
         {
             var api = new LicenseApiClient(ResolveApiBase());
             var pepper = ResolvePepper();
-            var deviceHash = DeviceFingerprint.ComputeHash(pepper);
+            var deviceHash = await Task.Run(() => DeviceFingerprint.ComputeHash(pepper), ct)
+                .ConfigureAwait(false);
             var activate = await api.ActivateAsync(
                 session.Token,
                 deviceHash,

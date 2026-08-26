@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: WMI `Win32_ComputerSystemProduct` UUID is cached and capped at 3s. `SkipGate: false` launch and Activate used to hang the UI on a stuck CIMOM.
 - Image: **Windows AI...** writes `{stem}.winai-input.json` only when WinML is down. A present runtime no longer leaves a leftover sidecar.
 - PDF: `TryFirstPageRef` follows indirect `/Kids N 0 R` (Chrome/Word array object) so cert-sign stamps page 1 instead of a zero-size `/Rect`.
 - PDF: `TryReadObject` / xref offsets match `id 0 obj` only when the previous byte is not a digit. `12 0 obj` used to resolve as object 2, so the signature widget could land on the wrong page.

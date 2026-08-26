@@ -117,6 +117,11 @@ def test_wpf_buy_calls_checkout():
     assert "StableVolumeToken" in offline
     assert "GetHashCode()" not in client
     assert "StableVolumeToken" in client
+    assert "ReadBoardUuid" in client
+    assert "Options.Timeout" in client
+    assert "TimeSpan.FromSeconds(3)" in client
+    assert "unknown-board" in client
+    assert "Task.Run(() => DeviceFingerprint.ComputeHash" in activation
     tests = _read(ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj")
     assert "LicenseOffline.cs" in tests
     assert "LicenseActivation.ResolveApiBase()" in setup
