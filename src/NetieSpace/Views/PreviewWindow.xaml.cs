@@ -475,7 +475,9 @@ public partial class PreviewWindow : Window
         }
 
         // Share is always useful (copy / mail / reveal); only the format rows depend on the kind.
-        var convertOk = kind is not PreviewKind.Video and not PreviewKind.ShellInfo and not PreviewKind.Binary;
+        // Video gets Share Export as (GIF / MP4 / …). Markdown / PDF rows stay off
+        // (those used to be tied to convertOk, which hid the GIF click after #149).
+        var convertOk = kind is not PreviewKind.ShellInfo and not PreviewKind.Binary;
         _convertTargetsAvailable = convertOk;
 
         // Region marquee is a PDF-viewer feature; images fall back to a whole-frame clip.
@@ -6607,11 +6609,12 @@ public partial class PreviewWindow : Window
 
         var haveFile = !string.IsNullOrWhiteSpace(_currentFilePath) && IoFile.Exists(_currentFilePath);
         var formats = haveFile && _convertTargetsAvailable;
-        ShareFormatsLabel.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
-        ShareMdRow.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
-        SharePdfRow.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;
+        var docFormats = formats && _content?.Kind != PreviewKind.Video;
+        ShareFormatsLabel.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
+        ShareMdRow.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
+        SharePdfRow.Visibility = docFormats ? Visibility.Visible : Visibility.Collapsed;
         ShareHtmlRow.Visibility =
-            formats && IsHtmlWordEditable()
+            docFormats && IsHtmlWordEditable()
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         ShareExportAsLabel.Visibility = formats ? Visibility.Visible : Visibility.Collapsed;

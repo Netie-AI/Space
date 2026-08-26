@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as is visible on previewed video (GIF / MP4 / …). `convertOk` used to exclude `Video`, so the #149 GIF path never appeared; Markdown / PDF share rows stay hidden.
 - Convert: Drop / merge a `.heif` onto a PDF uses the engine `to-pdf` path. Engine `IMAGE_EXTS` and Compress already listed `.heif`; drop/merge / parser only had `.heic`, so those clicks were ignored. `IsImagePath` stayed raster-only.
 - Convert: Merge Add files and desktop probe list the rest of engine `TEXT_EXTS` (`.yaml` / `.kt` / `.rs` / `.py` / …). #160 accepted those drops; the picker filter and UIA probe still hid them.
 - Convert: Drop / merge previewed text/code (`.json` / `.py` / `.cs` / …) onto a PDF uses the engine `to-pdf` path. Lists stopped at `.txt` / `.text` / markdown, so those clicks were ignored after Share Export as was already visible.
