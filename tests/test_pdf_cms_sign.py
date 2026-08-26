@@ -39,6 +39,8 @@ def test_signer_is_cms_not_itext():
     assert "12 0 obj" in src
     assert "CreateMinimalPdfWithIndirectKids" in src
     assert "CreateMinimalPdfWithIndirectAnnots" in src
+    assert "CreateMinimalPdfCompactNames" in src
+    assert "/Kids[3 0 R]" in src
     assert "FirstPageFromKids" in src
     assert "/Kids 5 0 R" in src
     assert "/Annots 5 0 R" in src
@@ -86,6 +88,9 @@ def test_xunit_and_parking():
     assert "TryFirstPageRef_resolves_indirect_kids_array" in unit
     assert "Sign_resolves_indirect_kids_onto_first_page" in unit
     assert "Sign_inlines_indirect_annots_array_onto_first_page" in unit
+    assert "TryFirstPageRef_resolves_compact_kids_and_type" in unit
+    assert "Sign_compact_names_stamps_first_page" in unit
+    assert "Sign_in_app_pdf_stamps_page_4" in unit
     assert "RewriteFile_strips_hybrid_marker_then_sign_verifies" in unit
     assert "RewriteFile_strips_incremental_xref_stream_then_sign_verifies" in unit
     assert "RewriteFile_first_gen_xref_stream_then_sign_verifies" in unit

@@ -88,7 +88,10 @@ if ($toml -match 'REPLACE_AFTER_D1_CREATE') {
     }
     if ($id) {
         $toml = $toml -replace 'REPLACE_AFTER_D1_CREATE', $id
-        Set-Content (Join-Path $api 'wrangler.toml') $toml -Encoding UTF8
+        # Windows PowerShell 5.1 Set-Content -Encoding UTF8 writes a BOM.
+        # Wrangler/TOML then rejects the first key. Write UTF-8 with no BOM.
+        $utf8 = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllText((Join-Path $api 'wrangler.toml'), $toml, $utf8)
         Write-Host "[OK] Wrote database_id to wrangler.toml" -ForegroundColor Green
     } else {
         Write-Host "Paste database_id into license-api\wrangler.toml manually, then re-run." -ForegroundColor Yellow
@@ -122,7 +125,7 @@ if ($Deploy) {
     foreach ($s in $secrets) {
         $val = Read-Host $s.Prompt
         if ([string]::IsNullOrWhiteSpace($val)) { continue }
-        $val | & (Join-Path $api 'node_modules\.bin\wrangler.cmd') secret put $s.Name
+        $val | Invoke-Wrangler @('secret', 'put', $s.Name)
     }
 
     Write-Host "Deploying Worker..." -ForegroundColor Cyan

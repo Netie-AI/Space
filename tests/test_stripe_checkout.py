@@ -66,6 +66,10 @@ def test_worker_checkout_routes():
     assert "Find-NetieLicensesId" in setup
     assert "d1', 'list', '--json'" in setup
     assert "Reuse the existing" in setup or "Reusing existing netie-licenses" in setup
+    assert "UTF8Encoding" in setup
+    assert "WriteAllText" in setup
+    assert "secret', 'put'" in setup
+    assert "wrangler.cmd') secret put" not in setup
 
 
 def test_wpf_buy_calls_checkout():

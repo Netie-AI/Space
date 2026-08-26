@@ -22,6 +22,8 @@ What you do:
    inlined so the widget is a real annot, not `[widget arrayObj]`.
    Untrusted is OK; missing from the Signature panel is not.
    Space already ran a CMS self-check (`TryVerify`) before writing.
+   In-app `sample.pdf` / `Q3_Report.pdf` are compact MuPDF (`/Kids[4 0 R]`,
+   `/Type/Page`); Cursor CI rewrite+signs those too.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
 Cert sign rewrites xref-stream and hybrid files first (`PdfClassicXref`): drop the

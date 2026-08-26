@@ -38,7 +38,9 @@ If `license-api/wrangler.toml` still says `database_id = "REPLACE_AFTER_D1_CREAT
 do not run `npx wrangler deploy`. That placeholder is not a D1 id. Wrangler will
 reject it or bind a new empty database. Run `.\scripts\setup-license-api.ps1 -Deploy`
 first (writes the D1 id; reuses `netie-licenses` if that name already
-exists -- `d1 create` used to exit 1). After the id exists:
+exists -- `d1 create` used to exit 1). The script writes `wrangler.toml`
+as UTF-8 with no BOM (Windows PowerShell 5.1 `Set-Content -Encoding UTF8`
+used to prefix a BOM that Wrangler rejects). After the id exists:
 
 ```
 cd license-api

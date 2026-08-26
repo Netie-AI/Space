@@ -39,6 +39,8 @@
 
   <ItemGroup>
     <None Include="Fixtures\xrefstream-mupdf.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\NetieSpace\Assets\pdfjs\sample.pdf" Link="Fixtures\sample.pdf" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\tests\fixtures\preview\Q3_Report.pdf" Link="Fixtures\Q3_Report.pdf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
