@@ -344,6 +344,14 @@ public sealed class VideoEditSession
         return TimeSpan.Zero;
     }
 
+    /// <summary>Packed timeline end of a kept clip (start + source duration).</summary>
+    public TimeSpan PackedEndOf(int index)
+    {
+        if (index < 0 || index >= _kept.Count)
+            return PackedStartOf(index);
+        return PackedStartOf(index) + (_kept[index].End - _kept[index].Start);
+    }
+
     public int IndexAt(TimeSpan playhead) => PickIndexForSourcePlayhead(playhead);
 
     /// <summary>Hit-test a normalized 0–1 packed timeline position.</summary>

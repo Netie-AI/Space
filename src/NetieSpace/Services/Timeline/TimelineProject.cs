@@ -434,6 +434,90 @@ public sealed class TimelineProject
         return clip;
     }
 
+    /// <summary>
+    /// Keep only [from, to) on the packed timeline, then ripple-pack.
+    /// Export range after + Clip used to TrimAsync the open file.
+    /// </summary>
+    public bool SlicePacked(TimeSpan from, TimeSpan to)
+    {
+        if (to <= from)
+            return false;
+        var v = VideoTrack;
+        if (v is null)
+            return false;
+
+        var next = new List<TimelineClip>();
+        foreach (var c in v.Clips)
+        {
+            if (c.Overlay != OverlayKind.None)
+                continue;
+            var ovlIn = from > c.TimelineStart ? from : c.TimelineStart;
+            var ovlOut = to < c.TimelineEnd ? to : c.TimelineEnd;
+            if (ovlOut - ovlIn < TimeSpan.FromMilliseconds(40))
+                continue;
+
+            var speed = c.Speed <= 0 ? 1.0 : c.Speed;
+            var srcShift = TimeSpan.FromSeconds((ovlIn - c.TimelineStart).TotalSeconds * speed);
+            var srcLen = TimeSpan.FromSeconds((ovlOut - ovlIn).TotalSeconds * speed);
+            var keepInEdge = ovlIn == c.TimelineStart;
+            var keepOutEdge = ovlOut == c.TimelineEnd;
+            next.Add(new TimelineClip
+            {
+                SourcePath = c.SourcePath,
+                SourceIn = c.SourceIn + srcShift,
+                SourceOut = c.SourceIn + srcShift + srcLen,
+                TimelineStart = ovlIn - from,
+                Speed = c.Speed,
+                Muted = c.Muted,
+                Opacity = c.Opacity,
+                TransitionIn = keepInEdge ? c.TransitionIn : TransitionKind.None,
+                TransitionOut = keepOutEdge ? c.TransitionOut : TransitionKind.None,
+                FadeIn = keepInEdge ? c.FadeIn : default,
+                FadeOut = keepOutEdge ? c.FadeOut : default,
+                Overlay = c.Overlay,
+                Text = c.Text,
+                LutPath = c.LutPath
+            });
+        }
+
+        if (next.Count == 0)
+            return false;
+
+        v.Clips.Clear();
+        v.Clips.AddRange(next);
+
+        if (OverlayTrack is { } ov)
+        {
+            var ovNext = new List<TimelineClip>();
+            foreach (var c in ov.Clips)
+            {
+                var ovlIn = from > c.TimelineStart ? from : c.TimelineStart;
+                var ovlOut = to < c.TimelineEnd ? to : c.TimelineEnd;
+                if (ovlOut <= ovlIn)
+                    continue;
+                ovNext.Add(new TimelineClip
+                {
+                    SourcePath = c.SourcePath,
+                    SourceIn = TimeSpan.Zero,
+                    SourceOut = ovlOut - ovlIn,
+                    TimelineStart = ovlIn - from,
+                    Overlay = c.Overlay,
+                    Text = c.Text,
+                    FadeIn = c.FadeIn,
+                    FadeOut = c.FadeOut,
+                    TransitionIn = c.TransitionIn,
+                    TransitionOut = c.TransitionOut,
+                    Opacity = c.Opacity
+                });
+            }
+            ov.Clips.Clear();
+            ov.Clips.AddRange(ovNext);
+        }
+
+        PackLinkedVideoAudio();
+        return true;
+    }
+
     /// <summary>Flatten V1 clips to kept source ranges (compat with legacy ExportKeptSegments).</summary>
     public IReadOnlyList<(TimeSpan Start, TimeSpan End)> ToKeptRanges()
     {
