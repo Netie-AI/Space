@@ -366,6 +366,28 @@ public class VideoNleSessionTests
         session.ApplyTo(project, @"C:\clips\a.mp4");
         Assert.Equal(2, project.VideoTrack!.Clips[0].Speed, 3);
         Assert.Equal(1, project.VideoTrack.Clips[1].Speed, 3);
+        Assert.Equal(TimeSpan.FromSeconds(5), project.VideoTrack.Clips[0].Duration);
+        Assert.Equal(TimeSpan.FromSeconds(5), project.VideoTrack.Clips[1].TimelineStart);
+        Assert.Equal(project.VideoTrack.Clips[0].TimelineEnd, project.VideoTrack.Clips[1].TimelineStart);
+    }
+
+    [Fact]
+    public void Speed_2x_shrinks_packed_duration()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        Assert.Equal(TimeSpan.FromSeconds(12), session.PackedDuration(false));
+        session.Select(0);
+        Assert.True(session.ApplySpeedAt(0, 2));
+        // Accidental 2x used to keep 12s packed width so Export ~2.3s
+        // looked like a full timeline until ffprobe.
+        Assert.Equal(TimeSpan.FromSeconds(7), session.PackedDuration(false));
+        Assert.Equal(TimeSpan.FromSeconds(5), session.PackedStartOf(1));
+        Assert.Equal(TimeSpan.FromSeconds(2), session.SourceToPacked(TimeSpan.FromSeconds(4)));
+        Assert.Equal(TimeSpan.FromSeconds(4), session.PackedToSource(TimeSpan.FromSeconds(2)));
+        Assert.True(session.SplitAtPacked(TimeSpan.FromSeconds(2.5)));
+        Assert.Equal(3, session.Clips.Count);
+        Assert.Equal(TimeSpan.FromSeconds(5), session.Clips[0].End);
     }
 
     [Fact]

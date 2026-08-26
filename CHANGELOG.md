@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: packed timeline uses output duration (`source / Speed`). Accidental Speed 2x left the clip full width, so Export was ~2.3s with no visible cue to Ctrl+Z. `ApplyTo` repacks V1/A1 after Speed.
 - Video: + Clip grows `VideoSlider.Maximum` to the packed length. MediaOpened left it on clip-1 duration, so a clip-2 seek clamped to the join and Split failed as an edge (playbook slider must sit on clip 2).
 - Video: + Clip expands Mark In/Out to the new packed length. MediaOpened left them on clip-1 duration, so More... Export range after + Clip still SlicePacked only clip 1 (~1.6s).
 - Video: A2 clip `TimelineStart` is packed time (`PackedStartOf`). After + Clip it used source in (0) so the A2 block sat on clip 1. Status no longer claims an export mix (Export does not amix).

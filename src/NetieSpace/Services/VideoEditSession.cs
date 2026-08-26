@@ -174,6 +174,10 @@ public sealed class VideoEditSession
             v.Clips[i].TransitionOut = k.TransitionOut;
             v.Clips[i].Speed = k.Speed <= 0 ? 1.0 : k.Speed;
         }
+        // SyncFromKeptRanges packs TimelineStart by source length. Speed
+        // shortens Duration, so a 2x clip left a hole before the next start
+        // and the session packed UI still showed 1x width (invisible 2x).
+        project.PackLinkedVideoAudio();
     }
 
     /// <summary>Mark the join at the selection as wipeleft. Either adjacent clip works.</summary>
@@ -267,7 +271,9 @@ public sealed class VideoEditSession
                 s.TimelineOut - packedTime < TimeSpan.FromMilliseconds(120))
                 return false;
 
-            var cut = s.SourceIn + (packedTime - s.TimelineIn);
+            var speed = ClipSpeed(_kept[s.ClipIndex]);
+            var cut = s.SourceIn + TimeSpan.FromSeconds(
+                (packedTime - s.TimelineIn).TotalSeconds * speed);
             return SplitAtIndex(s.ClipIndex, cut);
         }
 
@@ -386,12 +392,18 @@ public sealed class VideoEditSession
         return TimeSpan.Zero;
     }
 
-    /// <summary>Packed timeline end of a kept clip (start + source duration).</summary>
+    /// <summary>Packed timeline end of a kept clip (output duration, after Speed).</summary>
     public TimeSpan PackedEndOf(int index)
     {
         if (index < 0 || index >= _kept.Count)
             return PackedStartOf(index);
-        return PackedStartOf(index) + (_kept[index].End - _kept[index].Start);
+        foreach (var s in BuildPackedTimeline(false))
+        {
+            if (!s.IsBlack && s.ClipIndex == index)
+                return s.TimelineOut;
+        }
+
+        return PackedStartOf(index);
     }
 
     public int IndexAt(TimeSpan playhead) => PickIndexForSourcePlayhead(playhead);
@@ -414,7 +426,9 @@ public sealed class VideoEditSession
             {
                 if (s.IsBlack)
                     return s.SourceIn;
-                return s.SourceIn + (packedTime - s.TimelineIn);
+                var speed = ClipSpeed(_kept[s.ClipIndex]);
+                return s.SourceIn + TimeSpan.FromSeconds(
+                    (packedTime - s.TimelineIn).TotalSeconds * speed);
             }
         }
 
@@ -442,7 +456,11 @@ public sealed class VideoEditSession
             if (!ClipSourceEquals(s.ClipIndex, want))
                 continue;
             if (sourceTime >= s.SourceIn && sourceTime <= s.SourceOut)
-                return s.TimelineIn + (sourceTime - s.SourceIn);
+            {
+                var speed = ClipSpeed(_kept[s.ClipIndex]);
+                return s.TimelineIn + TimeSpan.FromSeconds(
+                    (sourceTime - s.SourceIn).TotalSeconds / speed);
+            }
         }
 
         return sourceTime;
@@ -542,7 +560,7 @@ public sealed class VideoEditSession
                 }
             }
 
-            var dur = b - a;
+            var dur = OutputDuration(_kept[i]);
             if (dur <= TimeSpan.Zero)
                 continue;
             list.Add(new TimelineSegment(i, cursor, cursor + dur, a, b, IsBlack: false));
@@ -611,6 +629,15 @@ public sealed class VideoEditSession
 
     private static string Format(TimeSpan t) =>
         $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+
+    private static double ClipSpeed(KeptClip c) => c.Speed <= 0 ? 1.0 : c.Speed;
+
+    /// <summary>Packed output length. Speed 2x halves this so the clip block shrinks.</summary>
+    private static TimeSpan OutputDuration(KeptClip c)
+    {
+        var src = c.End - c.Start;
+        return TimeSpan.FromSeconds(Math.Max(0, src.TotalSeconds / ClipSpeed(c)));
+    }
 }
 
 public readonly record struct KeptClip(
