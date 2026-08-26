@@ -71,6 +71,12 @@ def test_windows_ci_runs_dotnet_test():
     assert "ffmpeg/ffprobe required on CI" in live
     assert "2.8" in live and "3.4" in live
     assert "dur > 2.5 && dur < 4.0" not in live
+    assert "ExportTimeline_playbook_fade_wipe_to_apostrophe_folder" in live
+    assert "ExportTimeline_hardcut_concat_to_apostrophe_folder" in live
+    assert "ExportTimelineAsync" in live
+    assert "FfmpegService.cs" in csproj
+    assert "ProjectRoot.cs" in csproj
+    assert "<ProjectReference" not in csproj
     nle_py = (ROOT / "tests/test_ffmpeg_nle_export.py").read_text(encoding="utf-8")
     assert "assertGreaterEqual(dur, 2.8)" in nle_py
     assert "assertLessEqual(dur, 3.4)" in nle_py

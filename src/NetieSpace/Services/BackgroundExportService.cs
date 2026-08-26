@@ -5,12 +5,6 @@ using NetieSpace.Views;
 
 namespace NetieSpace.Services;
 
-public sealed class ExportProgressReport
-{
-    public double Percent { get; init; }
-    public string Message { get; init; } = "";
-}
-
 public sealed class CaptionJobResult
 {
     public bool Success { get; init; }

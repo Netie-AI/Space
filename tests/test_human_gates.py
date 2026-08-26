@@ -191,6 +191,8 @@ def test_scripts_and_docs():
     assert "ConcatDemuxerLine" in ffmpeg_cs
     assert "\"'\\''\"" not in ffmpeg_cs
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs
+    assert "ProjectRoot.Find()" in ffmpeg_cs
+    assert '\"ffmpeg.exe\", \"ffmpeg\"' in ffmpeg_cs or '"ffmpeg.exe", "ffmpeg"' in ffmpeg_cs
     assert 'IoPath.Combine(root, "tools", "ffmpeg"' in ffmpeg_cs
     assert "durationNote" in toast
     enc = (ROOT / "scripts/encode-pillar1-wipe.sh").read_text(encoding="utf-8")

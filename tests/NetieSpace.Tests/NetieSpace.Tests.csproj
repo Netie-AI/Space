@@ -30,6 +30,9 @@
     <Compile Include="..\..\src\NetieSpace\Services\Timeline\TimelineProject.cs" Link="Linked\TimelineProject.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\CortexWasmPolicy.cs" Link="Linked\CortexWasmPolicy.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegExportGraph.cs" Link="Linked\FfmpegExportGraph.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\FfmpegService.cs" Link="Linked\FfmpegService.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\AppLogger.cs" Link="Linked\AppLogger.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\ProjectRoot.cs" Link="Linked\ProjectRoot.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\ComfyUiClient.cs" Link="Linked\ComfyUiClient.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\WindowsAiClient.cs" Link="Linked\WindowsAiClient.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\PdfCmsSigner.cs" Link="Linked\PdfCmsSigner.cs" />
