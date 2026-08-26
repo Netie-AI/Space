@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: test-mode Stripe Product `netie_space` + Price `price_1U8ckCFV5wcFod2faXiUCsaV` ($9/mo) on account NETIE; Worker `[vars]` has the Price id. Secret key + webhook still human.
+- Export: `scripts/encode-pillar1-wipe.sh` burns Space's wipeleft graph on the pillar1 clips (3.12s reference here).
 - Setup: **Manage billing** calls `POST /v1/billing-portal` after a paid customer id exists.
 - Human gates: `scripts/make-pillar1-clips.ps1` (1.6s + 2.0s lavfi clips, wipe ~3.1s) and `scripts/make-test-pfx.ps1` (password `test`) so Export + Adobe checks have fixtures.
 - PDF: **Cert sign (PFX)...** embeds `adbe.pkcs7.detached` via in-box `SignedCms` incremental xref (`PdfCmsSigner`). Visual Sign stamp stays. No iText. Adobe Reader check is still human.

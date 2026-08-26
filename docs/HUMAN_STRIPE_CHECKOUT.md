@@ -1,25 +1,25 @@
 # Human Stripe Checkout (secrets you hold)
 
-This Linux/cloud agent cannot log into Stripe, Cloudflare, or Resend for you.
-Playwright cannot open Netie Space (WPF `.exe`). After you set secrets, the
-Setup button calls `POST /v1/checkout` and opens the Stripe URL.
+Playwright cannot open Netie Space (WPF `.exe`). Test-mode Product `netie_space`
+and Price `price_1U8ckCFV5wcFod2faXiUCsaV` ($9/mo USD) already exist on Stripe
+account NETIE. The Worker `[vars]` has that Price id. You still set
+`STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (never commit those).
 
 Tax: do not turn on Stripe Tax / `automatic_tax` until you have an active
 registration. Stripe will otherwise collect $0 tax with no error.
 
 ## 1. Stripe Dashboard (about 10 minutes)
 
-1. Create or open https://dashboard.stripe.com (use Test mode first).
-2. Products -> Add product. Name: `Netie Space`. Recurring, monthly, your price.
-3. Copy the Price id (`price_...`). One Product per plan. Do not put Starter
-   and Pro prices on the same Product.
-4. Developers -> API keys. Prefer a restricted key (`rk_test_...`) that can
+1. Open https://dashboard.stripe.com (Test mode). Product **Netie Space**
+   (`netie_space`) should already be there with Price
+   `price_1U8ckCFV5wcFod2faXiUCsaV`. Do not put a second plan on that Product.
+2. Developers -> API keys. Prefer a restricted key (`rk_test_...`) that can
    create Checkout Sessions and read subscriptions. Do not commit the key.
-5. Developers -> Webhooks -> Add endpoint:
+3. Developers -> Webhooks -> Add endpoint:
    `https://<your-worker>/v1/webhooks/stripe`
    Events: `checkout.session.completed`, `customer.subscription.updated`,
    `customer.subscription.deleted`.
-6. Copy the webhook signing secret (`whsec_...`).
+4. Copy the webhook signing secret (`whsec_...`).
 
 Local test instead of a public Worker:
 

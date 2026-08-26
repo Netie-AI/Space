@@ -26,6 +26,8 @@ Make the two clips first (about 30 seconds):
 
 or `./scripts/make-pillar1-clips.sh`. You get `pillar1-clips/clip_a.mp4` (1.6s blue)
 and `clip_b.mp4` (2.0s red). Expected wipe export is about 3.1s.
+Linux reference encode (same graph Space burns): `./scripts/encode-pillar1-wipe.sh`
+produced 3.12s here. Your Windows Export should land near that.
 
 1. Home -> open a folder that has the two clips, or drop them on the window.
 2. Open a clip. The Video ribbon should show **Export all**, **+ Clip**,

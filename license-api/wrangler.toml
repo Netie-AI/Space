@@ -21,6 +21,9 @@ APP_NAME = "Netie Space"
 CORS_ORIGINS = ""
 # Buyer-facing app / download site base (no trailing slash)
 PUBLIC_BASE_URL = "https://netie-space-license.workers.dev"
+# Test-mode Price on Stripe account NETIE (product netie_space, $9/mo).
+# Not a secret. Override with `wrangler secret put STRIPE_PRICE_ID` for live.
+STRIPE_PRICE_ID = "price_1U8ckCFV5wcFod2faXiUCsaV"
 
 # Secrets (set via: npx wrangler secret put NAME):
 # RESEND_API_KEY
@@ -29,5 +32,5 @@ PUBLIC_BASE_URL = "https://netie-space-license.workers.dev"
 # JWT_SECRET
 # DEVICE_PEPPER
 # STRIPE_SECRET_KEY   (restricted rk_ preferred)
-# STRIPE_PRICE_ID     (price_... from Dashboard; one Product per plan)
+# STRIPE_PRICE_ID     (optional secret override; test price is in [vars])
 # STRIPE_WEBHOOK_SECRET  (whsec_... from Dashboard or `stripe listen`)

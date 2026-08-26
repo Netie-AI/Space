@@ -33,6 +33,9 @@ def test_worker_checkout_routes():
     assert 'mode", "subscription"' in stripe or 'body.set("mode", "subscription")' in stripe
     assert "integration_identifier" in stripe
     assert "2026-07-29.dahlia" in stripe
+    wrangler = _read(ROOT / "license-api/wrangler.toml")
+    assert "price_1U8ckCFV5wcFod2faXiUCsaV" in wrangler
+    assert "STRIPE_PRICE_ID" in wrangler
 
 
 def test_wpf_buy_calls_checkout():
