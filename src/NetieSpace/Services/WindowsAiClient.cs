@@ -33,7 +33,7 @@ public sealed class WindowsAiClient
                 return true;
             foreach (var path in ProbeFiles)
             {
-                if (File.Exists(path))
+                if (IoFile.Exists(path))
                     return true;
             }
             return false;
@@ -71,7 +71,7 @@ public sealed class WindowsAiClient
             ["image_path"] = imagePath,
             ["note"] = "Windows AI / WinML sidecar. rembg / Copy still work if Windows AI is down."
         };
-        File.WriteAllText(
+        IoFile.WriteAllText(
             sidecar,
             JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true }));
         return sidecar;
