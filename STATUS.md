@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#133 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#134 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
@@ -42,7 +42,7 @@
    You still put secrets.
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
    (WinAI sidecar only when WinML is down). Probe `/api/` then unprefixed.
-   Poll `/api/jobs` then `/history`. Live GPU still human.
+   Poll `/api/jobs` then `/history`; `preview_output` is enough. Live GPU still human.
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
    match is not a substring (`12` != `2`). Indirect `/Kids` and `/Annots`
    plus compact MuPDF `/Kids[4 0 R]` resolve so the first-page box lands.

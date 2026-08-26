@@ -535,6 +535,11 @@ public sealed class ComfyUiClient
                     return true;
                 }
             }
+
+            // Official JobDetailResponse does not require outputs. A completed
+            // job may only send preview_output ({filename, type, subfolder}).
+            if (TryPreviewOutputAsImages(root, out outputsJson))
+                return true;
         }
         catch (JsonException)
         {
@@ -542,6 +547,57 @@ public sealed class ComfyUiClient
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// official preview_output is a ResultItem, not a history outputs object.
+    /// Video/audio previews are not an image for GET /view + Copy.
+    /// </summary>
+    public static bool TryPreviewOutputAsImages(JsonElement root, out string? outputsJson)
+    {
+        outputsJson = null;
+        if (!root.TryGetProperty("preview_output", out var prev) ||
+            prev.ValueKind != JsonValueKind.Object)
+        {
+            return false;
+        }
+
+        if (prev.TryGetProperty("mediaType", out var mt) &&
+            mt.ValueKind == JsonValueKind.String)
+        {
+            var media = mt.GetString();
+            if (!string.IsNullOrWhiteSpace(media) &&
+                !string.Equals(media, "images", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        var name = prev.TryGetProperty("filename", out var fn) ? fn.GetString() : null;
+        if (string.IsNullOrWhiteSpace(name))
+            return false;
+
+        var sub = prev.TryGetProperty("subfolder", out var sf) ? sf.GetString() ?? "" : "";
+        var type = prev.TryGetProperty("type", out var t) ? t.GetString() ?? "output" : "output";
+        if (string.IsNullOrWhiteSpace(type))
+            type = "output";
+
+        outputsJson = JsonSerializer.Serialize(new Dictionary<string, object>
+        {
+            ["preview"] = new Dictionary<string, object>
+            {
+                ["images"] = new object[]
+                {
+                    new Dictionary<string, string>
+                    {
+                        ["filename"] = name,
+                        ["subfolder"] = sub,
+                        ["type"] = type
+                    }
+                }
+            }
+        });
+        return true;
     }
 
     /// <summary>
