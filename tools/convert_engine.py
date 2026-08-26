@@ -84,7 +84,7 @@ VIDEO_EXTS = {
 }
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 OFFICE_EXTS = {
-    ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp",
+    ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppsx", ".ppt", ".odp",
     ".xlsx", ".xlsm", ".xls", ".ods", ".csv",
 }
 MD_EXTS = {".md", ".markdown"}
@@ -434,7 +434,7 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     if ext == ".odp":
         return odp_to_text(src), "odp-zip"
 
-    if ext in {".pptx", ".ppt"}:
+    if ext in {".pptx", ".ppsx", ".ppt"}:
         got = via_pptx2md(src) or via_markitdown(src)
         if got:
             return got
@@ -791,7 +791,7 @@ def file_to_xlsx(src: Path, dest: Path) -> str:
 
 
 def file_to_pptx(src: Path, dest: Path) -> str:
-    if src.suffix.lower() == ".pptx":
+    if src.suffix.lower() in {".pptx", ".ppsx"}:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         return "copy"
@@ -1388,7 +1388,7 @@ def action_export_as(argv: list[str]) -> dict:
     if dest_ext in HTML_EXTS:
         if src_ext in {".docx", ".doc"}:
             return ok(dest, mammoth_to_html(src, dest))
-        if src_ext in {".pptx", ".ppt"}:
+        if src_ext in {".pptx", ".ppsx", ".ppt"}:
             return ok(dest, pptx_to_html(src, dest))
         if src_ext in HTML_EXTS:
             dest.parent.mkdir(parents=True, exist_ok=True)

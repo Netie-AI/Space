@@ -347,6 +347,47 @@ def test_export_as_odp() -> None:
         assert "Slide two body" in xml
 
 
+def test_export_as_ppsx() -> None:
+    """Share default Export as PDF on a desktop .ppsx. Used to be ShellInfo + need markitdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".pptx", ".ppsx", ".ppt"' in src or '".pptx", ".ppsx"' in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    assert 'extension is ".pptx" or ".ppsx"' in parser
+    assert '".pptx" or ".ppsx" or ".ppt"' in preview
+    merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".ppsx"' in merge and '".xlsm"' in merge
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        pptx = d / "deck.pptx"
+        _write_pptx(pptx, ["Hello PPSX"])
+        ppsx = d / "deck.ppsx"
+        ppsx.write_bytes(pptx.read_bytes())
+        pdf = d / "deck.pdf"
+        res = run_engine(["export-as", str(ppsx), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        html_out = d / "deck.html"
+        res = run_engine(["export-as", str(ppsx), str(html_out)])
+        assert res.get("success"), res
+        assert "Hello PPSX" in html_out.read_text(encoding="utf-8")
+
+
+def _write_pptx(path: Path, slides: list[str]) -> None:
+    import zipfile
+
+    with zipfile.ZipFile(path, "w") as zf:
+        for i, text in enumerate(slides, 1):
+            xml = (
+                '<?xml version="1.0"?>'
+                '<s:sld xmlns:s="http://schemas.openxmlformats.org/presentationml/2006/main" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+                f"<a:t>{text}</a:t></s:sld>"
+            )
+            zf.writestr(f"ppt/slides/slide{i}.xml", xml)
+
+
 def test_export_as_docx_xlsx_to_pdf() -> None:
     """Share default Export as PDF on Word/Excel used to need markitdown."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -552,6 +593,7 @@ if __name__ == "__main__":
     test_export_as_xlsx_from_csv()
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
+    test_export_as_ppsx()
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()

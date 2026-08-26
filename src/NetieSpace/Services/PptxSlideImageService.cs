@@ -340,7 +340,7 @@ public static class PptxSlideImageService
     public static bool IsPptxPath(string? path)
     {
         var ext = IoPath.GetExtension(path ?? "").ToLowerInvariant();
-        return ext is ".pptx" or ".ppt";
+        return ext is ".pptx" or ".ppsx" or ".ppt";
     }
 
     private static string? TryGetSlidePngInDir(string dir, int slideIndex1Based)

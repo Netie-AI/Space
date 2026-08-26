@@ -19,7 +19,7 @@ public partial class PdfMergeWindow : Window
     {
         ".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff",
         ".doc", ".docx", ".odt", ".rtf", ".txt", ".html", ".htm",
-        ".pptx", ".ppt", ".xlsx", ".xls"
+        ".pptx", ".ppsx", ".ppt", ".odp", ".xlsx", ".xlsm", ".xls", ".ods"
     };
 
     private readonly ObservableCollection<MergeRow> _files = new();
@@ -100,7 +100,7 @@ public partial class PdfMergeWindow : Window
             Title = "Add files to merge",
             Filter =
                 "Documents & images|*.pdf;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff;" +
-                "*.doc;*.docx;*.odt;*.rtf;*.txt;*.html;*.htm;*.pptx;*.ppt;*.xlsx;*.xls|" +
+                "*.doc;*.docx;*.odt;*.rtf;*.txt;*.html;*.htm;*.pptx;*.ppsx;*.ppt;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
                 "PDF|*.pdf|Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All files|*.*",
             Multiselect = true
         };
