@@ -17,22 +17,43 @@ public sealed class LicenseApiClient
     private readonly HttpClient _http;
     private readonly string _baseUrl;
 
+    public const string UnreachableCode = "worker_unreachable";
+    public const string UnreachableMessage =
+        "License API unreachable (worker_unreachable). Set License.ApiBaseUrl / NETIE_LICENSE_API to your Worker. Until then: stripe_not_configured.";
+
     public LicenseApiClient(string baseUrl)
     {
         _baseUrl = baseUrl.TrimEnd('/');
         _http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
     }
 
+    private static bool IsUnreachable(Exception ex) =>
+        ex is HttpRequestException or TaskCanceledException;
+
     public async Task<LicenseAuthResult> RegisterAsync(string email, string password, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync($"{_baseUrl}/v1/register", new { email, password }, ct);
-        return await ReadAuthAsync(res, ct);
+        try
+        {
+            var res = await _http.PostAsJsonAsync($"{_baseUrl}/v1/register", new { email, password }, ct);
+            return await ReadAuthAsync(res, ct);
+        }
+        catch (Exception ex) when (IsUnreachable(ex))
+        {
+            return LicenseAuthResult.Fail(UnreachableMessage);
+        }
     }
 
     public async Task<LicenseAuthResult> LoginAsync(string email, string password, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync($"{_baseUrl}/v1/login", new { email, password }, ct);
-        return await ReadAuthAsync(res, ct);
+        try
+        {
+            var res = await _http.PostAsJsonAsync($"{_baseUrl}/v1/login", new { email, password }, ct);
+            return await ReadAuthAsync(res, ct);
+        }
+        catch (Exception ex) when (IsUnreachable(ex))
+        {
+            return LicenseAuthResult.Fail(UnreachableMessage);
+        }
     }
 
     public async Task<CheckoutResult> CreateCheckoutAsync(
@@ -57,13 +78,11 @@ public sealed class LicenseApiClient
 
             return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (IsUnreachable(ex))
         {
             // Default appsettings host is workers.dev. Until setup-license-api
             // deploys it, DNS fails and used to throw out of Login Buy.
-            return CheckoutResult.Fail(
-                "License API unreachable (worker_unreachable). Set License.ApiBaseUrl / NETIE_LICENSE_API to your Worker. Until then: stripe_not_configured.",
-                "worker_unreachable");
+            return CheckoutResult.Fail(UnreachableMessage, UnreachableCode);
         }
     }
 
@@ -92,18 +111,25 @@ public sealed class LicenseApiClient
 
     public async Task<PortalResult> CreatePortalAsync(string token, CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/billing-portal");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var res = await _http.SendAsync(req, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        if (!res.IsSuccessStatusCode)
-            return PortalResult.Fail(ParseError(body));
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/billing-portal");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var res = await _http.SendAsync(req, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return PortalResult.Fail(ParseError(body));
 
-        var dto = JsonSerializer.Deserialize<PortalDto>(body, JsonOpts);
-        if (string.IsNullOrWhiteSpace(dto?.PortalUrl))
-            return PortalResult.Fail("No portal URL returned");
+            var dto = JsonSerializer.Deserialize<PortalDto>(body, JsonOpts);
+            if (string.IsNullOrWhiteSpace(dto?.PortalUrl))
+                return PortalResult.Fail("No portal URL returned");
 
-        return PortalResult.Ok(dto.PortalUrl);
+            return PortalResult.Ok(dto.PortalUrl);
+        }
+        catch (Exception ex) when (IsUnreachable(ex))
+        {
+            return PortalResult.Fail(UnreachableMessage);
+        }
     }
 
     public async Task<ActivateResult> ActivateAsync(
@@ -113,24 +139,31 @@ public sealed class LicenseApiClient
         string? licenseKey = null,
         CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/activate");
-        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        req.Content = JsonContent.Create(new
+        try
         {
-            device_hash = deviceHash,
-            device_label = deviceLabel,
-            license_key = licenseKey
-        });
-        var res = await _http.SendAsync(req, ct);
-        var body = await res.Content.ReadAsStringAsync(ct);
-        if (!res.IsSuccessStatusCode)
-            return ActivateResult.Fail(ParseError(body), ParseErrorCode(body));
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/activate");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Content = JsonContent.Create(new
+            {
+                device_hash = deviceHash,
+                device_label = deviceLabel,
+                license_key = licenseKey
+            });
+            var res = await _http.SendAsync(req, ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return ActivateResult.Fail(ParseError(body), ParseErrorCode(body));
 
-        var doc = JsonSerializer.Deserialize<ActivateDto>(body, JsonOpts);
-        if (string.IsNullOrWhiteSpace(doc?.EntitlementToken))
-            return ActivateResult.Fail("No entitlement returned");
+            var doc = JsonSerializer.Deserialize<ActivateDto>(body, JsonOpts);
+            if (string.IsNullOrWhiteSpace(doc?.EntitlementToken))
+                return ActivateResult.Fail("No entitlement returned");
 
-        return ActivateResult.Ok(doc.EntitlementToken, doc.Entitlement);
+            return ActivateResult.Ok(doc.EntitlementToken, doc.Entitlement);
+        }
+        catch (Exception ex) when (IsUnreachable(ex))
+        {
+            return ActivateResult.Fail(UnreachableMessage, UnreachableCode);
+        }
     }
 
     private static async Task<LicenseAuthResult> ReadAuthAsync(HttpResponseMessage res, CancellationToken ct)
