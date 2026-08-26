@@ -1642,8 +1642,10 @@ public partial class PreviewWindow : Window
             {
                 if (result.Success && IoFile.Exists(output))
                 {
-                    var burned = !string.IsNullOrWhiteSpace(_timeline.SubtitleBurnPath) &&
-                                 IoFile.Exists(_timeline.SubtitleBurnPath);
+                    // Match the encode snapshot. Live _timeline can gain an SRT
+                    // after Export clicked (whisper finish) and the toast would lie.
+                    var burned = !string.IsNullOrWhiteSpace(timelineSnapshot.SubtitleBurnPath) &&
+                                 IoFile.Exists(timelineSnapshot.SubtitleBurnPath);
                     ConvertStatusText.Text = burned
                         ? $"Saved timeline → {IoPath.GetFileName(output)} (captions burned in)"
                         : $"Saved timeline → {IoPath.GetFileName(output)}";

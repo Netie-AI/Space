@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Export: in-window "captions burned in" uses the encode snapshot. A whisper finish after Export clicked used to claim a burn that ffmpeg never saw.
 - License: WMI `Win32_ComputerSystemProduct` UUID is cached and capped at 3s. `SkipGate: false` launch and Activate used to hang the UI on a stuck CIMOM.
 - Image: **Windows AI...** writes `{stem}.winai-input.json` only when WinML is down. A present runtime no longer leaves a leftover sidecar.
 - PDF: `TryFirstPageRef` follows indirect `/Kids N 0 R` (Chrome/Word array object) so cert-sign stamps page 1 instead of a zero-size `/Rect`.
