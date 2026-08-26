@@ -108,6 +108,9 @@ def test_wpf_buy_calls_checkout():
     offline = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseOffline.cs")
     assert "IsLicensed" in offline
     assert "ReadString" in offline
+    assert "StableVolumeToken" in offline
+    assert "GetHashCode()" not in client
+    assert "StableVolumeToken" in client
     tests = _read(ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj")
     assert "LicenseOffline.cs" in tests
     assert "LicenseActivation.ResolveApiBase()" in setup

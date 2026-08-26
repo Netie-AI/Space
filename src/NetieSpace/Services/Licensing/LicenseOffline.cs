@@ -44,4 +44,12 @@ public static class LicenseOffline
         return !string.IsNullOrWhiteSpace(licenseKey)
                || !string.IsNullOrWhiteSpace(entitlementToken);
     }
+
+    /// <summary>
+    /// Volume-serial fallback for DeviceFingerprint. Never use
+    /// string.GetHashCode -- .NET Core randomizes it per process, so
+    /// Activate would fail the offline gate on the next launch.
+    /// </summary>
+    public static string StableVolumeToken(string? machineName) =>
+        string.IsNullOrWhiteSpace(machineName) ? "00000000" : machineName.Trim();
 }

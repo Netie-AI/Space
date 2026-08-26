@@ -57,7 +57,7 @@ Password hashing: **PBKDF2-SHA256** (310k) via Web Crypto — Workers-native. Fi
 
 ## Offline behavior
 
-After activate, entitlement is DPAPI-sealed under `%LOCALAPPDATA%\NetieSpace\license\`. Preview / Edit / PDF / video work offline. **AI** and **sign-in / rebind** need network.
+After activate, entitlement is DPAPI-sealed under `%LOCALAPPDATA%\NetieSpace\license\`. Preview / Edit / PDF / video work offline. **AI** and **sign-in / rebind** need network. The offline gate matches a stable device token (machine name, not `GetHashCode`).
 
 ## Installer (Inno)
 
