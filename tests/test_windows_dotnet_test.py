@@ -73,6 +73,8 @@ def test_windows_ci_runs_dotnet_test():
     assert "dur > 2.5 && dur < 4.0" not in live
     assert "ExportTimeline_playbook_fade_wipe_to_apostrophe_folder" in live
     assert "ExportTimeline_hardcut_concat_to_apostrophe_folder" in live
+    assert "ExportTimeline_leave_black_last_clip_keeps_card_duration" in live
+    assert "ExportTimeline_caption_and_text_from_apostrophe_folder" in live
     assert "ExportTimelineAsync" in live
     assert "FfmpegService.cs" in csproj
     assert "ProjectRoot.cs" in csproj
