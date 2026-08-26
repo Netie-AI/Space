@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: + Clip seek keeps the packed slider. `SourceToPacked` on the open file used to snap clip-2 clicks back to clip 1, so Split cut the wrong clip.
 - PDF: cert-sign inlines an indirect `/Annots N 0 R` array (Chrome/Word links). The old rewrite was `/Annots [widget arrayObj]`, so Adobe could skip the first-page box.
 - Video: Delete → Leave black scene uses packed clip start (`PackedStartOf`). `KeptClip.Start` is the source in-point (0 on + Clip), so the title card used to cover clip 1.
 - Export: context-menu Fade and timeline fade-handle drag write `VideoEditSession`. Export `SyncTimelineFromSession` used to wipe those fades (ribbon Fade In/Out already wrote the session).

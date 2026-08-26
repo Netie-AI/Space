@@ -29,6 +29,7 @@ def test_append_and_import_pack_without_overlap():
     assert "ClipSourceEquals" in session
     assert "PackedStartOf" in session
     assert "source in-point" in session
+    assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
     assert "public TimelineProject Clone(" in timeline
     assert "public TimelineClip? ImportClip(" in timeline
     assert "never lands on top" in timeline
@@ -70,6 +71,9 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     assert "WipeButton_Click" in preview
     assert "ApplyWipeAtJoin" in preview
     assert "PackedStartOf(_videoEdit.SelectedIndex)" in preview
+    seek = preview[preview.index("private void SeekTimelineSeconds"):preview.index("private void VideoSlider_ValueChanged")]
+    assert "updateSlider: false" in seek
+    assert "VideoSlider.Value = seconds" in seek
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 

@@ -2546,7 +2546,17 @@ public partial class PreviewWindow : Window
         if (_editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0)
         {
             var source = _videoEdit.PackedToSource(TimeSpan.FromSeconds(seconds)).TotalSeconds;
-            SkipTo(source, force);
+            // PackedToSource(clip 2) is that file's source in. SkipTo would then
+            // SourceToPacked on the open file (clip 1) and snap the slider back.
+            // Split uses VideoSlider.Value as packed -- keep the packed time.
+            SkipTo(source, force, updateSlider: false);
+            _suppressSliderValueChanged = true;
+            try { VideoSlider.Value = seconds; }
+            finally { _suppressSliderValueChanged = false; }
+            var packedMax = TimelineMaxSeconds();
+            VideoTimeText.Text =
+                $"{FormatTs(TimeSpan.FromSeconds(seconds))} / {FormatTs(TimeSpan.FromSeconds(packedMax))}";
+            ScheduleTimelineLayout();
             return;
         }
 
@@ -2640,7 +2650,7 @@ public partial class PreviewWindow : Window
     }
 
     /// <summary>Direct Position seek while paused/muted (source seconds). Holds UI on target until settle.</summary>
-    private void SkipTo(double seconds, bool force = true)
+    private void SkipTo(double seconds, bool force = true, bool updateSlider = true)
     {
         if (PreviewVideo.Source is null)
             return;
@@ -2666,6 +2676,9 @@ public partial class PreviewWindow : Window
         {
             // MediaElement can throw during rapid seek
         }
+
+        if (!updateSlider)
+            return;
 
         var displayMax = TimelineMaxSeconds();
         var displayPos = _editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0
@@ -3825,7 +3838,9 @@ public partial class PreviewWindow : Window
             {
                 var displayMax = TimelineMaxSeconds();
                 var displayPos = _editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0
-                    ? _videoEdit.SourceToPacked(TimeSpan.FromSeconds(target)).TotalSeconds
+                    ? (_videoEdit.HasMultipleSources
+                        ? VideoSlider.Value
+                        : _videoEdit.SourceToPacked(TimeSpan.FromSeconds(target)).TotalSeconds)
                     : target;
                 VideoTimeText.Text =
                     $"{FormatTs(TimeSpan.FromSeconds(displayPos))} / {FormatTs(TimeSpan.FromSeconds(displayMax))}";
@@ -3850,7 +3865,8 @@ public partial class PreviewWindow : Window
             var packedMax = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack).TotalSeconds;
             if (packedMax > 0)
                 VideoSlider.Maximum = packedMax;
-            if (!_sliderDragging && _timelineDrag == TimelineDragMode.None)
+            if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
+                !_videoEdit.HasMultipleSources)
             {
                 _suppressSliderValueChanged = true;
                 try { VideoSlider.Value = _videoEdit.SourceToPacked(pos).TotalSeconds; }
@@ -3867,7 +3883,9 @@ public partial class PreviewWindow : Window
 
         var displayMax2 = TimelineMaxSeconds();
         var displayPos2 = _editMode && _content?.Kind == PreviewKind.Video && _videoEdit.Kept.Count > 0
-            ? _videoEdit.SourceToPacked(pos).TotalSeconds
+            ? (_videoEdit.HasMultipleSources
+                ? VideoSlider.Value
+                : _videoEdit.SourceToPacked(pos).TotalSeconds)
             : pos.TotalSeconds;
         VideoTimeText.Text = $"{FormatTs(TimeSpan.FromSeconds(displayPos2))} / {FormatTs(TimeSpan.FromSeconds(displayMax2))}";
         if (_editMode)
