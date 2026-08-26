@@ -10,7 +10,7 @@ public sealed class ContentParserService
 {
     private static readonly HashSet<string> TextExtensions =
     [
-        ".txt", ".log", ".json", ".xml", ".csv", ".cs", ".js", ".ts", ".tsx", ".jsx",
+        ".txt", ".text", ".log", ".json", ".xml", ".csv", ".cs", ".js", ".ts", ".tsx", ".jsx",
         ".py", ".java", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".rb", ".php",
         ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sql", ".sh", ".ps1", ".bat",
         ".html", ".htm", ".css", ".scss", ".vue", ".swift", ".kt", ".md"

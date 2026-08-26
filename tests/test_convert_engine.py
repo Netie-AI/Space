@@ -470,7 +470,12 @@ def test_export_as_preview_text_to_pdf() -> None:
     assert '".py"' in src
     assert '".cs"' in src
     parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
     assert '".json"' in parser and '".py"' in parser
+    # Engine TEXT_EXTS listed .text; parser only had .txt so ShellInfo hid Share Export as.
+    assert '".text"' in src
+    assert '".text"' in parser
+    assert '".text"' in explorer
 
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
@@ -491,6 +496,13 @@ def test_export_as_preview_text_to_pdf() -> None:
         res = run_engine(["export-as", str(py), str(pypdf)])
         assert res.get("success"), res
         assert pypdf.is_file() and pypdf.stat().st_size > 200
+
+        notes = d / "notes.text"
+        notes.write_text("hello space from .text\n", encoding="utf-8")
+        text_pdf = d / "notes.pdf"
+        res = run_engine(["export-as", str(notes), str(text_pdf)])
+        assert res.get("success"), res
+        assert text_pdf.is_file() and text_pdf.stat().st_size > 200
 
 
 def test_export_as_svg() -> None:
