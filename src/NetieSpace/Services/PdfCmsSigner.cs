@@ -40,6 +40,35 @@ public static class PdfCmsSigner
         return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
     }
 
+    /// <summary>
+    /// Same one-page file as <see cref="CreateMinimalPdf"/> but /Kids is an
+    /// indirect array (Chrome/Word). Sign must still stamp page 3.
+    /// </summary>
+    public static byte[] CreateMinimalPdfWithIndirectKids()
+    {
+        var body = string.Join('\n',
+            "%PDF-1.4",
+            "1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj",
+            "2 0 obj<< /Type /Pages /Kids 5 0 R /Count 1 >>endobj",
+            "3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Contents 4 0 R /Resources << /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >> >>endobj",
+            "4 0 obj<< /Length 51 >>stream",
+            "BT /F1 12 Tf 40 120 Td (Hello Netie) Tj ET",
+            "endstream",
+            "endobj",
+            "5 0 obj[3 0 R]endobj",
+            "");
+        var bodyBytes = Encoding.ASCII.GetBytes(body.Replace("\r\n", "\n").Replace('\r', '\n'));
+        var offsets = FindObjOffsets(bodyBytes, 1, 5);
+        var xref = new StringBuilder();
+        xref.Append("xref\n0 6\n");
+        xref.Append("0000000000 65535 f \n");
+        for (var i = 1; i <= 5; i++)
+            xref.Append($"{offsets[i]:D10} 00000 n \n");
+        var startxref = bodyBytes.Length;
+        var tail = xref + "trailer<< /Size 6 /Root 1 0 R >>\nstartxref\n" + startxref + "\n%%EOF\n";
+        return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
+    }
+
     public static X509Certificate2 CreateEphemeralSelfSigned(string cn = "Netie Space Test")
     {
         using var rsa = RSA.Create(2048);
@@ -413,14 +442,48 @@ public static class PdfCmsSigner
         return m.Success ? int.Parse(m.Groups[1].Value) : null;
     }
 
-    private static int? TryFirstPageRef(byte[] pdf, int catalogId)
+    /// <summary>
+    /// First page object id. Inline <c>/Kids [3 0 R]</c> or indirect
+    /// <c>/Kids 5 0 R</c> (Chrome/Word). Follows /Pages kids one level.
+    /// </summary>
+    public static int? TryFirstPageRef(byte[] pdf, int catalogId)
     {
         var pagesId = TryPagesRef(pdf, catalogId);
         if (pagesId is null) return null;
         var obj = TryReadObject(pdf, pagesId.Value);
         if (obj is null) return null;
-        var m = Regex.Match(obj, @"/Kids\s*\[\s*(\d+)\s+0\s+R");
-        return m.Success ? int.Parse(m.Groups[1].Value) : null;
+        return FirstPageFromKids(pdf, obj, 0);
+    }
+
+    private static int? FirstPageFromKids(byte[] pdf, string pagesOrKidsObj, int depth)
+    {
+        if (depth > 8)
+            return null;
+        var inline = Regex.Match(pagesOrKidsObj, @"/Kids\s*\[\s*(\d+)\s+0\s+R");
+        if (inline.Success)
+            return ResolvePageOrPages(pdf, int.Parse(inline.Groups[1].Value), depth);
+
+        var indirect = Regex.Match(pagesOrKidsObj, @"/Kids\s+(\d+)\s+0\s+R");
+        if (!indirect.Success)
+            return null;
+        var kidsObj = TryReadObject(pdf, int.Parse(indirect.Groups[1].Value));
+        if (kidsObj is null)
+            return null;
+        var first = Regex.Match(kidsObj, @"(\d+)\s+0\s+R");
+        if (!first.Success)
+            return null;
+        return ResolvePageOrPages(pdf, int.Parse(first.Groups[1].Value), depth);
+    }
+
+    private static int? ResolvePageOrPages(byte[] pdf, int id, int depth)
+    {
+        var obj = TryReadObject(pdf, id);
+        if (obj is null)
+            return null;
+        // /Type /Pages before /Type /Page -- "Page" is a prefix of "Pages".
+        if (Regex.IsMatch(obj, @"/Type\s*/Pages"))
+            return FirstPageFromKids(pdf, obj, depth + 1);
+        return id;
     }
 
     /// <summary>

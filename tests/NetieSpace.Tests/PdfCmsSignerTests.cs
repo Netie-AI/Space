@@ -40,6 +40,15 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void TryFirstPageRef_resolves_indirect_kids_array()
+    {
+        Assert.Equal(3, PdfCmsSigner.TryFirstPageRef(PdfCmsSigner.CreateMinimalPdf(), 1));
+        var indirect = PdfCmsSigner.CreateMinimalPdfWithIndirectKids();
+        Assert.Contains("/Kids 5 0 R", System.Text.Encoding.ASCII.GetString(indirect));
+        Assert.Equal(3, PdfCmsSigner.TryFirstPageRef(indirect, 1));
+    }
+
+    [Fact]
     public void Sign_embeds_detached_pkcs7_and_keeps_hello()
     {
         var src = PdfCmsSigner.CreateMinimalPdf();
@@ -142,6 +151,20 @@ public class PdfCmsSignerTests
         using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
         var ex = Assert.Throws<InvalidOperationException>(() => PdfCmsSigner.Sign(pdf, cert));
         Assert.Contains("/Pages", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Sign_resolves_indirect_kids_onto_first_page()
+    {
+        var src = PdfCmsSigner.CreateMinimalPdfWithIndirectKids();
+        using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+        var signed = PdfCmsSigner.Sign(src, cert);
+        Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        var text = System.Text.Encoding.ASCII.GetString(signed);
+        Assert.Contains("/Type /Sig", text);
+        Assert.Contains("/P 3 0 R", text);
+        Assert.Contains("/Annots [", text);
+        Assert.DoesNotContain("/Rect [0 0 0 0]", text);
     }
 
     [Fact]

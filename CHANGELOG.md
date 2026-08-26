@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: `TryFirstPageRef` follows indirect `/Kids N 0 R` (Chrome/Word array object) so cert-sign stamps page 1 instead of a zero-size `/Rect`.
 - PDF: `TryReadObject` / xref offsets match `id 0 obj` only when the previous byte is not a digit. `12 0 obj` used to resolve as object 2, so the signature widget could land on the wrong page.
 - Export: **Export all** clones `TimelineProject` before the background job. Space-close + open another file used to `ResetFromSource` the live project mid-encode (same object as `timelineSnapshot`).
 - License: `EnsureLicenseGate` exits on exception (`Shutdown`), same as cancel. A thrown login dialog used to leave `SkipGate: false` running unlicensed. `/v1/download` file URLs use `requestPublicBase` (local `:8787` no longer gets a committed `workers.dev` token URL).
