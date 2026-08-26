@@ -36,6 +36,9 @@ def test_append_and_import_pack_without_overlap():
     assert "WritePackedCaptions" in timeline
     assert "RemapPackedCuesAfterSpeed" in timeline
     assert "RemapPackedCuesAfterRepack" in timeline
+    assert "RemapPackedCuesAfterWipe" in timeline
+    assert "ApplyWipeExportRemap" in timeline
+    assert "ApplyWipeExportRemap" in _read(FFMPEG)
     assert "project?.SubtitleBurnPath" in session
     assert "project.SubtitleBurnPath = frame.SubtitleBurnPath" in session
     assert "WriteSubtitleSnapshot" in session

@@ -366,6 +366,66 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void RemapPackedCuesAfterWipe_shifts_clip2_cue()
+    {
+        var clips = WipePair();
+        var cues = new[] { (TimeSpan.FromSeconds(1.8), TimeSpan.FromSeconds(2.2), "hi") };
+        var mapped = TimelineProject.RemapPackedCuesAfterWipe(cues, clips);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(1.3), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(1.7), mapped[0].End);
+    }
+
+    [Fact]
+    public void RemapPackedCuesAfterWipe_leaves_clip1_cue()
+    {
+        var clips = WipePair();
+        var cues = new[] { (TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(0.6), "hi") };
+        var mapped = TimelineProject.RemapPackedCuesAfterWipe(cues, clips);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(0.2), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(0.6), mapped[0].End);
+    }
+
+    [Fact]
+    public void ApplyWipeExportRemap_shifts_overlay_onto_wiped_clock()
+    {
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(1.6));
+        Assert.NotNull(project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2)));
+        var v = project.VideoTrack!;
+        v.Clips[0].TransitionOut = TransitionKind.Wipe;
+        v.Clips[0].FadeOut = TimeSpan.FromMilliseconds(500);
+        v.Clips[1].TransitionIn = TransitionKind.Wipe;
+        project.AddOverlay(OverlayKind.Black, TimeSpan.FromSeconds(1.6), TimeSpan.FromSeconds(2));
+        project.ApplyWipeExportRemap();
+        var ov = project.OverlayTrack!.Clips[0];
+        Assert.Equal(TimeSpan.FromSeconds(1.1), ov.TimelineStart);
+    }
+
+    private static List<TimelineClip> WipePair()
+    {
+        return
+        [
+            new TimelineClip
+            {
+                SourceIn = TimeSpan.Zero,
+                SourceOut = TimeSpan.FromSeconds(1.6),
+                TimelineStart = TimeSpan.Zero,
+                TransitionOut = TransitionKind.Wipe,
+                FadeOut = TimeSpan.FromMilliseconds(500)
+            },
+            new TimelineClip
+            {
+                SourceIn = TimeSpan.Zero,
+                SourceOut = TimeSpan.FromSeconds(2),
+                TimelineStart = TimeSpan.FromSeconds(1.6),
+                TransitionIn = TransitionKind.Wipe
+            }
+        ];
+    }
+
+    [Fact]
     public void SlicePacked_across_join_keeps_both_files()
     {
         var project = new TimelineProject();

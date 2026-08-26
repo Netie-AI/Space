@@ -777,6 +777,96 @@ public sealed class TimelineProject
     }
 
     /// <summary>
+    /// UI packed time ignores wipe. Export xfade shortens the file by each
+    /// join, so a clip-2 cue at 1.8s burned 0.5s late (0.7s into clip 2).
+    /// </summary>
+    public static TimeSpan WipeExportShift(IReadOnlyList<TimelineClip> clips, TimeSpan packedTime)
+    {
+        var shift = TimeSpan.Zero;
+        if (clips is null || clips.Count < 2)
+            return shift;
+        for (var i = 0; i < clips.Count - 1; i++)
+        {
+            var xfade = XfadeJoinDuration(clips[i], clips[i + 1]);
+            if (xfade <= TimeSpan.Zero)
+                continue;
+            if (packedTime >= clips[i + 1].TimelineStart)
+                shift += xfade;
+        }
+
+        return shift;
+    }
+
+    /// <summary>
+    /// Shift packed cue times onto the wipe-shortened export clock.
+    /// Does not mutate the user's sidecar -- caller writes a temp SRT.
+    /// </summary>
+    public static List<(TimeSpan Start, TimeSpan End, string Text)> RemapPackedCuesAfterWipe(
+        IEnumerable<(TimeSpan Start, TimeSpan End, string Text)> cues,
+        IReadOnlyList<TimelineClip> clips)
+    {
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var c in cues)
+        {
+            var start = c.Start - WipeExportShift(clips, c.Start);
+            var end = c.End - WipeExportShift(clips, c.End);
+            if (start < TimeSpan.Zero)
+                start = TimeSpan.Zero;
+            if (end - start < TimeSpan.FromMilliseconds(40))
+                continue;
+            next.Add((start, end, c.Text));
+        }
+
+        return next;
+    }
+
+    /// <summary>
+    /// Export clone only. UI packed ruler stays pre-wipe (marks / Split).
+    /// Writes a temp SRT and shifts overlay TimelineStart by the same joins.
+    /// </summary>
+    public void ApplyWipeExportRemap()
+    {
+        var v = VideoTrack?.Clips;
+        if (v is null || v.Count < 2)
+            return;
+        var hasWipe = false;
+        for (var i = 0; i < v.Count - 1; i++)
+        {
+            if (XfadeJoinDuration(v[i], v[i + 1]) > TimeSpan.Zero)
+            {
+                hasWipe = true;
+                break;
+            }
+        }
+
+        if (!hasWipe)
+            return;
+
+        if (!string.IsNullOrWhiteSpace(SubtitleBurnPath) && IoFile.Exists(SubtitleBurnPath))
+        {
+            var remapped = RemapPackedCuesAfterWipe(ReadSrtCues(SubtitleBurnPath), v);
+            if (remapped.Count == 0)
+                SubtitleBurnPath = null;
+            else
+            {
+                var temp = IoPath.Combine(IoPath.GetTempPath(), $"_ns_wipe_{Guid.NewGuid():N}.srt");
+                WriteSrtCues(temp, remapped);
+                SubtitleBurnPath = temp;
+            }
+        }
+
+        if (OverlayTrack is { Clips.Count: > 0 } ov)
+        {
+            foreach (var o in ov.Clips)
+            {
+                var shift = WipeExportShift(v, o.TimelineStart);
+                if (shift > TimeSpan.Zero)
+                    o.TimelineStart -= shift;
+            }
+        }
+    }
+
+    /// <summary>
     /// Merge per-clip source SRTs into one packed-time sidecar. Returns cue count.
     /// </summary>
     public static int WritePackedCaptions(
