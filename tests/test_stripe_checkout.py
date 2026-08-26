@@ -39,8 +39,12 @@ def test_wpf_buy_calls_checkout():
     client = _read(CLIENT)
     setup = _read(SETUP)
     assert "CreateCheckoutAsync" in client
+    assert "CreatePortalAsync" in client
     assert "checkout_url" in client
+    assert "portal_url" in client
     assert "CreateCheckoutAsync" in setup
+    assert "CreatePortalAsync" in setup
+    assert "ManageBillingButton_Click" in setup
     assert "OpenBuyFallback" in setup
     assert "HUMAN_STRIPE_CHECKOUT.md" in setup
     assert "HUMAN_PILLAR1_TEST.md" in setup

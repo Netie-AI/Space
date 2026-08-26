@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Setup: **Manage billing** calls `POST /v1/billing-portal` after a paid customer id exists.
+- Human gates: `scripts/make-pillar1-clips.ps1` (1.6s + 2.0s lavfi clips, wipe ~3.1s) and `scripts/make-test-pfx.ps1` (password `test`) so Export + Adobe checks have fixtures.
 - PDF: **Cert sign (PFX)...** embeds `adbe.pkcs7.detached` via in-box `SignedCms` incremental xref (`PdfCmsSigner`). Visual Sign stamp stays. No iText. Adobe Reader check is still human.
 - Image: **Send to Comfy...** on the image ribbon. `ComfyUiClient` probes `http://127.0.0.1:8188` (~1.2s, `NETIE_COMFY_URL` override). Down -> toast/status only; rembg / Copy still work. Up -> POST /prompt LoadImage or sidecar `.comfy-input.json`. Live GPU still human (`docs/HUMAN_PARKED.md`).
 - Convert: track `tools/convert_engine.py` (`tools/` stays ignored except the engine). JSON last-line `{success, output_path, tool, bytes, error}` for to-md / to-pdf / preview / preview-html / preview-pptx-html / export-as / pdf-watermark / pdf-protect / pdf-unlock / pdf-ocr. `tests/test_convert_engine.py` skips pymupdf smoke if the dep is missing.

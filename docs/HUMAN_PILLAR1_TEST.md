@@ -18,7 +18,14 @@ and press Space.
 
 ## 2. Video Select -> Split -> Drag -> Delete -> Fade -> Wipe -> Export
 
-Use two short clips (about 1-2 seconds each). MP4 or MOV is fine.
+Make the two clips first (about 30 seconds):
+
+```
+.\scripts\make-pillar1-clips.ps1
+```
+
+or `./scripts/make-pillar1-clips.sh`. You get `pillar1-clips/clip_a.mp4` (1.6s blue)
+and `clip_b.mp4` (2.0s red). Expected wipe export is about 3.1s.
 
 1. Home -> open a folder that has the two clips, or drop them on the window.
 2. Open a clip. The Video ribbon should show **Export all**, **+ Clip**,
