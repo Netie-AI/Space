@@ -195,6 +195,70 @@ public class FfmpegExportLiveTests
         Assert.True(dur is >= 2.8 and <= 3.4, $"caption+text wipe {dur} expect 2.8..3.4");
     }
 
+    [Fact]
+    public async Task ExportTimeline_slice_packed_second_clip_is_not_clip1_trim()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var a = Path.Combine(tmp.Path, "clip_a.mp4");
+        var b = Path.Combine(tmp.Path, "clip_b.mp4");
+        var outPath = Path.Combine(tmp.Path, "range_clip2.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+
+        var project = PlaybookProject(a, b, wipe: false);
+        var snap = project.Clone();
+        Assert.True(snap.SlicePacked(TimeSpan.FromSeconds(1.6), project.PackedVideoDuration()));
+        Assert.Single(snap.VideoTrack!.Clips);
+        Assert.Equal(b, snap.VideoTrack.Clips[0].SourcePath);
+
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable);
+        var result = await svc.ExportTimelineAsync(snap, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        // More... Export range used to TrimAsync clip 1 at packed 1.6..3.6 (~1.6s).
+        Assert.True(dur is >= 1.8 and <= 2.2, $"Export range clip 2 {dur} expect ~2.0 (clip-1 trim used to be ~1.6)");
+    }
+
+    [Fact]
+    public async Task ExportTimeline_slice_packed_full_window_keeps_wipe()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var a = Path.Combine(tmp.Path, "clip_a.mp4");
+        var b = Path.Combine(tmp.Path, "clip_b.mp4");
+        var outPath = Path.Combine(tmp.Path, "range_full.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+
+        var project = PlaybookProject(a, b, wipe: true);
+        var snap = project.Clone();
+        // + Clip expands marks to 0..packed. Leftover 0..1.6 used to burn clip 1 only.
+        Assert.True(snap.SlicePacked(TimeSpan.Zero, project.PackedVideoDuration()));
+
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable);
+        var result = await svc.ExportTimelineAsync(snap, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        Assert.True(dur is >= 2.8 and <= 3.4, $"Export range full window {dur} expect 2.8..3.4");
+    }
+
     private static TimelineProject PlaybookProject(string clipA, string clipB, bool wipe)
     {
         var session = new VideoEditSession();
