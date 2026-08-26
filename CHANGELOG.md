@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Comfy: `/history` poll waits for an image in outputs. `status.completed` with empty outputs used to stop the poll, so `DownloadFirstOutput` failed and Space wrote a sidecar instead of `{stem}.comfy.png`. Pillar 1 playbook: Undo after Split/Delete so Wipe+Export still uses full 1.6s+2.0s clips (~3.1s).
 - License: device fingerprint volume token is `Environment.MachineName` via `LicenseOffline.StableVolumeToken`. The old `string.GetHashCode` is randomized per process on .NET 8, so Activate + `SkipGate: false` treated a paid PC as unlicensed on the next launch.
 - Export: toast duration uses `FfmpegService.ResolveFfprobe` (`tools/ffmpeg` next to the repo or exe, then PATH). PATH-only lookup hid `~3.1s` on Windows after `install.bat`.
 - License: **Activate this laptop** persists `license_key` from the Worker entitlement. The offline gate used to require a key and treat a paid PC as unlicensed on the next `SkipGate: false` launch. Token-only entitlements still count as licensed.
