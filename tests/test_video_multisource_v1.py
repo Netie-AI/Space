@@ -30,6 +30,7 @@ def test_append_and_import_pack_without_overlap():
     assert "PackedStartOf" in session
     assert "source in-point" in session
     assert "SourceToPacked(TimeSpan sourceTime, string? sourcePath" in session
+    assert "public TimeSpan MarkToPacked(" in session
     assert "public TimelineProject Clone(" in timeline
     assert "public TimelineClip? ImportClip(" in timeline
     assert "never lands on top" in timeline
@@ -81,6 +82,10 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     assert "AddOverlay(OverlayKind.Black, GetPlayhead()" not in preview
     assert "AddOverlay(OverlayKind.White, GetPlayhead()" not in preview
     assert "AddOverlay(OverlayKind.Text, GetPlayhead()" not in preview
+    layout = preview[preview.index("private void UpdateTimelineLayout()"):preview.index("if (TimelinePlayhead is not null)")]
+    assert "PackedPlayhead().TotalSeconds" in layout
+    assert "GetPlayhead().TotalSeconds" not in layout
+    assert "MarkToPacked" in layout
     assert "WipeJoinIndex" in _read(SESSION)
     assert "ApplyWipeAtJoin" in _read(SESSION)
 

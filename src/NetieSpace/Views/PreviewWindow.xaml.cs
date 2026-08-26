@@ -1481,16 +1481,25 @@ public partial class PreviewWindow : Window
         SyncTimelineFromSession();
 
         // Reflect nearest kept edges on In/Out for trim handles
-        var idx = _videoEdit.HasMultipleSources
-            ? _videoEdit.IndexAtPacked(TimeSpan.FromSeconds(VideoSlider.Value), fillGaps: false)
-            : _videoEdit.IndexAt(pos);
+        // ApplyBlade selects the outgoing half. IndexAtPacked at the cut
+        // is the incoming half; GetPlayhead after + Clip is clip-1 source.
+        var idx = _videoEdit.SelectedIndex >= 0
+            ? _videoEdit.SelectedIndex
+            : (_videoEdit.HasMultipleSources
+                ? _videoEdit.IndexAtPacked(TimeSpan.FromSeconds(VideoSlider.Value), fillGaps: false)
+                : _videoEdit.IndexAt(pos));
         if (idx >= 0)
         {
             var kept = _videoEdit.Kept;
-            if (idx + 1 < kept.Count && kept[idx].End == pos)
+            if (idx + 1 < kept.Count && kept[idx].End == kept[idx + 1].Start)
             {
                 _markIn = kept[idx].Start;
                 _markOut = kept[idx + 1].End;
+            }
+            else if (idx > 0 && kept[idx - 1].End == kept[idx].Start)
+            {
+                _markIn = kept[idx - 1].Start;
+                _markOut = kept[idx].End;
             }
             else
             {
@@ -2507,8 +2516,9 @@ public partial class PreviewWindow : Window
     private TimeSpan GetPlayhead() => PreviewVideo.Position;
 
     /// <summary>
-    /// Overlay TimelineStart is packed. After + Clip the open file's
-    /// <see cref="GetPlayhead"/> is still clip-1 source time.
+    /// Overlay TimelineStart and the clip-track playhead line are packed.
+    /// After + Clip the open file's <see cref="GetPlayhead"/> is still
+    /// clip-1 source time.
     /// </summary>
     private TimeSpan PackedPlayhead()
     {
@@ -2788,11 +2798,11 @@ public partial class PreviewWindow : Window
 
         var start = Math.Clamp(
             (_editMode && _videoEdit.Kept.Count > 0
-                ? _videoEdit.SourceToPacked(_markIn.Value)
+                ? _videoEdit.MarkToPacked(_markIn.Value)
                 : _markIn.Value).TotalSeconds / max, 0, 1);
         var end = Math.Clamp(
             (_editMode && _videoEdit.Kept.Count > 0
-                ? _videoEdit.SourceToPacked(_markOut.Value)
+                ? _videoEdit.MarkToPacked(_markOut.Value)
                 : _markOut.Value).TotalSeconds / max, 0, 1);
         if (end <= start)
         {
@@ -2823,21 +2833,17 @@ public partial class PreviewWindow : Window
         var outSec = Math.Clamp((_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds, 0, max);
         if (_editMode && _videoEdit.Kept.Count > 0)
         {
-            inSec = _videoEdit.SourceToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
-            outSec = _videoEdit.SourceToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
+            inSec = _videoEdit.MarkToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
+            outSec = _videoEdit.MarkToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
         }
         if (outSec < inSec)
             (inSec, outSec) = (outSec, inSec);
 
         var xIn = inSec / max * w;
         var xOut = outSec / max * w;
-        var posSec = _sliderDragging || _timelineDrag == TimelineDragMode.Seek
-            ? VideoSlider.Value
-            : _pendingSeekSourceSeconds is double pending && DateTime.UtcNow < _suppressPositionSyncUntilUtc
-                ? (_editMode && _videoEdit.Kept.Count > 0
-                    ? _videoEdit.SourceToPacked(TimeSpan.FromSeconds(pending)).TotalSeconds
-                    : pending)
-                : GetPlayhead().TotalSeconds;
+        // Packed slider is the clip-track ruler. GetPlayhead after + Clip
+        // (and after ripple) is source time on that packed width.
+        var posSec = PackedPlayhead().TotalSeconds;
         var xPos = Math.Clamp(posSec / max, 0, 1) * w;
 
         TimelineKeepRange.Margin = new Thickness(xIn, 0, 0, 0);
@@ -3782,8 +3788,8 @@ public partial class PreviewWindow : Window
         var outSec = Math.Clamp((_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds, 0, max);
         if (_editMode && _videoEdit.Kept.Count > 0)
         {
-            inSec = _videoEdit.SourceToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
-            outSec = _videoEdit.SourceToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
+            inSec = _videoEdit.MarkToPacked(_markIn ?? TimeSpan.Zero).TotalSeconds;
+            outSec = _videoEdit.MarkToPacked(_markOut ?? TimeSpan.FromSeconds(max)).TotalSeconds;
         }
         var xIn = inSec / max * w;
         var xOut = outSec / max * w;

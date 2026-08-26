@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: clip-track playhead line and yellow cut marks use packed time (`PackedPlayhead` / `MarkToPacked`). After + Clip, `GetPlayhead` + primary `SourceToPacked` drew them on clip 1.
 - Video: Add text / black / white overlays use the packed slider (`PackedPlayhead`). After + Clip, `GetPlayhead` is still clip-1 source time, so the burn landed on the wrong clip.
 - Video: + Clip seek keeps the packed slider. `SourceToPacked` on the open file used to snap clip-2 clicks back to clip 1, so Split cut the wrong clip.
 - PDF: cert-sign inlines an indirect `/Annots N 0 R` array (Chrome/Word links). The old rewrite was `/Annots [widget arrayObj]`, so Adobe could skip the first-page box.
