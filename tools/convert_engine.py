@@ -88,6 +88,8 @@ OFFICE_EXTS = {
     ".xlsx", ".xlsm", ".xls", ".ods", ".csv",
 }
 PPTX_EXTS = {".pptx", ".ppsx", ".ppt", ".pps"}
+# Share default PDF is blank when these have pictures and no text.
+PHOTO_OFFICE_EXTS = PPTX_EXTS | {".odp", ".odt", ".docx"}
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
 # Matches ContentParserService.TextExtensions minus .html/.md (own paths).
@@ -315,14 +317,16 @@ def pptx_slide_texts(src: Path) -> list[str]:
     return texts
 
 
-def pptx_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
-    """Photo / image-only deck media as PNG bytes. Share PDF used empty markdown."""
+def zip_media_pngs(src: Path, prefixes: tuple[str, ...], cap: int = 24) -> list[bytes]:
+    """Office zip pictures as PNG bytes. Share PDF used empty markdown."""
     import io
 
     pngs: list[bytes] = []
     try:
         with zipfile.ZipFile(src) as zf:
-            names = sorted(n for n in zf.namelist() if n.startswith("ppt/media/"))[:cap]
+            names = sorted(
+                n for n in zf.namelist() if any(n.startswith(p) for p in prefixes)
+            )[:cap]
             for name in names:
                 raw = zf.read(name)
                 try:
@@ -343,18 +347,60 @@ def pptx_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     return pngs
 
 
-def pptx_pages_to_markdown(src: Path) -> tuple[str, str]:
-    """Photo / image-only PPTX -> Markdown. Share Markdown used to write a blank file."""
+def pptx_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    return zip_media_pngs(src, ("ppt/media/",), cap)
+
+
+def office_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    ext = src.suffix.lower()
+    if ext in PPTX_EXTS:
+        return pptx_media_pngs(src, cap)
+    if ext in {".odp", ".odt"}:
+        return zip_media_pngs(src, ("Pictures/", "media/"), cap)
+    if ext == ".docx":
+        return zip_media_pngs(src, ("word/media/",), cap)
+    return []
+
+
+def pngs_to_markdown(pngs: list[bytes], label: str, tool: str) -> tuple[str, str]:
     import base64
 
-    pngs = pptx_media_pngs(src)
     chunks: list[str] = []
     for i, blob in enumerate(pngs, 1):
         b64 = base64.b64encode(blob).decode("ascii")
-        chunks.append(f"## Slide {i}\n\n![Slide {i}](data:image/png;base64,{b64})\n")
+        chunks.append(f"## {label} {i}\n\n![{label} {i}](data:image/png;base64,{b64})\n")
     if not chunks:
         chunks.append("\n")
-    return "\n".join(chunks), "pptx-md-images"
+    return "\n".join(chunks), tool
+
+
+def pptx_pages_to_markdown(src: Path) -> tuple[str, str]:
+    """Photo / image-only PPTX -> Markdown. Share Markdown used to write a blank file."""
+    return pngs_to_markdown(pptx_media_pngs(src), "Slide", "pptx-md-images")
+
+
+def office_pages_to_markdown(src: Path) -> tuple[str, str]:
+    ext = src.suffix.lower()
+    if ext in PPTX_EXTS:
+        return pptx_pages_to_markdown(src)
+    label = "Slide" if ext == ".odp" else "Page"
+    return pngs_to_markdown(office_media_pngs(src), label, "office-md-images")
+
+
+def pngs_to_html(pngs: list[bytes], dest: Path, title: str) -> str:
+    import base64
+
+    parts: list[str] = []
+    for i, blob in enumerate(pngs, 1):
+        b64 = base64.b64encode(blob).decode("ascii")
+        parts.append(
+            f'<section class="slide"><h2>Page {i}</h2>'
+            f'<p><img src="data:image/png;base64,{b64}" alt="Page {i}"></p></section>'
+        )
+    if not parts:
+        parts.append("<p></p>")
+    write_text(dest, wrap_html("\n".join(parts), title))
+    return "office-html-images"
 
 
 def pptx_extract_media(src: Path, dest_dir: Path) -> list[Path]:
@@ -758,12 +804,12 @@ def file_to_docx(src: Path, dest: Path) -> str:
             raise
     try:
         text, _tool = file_to_markdown(src)
-        if text.strip() or src.suffix.lower() not in PPTX_EXTS:
+        if text.strip() or src.suffix.lower() not in PHOTO_OFFICE_EXTS:
             return write_docx(dest, text)
     except RuntimeError:
         text = None
-    if src.suffix.lower() in PPTX_EXTS:
-        pngs = pptx_media_pngs(src)
+    if src.suffix.lower() in PHOTO_OFFICE_EXTS:
+        pngs = office_media_pngs(src)
         if pngs:
             return write_docx_images(dest, pngs)
     if text is not None:
@@ -1064,8 +1110,8 @@ def markdown_to_pdf(text: str, dest: Path) -> str:
     return "pymupdf"
 
 
-def images_to_pdf(pngs: list[bytes], dest: Path) -> str:
-    """Photo / image-only PPTX -> PDF pages. Share default PDF used empty markdown."""
+def images_to_pdf(pngs: list[bytes], dest: Path, tool: str = "pymupdf-pptx-images") -> str:
+    """Photo / image-only office -> PDF pages. Share default PDF used empty markdown."""
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
     doc = pymupdf.open()
@@ -1089,7 +1135,7 @@ def images_to_pdf(pngs: list[bytes], dest: Path) -> str:
         doc.close()
         for tmp in tmp_paths:
             tmp.unlink(missing_ok=True)
-    return "pymupdf-pptx-images"
+    return tool
 
 
 def image_to_pdf(src: Path, dest: Path) -> str:
@@ -1156,15 +1202,16 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         return markdown_to_pdf(text, dest)
     try:
         text, _tool = file_to_markdown(src)
-        if text.strip() or ext not in PPTX_EXTS:
+        if text.strip() or ext not in PHOTO_OFFICE_EXTS:
             return markdown_to_pdf(text, dest)
     except RuntimeError:
         text = ""
-    if ext in PPTX_EXTS:
-        pngs = pptx_media_pngs(src)
+    if ext in PHOTO_OFFICE_EXTS:
+        pngs = office_media_pngs(src)
         if pngs:
-            return images_to_pdf(pngs, dest)
-    if text.strip() or ext not in PPTX_EXTS:
+            name = "pymupdf-pptx-images" if ext in PPTX_EXTS else "pymupdf-office-images"
+            return images_to_pdf(pngs, dest, tool=name)
+    if text.strip() or ext not in PHOTO_OFFICE_EXTS:
         return markdown_to_pdf(text, dest)
     raise RuntimeError(f"no PDF converter for {ext or 'unknown'}")
 
@@ -1504,6 +1551,9 @@ def mammoth_to_html(src: Path, dest_html: Path) -> str:
     except Exception:
         body = docx_plain_html(src)
         if body is None:
+            pngs = office_media_pngs(src)
+            if pngs:
+                return pngs_to_html(pngs, dest_html, src.name)
             raise RuntimeError("mammoth missing and DOCX zip parse failed")
         write_text(dest_html, wrap_html(body, src.name))
         return "docx-zip"
@@ -1582,13 +1632,14 @@ def action_to_md(argv: list[str]) -> dict:
     try:
         text, tool = file_to_markdown(src)
     except RuntimeError:
-        ext = src.suffix.lower()
-        if ext == ".pdf":
-            text, tool = pdf_pages_to_markdown(src)
-        elif ext in PPTX_EXTS:
-            text, tool = pptx_pages_to_markdown(src)
-        else:
-            raise
+        text, tool = "", None
+    ext = src.suffix.lower()
+    if not (text or "").strip() and ext == ".pdf":
+        text, tool = pdf_pages_to_markdown(src)
+    elif not (text or "").strip() and ext in PHOTO_OFFICE_EXTS:
+        text, tool = office_pages_to_markdown(src)
+    elif tool is None:
+        raise RuntimeError(f"no markdown converter for {ext or 'unknown'}")
     write_text(dest, text if text.endswith("\n") else text + "\n")
     return ok(dest, tool)
 
@@ -1682,17 +1733,24 @@ def action_export_as(argv: list[str]) -> dict:
         try:
             text, tool = file_to_markdown(src)
         except RuntimeError:
-            if src_ext == ".pdf":
-                text, tool = pdf_pages_to_markdown(src)
-            elif src_ext in PPTX_EXTS:
-                text, tool = pptx_pages_to_markdown(src)
-            else:
-                raise
+            text, tool = "", None
+        if not (text or "").strip() and src_ext == ".pdf":
+            text, tool = pdf_pages_to_markdown(src)
+        elif not (text or "").strip() and src_ext in PHOTO_OFFICE_EXTS:
+            text, tool = office_pages_to_markdown(src)
+        elif tool is None:
+            raise RuntimeError(f"no markdown converter for {src_ext or 'unknown'}")
         write_text(dest, text if text.endswith("\n") else text + "\n")
         return ok(dest, tool)
     if dest_ext in HTML_EXTS:
         if src_ext in {".docx", ".doc"}:
-            return ok(dest, mammoth_to_html(src, dest))
+            try:
+                return ok(dest, mammoth_to_html(src, dest))
+            except RuntimeError:
+                pngs = office_media_pngs(src)
+                if pngs:
+                    return ok(dest, pngs_to_html(pngs, dest, src.name))
+                raise
         if src_ext in {".pptx", ".ppsx", ".ppt", ".pps"}:
             return ok(dest, pptx_to_html(src, dest))
         if src_ext in HTML_EXTS:
@@ -1701,12 +1759,21 @@ def action_export_as(argv: list[str]) -> dict:
             return ok(dest, "copy")
         try:
             text, tool = file_to_markdown(src)
-            write_text(dest, wrap_html(markdown_to_html(text), src.name))
-            return ok(dest, tool)
+            if text.strip() or src_ext not in {".odp", ".odt", ".pdf"}:
+                write_text(dest, wrap_html(markdown_to_html(text), src.name))
+                return ok(dest, tool)
         except RuntimeError:
-            if src_ext == ".pdf":
-                return ok(dest, pdf_pages_to_html(src, dest))
-            raise
+            text = ""
+        if src_ext == ".pdf":
+            return ok(dest, pdf_pages_to_html(src, dest))
+        if src_ext in {".odp", ".odt"}:
+            pngs = office_media_pngs(src)
+            if pngs:
+                return ok(dest, pngs_to_html(pngs, dest, src.name))
+        if text.strip():
+            write_text(dest, wrap_html(markdown_to_html(text), src.name))
+            return ok(dest, "copy")
+        raise RuntimeError(f"no HTML converter for {src_ext or 'unknown'}")
     if dest_ext in VIDEO_EXTS or dest_ext in AUDIO_EXTS or (
         dest_ext == ".gif" and src_ext in VIDEO_EXTS
     ):

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share default PDF / Markdown / HTML on a photo ODP or image-only DOCX embeds `Pictures/` / `word/media`. Those dests used empty markdown (573-byte blank PDF). ODP->PPTX still needs soffice. Text files stay the zip text path.
 - Convert: Share default PDF / Markdown / Word on a photo PPTX (slides with pictures, no text) embeds those images. Empty `<a:t>` used to write a blank PDF / one-newline Markdown. Text decks stay the zip text path.
 - Convert: Share Markdown on an image-only / scan PDF embeds page PNGs (data URIs). HTML/Word already did this; `to-md` still said `need markitdown`. Text PDFs stay the text path.
 - Convert: Share Export as HTML on an image-only / scan PDF embeds page PNGs (data URIs). Word already did this; HTML still went through `file_to_markdown` and said `need markitdown`. Text PDFs stay the markdown path.
