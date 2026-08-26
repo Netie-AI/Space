@@ -39,7 +39,9 @@ produced 3.12s here. Your Windows Export should land near that.
 6. Move the playhead to the middle of a clip. Click **Split**. You should
    now have three clips.
 7. Select the extra piece. Press Delete (or the ribbon delete). The piece
-   should disappear. The hint text says: "Move playhead -> Split ->
+   should disappear. Ripple (default) joins the gap. "Leave black scene"
+   puts the title card at the packed clip start (not source in 0 on + Clip).
+   The hint text says: "Move playhead -> Split ->
    select clip -> Delete".
 8. Split/Delete is the click check. Ctrl+Z Undo (or close and + Clip both
    originals) so the timeline is full `clip_a` (1.6s) + `clip_b` (2.0s)

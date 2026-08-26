@@ -124,6 +124,16 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void PackedStartOf_second_clip_is_not_source_in()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        Assert.Equal(TimeSpan.Zero, session.PackedStartOf(0));
+        Assert.Equal(TimeSpan.FromSeconds(10), session.PackedStartOf(1));
+        Assert.Equal(TimeSpan.Zero, session.Clips[1].Start);
+    }
+
+    [Fact]
     public void Import_clip_packs_without_overlap()
     {
         var project = new TimelineProject();
