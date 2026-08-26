@@ -44,6 +44,9 @@ def test_client_file_exists():
     assert "WriteInputSidecar" in text
     assert "/upload/image" in text
     assert "UploadImageAsync" in text
+    assert "ImageContentType" in text
+    assert "image/png" in text
+    assert "application/octet-stream" not in text
     assert "UploadTimeoutMs = 10_000" in text
     assert "/view" in text
     assert "SaveImage" in text
@@ -75,6 +78,8 @@ def test_menu_and_handler_names():
     assert "UploadImageAsync" in cs
     assert "DownloadFirstOutputAsync" in cs
     assert "WriteInputSidecar" in cs
+    assert "Sidecar only when upload" in cs or "sidecar only" in cs.lower()
+    assert cs.find("WriteInputSidecar") > cs.find("QueuePromptAsync")
     assert "ToastHud.Show" in cs
     assert "rembg / Copy still work" in cs
     assert "SendToComfyButton.Visibility = isImage" in cs
@@ -88,6 +93,7 @@ def test_xunit_compile_include():
     assert "new ComfyUiClient()" in tests
     assert "127.0.0.1:8188" in tests
     assert "Does not talk to a live" in tests
+    assert "ImageContentType_uses_extension_not_octet_stream" in tests
     assert "UploadImage_missing_or_down_returns_null" in tests
     assert "TryFirstOutputImage_reads_filename" in tests
     assert "DownloadFirstOutput_down_server_returns_null" in tests

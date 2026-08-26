@@ -194,6 +194,34 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void RewriteFile_first_gen_xref_stream_then_sign_verifies()
+    {
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", "xrefstream-mupdf.pdf");
+        Assert.True(File.Exists(fixture), fixture);
+        var src = File.ReadAllBytes(fixture);
+        Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(src));
+        Assert.False(PdfClassicXref.TryStripToClassic(src, out _));
+
+        var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "chrome-save.pdf");
+        File.Copy(fixture, path);
+        try
+        {
+            Assert.True(PdfClassicXref.RewriteFile(path));
+            var after = File.ReadAllBytes(path);
+            Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
+            Assert.Contains("/Type /Page", System.Text.Encoding.ASCII.GetString(after));
+            using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+            Assert.True(PdfCmsSigner.TryVerify(PdfCmsSigner.Sign(after, cert), out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
     public void PdfSharp_new_document_is_classic_or_rewritable()
     {
         var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));

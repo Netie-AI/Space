@@ -40,7 +40,9 @@ Click path (image preview):
    Space GETs `/view` and writes `{stem}.comfy.png` next to the source, then
    reloads that file so Copy / drag-out work like rembg.
    If upload/queue/download fails, write `{file}.comfy-input.json` next to
-   the image and run that workflow in ComfyUI.
+   the image (not on success) and run that workflow in ComfyUI. Upload uses
+   the file's image Content-Type (`image/png`, `image/jpeg`, ...), not
+   `application/octet-stream`.
 
 What you do on a Windows GPU:
 

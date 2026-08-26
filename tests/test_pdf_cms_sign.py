@@ -73,6 +73,7 @@ def test_xunit_and_parking():
     assert "Sign_refuses_catalog_without_pages_ref" in unit
     assert "RewriteFile_strips_hybrid_marker_then_sign_verifies" in unit
     assert "RewriteFile_strips_incremental_xref_stream_then_sign_verifies" in unit
+    assert "RewriteFile_first_gen_xref_stream_then_sign_verifies" in unit
     assert "PdfSharp_new_document_is_classic_or_rewritable" in unit
     xref = _read(XREF)
     assert "TryStripToClassic" in xref
