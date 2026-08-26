@@ -45,6 +45,10 @@ def test_scripts_and_docs():
     start = preview.index("private async Task ExportEditButton_ClickAsync")
     end = preview.index("private ExportPreset ReadExportPreset")
     assert "_timeline.Clone()" in preview[start:end]
+    assert "timelineSnapshot.SubtitleBurnPath" in preview[start:end]
+    burned_line = [ln for ln in preview[start:end].splitlines() if "SubtitleBurnPath" in ln]
+    assert burned_line, "export status must mention SubtitleBurnPath"
+    assert all("timelineSnapshot.SubtitleBurnPath" in ln for ln in burned_line)
     assert "wipe expect ~3.1s" in export
     ffmpeg_cs = (ROOT / "src/NetieSpace/Services/FfmpegService.cs").read_text(encoding="utf-8")
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs

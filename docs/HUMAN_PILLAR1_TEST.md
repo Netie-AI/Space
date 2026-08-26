@@ -53,7 +53,9 @@ produced 3.12s here. Your Windows Export should land near that.
     OK -- export snapped the timeline, so opening another file cannot
     rewrite the encode. The toast should show the duration (about 3.1s /
     `wipe expect ~3.1s` on these clips). Duration uses the same
-    `tools/ffmpeg/ffprobe` as Export (not PATH only).
+    `tools/ffmpeg/ffprobe` as Export (not PATH only). Status says
+    "captions burned in" only if the SRT was already on the snapshot
+    when you clicked Export (a whisper finish after that does not count).
 
 ### What to check after Export
 

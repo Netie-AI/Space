@@ -5,7 +5,7 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#61 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#62 landed**. Draft #1 stays draft.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
@@ -21,7 +21,8 @@
 ## Next
 
 - Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Wipe on either side of the join.
-  Export clones the timeline (Space-close cannot mutate the encode). Toast uses bundled ffprobe.
+  Export clones the timeline (Space-close cannot mutate the encode). Caption
+  status matches that snapshot. Toast uses bundled ffprobe.
 - Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (hybrid rewrite + Sign refuse leftover hybrid).
 - Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 
