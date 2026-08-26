@@ -23,3 +23,6 @@ fc='[0:v]scale=320:240:force_original_aspect_ratio=decrease,pad=320:240:(ow-iw)/
   "$out"
 dur="$("$ffprobe" -v error -show_entries format=duration -of csv=p=0 "$out")"
 echo "wipe_ref: $out duration=$dur (expect about 3.1)"
+# Same 2.8..3.4 as check-pillar1-export. Echo-only used to exit 0 on a
+# hard-cut concat (~3.6s) when xfade was skipped.
+"$root/scripts/check-pillar1-export.sh" "$out"

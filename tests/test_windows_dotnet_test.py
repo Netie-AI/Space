@@ -48,6 +48,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "npm run typecheck" in cursor_ci
     assert "dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj" in cursor_ci
     assert "--blame-hang-timeout 2m" in cursor_ci
+    assert "encode-pillar1-wipe.sh" in cursor_ci
     install = (ROOT / "scripts/ci-cursor-install.sh").read_text(encoding="utf-8")
     assert "dotnet-install.sh" in install
     assert "--channel 8.0" in install

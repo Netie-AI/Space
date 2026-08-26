@@ -36,4 +36,9 @@ fi
 export CI=1
 dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo --blame-hang-timeout 2m
 
+echo "== pillar1 wipe reference encode"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+./scripts/encode-pillar1-wipe.sh "$tmp"
+
 echo "PASS scripts/ci-cursor.sh"

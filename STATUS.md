@@ -6,7 +6,8 @@
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
-2. **Ready PRs #4-#86 landed**. Draft #1 stays draft.
+   `ci-cursor.sh` runs `encode-pillar1-wipe.sh` (same window).
+2. **Ready PRs #4-#87 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
