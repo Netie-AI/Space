@@ -107,6 +107,10 @@ def test_wpf_buy_calls_checkout():
     assert 'x:Name="BuyButton"' in login_xaml
     assert 'x:Name="ActivateAfterPayButton"' in login_xaml
     assert "payment_required" in _read(WORKER)
+    activate = _read(WORKER)
+    activate = activate[activate.index("async function handleActivate"):activate.index("async function handleDownload")]
+    assert 'license.status === "expired"' in activate
+    assert 'error: unpaid ? "payment_required"' in activate
     assert 'stripeConfigured(env) ? "pending" : "active"' in _read(WORKER)
     assert "stripe_checkout_session_id" in _read(WORKER)
     client = _read(CLIENT)

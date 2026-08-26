@@ -321,7 +321,12 @@ async function handleActivate(req: Request, env: Env): Promise<Response> {
     return json(env, req, { error: "license_not_found" }, 404);
   }
   if (license.status !== "active") {
-    const unpaid = license.status === "pending" || !license.stripe_checkout_session_id;
+    // expired keeps stripe_checkout_session_id. Playbook: re-subscribe
+    // (login gate only shows Buy on payment_required).
+    const unpaid =
+      license.status === "pending" ||
+      license.status === "expired" ||
+      !license.stripe_checkout_session_id;
     return json(
       env,
       req,
