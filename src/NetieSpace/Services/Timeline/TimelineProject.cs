@@ -186,29 +186,59 @@ public sealed class TimelineProject
         {
             var nt = new TimelineTrack { Name = t.Name, Kind = t.Kind, Muted = t.Muted };
             foreach (var c in t.Clips)
-            {
-                nt.Clips.Add(new TimelineClip
-                {
-                    SourcePath = c.SourcePath,
-                    SourceIn = c.SourceIn,
-                    SourceOut = c.SourceOut,
-                    TimelineStart = c.TimelineStart,
-                    Speed = c.Speed,
-                    Muted = c.Muted,
-                    Opacity = c.Opacity,
-                    TransitionIn = c.TransitionIn,
-                    TransitionOut = c.TransitionOut,
-                    FadeIn = c.FadeIn,
-                    FadeOut = c.FadeOut,
-                    Overlay = c.Overlay,
-                    Text = c.Text,
-                    LutPath = c.LutPath
-                });
-            }
+                nt.Clips.Add(CopyClip(c));
             copy.Tracks.Add(nt);
         }
         return copy;
     }
+
+    /// <summary>Copy overlay clips for the video undo stack (Leave-black title card).</summary>
+    public List<TimelineClip> SnapshotOverlays()
+    {
+        var ov = OverlayTrack;
+        if (ov is null)
+            return [];
+        return ov.Clips.Select(CopyClip).ToList();
+    }
+
+    /// <summary>
+    /// Replace OV clips. Ctrl+Z after Leave black must remove that card or
+    /// Export burns a leftover overlay on the restored clip.
+    /// </summary>
+    public void RestoreOverlays(IReadOnlyList<TimelineClip> clips)
+    {
+        var ov = OverlayTrack;
+        if (ov is null)
+        {
+            ov = new TimelineTrack { Name = "OV", Kind = TrackKind.Overlay };
+            Tracks.Add(ov);
+        }
+
+        ov.Clips.Clear();
+        if (clips is null)
+            return;
+        foreach (var c in clips)
+            ov.Clips.Add(CopyClip(c));
+    }
+
+    internal static TimelineClip CopyClip(TimelineClip c) =>
+        new()
+        {
+            SourcePath = c.SourcePath,
+            SourceIn = c.SourceIn,
+            SourceOut = c.SourceOut,
+            TimelineStart = c.TimelineStart,
+            Speed = c.Speed,
+            Muted = c.Muted,
+            Opacity = c.Opacity,
+            TransitionIn = c.TransitionIn,
+            TransitionOut = c.TransitionOut,
+            FadeIn = c.FadeIn,
+            FadeOut = c.FadeOut,
+            Overlay = c.Overlay,
+            Text = c.Text,
+            LutPath = c.LutPath
+        };
 
     public void SelectClip(Guid? id) => SelectedClipId = id;
 

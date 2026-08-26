@@ -45,6 +45,8 @@ def test_scripts_and_docs():
     assert "Undo" in pillar
     assert "Ctrl+Z" in pillar
     assert "extra Ctrl+Z" in pillar or "push undo" in pillar.lower()
+    assert "Leave black" in pillar
+    assert "title card" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
     assert "make-test-pfx.ps1" in parked
     assert "New-SelfSignedCertificate" in parked
@@ -78,6 +80,8 @@ def test_scripts_and_docs():
     wipe_end = preview.index("private void OverlayTextButton_Click")
     assert "PushVideoUndo" in preview[wipe:wipe_end]
     assert "DiscardLastVideoUndo" in preview[wipe:wipe_end]
+    assert "PushUndo(_timeline)" in preview
+    assert "TryUndo(_timeline)" in preview
     assert "Wipe already on that join" in preview[wipe:wipe_end]
     split = preview.index("private void SplitAtPlayhead_Click")
     split_end = preview.index("private void CutMiddleButton_Click")

@@ -4759,13 +4759,13 @@ public partial class PreviewWindow : Window
         return selected ? $"▸ {seg.ClipIndex + 1}{name}" : $"{seg.ClipIndex + 1}{name}";
     }
 
-    private void PushVideoUndo() => _videoEdit.PushUndo();
+    private void PushVideoUndo() => _videoEdit.PushUndo(_timeline);
 
-    private void DiscardLastVideoUndo() => _videoEdit.TryUndo();
+    private void DiscardLastVideoUndo() => _videoEdit.TryUndo(_timeline);
 
     private void UndoVideoEdit()
     {
-        if (!_videoEdit.TryUndo())
+        if (!_videoEdit.TryUndo(_timeline))
         {
             ConvertStatusText.Text = "Nothing to undo";
             return;
