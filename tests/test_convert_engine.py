@@ -691,6 +691,69 @@ def test_tiff_export_as_keeps_tiff() -> None:
         assert tif.is_file() and tif.stat().st_size > 50
 
 
+def test_pdf_word_image_only() -> None:
+    """Share Export as Word on a scan / image-only PDF used to need a text layer."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def pdf_pages_to_docx" in src
+    assert "def write_docx_images" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "Word document|*.docx" in dlg.split('".pdf" =>', 1)[1][:350]
+    if not pymupdf_available():
+        print("SKIP pdf word image-only -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP pdf word image-only -- Pillow missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        png = d / "scan.png"
+        Image.new("RGB", (48, 32), (20, 80, 180)).save(png)
+        pdf = d / "scan.pdf"
+        res = run_engine(["export-as", str(png), str(pdf)])
+        assert res.get("success"), res
+        docx = d / "scan.docx"
+        res = run_engine(["export-as", str(pdf), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        import zipfile
+        with zipfile.ZipFile(docx) as zf:
+            assert "word/media/image1.png" in zf.namelist()
+
+
+def test_silent_video_export_mp3() -> None:
+    """Share Export as MP3 on a silent clip failed (no audio stream)."""
+    import shutil
+
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "anullsrc" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "MP3 audio|*.mp3" in dlg
+    if shutil.which("ffmpeg") is None:
+        print("SKIP silent video mp3 -- ffmpeg missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        mp4 = d / "silent.mp4"
+        proc = subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=red:s=160x120:d=0.3",
+                "-pix_fmt", "yuv420p", str(mp4),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert proc.returncode == 0 and mp4.is_file(), (proc.stderr or "")[-300:]
+        mp3 = d / "silent.mp3"
+        res = run_engine(["export-as", str(mp4), str(mp3)])
+        assert res.get("success"), res
+        assert mp3.is_file() and mp3.stat().st_size > 200
+
+
 def test_heic_pdf_uses_pillow() -> None:
     """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
     engine = ENGINE.read_text(encoding="utf-8")
@@ -891,6 +954,8 @@ if __name__ == "__main__":
     test_organize_engine_image_insert()
     test_sign_stamp_engine_raster()
     test_tiff_export_as_keeps_tiff()
+    test_pdf_word_image_only()
+    test_silent_video_export_mp3()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()

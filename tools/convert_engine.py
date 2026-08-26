@@ -558,11 +558,124 @@ def write_docx(dest: Path, text: str) -> str:
     return "docx-zip"
 
 
+def write_docx_images(dest: Path, pngs: list[bytes]) -> str:
+    """Scan / image-only PDF -> Word. Share Export as Word used to need a text layer."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not pngs:
+        return write_docx(dest, "")
+    drawings: list[str] = []
+    rels = [
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="word/document.xml"/>'
+    ]
+    word_rels = []
+    media: list[tuple[str, bytes]] = []
+    for i, blob in enumerate(pngs, 1):
+        rid = f"rId{i}"
+        name = f"image{i}.png"
+        media.append((name, blob))
+        word_rels.append(
+            f'<Relationship Id="{rid}" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+            f'Target="media/{name}"/>'
+        )
+        # 96dpi EMU; cap width at 6.5in so the page fits Word.
+        w_px, h_px = 400, 300
+        try:
+            from PIL import Image
+            import io
+            im = Image.open(io.BytesIO(blob))
+            w_px, h_px = im.size
+            im.close()
+        except Exception:
+            pass
+        emu_w = min(int(w_px * 9525), 5940000)
+        emu_h = max(1, int(h_px * (emu_w / max(w_px, 1))))
+        drawings.append(
+            "<w:p><w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">"
+            f"<wp:extent cx=\"{emu_w}\" cy=\"{emu_h}\"/>"
+            f"<wp:docPr id=\"{i}\" name=\"Page {i}\"/>"
+            '<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            '<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            '<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+            f'<pic:nvPicPr><pic:cNvPr id="{i}" name="Page {i}"/><pic:cNvPicPr/></pic:nvPicPr>'
+            f'<pic:blipFill><a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+            "<pic:spPr><a:xfrm>"
+            f'<a:off x="0" y="0"/><a:ext cx="{emu_w}" cy="{emu_h}"/>'
+            "</a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr>"
+            "</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>"
+        )
+    document_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+        'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+        f"<w:body>{''.join(drawings)}<w:sectPr/></w:body></w:document>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Default Extension="png" ContentType="image/png"/>'
+        '<Override PartName="/word/document.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+        "</Types>"
+    )
+    rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + "".join(rels) +
+        "</Relationships>"
+    )
+    word_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        + "".join(word_rels) +
+        "</Relationships>"
+    )
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", rels_xml)
+        zf.writestr("word/document.xml", document_xml)
+        zf.writestr("word/_rels/document.xml.rels", word_rels_xml)
+        for name, blob in media:
+            zf.writestr(f"word/media/{name}", blob)
+    return "docx-zip-images"
+
+
+def pdf_pages_to_docx(src: Path, dest: Path) -> str:
+    pymupdf = require_pymupdf()
+    doc = pymupdf.open(str(src))
+    pngs: list[bytes] = []
+    try:
+        for i, page in enumerate(doc, 1):
+            if i > 24:
+                break
+            pix = page.get_pixmap()
+            pngs.append(pix.tobytes("png"))
+    finally:
+        doc.close()
+    return write_docx_images(dest, pngs)
+
+
 def file_to_docx(src: Path, dest: Path) -> str:
     if src.suffix.lower() == ".docx":
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         return "copy"
+    if src.suffix.lower() == ".pdf":
+        got = via_pymupdf_text(src) or via_pdfmd(src) or via_pymupdf4llm(src) or via_markitdown(src)
+        if got:
+            return write_docx(dest, got[0])
+        try:
+            return pdf_pages_to_docx(src, dest)
+        except Exception:
+            tool = via_soffice(src, dest)
+            if tool:
+                return tool
+            raise
     try:
         text, _tool = file_to_markdown(src)
         return write_docx(dest, text)
@@ -1060,6 +1173,35 @@ def export_media(src: Path, dest: Path) -> str:
         if ext == ".mkv":
             proc = subprocess.run(
                 [ffmpeg, "-y", "-i", str(src), str(dest)],
+                capture_output=True, text=True, timeout=600,
+            )
+        # Silent / video-only clips have no audio stream. Share Export as MP3
+        # still has to write a file (anullsrc = silence). Cap -t so lavfi
+        # cannot run forever (-shortest ignores video when -vn).
+        if ext == ".mp3" and (proc.returncode != 0 or not dest.is_file()):
+            probe = Path(ffmpeg).with_name("ffprobe" + Path(ffmpeg).suffix)
+            probe_exe = str(probe) if probe.is_file() else shutil.which("ffprobe")
+            dur = 1.0
+            if probe_exe:
+                pr = subprocess.run(
+                    [
+                        probe_exe, "-v", "error", "-show_entries", "format=duration",
+                        "-of", "csv=p=0", str(src),
+                    ],
+                    capture_output=True, text=True, timeout=30,
+                )
+                try:
+                    dur = max(0.05, float((pr.stdout or "").strip()))
+                except ValueError:
+                    pass
+            proc = subprocess.run(
+                [
+                    ffmpeg, "-y",
+                    "-f", "lavfi", "-t", f"{dur:.3f}",
+                    "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+                    "-acodec", "libmp3lame", "-q:a", "4",
+                    str(dest),
+                ],
                 capture_output=True, text=True, timeout=600,
             )
         if proc.returncode != 0 or not dest.is_file():
