@@ -818,9 +818,17 @@ def file_to_docx(src: Path, dest: Path) -> str:
     try:
         text, _tool = file_to_markdown(src)
         if text.strip() or src.suffix.lower() not in PHOTO_OFFICE_EXTS:
+            if not text.strip() and src.suffix.lower() in HTML_EXTS:
+                pngs = html_media_pngs(src)
+                if pngs:
+                    return write_docx_images(dest, pngs)
             return write_docx(dest, text)
     except RuntimeError:
         text = None
+    if src.suffix.lower() in HTML_EXTS:
+        pngs = html_media_pngs(src)
+        if pngs:
+            return write_docx_images(dest, pngs)
     if src.suffix.lower() in PHOTO_OFFICE_EXTS:
         pngs = office_media_pngs(src)
         if pngs:
@@ -1439,6 +1447,76 @@ def require_pymupdf():
         raise RuntimeError(f"pymupdf missing: {e}") from e
 
 
+def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    """Photo-only HTML dest Word. html-strip used to write an empty .docx."""
+    import base64
+    import io
+    import re
+
+    text = src.read_text(encoding="utf-8", errors="replace")
+    pngs: list[bytes] = []
+    for m in re.finditer(
+        r"data:image/(?:png|jpeg|jpg|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)",
+        text,
+        re.I,
+    ):
+        if len(pngs) >= cap:
+            break
+        try:
+            raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
+        except Exception:
+            continue
+        try:
+            from PIL import Image
+
+            im = Image.open(io.BytesIO(raw))
+            try:
+                buf = io.BytesIO()
+                im.convert("RGBA").save(buf, format="PNG")
+                pngs.append(buf.getvalue())
+            finally:
+                im.close()
+        except Exception:
+            if raw[:8] == b"\x89PNG\r\n\x1a\n":
+                pngs.append(raw)
+    return pngs
+
+
+def html_to_pdf(src: Path, dest: Path) -> str:
+    """Share dest 2 on HTML. markdown_to_html dumped source tags into the PDF."""
+    text = src.read_text(encoding="utf-8", errors="replace")
+    pymupdf = require_pymupdf()
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    story_html = text
+    if "<html" not in text.lower():
+        story_html = (
+            "<html><body style=\"font-family:sans-serif;font-size:11pt\">"
+            f"{text}</body></html>"
+        )
+    if hasattr(pymupdf, "Story") and hasattr(pymupdf, "DocumentWriter"):
+        try:
+            mediabox = pymupdf.paper_rect("letter")
+            story = pymupdf.Story(story_html)
+            writer = pymupdf.DocumentWriter(str(dest))
+            more = True
+            while more:
+                device = writer.begin_page(mediabox)
+                more, _ = story.place(mediabox + (36, 36, -36, -36))
+                story.draw(device)
+                writer.end_page()
+            writer.close()
+            if dest.is_file() and dest.stat().st_size > 0:
+                return "pymupdf-story-html"
+        except Exception:
+            if dest.exists():
+                try:
+                    dest.unlink()
+                except OSError:
+                    pass
+    stripped, _tool = file_to_markdown(src)
+    return markdown_to_pdf(stripped, dest)
+
+
 def markdown_to_pdf(text: str, dest: Path) -> str:
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -1577,9 +1655,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         return image_to_pdf(src, dest)
     if ext in MD_EXTS or ext in TEXT_EXTS or ext in HTML_EXTS:
         if ext in HTML_EXTS:
-            text = src.read_text(encoding="utf-8", errors="replace")
-            # Story can consume HTML directly
-            return markdown_to_pdf(text, dest)
+            return html_to_pdf(src, dest)
         text = src.read_text(encoding="utf-8", errors="replace")
         return markdown_to_pdf(text, dest)
     try:
