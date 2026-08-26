@@ -164,6 +164,7 @@ def test_human_docs_exist():
     assert "STRIPE_SECRET_KEY" in human
     assert "4242 4242 4242 4242" in human
     assert "stripe_not_configured" in human
+    assert "worker_unreachable" in human
     assert "pending" in human
     assert "payment_required" in human
     assert "already_paid" in human
