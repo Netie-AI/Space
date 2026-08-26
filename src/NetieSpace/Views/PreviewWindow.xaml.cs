@@ -4113,7 +4113,9 @@ public partial class PreviewWindow : Window
             }
 
             ConvertStatusText.Text = "Sending to ComfyUI...";
-            var workflow = ComfyUiClient.BuildLoadImageWorkflow(IoPath.GetFileName(path));
+            var uploaded = await client.UploadImageAsync(path);
+            var fileName = uploaded ?? IoPath.GetFileName(path);
+            var workflow = ComfyUiClient.BuildLoadImageWorkflow(fileName);
             var result = await client.QueuePromptAsync(workflow);
             if (result.Success)
             {

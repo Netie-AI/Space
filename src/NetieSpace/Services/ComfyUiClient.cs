@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
@@ -15,10 +17,12 @@ public sealed class ComfyUiClient
     public const string UrlEnvName = "NETIE_COMFY_URL";
     public const string SidecarSuffix = ".comfy-input.json";
     public const int ProbeTimeoutMs = 1200;
+    public const int UploadTimeoutMs = 10_000;
     public const int QueueTimeoutMs = 30_000;
     public const int HistoryPollMs = 400;
 
     public static readonly TimeSpan ProbeTimeout = TimeSpan.FromMilliseconds(ProbeTimeoutMs);
+    public static readonly TimeSpan UploadTimeout = TimeSpan.FromMilliseconds(UploadTimeoutMs);
     public static readonly TimeSpan QueueTimeout = TimeSpan.FromMilliseconds(QueueTimeoutMs);
 
     public string BaseUrl { get; }
@@ -55,6 +59,51 @@ public sealed class ComfyUiClient
         catch
         {
             return false;
+        }
+    }
+
+    /// <summary>
+    /// POST /upload/image (multipart). Returns Comfy input filename, or null.
+    /// Missing file / down / error -> null. Never throws.
+    /// </summary>
+    public async Task<string?> UploadImageAsync(string imagePath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+                return null;
+
+            using var http = new HttpClient { Timeout = UploadTimeout };
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linked.CancelAfter(UploadTimeout);
+
+            using var form = new MultipartFormDataContent();
+            var bytes = await File.ReadAllBytesAsync(imagePath, linked.Token).ConfigureAwait(false);
+            var file = new ByteArrayContent(bytes);
+            file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            form.Add(file, "image", Path.GetFileName(imagePath));
+            form.Add(new StringContent("true"), "overwrite");
+            form.Add(new StringContent("input"), "type");
+
+            using var res = await http.PostAsync($"{BaseUrl}/upload/image", form, linked.Token)
+                .ConfigureAwait(false);
+            if (!res.IsSuccessStatusCode)
+                return null;
+
+            var text = await res.Content.ReadAsStringAsync(linked.Token).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(text))
+                return Path.GetFileName(imagePath);
+
+            using var doc = JsonDocument.Parse(text);
+            var name = doc.RootElement.TryGetProperty("name", out var n) ? n.GetString() : null;
+            var sub = doc.RootElement.TryGetProperty("subfolder", out var s) ? s.GetString() : null;
+            if (string.IsNullOrWhiteSpace(name))
+                return Path.GetFileName(imagePath);
+            return string.IsNullOrWhiteSpace(sub) ? name : $"{sub.Trim().TrimEnd('/')}/{name}";
+        }
+        catch
+        {
+            return null;
         }
     }
 

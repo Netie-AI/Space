@@ -26,6 +26,10 @@ def test_signer_is_cms_not_itext():
     assert "CreateMinimalPdf" in src
     assert "SignFile" in src
     assert "Leave original bytes untouched on failure" in src or "untouched on failure" in src
+    assert "/Annots" in src
+    assert "/AP << /N" in src
+    assert "RewritePageWithAnnot" in src
+    assert "BuildAppearanceStream" in src
 
 
 def test_ui_and_packages():
