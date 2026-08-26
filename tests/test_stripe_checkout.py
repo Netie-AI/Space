@@ -101,6 +101,15 @@ def test_wpf_buy_calls_checkout():
     assert "System.Windows" not in activation
     assert "public static void Configure" in activation
     assert "ResolveApiBase" in activation
+    assert "LicenseOffline.ReadString" in activation
+    assert '"license_key"' in activation
+    store = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseStore.cs")
+    assert "LicenseOffline.IsLicensed" in store
+    offline = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseOffline.cs")
+    assert "IsLicensed" in offline
+    assert "ReadString" in offline
+    tests = _read(ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj")
+    assert "LicenseOffline.cs" in tests
     assert "LicenseActivation.ResolveApiBase()" in setup
     assert 'Environment.GetEnvironmentVariable("NETIE_LICENSE_API")' not in setup
     app = _read(ROOT / "src/NetieSpace/App.xaml.cs")

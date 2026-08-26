@@ -68,7 +68,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
    webhook is a few seconds late.
 6. Login / Setup -> **Activate this laptop**. Needs a session from step 2.
    Success page already fulfilled the license. Activate without a Stripe
-   session id returns `payment_required`.
+   session id returns `payment_required`. Activate writes the Worker
+   `license_key` so the next `SkipGate: false` launch stays offline-licensed.
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
 

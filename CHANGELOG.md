@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: **Activate this laptop** persists `license_key` from the Worker entitlement. The offline gate used to require a key and treat a paid PC as unlicensed on the next `SkipGate: false` launch. Token-only entitlements still count as licensed.
 - Comfy: sidecar `.comfy-input.json` only after upload/queue/download fail (not on a good `{stem}.comfy.png`). Upload part Content-Type follows the image extension. First-gen xref-stream (Chrome Save as PDF) rewrite+sign is in xunit.
 - License: Checkout success/cancel and portal return use the Worker host that handled the request (`requestPublicBase`). Local `:8787` and `netie-space-license.<you>.workers.dev` no longer bounce to the committed `PUBLIC_BASE_URL` (`netie-space-license.workers.dev`).
 - PDF: `PdfClassicXref` strips Chrome/Word incremental xref-stream tails (last classic `%%EOF`) before PdfSharp. PdfSharp Open fails on those hybrids (`no trailer found`). Leftover `/Type /XRef` after rewrite still throws. xunit rewrite+signs both shapes.

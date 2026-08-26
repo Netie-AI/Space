@@ -34,6 +34,7 @@
     <Compile Include="..\..\src\NetieSpace\Services\WindowsAiClient.cs" Link="Linked\WindowsAiClient.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\PdfCmsSigner.cs" Link="Linked\PdfCmsSigner.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\PdfClassicXref.cs" Link="Linked\PdfClassicXref.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\Licensing\LicenseOffline.cs" Link="Linked\LicenseOffline.cs" />
   </ItemGroup>
 
   <ItemGroup>
