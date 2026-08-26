@@ -37,8 +37,13 @@ def test_signer_is_cms_not_itext():
     assert "NeedsClassicXrefRewrite" in src
     assert "IndexOfObj" in src
     assert "12 0 obj" in src
+    assert "CreateMinimalPdfWithIndirectKids" in src
+    assert "FirstPageFromKids" in src
+    assert "/Kids 5 0 R" in src
     tests = _read(TEST_CS)
     assert "TryReadObject_does_not_match_12_as_2" in tests
+    assert "TryFirstPageRef_resolves_indirect_kids_array" in tests
+    assert "Sign_resolves_indirect_kids_onto_first_page" in tests
 
 
 def test_ui_and_packages():
@@ -76,6 +81,8 @@ def test_xunit_and_parking():
     assert "NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream" in unit
     assert "Sign_refuses_hybrid_trailer_plus_xref_stream" in unit
     assert "Sign_refuses_catalog_without_pages_ref" in unit
+    assert "TryFirstPageRef_resolves_indirect_kids_array" in unit
+    assert "Sign_resolves_indirect_kids_onto_first_page" in unit
     assert "RewriteFile_strips_hybrid_marker_then_sign_verifies" in unit
     assert "RewriteFile_strips_incremental_xref_stream_then_sign_verifies" in unit
     assert "RewriteFile_first_gen_xref_stream_then_sign_verifies" in unit

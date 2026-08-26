@@ -5,7 +5,7 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#41 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#59 landed**. Draft #1 stays draft.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
@@ -13,7 +13,8 @@
 4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail.
    History waits for image outputs (not `completed` alone). Live GPU still human.
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
-   match is not a substring (`12` != `2`). Adobe panel still human.
+   match is not a substring (`12` != `2`). Indirect `/Kids N 0 R` resolves
+   to page 1 (no zero rect). Adobe panel still human.
 
 ## Next
 

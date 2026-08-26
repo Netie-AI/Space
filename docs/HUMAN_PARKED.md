@@ -17,7 +17,9 @@ What you do:
    signature. A self-signed test cert shows as untrusted, not "unsigned".
    The first page should show a small "Digitally signed" box (page Annots +
    appearance). Object ids are matched whole (`12 0 obj` is not object 2).
-   Untrusted is OK; missing from the Signature panel is not.
+   Chrome/Word often store `/Kids` as an indirect array (`/Kids 5 0 R`);
+   Space resolves that to page 1. Untrusted is OK; missing from the
+   Signature panel is not.
    Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
