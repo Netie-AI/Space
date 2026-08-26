@@ -120,9 +120,59 @@ def test_watermark_protect_smoke() -> None:
         assert res.get("success") is False and res.get("error")
 
 
+def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
+    """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "skip_text=not force" not in src
+    assert "force_ocr=True" in src
+    assert "skip_text=True" in src
+
+
+def ocrmypdf_available() -> bool:
+    try:
+        import ocrmypdf  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def test_pdf_ocr_force_live() -> None:
+    """Live --force on a text PDF. Skip if ocrmypdf/tesseract are not installed."""
+    import shutil
+
+    if not ocrmypdf_available() or shutil.which("tesseract") is None:
+        print("SKIP pdf-ocr --force live -- ocrmypdf or tesseract missing")
+        return
+    sample = ROOT / "src" / "NetieSpace" / "Assets" / "pdfjs" / "sample.pdf"
+    if not sample.is_file():
+        print("SKIP pdf-ocr --force live -- sample.pdf missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        dest = Path(tmp) / "ocr-force.pdf"
+        proc = subprocess.run(
+            [sys.executable, str(ENGINE), "pdf-ocr", str(sample), str(dest), "--force"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        line = next(
+            (ln for ln in reversed(proc.stdout.splitlines()) if ln.strip().startswith("{")),
+            "",
+        )
+        try:
+            res = json.loads(line)
+        except Exception:
+            res = {"success": False, "error": (proc.stderr or proc.stdout or "no json")[:400]}
+        assert res.get("success"), res
+        assert res.get("tool") == "ocrmypdf", res
+        assert dest.is_file() and dest.stat().st_size > 200
+
+
 if __name__ == "__main__":
     test_engine_file_exists()
     test_actions_registered()
     test_unknown_action_emits_json()
     test_watermark_protect_smoke()
+    test_pdf_ocr_force_uses_ocrmypdf_force_api()
+    test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
