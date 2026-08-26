@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: expired (subscription deleted/updated) Activate returns `payment_required` so the login gate shows Get Netie subscription. Used to return `license_inactive` while Checkout already allowed re-subscribe (`SkipGate: false` hid Buy).
 - Convert: `pdf-ocr --force` sends ocrmypdf 17 `force_ocr=True`. `skip_text=False` is the 17 default (abort if text exists), so `--force` used to raise PriorOcrFoundError. Skip-text still copies; no-force OCR still uses `skip_text=True`.
 - CI: Cursor CI compiles the WPF WinExe on Linux (`EnableWindowsTargeting`). WinAI / cert-sign used `File`/`Path`; GlobalUsings aliases `IoFile`/`IoPath` so WPF `Path` does not clash, and the markup compile CS0103'd.
 - Image: ComfyUI job poll accepts official `preview_output` when `outputs` is omitted. JobDetail does not require `outputs`; a completed job used to look empty and time out Send to Comfy.
