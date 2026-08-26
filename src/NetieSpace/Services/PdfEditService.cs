@@ -73,37 +73,11 @@ public sealed class PdfEditService
     ];
 
     /// <summary>
-    /// Rewrite an xref-stream PDF to classic xref via PdfSharpCore so PKCS#7 cert sign can run.
-    /// No-op (false) when a trailer already exists. Does not replace the visual Sign stamp.
+    /// Rewrite an xref-stream or hybrid PDF to classic xref via PdfSharpCore so PKCS#7 cert sign can run.
+    /// No-op (false) when the file is already classic. Throws if rewrite still leaves hybrid.
+    /// Does not replace the visual Sign stamp.
     /// </summary>
-    public bool RewriteClassicXref(string pdfPath)
-    {
-        if (string.IsNullOrWhiteSpace(pdfPath) || !IoFile.Exists(pdfPath))
-            throw new FileNotFoundException("PDF not found", pdfPath);
-
-        var bytes = IoFile.ReadAllBytes(pdfPath);
-        if (!PdfCmsSigner.NeedsClassicXrefRewrite(bytes))
-            return false;
-
-        var dir = IoPath.GetDirectoryName(pdfPath) ?? ".";
-        var tmp = IoPath.Combine(dir, $".{IoPath.GetFileName(pdfPath)}.xref-rewrite.tmp");
-        try
-        {
-            using (var doc = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Modify))
-                doc.Save(tmp);
-        }
-        catch
-        {
-            using var src = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
-            using var outDoc = new PdfDocument();
-            for (var i = 0; i < src.PageCount; i++)
-                outDoc.AddPage(src.Pages[i]);
-            outDoc.Save(tmp);
-        }
-
-        IoFile.Replace(tmp, pdfPath, destinationBackupFileName: null);
-        return true;
-    }
+    public bool RewriteClassicXref(string pdfPath) => PdfClassicXref.RewriteFile(pdfPath);
 
     public string Merge(string primaryPdf, IEnumerable<string> additionalPdfs)
     {

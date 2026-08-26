@@ -8,6 +8,7 @@ SIGNER = ROOT / "src/NetieSpace/Services/PdfCmsSigner.cs"
 PREVIEW = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs"
 XAML = ROOT / "src/NetieSpace/Views/PreviewWindow.xaml"
 TEST_CS = ROOT / "tests/NetieSpace.Tests/PdfCmsSignerTests.cs"
+XREF = ROOT / "src/NetieSpace/Services/PdfClassicXref.cs"
 CSPROJ = ROOT / "src/NetieSpace/NetieSpace.csproj"
 TESTPROJ = ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj"
 PARKING = ROOT / "PARKING_LOT.md"
@@ -50,8 +51,12 @@ def test_ui_and_packages():
     assert "Could not rewrite xref-stream/hybrid" in cs
     assert "WriteAllBytes(path, backup)" in cs
     edit = _read(ROOT / "src/NetieSpace/Services/PdfEditService.cs")
+    xref = _read(XREF)
     assert "RewriteClassicXref" in edit
-    assert "PdfDocumentOpenMode.Modify" in edit
+    assert "PdfClassicXref.RewriteFile" in edit
+    assert "PdfDocumentOpenMode.Modify" in xref
+    assert "still left an xref-stream" in xref
+    assert "PdfClassicXref.cs" in tests
     assert "System.Security.Cryptography.Pkcs" in app
     assert "PdfCmsSigner.cs" in tests
     assert "System.Security.Cryptography.Pkcs" in tests
@@ -66,6 +71,12 @@ def test_xunit_and_parking():
     assert "NeedsClassicXrefRewrite_detects_hybrid_trailer_plus_xref_stream" in unit
     assert "Sign_refuses_hybrid_trailer_plus_xref_stream" in unit
     assert "Sign_refuses_catalog_without_pages_ref" in unit
+    assert "RewriteFile_strips_hybrid_marker_then_sign_verifies" in unit
+    assert "RewriteFile_strips_incremental_xref_stream_then_sign_verifies" in unit
+    assert "PdfSharp_new_document_is_classic_or_rewritable" in unit
+    xref = _read(XREF)
+    assert "TryStripToClassic" in xref
+    assert "FindEofEnds" in xref
     signer = _read(SIGNER)
     assert "/Type /XRef" in signer
     assert "NeedsClassicXrefRewrite(pdf)" in signer
