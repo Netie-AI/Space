@@ -144,15 +144,38 @@ public class PdfCmsSignerTests
     [Fact]
     public void RewriteFile_strips_hybrid_marker_then_sign_verifies()
     {
-        // Valid classic body + leftover /Type /XRef after %%EOF (Chrome/Word hybrid shape).
+        // PdfSharp Open fails on this shape ("no trailer"). Strip to last classic %%EOF.
         var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
         var path = Path.Combine(dir, "hybrid.pdf");
-        var classic = PdfCmsSigner.CreateMinimalPdf();
-        var extra = System.Text.Encoding.ASCII.GetBytes("\n8 0 obj<< /Type /XRef /W [1 2 1] >>endobj\n");
-        var hybrid = new byte[classic.Length + extra.Length];
-        Buffer.BlockCopy(classic, 0, hybrid, 0, classic.Length);
-        Buffer.BlockCopy(extra, 0, hybrid, classic.Length, extra.Length);
+        var hybrid = HybridAfterEof();
+        File.WriteAllBytes(path, hybrid);
+        Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(hybrid));
+        try
+        {
+            Assert.True(PdfClassicXref.TryStripToClassic(hybrid, out var stripped));
+            Assert.True(stripped.Length < hybrid.Length);
+            Assert.True(PdfClassicXref.RewriteFile(path));
+            var after = File.ReadAllBytes(path);
+            Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
+            using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+            var signed = PdfCmsSigner.Sign(after, cert);
+            Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void RewriteFile_strips_incremental_xref_stream_then_sign_verifies()
+    {
+        // Chrome/Word: classic increment, then a second startxref/%%EOF with /Type /XRef.
+        var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "chrome-hybrid.pdf");
+        var hybrid = IncrementalXrefStream();
         File.WriteAllBytes(path, hybrid);
         Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(hybrid));
         try
@@ -160,9 +183,9 @@ public class PdfCmsSignerTests
             Assert.True(PdfClassicXref.RewriteFile(path));
             var after = File.ReadAllBytes(path);
             Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(after));
+            Assert.Contains("Hello Netie", System.Text.Encoding.ASCII.GetString(after));
             using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
-            var signed = PdfCmsSigner.Sign(after, cert);
-            Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+            Assert.True(PdfCmsSigner.TryVerify(PdfCmsSigner.Sign(after, cert), out var err), err);
         }
         finally
         {
@@ -196,5 +219,27 @@ public class PdfCmsSignerTests
         {
             try { Directory.Delete(dir, true); } catch { /* temp */ }
         }
+    }
+
+    private static byte[] HybridAfterEof()
+    {
+        var classic = PdfCmsSigner.CreateMinimalPdf();
+        var extra = System.Text.Encoding.ASCII.GetBytes("\n8 0 obj<< /Type /XRef /W [1 2 1] >>endobj\n");
+        var hybrid = new byte[classic.Length + extra.Length];
+        Buffer.BlockCopy(classic, 0, hybrid, 0, classic.Length);
+        Buffer.BlockCopy(extra, 0, hybrid, classic.Length, extra.Length);
+        return hybrid;
+    }
+
+    private static byte[] IncrementalXrefStream()
+    {
+        var classic = PdfCmsSigner.CreateMinimalPdf();
+        var tail = "\n8 0 obj<< /Type /XRef /W [1 2 1] /Size 5 >>stream\n\x00\x00\x00\nendstream\nendobj\nstartxref\n" +
+                   classic.Length + "\n%%EOF\n";
+        var extra = System.Text.Encoding.ASCII.GetBytes(tail);
+        var hybrid = new byte[classic.Length + extra.Length];
+        Buffer.BlockCopy(classic, 0, hybrid, 0, classic.Length);
+        Buffer.BlockCopy(extra, 0, hybrid, classic.Length, extra.Length);
+        return hybrid;
     }
 }

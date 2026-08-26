@@ -20,10 +20,10 @@ What you do:
    Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
-Cert sign rewrites xref-stream and hybrid files to classic xref via PdfSharp first
-(`PdfClassicXref`). Rewrite is fail-closed: if the saved file still has `/Type /XRef`,
-you get an error and the original bytes stay. `Sign` also refuses a leftover hybrid.
-Cursor CI proves rewrite+sign on a hybrid marker; Adobe Reader panel is still human.
+Cert sign rewrites xref-stream and hybrid files first (`PdfClassicXref`): drop the
+incremental `/Type /XRef` tail (Chrome/Word), then PdfSharp if needed. PdfSharp alone
+fails on those hybrids (`no trailer found`). Leftover hybrid still throws; original
+bytes stay. Cursor CI rewrite+signs both shapes; Adobe Reader panel is still human.
 
 ## ComfyUI / Windows AI
 
