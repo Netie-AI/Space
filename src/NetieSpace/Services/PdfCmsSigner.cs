@@ -444,7 +444,7 @@ public static class PdfCmsSigner
 
     /// <summary>
     /// First page object id. Inline <c>/Kids [3 0 R]</c> or indirect
-    /// <c>/Kids 5 0 R</c> (Chrome/Word). Follows /Pages kids one level.
+    /// <c>/Kids 5 0 R</c> (Chrome/Word). Follows nested /Pages kids (depth 8).
     /// </summary>
     public static int? TryFirstPageRef(byte[] pdf, int catalogId)
     {
