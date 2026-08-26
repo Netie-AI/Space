@@ -28,7 +28,7 @@ public sealed class ContentParserService
     ];
     private static readonly HashSet<string> OfficeExtensions =
     [
-        ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp",
+        ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppsx", ".ppt", ".odp",
         ".xlsx", ".xlsm", ".xls", ".ods"
     ];
     private readonly MarkdownPipeline _markdownPipeline = new MarkdownPipelineBuilder()
@@ -74,7 +74,7 @@ public sealed class ContentParserService
             return await ParseTextAsync(filePath, fileName, fileInfo.Length, ct);
         if (extension == ".docx")
             return await ParseDocxPreviewAsync(filePath, fileName, fileInfo.Length, fileInfo.LastWriteTimeUtc, ct);
-        if (extension == ".pptx")
+        if (extension is ".pptx" or ".ppsx")
             return await ParsePptxPreviewAsync(filePath, fileName, fileInfo.Length, fileInfo.LastWriteTimeUtc, ct);
         if (extension is ".xlsx" or ".xlsm")
         {

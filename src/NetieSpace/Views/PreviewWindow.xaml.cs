@@ -303,7 +303,7 @@ public partial class PreviewWindow : Window
         {
             // Instant first paint for PPTX: Shell thumbnail while COM / LO / HTML warms
             var ext = IoPath.GetExtension(filePath).ToLowerInvariant();
-            if (ext is ".pptx" or ".ppt")
+            if (ext is ".pptx" or ".ppsx" or ".ppt")
                 TryShowInstantThumbnail(filePath);
 
             _content = await _parser.ParseAsync(filePath, 1024, ct);
@@ -6197,7 +6197,8 @@ public partial class PreviewWindow : Window
             var ext = IoPath.GetExtension(f).ToLowerInvariant();
             if (PdfOrganizeWindow.IsImagePath(f) ||
                 ext is ".pdf" or ".doc" or ".docx" or ".odt" or ".rtf" or ".txt" or ".html" or ".htm" or
-                    ".pptx" or ".ppt" or ".xlsx" or ".xls" or ".png" or ".jpg")
+                    ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
+                    ".png" or ".jpg")
                 files.Add(f);
         }
 
@@ -6640,7 +6641,7 @@ public partial class PreviewWindow : Window
         {
             ".docx" or ".doc" or ".odt" or ".rtf" => "PDF, Word, HTML…",
             ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => "PDF, Excel, HTML…",
-            ".pptx" or ".ppt" or ".odp" => "PDF, PowerPoint, HTML…",
+            ".pptx" or ".ppsx" or ".ppt" or ".odp" => "PDF, PowerPoint, HTML…",
             ".pdf" => "PDF, JPG, PNG, Word, HTML…",
             ".md" or ".markdown" => "PDF, Markdown, HTML, Word…",
             _ when kind == PreviewKind.Image => "JPG, PNG, WEBP, GIF, PDF…",
@@ -6684,7 +6685,7 @@ public partial class PreviewWindow : Window
             ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => (
                 "PDF document|*.pdf|Excel workbook|*.xlsx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
-            ".pptx" or ".ppt" or ".odp" => (
+            ".pptx" or ".ppsx" or ".ppt" or ".odp" => (
                 "PDF document|*.pdf|PowerPoint presentation|*.pptx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
             ".pdf" => (
