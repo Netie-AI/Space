@@ -577,6 +577,29 @@ public sealed class VideoEditSession
         return segs.Count == 0 ? TimeSpan.Zero : segs[^1].TimelineOut;
     }
 
+    /// <summary>
+    /// Slider / clip-track / OV scale. Ripple-delete of the last + Clip
+    /// source leaves the title card at the old packed start, past V1.
+    /// PackedDuration alone ended the ruler on the leftover clip so the
+    /// OV card was a sliver at 100% and Play on that card hit MediaEnded.
+    /// </summary>
+    public static TimeSpan RulerDuration(TimeSpan packed, IEnumerable<TimelineClip>? overlays)
+    {
+        var max = packed < TimeSpan.Zero ? TimeSpan.Zero : packed;
+        if (overlays is null)
+            return max;
+        foreach (var o in overlays)
+        {
+            if (o.TimelineEnd > max)
+                max = o.TimelineEnd;
+        }
+
+        return max;
+    }
+
+    public TimeSpan RulerDuration(IEnumerable<TimelineClip>? overlays, bool? fillGaps = null) =>
+        RulerDuration(PackedDuration(fillGaps ?? FillGapsWithBlack), overlays);
+
     /// <summary>Hit-test packed timeline position → clip index (-1 = black filler / miss).</summary>
     public int IndexAtPacked(TimeSpan packedTime, bool fillGaps = true)
     {

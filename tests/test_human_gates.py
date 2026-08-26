@@ -49,6 +49,8 @@ def test_scripts_and_docs():
     assert "title card" in pillar
     assert "OV lane" in pillar
     assert "preview picture" in pillar
+    assert "sliver" in pillar
+    assert "ruler" in pillar
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
@@ -120,7 +122,8 @@ def test_scripts_and_docs():
     assert "PackedPlayContinuesAfterSourceEnded" in ended
     assert "PreviewVideo.Stop()" in ended
     sync = preview[preview.index("private void SyncPackedSlider"):preview.index("private void PushVideoUndo")]
-    assert "PackedDuration" in sync
+    assert "PackedRulerSeconds" in sync
+    assert "RulerDuration" in preview
     assert "VideoSlider.Maximum" in sync
     handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     assert "ApplyFadeAt" in handle_up
@@ -158,6 +161,7 @@ def test_scripts_and_docs():
     assert "Kept[_videoEdit.SelectedIndex].End -" not in delete_body
     assert "SeekTimelineSeconds(gapStart" in delete_body
     assert "StopPackedPlayClock" in delete_body
+    assert "PackedRulerSeconds" in delete_body
     assert "choice == \"black\"" in delete_body
     a2 = preview[preview.index("private void AudioTrack_PreviewMouseLeftButtonDown"):preview.index("private void TimelineTrack_PreviewMouseRightButtonUp")]
     assert "PackedStartOf" in a2

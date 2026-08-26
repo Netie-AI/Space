@@ -73,7 +73,9 @@ Export should land near that.
    The OV lane shows that card (used to be model-only, so you could not
    see packed start/length before Export). Leave black seeks onto that
    packed start and pauses so the preview picture shows the card
-   (autoplay used to walk off it ~200ms later).
+   (autoplay used to walk off it ~200ms later). Last-clip Leave black
+   keeps the packed ruler through that card (ripple used to end the
+   scale on the leftover clip so the OV card was a sliver at 100%).
    Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
    on and insert same-source holes later). A2 clicks use packed start too
    (not source in 0). A2 is preview-only -- Export does not amix.
