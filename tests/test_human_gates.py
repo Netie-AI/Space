@@ -91,6 +91,7 @@ def test_scripts_and_docs():
     speed = preview[preview.index("private void ApplySpeedToSelected"):preview.index("private void AddTextOverlayInteractive")]
     assert "ApplySpeedAt" in speed
     assert "DiscardLastVideoUndo" in speed
+    assert "SyncPackedSlider" in speed
     assert "Wipe already on that join" in preview[wipe:wipe_end]
     split = preview.index("private void SplitAtPlayhead_Click")
     split_end = preview.index("private void CutMiddleButton_Click")
@@ -98,9 +99,10 @@ def test_scripts_and_docs():
     add = preview.index("private async void AddVideoButton_Click")
     add_end = preview.index("private void OrderClipsButton_Click")
     assert "DiscardLastVideoUndo" in preview[add:add_end]
-    assert "PackedDuration" in preview[add:add_end]
-    assert "_markOut =" in preview[add:add_end]
-    assert "VideoSlider.Maximum" in preview[add:add_end]
+    assert "SyncPackedSlider" in preview[add:add_end]
+    sync = preview[preview.index("private void SyncPackedSlider"):preview.index("private void PushVideoUndo")]
+    assert "PackedDuration" in sync
+    assert "VideoSlider.Maximum" in sync
     handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     assert "ApplyFadeAt" in handle_up
     assert "DiscardLastVideoUndo" in handle_up

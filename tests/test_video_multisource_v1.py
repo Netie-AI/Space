@@ -66,9 +66,7 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     body = preview[start:end]
     assert "AppendClip" in body
     assert "ProbeDurationAsync" in body
-    assert "PackedDuration" in body
-    assert "_markOut =" in body
-    assert "VideoSlider.Maximum" in body
+    assert "SyncPackedSlider" in body
     assert "Add clip onto V1" in body
     assert "MergeAsync" not in body
     assert "PromptVideoSavePath(\"merged\")" not in body

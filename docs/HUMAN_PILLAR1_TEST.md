@@ -80,7 +80,9 @@ Export should land near that.
    the same session (Export syncs from session, not a leftover timeline fade).
    Context-menu Speed / Add black / Add text push undo. An accidental
    Speed 2x or black card used to have no Ctrl+Z (2x blows the 3.1s
-   gate; black card fails "picture is not black").
+   gate; black card fails "picture is not black"). Speed 2x now shrinks
+   that clip on the packed timeline (used to stay full width, so the 2x
+   was invisible and Export was ~2.3s).
 10. Click **Wipe** on either clip at the join (first or second). Export
     burns a wipeleft xfade of 0.5s. You do not have to pick the outgoing clip.
 11. Click **Export all**. Pick a folder. Wait for the toast. Space-close is

@@ -3826,6 +3826,10 @@ public partial class PreviewWindow : Window
 
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
             SyncTimelineFromSession();
+        // Packed UI used source duration, so Speed 2x left the clip full
+        // width. Export was ~2.3s with no visible cue to Ctrl+Z.
+        SyncPackedSlider();
+        ScheduleTimelineLayout();
     }
 
     private void AddTextOverlayInteractive()
@@ -4034,14 +4038,7 @@ public partial class PreviewWindow : Window
         // After + Clip that leftover max is still 1.6s, so a clip-2 seek
         // clamps Value to the join and Split fails as an edge. Marks
         // staying at 0..1.6s made Export range SlicePacked only clip 1.
-        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
-        _suppressSliderValueChanged = true;
-        try { VideoSlider.Maximum = Math.Max(0.001, packed.TotalSeconds); }
-        finally { _suppressSliderValueChanged = false; }
-        _markIn = TimeSpan.Zero;
-        _markOut = packed;
-        UpdateMarkLabel();
-        UpdateVideoUi();
+        SyncPackedSlider(resetMarks: true);
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)
@@ -4811,6 +4808,26 @@ public partial class PreviewWindow : Window
         return selected ? $"▸ {seg.ClipIndex + 1}{name}" : $"{seg.ClipIndex + 1}{name}";
     }
 
+    /// <summary>
+    /// Slider max and marks follow packed output duration (Speed shrinks it).
+    /// </summary>
+    private void SyncPackedSlider(bool resetMarks = false)
+    {
+        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+        _suppressSliderValueChanged = true;
+        try { VideoSlider.Maximum = Math.Max(0.001, packed.TotalSeconds); }
+        finally { _suppressSliderValueChanged = false; }
+        if (resetMarks)
+        {
+            _markIn = TimeSpan.Zero;
+            _markOut = packed;
+        }
+        else if (_markOut is { } mo && mo > packed)
+            _markOut = packed;
+        UpdateMarkLabel();
+        UpdateVideoUi();
+    }
+
     private void PushVideoUndo() => _videoEdit.PushUndo(_timeline);
 
     private void DiscardLastVideoUndo() => _videoEdit.TryUndo(_timeline);
@@ -4824,6 +4841,7 @@ public partial class PreviewWindow : Window
         }
 
         SyncTimelineFromSession();
+        SyncPackedSlider();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         ConvertStatusText.Text = "Undid last timeline edit";
