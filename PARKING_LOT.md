@@ -110,7 +110,7 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 - [x] rembg Remove BG
 - [x] Copy / drag-out cleaned image
-- [ ] ComfyUI / Windows AI — park (needs your Windows GPU). Human: `docs/HUMAN_PARKED.md`
+- [ ] ComfyUI / Windows AI -- code-ready local client; live GPU still human (`docs/HUMAN_PARKED.md`)
 
 ## P6 — Product / Mac Space (Loop Pillar 3)
 

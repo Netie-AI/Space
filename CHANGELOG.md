@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: **Send to Comfy...** on the image ribbon. `ComfyUiClient` probes `http://127.0.0.1:8188` (~1.2s, `NETIE_COMFY_URL` override). Down -> toast/status only; rembg / Copy still work. Up -> POST /prompt LoadImage or sidecar `.comfy-input.json`. Live GPU still human (`docs/HUMAN_PARKED.md`).
 - Convert: track `tools/convert_engine.py` (`tools/` stays ignored except the engine). JSON last-line `{success, output_path, tool, bytes, error}` for to-md / to-pdf / preview / preview-html / preview-pptx-html / export-as / pdf-watermark / pdf-protect / pdf-unlock / pdf-ocr. `tests/test_convert_engine.py` skips pymupdf smoke if the dep is missing.
 - License: Setup **Get Netie subscription** calls `POST /v1/checkout`. Worker creates a Stripe subscription Checkout Session (no `payment_method_types`, no `automatic_tax`). Missing secrets return 503 `stripe_not_configured`. Webhook `/v1/webhooks/stripe` verifies `Stripe-Signature` and writes D1 Stripe columns. `POST /v1/billing-portal` opens Customer Portal after a customer id exists. HMAC vectors in `tests/test_stripe_checkout.py`. Human secrets + test pay: `docs/HUMAN_STRIPE_CHECKOUT.md`.
 - Docs: Windows Pillar 1 click playbook (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open the WPF app. Parked-ticket process: `docs/HUMAN_PARKED.md`.
