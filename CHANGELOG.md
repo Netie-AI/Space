@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: `Sign` refuses leftover hybrid/xref-stream (`NeedsClassicXrefRewrite`). The old `xref` substring matches `startxref`, so a failed rewrite used to write a PKCS#7 Adobe will not show. `/Pages` is fail-closed (no default object 2). Stripe playbook: do not `wrangler deploy` while D1 id is `REPLACE_AFTER_D1_CREATE`.
 - PDF: cert sign rewrites hybrid files (classic trailer plus `/Type /XRef` stream). A trailer alone is not enough -- Adobe incremental PKCS#7 still fails on those.
 - License: Customer Portal return is `/v1/billing/return` ("Billing updated", not a new charge). Checkout success only says "Payment received" when the session is actually paid.
 - License: `POST /v1/checkout` returns 409 `already_paid` when the license is active and already has a Stripe session. Buy buttons tell you to Activate instead of opening a second Checkout. Re-subscribe after expire reuses `stripe_customer_id`.

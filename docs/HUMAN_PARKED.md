@@ -20,8 +20,10 @@ What you do:
    Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
-Cert sign rewrites xref-stream files to classic xref via PdfSharp first.
-If that rewrite fails, you get a clear error and the original bytes stay.
+Cert sign rewrites xref-stream and hybrid files to classic xref via PdfSharp first.
+`Sign` refuses a leftover hybrid (`NeedsClassicXrefRewrite`) instead of writing a
+PKCS#7 Adobe will not show. If rewrite fails, you get a clear error and the
+original bytes stay.
 
 ## ComfyUI / Windows AI
 

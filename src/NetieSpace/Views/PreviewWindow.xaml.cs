@@ -4896,7 +4896,14 @@ public partial class PreviewWindow : Window
                 System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.Exportable);
             var rewritten = false;
             try { rewritten = _pdfEdit.RewriteClassicXref(path); }
-            catch { /* SignFile still throws a clear classic-xref error */ }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException(
+                    "Could not rewrite xref-stream/hybrid PDF to classic xref. " + ex.Message, ex);
+            }
+            if (PdfCmsSigner.NeedsClassicXrefRewrite(IoFile.ReadAllBytes(path)))
+                throw new InvalidOperationException(
+                    "Cert sign needs a classic xref PDF. Save from Space (PdfSharp) and retry.");
             PdfCmsSigner.SignFile(path, cert);
             ConvertStatusText.Text = rewritten
                 ? "Cert sign written (rewrote xref-stream, CMS self-check passed). Open in Adobe Reader to check the Signature panel."

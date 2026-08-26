@@ -137,7 +137,9 @@ public static class PdfCmsSigner
             throw new InvalidOperationException("Certificate has no RSA private key.");
         if (IndexOf(pdf, "%PDF-"u8) != 0)
             throw new InvalidOperationException("Not a PDF.");
-        if (IndexOf(pdf, "xref"u8) < 0 || LastIndexOf(pdf, "startxref"u8) < 0)
+        // "xref" also matches inside startxref / /Type /XRef. Hybrid files have a
+        // trailer plus an xref stream -- Adobe incremental PKCS#7 still fails.
+        if (NeedsClassicXrefRewrite(pdf) || IndexOf(pdf, "xref"u8) < 0 || LastIndexOf(pdf, "startxref"u8) < 0)
             throw new InvalidOperationException("Cert sign needs a classic xref PDF. Save from Space (PdfSharp) and retry.");
 
         var trailer = ReadTrailer(pdf);
@@ -165,7 +167,9 @@ public static class PdfCmsSigner
         void Mark(int id) => objStarts[id] = pdf.Length + Encoding.ASCII.GetByteCount(block.ToString());
 
         Mark(catalogId);
-        var pagesRef = TryPagesRef(pdf, trailer.RootId) ?? 2;
+        var pagesRef = TryPagesRef(pdf, trailer.RootId);
+        if (pagesRef is null)
+            throw new InvalidOperationException("Cert sign could not read /Pages from the catalog.");
         block.Append($"{catalogId} 0 obj<< /Type /Catalog /Pages {pagesRef} 0 R /AcroForm {acroId} 0 R >>endobj\n");
         Mark(acroId);
         block.Append($"{acroId} 0 obj<< /Fields [{fieldId} 0 R] /SigFlags 3 >>endobj\n");
