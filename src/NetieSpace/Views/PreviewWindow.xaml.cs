@@ -2538,6 +2538,10 @@ public partial class PreviewWindow : Window
         };
         if (dlg.ShowDialog(this) != true)
             return;
+        // Fade / Wipe / Auto captions push undo so extra Ctrl+Z undoes
+        // the chip, not + Clip. LUT used to skip that stack, so one extra
+        // Ctrl+Z after More... LUT popped + Clip and Export was ~1.6s.
+        PushVideoUndo();
         _timeline.GlobalLutPath = dlg.FileName;
         ConvertStatusText.Text = $"LUT set · {IoPath.GetFileName(dlg.FileName)} (applied on Export timeline)";
     }

@@ -91,6 +91,9 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in preview[fade_span:fade_span_end]
     caps = preview[preview.index("private void ApplyCaptionsFromBackground"):preview.index("private async void AutoCaptionsButton_Click")]
     assert "PushVideoUndo" in caps
+    lut = preview[preview.index("private void LutButton_Click"):preview.index("private void PreviewVideo_MediaEnded")]
+    assert "PushVideoUndo" in lut
+    assert "GlobalLutPath" in lut
     wipe = preview.index("private void WipeButton_Click")
     wipe_end = preview.index("private void OverlayTextButton_Click")
     assert "PushVideoUndo" in preview[wipe:wipe_end]

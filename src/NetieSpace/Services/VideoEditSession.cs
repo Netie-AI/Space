@@ -15,7 +15,8 @@ public sealed class VideoEditSession
         List<KeptClip> Kept,
         List<TimelineClip> Overlays,
         bool FillGaps,
-        string? SubtitleBurnPath);
+        string? SubtitleBurnPath,
+        string? GlobalLutPath);
 
     public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept =>
         _kept.ConvertAll(c => (c.Start, c.End));
@@ -120,7 +121,8 @@ public sealed class VideoEditSession
             _kept.Select(c => c).ToList(),
             project?.SnapshotOverlays() ?? [],
             FillGapsWithBlack,
-            project?.SubtitleBurnPath));
+            project?.SubtitleBurnPath,
+            project?.GlobalLutPath));
         if (_undo.Count <= 40)
             return;
         var keep = _undo.Take(30).Reverse().ToList();
@@ -142,6 +144,7 @@ public sealed class VideoEditSession
         {
             project.FillGapsWithBlack = frame.FillGaps;
             project.SubtitleBurnPath = frame.SubtitleBurnPath;
+            project.GlobalLutPath = frame.GlobalLutPath;
         }
         project?.RestoreOverlays(frame.Overlays);
         return true;
