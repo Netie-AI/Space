@@ -82,4 +82,11 @@ public static class FfmpegExportGraph
 
         return vf.ToString();
     }
+
+    /// <summary>
+    /// Append black after V1 so a title card past the last clip still burns.
+    /// stop_mode=add is black; clone would repeat the last leftover frame.
+    /// </summary>
+    public static string PadBlackAfterVideo(double padSeconds) =>
+        $"tpad=stop_mode=add:stop_duration={Math.Max(0, padSeconds):0.###}";
 }

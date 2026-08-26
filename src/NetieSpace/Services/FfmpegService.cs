@@ -243,7 +243,9 @@ public sealed class FfmpegService
             ? SiblingOutput(project.PrimarySourcePath, "timeline")
             : outputPath;
 
-        var estDuration = vTrack?.Clips.Sum(c => c.Duration.TotalSeconds) ?? 0;
+        var estDuration = project.ExportDuration().TotalSeconds;
+        if (estDuration <= 0)
+            estDuration = vTrack?.Clips.Sum(c => c.Duration.TotalSeconds) ?? 0;
         if (estDuration <= 0)
             estDuration = project.SourceDuration.TotalSeconds;
         if (estDuration <= 0 && kept.Count > 0)
@@ -276,6 +278,7 @@ public sealed class FfmpegService
         var exportClips = new List<Timeline.TimelineClip>();
         var list = IoPath.Combine(dir, $"_ns_tl_{Guid.NewGuid():N}.txt");
         string? concatTempPath = null;
+        string? padTempPath = null;
         var joinTemps = new List<string>();
 
         try
@@ -337,6 +340,34 @@ public sealed class FfmpegService
 
             // Text / black / white overlays
             var current = concatPath;
+            var pad = project.BlackPadAfterVideo();
+            if (pad > TimeSpan.FromMilliseconds(40))
+            {
+                // Last-clip Leave black parks the title card past remaining
+                // V1. Overlay enable after EOF never painted, so Export
+                // dropped the card (1.6s leftover, picture not black).
+                var padded = IoPath.Combine(dir, $"_ns_pad_{Guid.NewGuid():N}.mp4");
+                padTempPath = padded;
+                var vf = FfmpegExportGraph.PadBlackAfterVideo(pad.TotalSeconds);
+                var total = project.ExportDuration().TotalSeconds;
+                var padWithAudio = await RunAsync(
+                    $"-y -i \"{current}\" -vf \"{vf}\" -af \"apad=pad_dur={pad.TotalSeconds:0.###}\" " +
+                    $"-t {total:0.###} -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{padded}\"",
+                    padded, ct);
+                var padRes = padWithAudio;
+                if (!padRes.Success)
+                {
+                    padRes = await RunAsync(
+                        $"-y -i \"{current}\" -vf \"{vf}\" -an " +
+                        $"-t {total:0.###} -c:v libx264 -preset veryfast -crf 23 -movflags +faststart \"{padded}\"",
+                        padded, ct);
+                }
+
+                if (!padRes.Success)
+                    return padRes;
+                current = padded;
+            }
+
             if (project.OverlayTrack is { Clips.Count: > 0 } ov)
             {
                 foreach (var o in ov.Clips.OrderBy(c => c.TimelineStart))
@@ -407,6 +438,8 @@ public sealed class FfmpegService
             TryDelete(list);
             if (concatTempPath is not null)
                 TryDelete(concatTempPath);
+            if (padTempPath is not null)
+                TryDelete(padTempPath);
         }
     }
 

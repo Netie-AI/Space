@@ -76,6 +76,9 @@ Export should land near that.
    (autoplay used to walk off it ~200ms later). Last-clip Leave black
    keeps the packed ruler through that card (ripple used to end the
    scale on the leftover clip so the OV card was a sliver at 100%).
+   Export pads black after remaining V1 so that card still burns
+   (overlay enable past EOF used to drop it). Ctrl+Z before Fade/Wipe
+   so the 3.1s wipe gate is the full two clips, not the padded card.
    Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
    on and insert same-source holes later). A2 clicks use packed start too
    (not source in 0). A2 is preview-only -- Export does not amix.

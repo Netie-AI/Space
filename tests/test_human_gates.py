@@ -51,6 +51,7 @@ def test_scripts_and_docs():
     assert "preview picture" in pillar
     assert "sliver" in pillar
     assert "ruler" in pillar
+    assert "pads black" in pillar or "past V1" in pillar
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
