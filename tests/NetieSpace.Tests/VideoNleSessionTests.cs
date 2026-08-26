@@ -80,6 +80,34 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Wipe_from_either_clip_survives_ApplyTo()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        session.AppendClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2));
+        session.Select(1);
+        Assert.Equal(0, session.WipeJoinIndex());
+        Assert.True(session.ApplyWipeAtJoin());
+        Assert.Equal(TransitionKind.Wipe, session.Clips[0].TransitionOut);
+        Assert.Equal(TransitionKind.Wipe, session.Clips[1].TransitionIn);
+
+        session.Select(0);
+        Assert.Equal(0, session.WipeJoinIndex());
+        Assert.True(session.ApplyFadeAt(0, TimeSpan.FromSeconds(0.5), null));
+        Assert.True(session.ApplyFadeAt(1, null, TimeSpan.FromSeconds(0.5)));
+
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        session.ApplyTo(project, @"C:\clips\a.mp4");
+        var left = project.VideoTrack!.Clips[0];
+        var right = project.VideoTrack.Clips[1];
+        Assert.Equal(TransitionKind.Wipe, left.TransitionOut);
+        Assert.Equal(TransitionKind.Wipe, right.TransitionIn);
+        Assert.Equal(TimeSpan.FromSeconds(0.5), left.FadeIn);
+        Assert.Equal(TimeSpan.FromSeconds(0.5), right.FadeOut);
+        Assert.True(TimelineProject.XfadeJoinDuration(left, right) > TimeSpan.Zero);
+    }
+
+    [Fact]
     public void Fade_chips_survive_kept_range_sync()
     {
         var project = new TimelineProject();

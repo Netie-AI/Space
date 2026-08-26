@@ -3342,26 +3342,19 @@ public partial class PreviewWindow : Window
             return;
         }
 
-        if (!_videoEdit.CanJoinToNext)
+        var left = _videoEdit.WipeJoinIndex();
+        if (left is null || !_videoEdit.ApplyWipeAtJoin())
         {
-            ConvertStatusText.Text = "Wipe joins to the next clip — Split or + Clip, then select a clip that is not last.";
+            ConvertStatusText.Text = "Wipe needs two clips — Split or + Clip, then click Wipe on either side of the join.";
             return;
         }
 
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
             SyncTimelineFromSession();
-        var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex);
-        if (clip is null)
-        {
-            ConvertStatusText.Text = "No timeline clip — Split once, then select.";
-            return;
-        }
-
-        clip.TransitionOut = TransitionKind.Wipe;
-        if (clip.FadeOut <= TimeSpan.Zero)
-            clip.FadeOut = TimeSpan.FromMilliseconds(500);
+        var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(left.Value);
+        var dur = clip?.FadeOut.TotalSeconds ?? 0.5;
         ConvertStatusText.Text =
-            $"Wipe (xfade wipeleft {clip.FadeOut.TotalSeconds:0.#}s) on clip {_videoEdit.SelectedIndex + 1} → next. Burns on Export timeline.";
+            $"Wipe (xfade wipeleft {dur:0.#}s) on clip {left.Value + 1} → next. Either side of the join works. Burns on Export.";
         ScheduleTimelineLayout();
     }
 
@@ -3387,6 +3380,7 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        _videoEdit.ApplyFadeAt(_videoEdit.SelectedIndex, fadeIn, fadeOut);
         if (fadeIn.HasValue) clip.FadeIn = fadeIn.Value;
         if (fadeOut.HasValue) clip.FadeOut = fadeOut.Value;
         ConvertStatusText.Text =

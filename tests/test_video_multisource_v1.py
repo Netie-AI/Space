@@ -63,7 +63,9 @@ def test_add_clip_button_packs_on_v1_not_file_merge():
     assert 'Content="+ Clip"' in xaml
     assert "packs after existing clips" in xaml
     assert "WipeButton_Click" in preview
-    assert "TransitionKind.Wipe" in preview
+    assert "ApplyWipeAtJoin" in preview
+    assert "WipeJoinIndex" in _read(SESSION)
+    assert "ApplyWipeAtJoin" in _read(SESSION)
 
 
 def test_parking_lot_p5_checked():
