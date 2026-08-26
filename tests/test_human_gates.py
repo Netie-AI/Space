@@ -188,6 +188,8 @@ def test_scripts_and_docs():
     burn_txt = ffmpeg_cs.index("BurnTextOverlayAsync")
     burn_txt_end = ffmpeg_cs.index("ToTimedSrt")
     assert "GetTempPath()" in ffmpeg_cs[burn_txt:burn_txt_end]
+    assert "ConcatDemuxerLine" in ffmpeg_cs
+    assert "\"'\\''\"" not in ffmpeg_cs
     assert "internal static string? ResolveFfprobe" in ffmpeg_cs
     assert 'IoPath.Combine(root, "tools", "ffmpeg"' in ffmpeg_cs
     assert "durationNote" in toast

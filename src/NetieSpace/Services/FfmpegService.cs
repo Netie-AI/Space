@@ -88,7 +88,7 @@ public sealed class FfmpegService
             if (!r2.Success) return r2;
 
             await IoFile.WriteAllTextAsync(list,
-                $"file '{part1.Replace("'", "'\\''")}'\nfile '{part2.Replace("'", "'\\''")}'\n", ct);
+                $"{FfmpegExportGraph.ConcatDemuxerLine(part1)}\n{FfmpegExportGraph.ConcatDemuxerLine(part2)}\n", ct);
 
             return await RunAsync(
                 $"-y -f concat -safe 0 -i \"{list}\" -c copy \"{output}\"", output, ct);
@@ -109,12 +109,27 @@ public sealed class FfmpegService
         var dir = IoPath.GetDirectoryName(outputPath)!;
         IoDirectory.CreateDirectory(dir);
         var list = IoPath.Combine(dir, $"_ns_merge_{Guid.NewGuid():N}.txt");
+        var copies = new List<string>();
 
         try
         {
             var sb = new StringBuilder();
+            var listDir = IoPath.GetFullPath(dir);
             foreach (var input in inputs)
-                sb.AppendLine($"file '{input.Replace("'", "'\\''")}'");
+            {
+                var local = input;
+                var inputDir = IoPath.GetDirectoryName(input);
+                var sameDir = !string.IsNullOrWhiteSpace(inputDir) &&
+                    string.Equals(IoPath.GetFullPath(inputDir), listDir, StringComparison.OrdinalIgnoreCase);
+                if (!sameDir)
+                {
+                    local = IoPath.Combine(dir, $"_ns_mrg_{Guid.NewGuid():N}{IoPath.GetExtension(input)}");
+                    IoFile.Copy(input, local, overwrite: true);
+                    copies.Add(local);
+                }
+
+                sb.AppendLine(FfmpegExportGraph.ConcatDemuxerLine(local));
+            }
             await IoFile.WriteAllTextAsync(list, sb.ToString(), ct);
 
             // Re-encode for safer merges across different codecs
@@ -124,6 +139,8 @@ public sealed class FfmpegService
         }
         finally
         {
+            foreach (var c in copies)
+                TryDelete(c);
             TryDelete(list);
         }
     }
@@ -199,7 +216,7 @@ public sealed class FfmpegService
 
             var sb = new StringBuilder();
             foreach (var p in parts)
-                sb.AppendLine($"file '{p.Replace("'", "'\\''")}'");
+                sb.AppendLine(FfmpegExportGraph.ConcatDemuxerLine(p));
             await IoFile.WriteAllTextAsync(list, sb.ToString(), ct);
 
             progress?.Report(new ExportProgressReport { Percent = 85, Message = "Merging clips…" });
@@ -492,7 +509,7 @@ public sealed class FfmpegService
         {
             var sb = new StringBuilder();
             foreach (var p in parts)
-                sb.AppendLine($"file '{p.Replace("'", "'\\''")}'");
+                sb.AppendLine(FfmpegExportGraph.ConcatDemuxerLine(p));
             await IoFile.WriteAllTextAsync(concatListPath, sb.ToString(), ct);
             return await RunAsync(
                 $"-y -f concat -safe 0 -i \"{concatListPath}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
@@ -540,7 +557,7 @@ public sealed class FfmpegService
         string left, string right, string listPath, string outputPath, CancellationToken ct)
     {
         await IoFile.WriteAllTextAsync(listPath,
-            $"file '{left.Replace("'", "'\\''")}'\nfile '{right.Replace("'", "'\\''")}'\n", ct);
+            $"{FfmpegExportGraph.ConcatDemuxerLine(left)}\n{FfmpegExportGraph.ConcatDemuxerLine(right)}\n", ct);
         return await RunAsync(
             $"-y -f concat -safe 0 -i \"{listPath}\" -c:v libx264 -preset veryfast -crf 23 -c:a aac -movflags +faststart \"{outputPath}\"",
             outputPath, ct);

@@ -120,6 +120,8 @@ Export should land near that.
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).
+    Hard-cut / merge / delete-middle concat to that folder also works
+    (concat lists use file names; absolute `'` paths open as Moms).
 
 ### What to check after Export
 

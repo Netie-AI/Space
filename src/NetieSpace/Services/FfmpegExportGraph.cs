@@ -96,4 +96,18 @@ public static class FfmpegExportGraph
     /// </summary>
     public static string EscapeFilterPath(string path) =>
         path.Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");
+
+    /// <summary>
+    /// concat demuxer line. Absolute paths with ' fail even with '\'':
+    /// ffmpeg opens Mom's clips as Moms. The list file must sit next to
+    /// the media; only the file name is listed.
+    /// </summary>
+    public static string ConcatDemuxerLine(string mediaPathInListDir)
+    {
+        var name = mediaPathInListDir ?? "";
+        var slash = Math.Max(name.LastIndexOf('/'), name.LastIndexOf('\\'));
+        if (slash >= 0 && slash + 1 < name.Length)
+            name = name[(slash + 1)..];
+        return $"file '{name}'";
+    }
 }

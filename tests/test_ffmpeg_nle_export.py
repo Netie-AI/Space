@@ -64,6 +64,9 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("GetTempPath()", ffmpeg)
         self.assertIn("_ns_burn_", ffmpeg)
         self.assertIn("_ns_txt_", ffmpeg)
+        self.assertIn("FfmpegExportGraph.ConcatDemuxerLine", ffmpeg)
+        self.assertNotIn("\"'\\''\"", ffmpeg)
+        self.assertIn("ConcatDemuxerLine", graph)
         burn_txt = ffmpeg.index("BurnTextOverlayAsync")
         burn_txt_end = ffmpeg.index("ToTimedSrt")
         self.assertIn("GetTempPath()", ffmpeg[burn_txt:burn_txt_end])
@@ -206,6 +209,39 @@ class FfmpegNleExportTests(unittest.TestCase):
                 ]
             )
             self.assertTrue(out.exists() and out.stat().st_size > 500)
+
+    def test_concat_list_uses_file_name_in_apostrophe_folder(self):
+        if self.missing:
+            self.skipTest("ffmpeg not installed")
+        graph = GRAPH_CS.read_text(encoding="utf-8")
+        self.assertIn("ConcatDemuxerLine", graph)
+        self.assertIn("LastIndexOf('\\\\')", graph)
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "Mom's clips"
+            folder.mkdir()
+            a = folder / "_ns_a.mp4"
+            b = folder / "_ns_b.mp4"
+            lst = folder / "_ns_tl.txt"
+            out = folder / "concat.mp4"
+            for path, color in ((a, "blue"), (b, "red")):
+                _run(
+                    [
+                        "ffmpeg", "-y", "-f", "lavfi", "-i",
+                        f"color=c={color}:s=320x240:d=0.4",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", str(path),
+                    ]
+                )
+            # Absolute '\' escape opens Moms. File names next to the list work.
+            lst.write_text("file '_ns_a.mp4'\nfile '_ns_b.mp4'\n", encoding="utf-8")
+            _run(
+                [
+                    "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                    "-i", str(lst),
+                    "-c:v", "libx264", "-preset", "veryfast", str(out),
+                ]
+            )
+            self.assertTrue(out.exists() and out.stat().st_size > 500)
+            self.assertGreaterEqual(_probe_duration(out), 0.7)
 
 
 if __name__ == "__main__":
