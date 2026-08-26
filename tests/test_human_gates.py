@@ -109,6 +109,8 @@ def test_scripts_and_docs():
     ui = preview[preview.index("private void UpdateVideoUi"):preview.index("private async void AddVideoButton_Click")]
     assert "_packedPlayUtc is null" in ui
     assert "BeginPackedPlayClock" in ui
+    assert "RebasePackedPlayClockIfPlaying" in ui
+    assert "RebasePackedPlayClockIfPlaying" in preview
     add = preview[preview.index("private async void AddVideoButton_Click"):preview.index("private void OrderClipsButton_Click")]
     assert "BeginPackedPlayClock" in add
     ended = preview[preview.index("private void PreviewVideo_MediaEnded"):preview.index("private void PlayPauseButton_Click")]

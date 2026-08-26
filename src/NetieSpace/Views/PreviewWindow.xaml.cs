@@ -2575,6 +2575,16 @@ public partial class PreviewWindow : Window
 
     private void StopPackedPlayClock() => _packedPlayUtc = null;
 
+    /// <summary>
+    /// Seek settle holds the slider, then the clock applied origin+elapsed
+    /// including that hold (~0.9s) and Split hit a clip edge.
+    /// </summary>
+    private void RebasePackedPlayClockIfPlaying()
+    {
+        if (UsePackedPlayClock() && PlayPauseButton.Content?.ToString() == "Pause")
+            BeginPackedPlayClock();
+    }
+
     private TimeSpan GetPlayhead() => PreviewVideo.Position;
 
     /// <summary>
@@ -3997,10 +4007,12 @@ public partial class PreviewWindow : Window
             }
 
             _pendingSeekSourceSeconds = null;
+            RebasePackedPlayClockIfPlaying();
         }
         else if (_pendingSeekSourceSeconds is not null && now >= _suppressPositionSyncUntilUtc)
         {
             _pendingSeekSourceSeconds = null;
+            RebasePackedPlayClockIfPlaying();
         }
 
         var dur = PreviewVideo.NaturalDuration.HasTimeSpan
