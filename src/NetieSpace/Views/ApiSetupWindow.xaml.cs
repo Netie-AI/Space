@@ -293,7 +293,7 @@ public partial class ApiSetupWindow : Window
         StatusText.Text = "Activating this laptop…";
         try
         {
-            var (ok, message) = await LicenseActivation.ActivateCurrentSessionAsync().ConfigureAwait(true);
+            var (ok, message, _) = await LicenseActivation.ActivateCurrentSessionAsync().ConfigureAwait(true);
             StatusText.Text = message;
             LicenseStatusText.Text = ok
                 ? "This device is licensed. You’re on the Netie path — BYO keys below are optional until Ult ships."

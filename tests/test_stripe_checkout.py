@@ -84,7 +84,9 @@ def test_wpf_buy_calls_checkout():
     assert "ShowPayFirstButtons" in login
     assert "BuyButton_Click" in login
     assert "ActivateAfterPayButton_Click" in login
-    assert "PaymentRequired" in login
+    assert "LicenseActivation.ActivateCurrentSessionAsync" in login
+    assert "SaveEntitlement" not in login
+    assert "payFirst" in login
     assert 'x:Name="BuyButton"' in login_xaml
     assert 'x:Name="ActivateAfterPayButton"' in login_xaml
     assert "payment_required" in _read(WORKER)
@@ -98,11 +100,15 @@ def test_wpf_buy_calls_checkout():
     assert "AlreadyPaid" in setup
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
+    assert "PaymentRequired" in activation
     assert "System.Windows" not in activation
     assert "public static void Configure" in activation
     assert "ResolveApiBase" in activation
     assert "LicenseOffline.ReadString" in activation
     assert '"license_key"' in activation
+    vault = _read(ROOT / "src/NetieSpace/Services/OpenVaultKeySync.cs")
+    assert "LicenseActivation.ActivateCurrentSessionAsync" in vault
+    assert "SaveEntitlement" not in vault
     store = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseStore.cs")
     assert "LicenseOffline.IsLicensed" in store
     offline = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseOffline.cs")

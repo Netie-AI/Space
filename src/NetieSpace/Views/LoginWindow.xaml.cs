@@ -9,7 +9,6 @@ namespace NetieSpace.Views;
 public partial class LoginWindow : Window
 {
     private readonly LicenseApiClient _api;
-    private readonly string _pepper;
     private bool _busy;
 
     public bool Entitled { get; private set; }
@@ -18,7 +17,7 @@ public partial class LoginWindow : Window
     {
         InitializeComponent();
         _api = new LicenseApiClient(apiBaseUrl);
-        _pepper = devicePepper;
+        _ = devicePepper;
         GlassHelper.ApplyGlass(this, 0.92);
     }
 
@@ -89,7 +88,7 @@ public partial class LoginWindow : Window
         StatusText.Text = "Activating this laptop…";
         try
         {
-            var (ok, message) = await LicenseActivation.ActivateCurrentSessionAsync();
+            var (ok, message, _) = await LicenseActivation.ActivateCurrentSessionAsync();
             StatusText.Text = message;
             if (!ok) return;
 
@@ -158,38 +157,17 @@ public partial class LoginWindow : Window
             LicenseStore.SaveSession(auth.Token, auth.Email ?? email);
             StatusText.Text = "Activating this laptop…";
 
-            var deviceHash = DeviceFingerprint.ComputeHash(_pepper);
-            var activate = await _api.ActivateAsync(
-                auth.Token,
-                deviceHash,
-                DeviceFingerprint.DeviceLabel(),
+            var (ok, message, payFirst) = await LicenseActivation.ActivateCurrentSessionAsync(
                 auth.LicenseKey);
-
-            if (!activate.Success || string.IsNullOrWhiteSpace(activate.EntitlementToken))
+            StatusText.Text = message;
+            if (!ok)
             {
-                StatusText.Text = activate.PaymentRequired
-                    ? (activate.Error ?? "Pay first (Get Netie subscription), then Activate this laptop.")
-                    : (activate.Error ?? "Activate failed");
-                if (activate.PaymentRequired)
+                if (payFirst)
                     ShowPayFirstButtons();
                 return;
             }
 
-            LicenseStore.SaveEntitlement(new LicenseEntitlement
-            {
-                Email = auth.Email ?? email,
-                LicenseKey = auth.LicenseKey ?? "",
-                LicenseId = activate.Entitlement is not null && activate.Entitlement.TryGetValue("license_id", out var lid)
-                    ? lid.GetString() ?? ""
-                    : "",
-                DeviceHash = deviceHash,
-                ActivatedAt = DateTime.UtcNow.ToString("O"),
-                EntitlementToken = activate.EntitlementToken,
-                PepperHint = _pepper
-            });
-
             Entitled = true;
-            StatusText.Text = "Activated — you can use Netie offline (except AI / re-login).";
             DialogResult = true;
             Close();
         }
