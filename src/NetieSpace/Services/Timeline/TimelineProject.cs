@@ -674,6 +674,57 @@ public sealed class TimelineProject
     }
 
     /// <summary>
+    /// Caption cues are packed seconds. Speed used to leave them on the old
+    /// ruler, so a 2x clip burned clip-1 text onto clip 2. Does not mutate
+    /// the user's sidecar -- caller writes a temp SRT.
+    /// </summary>
+    public static List<(TimeSpan Start, TimeSpan End, string Text)> RemapPackedCuesAfterSpeed(
+        IEnumerable<(TimeSpan Start, TimeSpan End, string Text)> cues,
+        TimeSpan packedStart,
+        TimeSpan oldPackedEnd,
+        double oldSpeed,
+        double newSpeed)
+    {
+        if (oldSpeed <= 0)
+            oldSpeed = 1;
+        if (newSpeed <= 0)
+            newSpeed = 1;
+        var oldLen = oldPackedEnd - packedStart;
+        if (oldLen <= TimeSpan.Zero)
+            return cues.ToList();
+        var newLen = TimeSpan.FromSeconds(oldLen.TotalSeconds * (oldSpeed / newSpeed));
+        var delta = newLen - oldLen;
+        var scale = oldSpeed / newSpeed;
+        var next = new List<(TimeSpan Start, TimeSpan End, string Text)>();
+        foreach (var c in cues)
+        {
+            if (c.Start >= oldPackedEnd)
+            {
+                next.Add((c.Start + delta, c.End + delta, c.Text));
+                continue;
+            }
+
+            if (c.End <= packedStart)
+            {
+                next.Add(c);
+                continue;
+            }
+
+            var start = c.Start >= packedStart
+                ? packedStart + TimeSpan.FromSeconds((c.Start - packedStart).TotalSeconds * scale)
+                : c.Start;
+            var end = c.End <= oldPackedEnd
+                ? packedStart + TimeSpan.FromSeconds((c.End - packedStart).TotalSeconds * scale)
+                : c.End + delta;
+            if (end - start < TimeSpan.FromMilliseconds(40))
+                continue;
+            next.Add((start, end, c.Text));
+        }
+
+        return next;
+    }
+
+    /// <summary>
     /// Merge per-clip source SRTs into one packed-time sidecar. Returns cue count.
     /// </summary>
     public static int WritePackedCaptions(
@@ -729,7 +780,7 @@ public sealed class TimelineProject
         return cues;
     }
 
-    private static void WriteSrtCues(string path, List<(TimeSpan Start, TimeSpan End, string Text)> cues)
+    public static void WriteSrtCues(string path, List<(TimeSpan Start, TimeSpan End, string Text)> cues)
     {
         var sb = new System.Text.StringBuilder();
         for (var i = 0; i < cues.Count; i++)

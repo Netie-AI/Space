@@ -4075,12 +4075,27 @@ public partial class PreviewWindow : Window
 
     private void ApplySpeedToSelected(double speed)
     {
+        var idx = _videoEdit.SelectedIndex;
+        var packedStart = _videoEdit.PackedStartOf(idx);
+        var oldPackedEnd = _videoEdit.PackedEndOf(idx);
+        var oldSpeed = idx >= 0 && idx < _videoEdit.Clips.Count ? _videoEdit.Clips[idx].Speed : 1;
         PushVideoUndo();
-        if (!_videoEdit.ApplySpeedAt(_videoEdit.SelectedIndex, speed))
+        if (!_videoEdit.ApplySpeedAt(idx, speed))
         {
             DiscardLastVideoUndo();
             ConvertStatusText.Text = "Speed already set on that clip.";
             return;
+        }
+
+        if (_captionCues.Count > 0)
+        {
+            var remapped = TimelineProject.RemapPackedCuesAfterSpeed(
+                _captionCues, packedStart, oldPackedEnd, oldSpeed, speed);
+            _captionCues.Clear();
+            _captionCues.AddRange(remapped);
+            var temp = IoPath.Combine(IoPath.GetTempPath(), $"_ns_spd_{Guid.NewGuid():N}.srt");
+            TimelineProject.WriteSrtCues(temp, _captionCues);
+            _timeline.SubtitleBurnPath = temp;
         }
 
         if (!string.IsNullOrWhiteSpace(_currentFilePath))
