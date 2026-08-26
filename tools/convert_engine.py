@@ -803,9 +803,7 @@ def pdf_pages_to_markdown(src: Path) -> tuple[str, str]:
 
 def file_to_docx(src: Path, dest: Path) -> str:
     if src.suffix.lower() == ".docx":
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-        return "copy"
+        return copy_file(src, dest)
     if src.suffix.lower() == ".pdf":
         got = via_pymupdf_text(src) or via_pdfmd(src) or via_pymupdf4llm(src) or via_markitdown(src)
         if got:
@@ -1160,9 +1158,7 @@ def via_soffice_markdown(src: Path) -> tuple[str, str] | None:
 def file_to_xlsx(src: Path, dest: Path) -> str:
     ext = src.suffix.lower()
     if ext in {".xlsx", ".xlsm"}:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-        return "copy"
+        return copy_file(src, dest)
     if ext == ".csv":
         return write_xlsx(dest, csv_to_rows(src))
     if ext == ".ods":
@@ -1420,9 +1416,7 @@ def file_to_pptx(src: Path, dest: Path) -> str:
     if src.suffix.lower() in {".pptx", ".ppsx"} or (
         src.suffix.lower() == ".pps" and zipfile.is_zipfile(src)
     ):
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dest)
-        return "copy"
+        return copy_file(src, dest)
     if src.suffix.lower() == ".odp" and not (odp_to_text(src) or "").strip():
         pngs = office_media_pngs(src)
         if pngs:
@@ -1563,11 +1557,16 @@ def image_to_pdf(src: Path, dest: Path) -> str:
     return "pymupdf"
 
 
-def pdf_copy(src: Path, dest: Path) -> str:
+def copy_file(src: Path, dest: Path) -> str:
+    """Share dest 1 on HTML (same folder + stem) used to raise SameFileError."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if src.resolve() != dest.resolve():
         shutil.copy2(src, dest)
     return "copy"
+
+
+def pdf_copy(src: Path, dest: Path) -> str:
+    return copy_file(src, dest)
 
 
 def file_to_pdf(src: Path, dest: Path) -> str:
@@ -2153,9 +2152,7 @@ def action_export_as(argv: list[str]) -> dict:
         if src_ext in {".pptx", ".ppsx", ".ppt", ".pps"}:
             return ok(dest, pptx_to_html(src, dest))
         if src_ext in HTML_EXTS:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
-            return ok(dest, "copy")
+            return ok(dest, copy_file(src, dest))
         try:
             text, tool = file_to_markdown(src)
             if text.strip() or src_ext not in {".odp", ".odt", ".ods", ".xlsx", ".xlsm", ".pdf"}:
@@ -2179,9 +2176,7 @@ def action_export_as(argv: list[str]) -> dict:
         return ok(dest, export_media(src, dest))
     if dest_ext in OFFICE_EXTS:
         if dest_ext == src_ext:
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src, dest)
-            return ok(dest, "copy")
+            return ok(dest, copy_file(src, dest))
         if dest_ext == ".docx":
             return ok(dest, file_to_docx(src, dest))
         if dest_ext == ".xlsx":
