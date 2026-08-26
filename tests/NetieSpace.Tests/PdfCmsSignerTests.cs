@@ -49,6 +49,18 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void TryFirstPageRef_resolves_compact_kids_and_type()
+    {
+        var compact = PdfCmsSigner.CreateMinimalPdfCompactNames();
+        var text = System.Text.Encoding.ASCII.GetString(compact);
+        Assert.Contains("/Kids[3 0 R]", text);
+        Assert.Contains("/Type/Page", text);
+        Assert.DoesNotContain("/Kids [", text);
+        Assert.DoesNotContain("/Type /Page", text);
+        Assert.Equal(3, PdfCmsSigner.TryFirstPageRef(compact, 1));
+    }
+
+    [Fact]
     public void Sign_embeds_detached_pkcs7_and_keeps_hello()
     {
         var src = PdfCmsSigner.CreateMinimalPdf();
@@ -164,6 +176,44 @@ public class PdfCmsSignerTests
         Assert.Contains("/Type /Sig", text);
         Assert.Contains("/P 3 0 R", text);
         Assert.Contains("/Annots [", text);
+        Assert.DoesNotContain("/Rect [0 0 0 0]", text);
+    }
+
+    [Fact]
+    public void Sign_compact_names_stamps_first_page()
+    {
+        var src = PdfCmsSigner.CreateMinimalPdfCompactNames();
+        using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+        var signed = PdfCmsSigner.Sign(src, cert);
+        Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        var text = System.Text.Encoding.ASCII.GetString(signed);
+        Assert.Contains("/P 3 0 R", text);
+        Assert.Contains("/Annots [", text);
+        Assert.Contains("Digitally signed", text);
+        Assert.DoesNotContain("/Rect [0 0 0 0]", text);
+    }
+
+    [Theory]
+    [InlineData("sample.pdf", 4)]
+    [InlineData("Q3_Report.pdf", 4)]
+    public void Sign_in_app_pdf_stamps_page_4(string fileName, int pageId)
+    {
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Fixtures", fileName);
+        Assert.True(File.Exists(fixture), fixture);
+        var src = File.ReadAllBytes(fixture);
+        Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(src));
+        var raw = System.Text.Encoding.ASCII.GetString(src);
+        Assert.Contains("/Kids[4 0 R]", raw);
+        Assert.Contains("/Type/Page", raw);
+        Assert.Equal(pageId, PdfCmsSigner.TryFirstPageRef(src, 1));
+
+        using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+        var signed = PdfCmsSigner.Sign(src, cert);
+        Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        var text = System.Text.Encoding.ASCII.GetString(signed);
+        Assert.Contains($"/P {pageId} 0 R", text);
+        Assert.Contains("/Annots [", text);
+        Assert.Contains("Digitally signed", text);
         Assert.DoesNotContain("/Rect [0 0 0 0]", text);
     }
 

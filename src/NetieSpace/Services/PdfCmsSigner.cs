@@ -70,6 +70,36 @@ public static class PdfCmsSigner
     }
 
     /// <summary>
+    /// MuPDF/in-app compact names: <c>/Type/Page</c> and <c>/Kids[3 0 R]</c>
+    /// (no space after the name). sample.pdf / Q3_Report.pdf use this.
+    /// A regex that required <c>/Kids [</c> or <c>/Type /Page</c> would miss
+    /// page 1 and write a zero-size widget Adobe skips.
+    /// </summary>
+    public static byte[] CreateMinimalPdfCompactNames()
+    {
+        var body = string.Join('\n',
+            "%PDF-1.4",
+            "1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj",
+            "2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj",
+            "3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R>>endobj",
+            "4 0 obj<</Length 51>>stream",
+            "BT /F1 12 Tf 40 120 Td (Hello Netie) Tj ET",
+            "endstream",
+            "endobj",
+            "");
+        var bodyBytes = Encoding.ASCII.GetBytes(body.Replace("\r\n", "\n").Replace('\r', '\n'));
+        var offsets = FindObjOffsets(bodyBytes, 1, 4);
+        var xref = new StringBuilder();
+        xref.Append("xref\n0 5\n");
+        xref.Append("0000000000 65535 f \n");
+        for (var i = 1; i <= 4; i++)
+            xref.Append($"{offsets[i]:D10} 00000 n \n");
+        var startxref = bodyBytes.Length;
+        var tail = xref + "trailer<</Size 5/Root 1 0 R>>\nstartxref\n" + startxref + "\n%%EOF\n";
+        return Concat(bodyBytes, Encoding.ASCII.GetBytes(tail));
+    }
+
+    /// <summary>
     /// One-page file whose /Annots is an indirect array (Chrome/Word links).
     /// Sign must inline those refs plus the widget, not <c>[widget arrayObj]</c>.
     /// </summary>

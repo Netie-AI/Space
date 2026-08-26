@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: cert-sign xunit covers in-app `sample.pdf` / `Q3_Report.pdf` (MuPDF compact `/Kids[4 0 R]` + `/Type/Page`). A `/Kids [`-only regex would miss page 1 and write a zero-size widget.
+- License: `setup-license-api.ps1` writes `wrangler.toml` UTF-8 without BOM (Windows PowerShell 5.1 `Set-Content -Encoding UTF8` used to prefix EF BB BF). Secret-put uses `Invoke-Wrangler` (npx fallback), not a hardcoded `wrangler.cmd`.
 - Video: edit-mode Mark In/Out are packed seconds. More... Export range clones + `SlicePacked` so + Clip no longer TrimAsyncs clip 1 at clip-2 source times. Marks that span the join used to fail `EnsureMarks` (0.9 < 1.0).
 - Video: Mark In / Mark Out chips use `PackedToSource(PackedPlayhead())`, same as timeline-drag handles. After + Clip the chips used `GetPlayhead` (clip-1 source), so yellow marks jumped to clip 1.
 - License: `setup-license-api.ps1` reuses an existing `netie-licenses` D1 id (`d1 list --json`). `d1 create` used to exit 1 when the name was already taken, so `-Deploy` never wrote `database_id`.

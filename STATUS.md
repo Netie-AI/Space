@@ -5,8 +5,9 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#72 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#73 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
+   Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
@@ -18,7 +19,8 @@
    (not `completed` alone). Live GPU still human.
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
    match is not a substring (`12` != `2`). Indirect `/Kids` and `/Annots`
-   arrays resolve so the first-page box lands. Adobe panel still human.
+   plus compact MuPDF `/Kids[4 0 R]` resolve so the first-page box lands.
+   Adobe panel still human.
 
 ## Next
 
