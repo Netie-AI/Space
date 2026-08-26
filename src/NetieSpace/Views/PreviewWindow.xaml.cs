@@ -3012,6 +3012,7 @@ public partial class PreviewWindow : Window
                 hi.PreviewMouseLeftButtonDown += FadeHandle_PreviewMouseLeftButtonDown;
                 hi.PreviewMouseMove += FadeHandle_PreviewMouseMove;
                 hi.PreviewMouseLeftButtonUp += FadeHandle_PreviewMouseLeftButtonUp;
+                hi.LostMouseCapture += FadeHandle_LostMouseCapture;
                 Canvas.SetLeft(hi, x0 + 1);
                 Canvas.SetTop(hi, 1);
                 TimelineClipCanvas.Children.Add(hi);
@@ -3028,6 +3029,7 @@ public partial class PreviewWindow : Window
                 ho.PreviewMouseLeftButtonDown += FadeHandle_PreviewMouseLeftButtonDown;
                 ho.PreviewMouseMove += FadeHandle_PreviewMouseMove;
                 ho.PreviewMouseLeftButtonUp += FadeHandle_PreviewMouseLeftButtonUp;
+                ho.LostMouseCapture += FadeHandle_LostMouseCapture;
                 Canvas.SetLeft(ho, x1 - 9);
                 Canvas.SetTop(ho, 1);
                 TimelineClipCanvas.Children.Add(ho);
@@ -3089,29 +3091,40 @@ public partial class PreviewWindow : Window
 
     private void FadeHandle_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        var changed = false;
-        if (_fadeDragClip >= 0)
-        {
-            var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_fadeDragClip);
-            if (clip is not null)
-            {
-                // Export SyncTimelineFromSession() overwrites timeline fades from session.
-                if (_fadeDragIn)
-                    changed = _videoEdit.ApplyFadeAt(_fadeDragClip, clip.FadeIn, null);
-                else
-                    changed = _videoEdit.ApplyFadeAt(_fadeDragClip, null, clip.FadeOut);
-            }
+        EndFadeHandleDrag(sender as Border);
+        e.Handled = true;
+    }
 
-            // MouseDown always PushVideoUndo. A click (no diamond move)
-            // used to leave a no-op undo so Ctrl+Z popped + Clip.
-            if (!changed)
-                DiscardLastVideoUndo();
+    private void FadeHandle_LostMouseCapture(object sender, MouseEventArgs e) =>
+        EndFadeHandleDrag(sender as Border);
+
+    /// <summary>
+    /// MouseDown always PushVideoUndo. Alt-tab / capture-loss used to skip
+    /// MouseUp, so the no-op frame stayed and Ctrl+Z popped + Clip.
+    /// Clear the drag index before ReleaseMouseCapture so LostMouseCapture
+    /// does not apply+discard a second time (that would undo a real fade).
+    /// </summary>
+    private void EndFadeHandleDrag(Border? handle)
+    {
+        if (_fadeDragClip < 0)
+            return;
+
+        var changed = false;
+        var clip = _timeline.VideoTrack?.Clips.ElementAtOrDefault(_fadeDragClip);
+        if (clip is not null)
+        {
+            // Export SyncTimelineFromSession() overwrites timeline fades from session.
+            if (_fadeDragIn)
+                changed = _videoEdit.ApplyFadeAt(_fadeDragClip, clip.FadeIn, null);
+            else
+                changed = _videoEdit.ApplyFadeAt(_fadeDragClip, null, clip.FadeOut);
         }
 
-        if (sender is Border b)
-            b.ReleaseMouseCapture();
+        if (!changed)
+            DiscardLastVideoUndo();
+
         _fadeDragClip = -1;
-        e.Handled = true;
+        handle?.ReleaseMouseCapture();
     }
 
     private void RenderCaptionTrack(double w, double max)
