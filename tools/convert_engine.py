@@ -685,12 +685,25 @@ def _png_data_uri(png: bytes) -> str:
 
 def _svg_data_uri_to_png(href: str) -> bytes | None:
     import base64
+    from urllib.parse import unquote_to_bytes
 
-    m = re.match(r"data:image/svg\+xml(?:;charset=[^;,]+)?;base64,([A-Za-z0-9+/=\s]+)$", href, re.I)
+    m = re.match(
+        r"data:image/svg\+xml(?:;charset=[^;,]+)?;base64,([A-Za-z0-9+/=\s]+)$",
+        href,
+        re.I,
+    )
+    if m:
+        try:
+            raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
+        except Exception:
+            return None
+        return _bytes_to_png(raw)
+    # Share dest Word/MD on photo HTML with urlencoded SVG used empty / 1-byte.
+    m = re.match(r"data:image/svg\+xml(?:;charset=[^;,]+)?,(.*)$", href, re.I)
     if not m:
         return None
     try:
-        raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
+        raw = unquote_to_bytes(m.group(1))
     except Exception:
         return None
     return _bytes_to_png(raw)
@@ -1614,6 +1627,15 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         except Exception:
             continue
         png = _bytes_to_png(raw)
+        if png:
+            pngs.append(png)
+    for m in re.finditer(r'src=["\'](data:image/svg\+xml[^"\']+)["\']', text, re.I):
+        if len(pngs) >= cap:
+            break
+        href = m.group(1)
+        if ";base64," in href.lower():
+            continue
+        png = _svg_data_uri_to_png(href)
         if png:
             pngs.append(png)
     if base is None:
