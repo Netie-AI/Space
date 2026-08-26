@@ -121,11 +121,16 @@ public static class PdfCmsSigner
         block.Append("\nendstream\nendobj\n");
 
         string? pageOverride = null;
+        int? pageOverrideId = null;
         if (pageRef is { } pageId)
-            pageOverride = RewritePageWithAnnot(pdf, pageId, fieldId);
-        if (pageOverride is not null)
         {
-            Mark(pageRef.Value);
+            pageOverride = RewritePageWithAnnot(pdf, pageId, fieldId);
+            if (pageOverride is not null)
+                pageOverrideId = pageId;
+        }
+        if (pageOverride is not null && pageOverrideId is { } markedPage)
+        {
+            Mark(markedPage);
             block.Append(pageOverride);
         }
 
@@ -135,7 +140,7 @@ public static class PdfCmsSigner
         var xrefStart = withObjs.Length;
         var xref = new StringBuilder();
         xref.Append("xref\n0 1\n0000000000 65535 f \n");
-        if (pageOverride is not null && pageRef is { } pid)
+        if (pageOverride is not null && pageOverrideId is { } pid)
         {
             xref.Append($"{pid} 1\n");
             xref.Append($"{objStarts[pid]:D10} 00000 n \n");
