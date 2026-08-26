@@ -77,7 +77,11 @@ IMAGE_EXTS = {
     ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff",
     ".ico", ".heic", ".heif", ".svg",
 }
-VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
+# Matches ContentParserService.VideoExtensions. GIF export used a short list.
+VIDEO_EXTS = {
+    ".mp4", ".webm", ".mkv", ".avi", ".mov", ".wmv", ".m4v", ".mpeg", ".mpg",
+    ".hevc", ".h265", ".h264", ".3gp", ".flv", ".ts", ".m2ts", ".mts", ".ogv", ".vob",
+}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
 OFFICE_EXTS = {
     ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".odp",

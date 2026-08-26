@@ -454,6 +454,40 @@ def test_export_as_svg() -> None:
         assert jpg.is_file() and jpg.stat().st_size > 200
 
 
+def test_export_as_preview_video_gif() -> None:
+    """Share Export as GIF on previewed .wmv. VIDEO_EXTS used to omit C# video suffixes."""
+    import shutil
+
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".wmv"' in src
+    assert '".mpeg"' in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    assert '".wmv"' in parser
+    if shutil.which("ffmpeg") is None:
+        print("SKIP video gif export -- ffmpeg missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        mp4 = d / "clip.mp4"
+        proc = subprocess.run(
+            [
+                "ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=blue:s=160x120:d=0.3",
+                "-pix_fmt", "yuv420p", str(mp4),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert proc.returncode == 0 and mp4.is_file(), (proc.stderr or "")[-300:]
+        wmv = d / "clip.wmv"
+        wmv.write_bytes(mp4.read_bytes())
+        gif = d / "clip.gif"
+        res = run_engine(["export-as", str(wmv), str(gif)])
+        assert res.get("success"), res
+        assert res.get("tool") == "ffmpeg", res
+        assert gif.is_file() and gif.stat().st_size > 200
+
+
 def test_pdf_ocr_force_uses_ocrmypdf_force_api() -> None:
     """ocrmypdf 17: skip_text=False aborts on text pages. --force must send force_ocr."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -514,6 +548,7 @@ if __name__ == "__main__":
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()
+    test_export_as_preview_video_gif()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
     print("PASS test_convert_engine")
