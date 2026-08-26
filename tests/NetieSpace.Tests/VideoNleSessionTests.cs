@@ -176,6 +176,54 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void SlicePacked_second_clip_drops_clip1_captions()
+    {
+        var dir = Directory.CreateTempSubdirectory("ns-srt-");
+        try
+        {
+            var srt = Path.Combine(dir.FullName, "a.srt");
+            File.WriteAllText(srt, "1\n00:00:00,200 --> 00:00:00,600\nhi\n");
+            var project = new TimelineProject();
+            project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+            Assert.NotNull(project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2)));
+            project.SubtitleBurnPath = srt;
+            Assert.True(project.SlicePacked(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(12)));
+            Assert.True(string.IsNullOrWhiteSpace(project.SubtitleBurnPath));
+            Assert.Contains("00:00:00,200 --> 00:00:00,600", File.ReadAllText(srt));
+        }
+        finally
+        {
+            try { dir.Delete(recursive: true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
+    public void SlicePacked_shifts_caption_into_range()
+    {
+        var dir = Directory.CreateTempSubdirectory("ns-srt-");
+        try
+        {
+            var srt = Path.Combine(dir.FullName, "a.srt");
+            File.WriteAllText(srt, "1\n00:00:09,500 --> 00:00:10,500\njoin\n");
+            var project = new TimelineProject();
+            project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+            Assert.NotNull(project.ImportClip(@"C:\clips\b.mp4", TimeSpan.FromSeconds(2)));
+            project.SubtitleBurnPath = srt;
+            Assert.True(project.SlicePacked(TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(11)));
+            Assert.False(string.IsNullOrWhiteSpace(project.SubtitleBurnPath));
+            Assert.NotEqual(srt, project.SubtitleBurnPath);
+            var sliced = File.ReadAllText(project.SubtitleBurnPath!);
+            Assert.Contains("00:00:00,500 --> 00:00:01,500", sliced);
+            Assert.Contains("join", sliced);
+            Assert.Contains("00:00:09,500 --> 00:00:10,500", File.ReadAllText(srt));
+        }
+        finally
+        {
+            try { dir.Delete(recursive: true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
     public void SlicePacked_across_join_keeps_both_files()
     {
         var project = new TimelineProject();
