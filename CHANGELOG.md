@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- CI: drop the 4th aggregator `ci` job. GitHub already fails the workflow if Windows, python, or license-api fails. After #25 that extra runner never started (billing/spending limit).
 - CI: Windows job installs ffmpeg (`setup-ffmpeg` / GyanD, not choco — community feed 504) and encodes Space's wipeleft graph via `FfmpegExportLiveTests`. Still not the human Export gate.
 - Export: `FfmpegExportGraph` owns fade/wipe filter math; Windows xunit + python ffmpeg smoke use the same wipeleft offset (`left − 0.5s`). Not a substitute for the human Export gate.
 

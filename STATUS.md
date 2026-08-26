@@ -4,8 +4,8 @@
 
 ## Now
 
-1. **main CI is green** — Windows `dotnet test` + ffmpeg encode of Space's wipe graph +
-   python contracts + license-api `tsc` + aggregator `ci`.
+1. **main CI gate** — Windows `dotnet test` + ffmpeg encode + python contracts +
+   license-api `tsc` (three jobs; no 4th aggregator — billing killed that runner).
    Merge only when **all** checks on the head SHA succeed (never `gh pr merge --auto`).
 2. **Ready PRs #4–#25 landed** after green CI. Draft #1 (stale demo path) stays draft.
 3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
