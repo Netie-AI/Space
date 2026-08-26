@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Add-text Export writes drawtext / fallback SRT under `%TEMP%`. Export to a folder like Mom's clips used to fail after #113 only fixed the whisper sidecar path.
 - Video: Leave black inserts a packed V1 black hole (`:black` lavfi). Ripple used to slide the next clip under the title card, so Export blacked out remaining footage.
 - Video: caption burn-in copies the SRT to a quote-free temp file before `subtitles=`. A sidecar / whisper SRT under a folder like Mom's clips used to fail Export (the filter strips apostrophes).
 - Video: Export pads black after remaining V1 when a title card sits past the last clip. Last-clip Leave black used to burn 1.6s with the overlay after EOF, so the card never landed.
