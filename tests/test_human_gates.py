@@ -13,6 +13,19 @@ SETUP_XAML = ROOT / "src/NetieSpace/Views/ApiSetupWindow.xaml"
 
 def test_scripts_and_docs():
     clips = CLIPS.read_text(encoding="utf-8")
+    clips_ps = (ROOT / "scripts/make-pillar1-clips.ps1").read_text(encoding="utf-8")
+    helper_ps = (ROOT / "scripts/_ffmpeg.ps1").read_text(encoding="utf-8")
+    helper_sh = (ROOT / "scripts/_ffmpeg.sh").read_text(encoding="utf-8")
+    assert "Get-NetieFfmpeg" in helper_ps
+    assert "Get-NetieFfprobe" in helper_ps
+    assert "tools\\ffmpeg" in helper_ps or "tools/ffmpeg" in helper_ps.replace("\\", "/")
+    assert "Get-NetieFfmpeg" in clips_ps
+    assert "_ffmpeg.ps1" in clips_ps
+    assert "netie_ffmpeg" in helper_sh
+    assert "_ffmpeg.sh" in clips
+    check_ps = (ROOT / "scripts/check-pillar1-export.ps1").read_text(encoding="utf-8")
+    assert "Get-NetieFfprobe" in check_ps
+    assert "ffprobe not on PATH" not in check_ps
     pfx = PFX.read_text(encoding="utf-8")
     pillar = PILLAR.read_text(encoding="utf-8")
     parked = PARKED.read_text(encoding="utf-8")
@@ -64,6 +77,8 @@ def test_scripts_and_docs():
     enc = (ROOT / "scripts/encode-pillar1-wipe.sh").read_text(encoding="utf-8")
     assert "wipeleft" in enc
     assert "offset=1.1" in enc
+    assert "_ffmpeg.sh" in enc
+    assert "tools/ffmpeg" in pillar
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in (ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md").read_text(encoding="utf-8")
     publish_ps = (ROOT / "scripts/publish.ps1").read_text(encoding="utf-8")
     ensure_ps = (ROOT / "scripts/ensure-ai-tools.ps1").read_text(encoding="utf-8")

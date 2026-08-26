@@ -27,6 +27,8 @@ Make the two clips first (about 30 seconds):
 .\scripts\make-pillar1-clips.ps1
 ```
 
+That script uses `tools/ffmpeg` from `install.bat` (not PATH-only).
+
 or `./scripts/make-pillar1-clips.sh`. You get `pillar1-clips/clip_a.mp4` (1.6s blue)
 and `clip_b.mp4` (2.0s red). Expected wipe export is about 3.1s.
 Linux reference encode (same graph Space burns): `./scripts/encode-pillar1-wipe.sh`
