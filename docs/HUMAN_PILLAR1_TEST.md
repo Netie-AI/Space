@@ -71,7 +71,9 @@ Export should land near that.
    puts the title card at the packed clip start for the packed clip length
    (not source in 0 on + Clip, and not source duration after Speed 2x).
    The OV lane shows that card (used to be model-only, so you could not
-   see packed start/length before Export).
+   see packed start/length before Export). Seek the playhead onto that
+   packed range -- the preview picture shows the black/text card
+   (MediaElement used to stay on clip-1 pixels with no overlay).
    Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
    on and insert same-source holes later). A2 clicks use packed start too
    (not source in 0). A2 is preview-only -- Export does not amix.

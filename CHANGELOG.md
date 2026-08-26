@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Leave-black / Add black / text show on the preview picture when the packed playhead is on that card. OV lane alone left the frame unchanged, so Export "picture is not black" was the first cue.
 - Video: caption-cue drag is not aborted by the 200ms playhead layout. `CaptionTrackCanvas.Children.Clear` used to fire LostMouseCapture, and MouseUp was the only SRT persist, so Export burned the old cue times.
 - Video: OV lane draws Leave-black / Add black / text cards at packed start + length. OverlayTrack used to have no row, so the title card was invisible and an accidental black card only showed up as Export "picture is not black".
 - Video: clip/fade drag is not aborted by the 200ms playhead layout. `Children.Clear` used to fire LostMouseCapture mid-drag after + Clip autoplay, so playbook drag never dropped.

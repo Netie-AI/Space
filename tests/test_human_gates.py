@@ -48,6 +48,7 @@ def test_scripts_and_docs():
     assert "Leave black" in pillar
     assert "title card" in pillar
     assert "OV lane" in pillar
+    assert "preview picture" in pillar
     assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
@@ -139,6 +140,12 @@ def test_scripts_and_docs():
     assert "EndCaptionDrag" in preview
     xaml_preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml").read_text(encoding="utf-8")
     assert 'x:Name="OverlayTrackCanvas"' in xaml_preview
+    assert 'x:Name="VideoOverlayPreview"' in xaml_preview
+    assert "UpdateOverlayPreview" in preview
+    ovp = preview[preview.index("private void UpdateOverlayPreview"):preview.index("private void VideoSlider_PreviewMouseDown")]
+    assert "PackedPlayhead" in ovp
+    assert "TimelineStart" in ovp
+    assert "OverlayTrack" in ovp
     ov = preview[preview.index("private void RenderOverlayTrack"):preview.index("private void RenderKeptClipSegments")]
     assert "TimelineStart" in ov
     assert "OverlayTrack" in ov
