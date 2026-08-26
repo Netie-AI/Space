@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: Setup **Get Netie subscription** calls `POST /v1/checkout`. Worker creates a Stripe subscription Checkout Session (no `payment_method_types`, no `automatic_tax`). Missing secrets return 503 `stripe_not_configured`. Webhook `/v1/webhooks/stripe` verifies `Stripe-Signature` and writes D1 Stripe columns. Human secrets + test pay: `docs/HUMAN_STRIPE_CHECKOUT.md`.
+- Docs: Windows Pillar 1 click playbook (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open the WPF app. Parked-ticket process: `docs/HUMAN_PARKED.md`.
 - CI: Cursor-origin gate is `scripts/ci-cursor.sh` (python + license-api + ffmpeg). GitHub hosted runners hit a spending limit; do not wait on them.
 - CI: drop the 4th aggregator `ci` job. GitHub already fails the workflow if Windows, python, or license-api fails. After #25 that extra runner never started (billing/spending limit).
 - CI: Windows job installs ffmpeg (`setup-ffmpeg` / GyanD, not choco — community feed 504) and encodes Space's wipeleft graph via `FfmpegExportLiveTests`. Still not the human Export gate.

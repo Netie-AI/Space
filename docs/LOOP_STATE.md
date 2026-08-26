@@ -11,7 +11,7 @@
 | Field | Value |
 |-------|--------|
 | **Pillar** | 1 — Video |
-| **Slice** | await user Select→Split→Drag→Delete→Fade→Export |
+| **Slice** | await Windows human Select->Split->Drag->Delete->Fade->Export (`docs/HUMAN_PILLAR1_TEST.md`) |
 | **Tick** | post-#20 + Windows xunit NLE (not a user Export gate) |
 | **Consecutive fails** | 0 |
 

@@ -6,13 +6,16 @@
 
 1. **Cursor-origin CI** — `scripts/ci-cursor.sh` (python contracts + license-api
    `tsc` + ffmpeg smoke). GitHub Actions hosted runners are billing-blocked; ignore them.
-2. **Ready PRs #4–#25 landed**. #26 drops the extra GHA aggregator. Draft #1 stays draft.
-3. **Naming collision** — "Netie Space" vs Cortex "DMS Spaces" still unresolved.
+2. **Ready PRs #4-#26 landed**. Draft #1 (stale demo path) stays draft.
+3. **Buy / Stripe** — Worker `/v1/checkout` + webhook + Setup button. Live pay
+   needs your Stripe/Cloudflare secrets (`docs/HUMAN_STRIPE_CHECKOUT.md`).
 
 ## Next
 
-- Human: Select→Split→Drag→Delete→Fade→Export on Windows (Pillar 1 gate).
-- Do not start: Buy API, Stripe (until that gate), cert signatures, Comfy, P7.
+- Human Windows: Select->Split->Drag->Delete->Fade->Wipe->Export
+  (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open this WPF app.
+- Human: Stripe secrets + test card, then tick Buy API / Stripe.
+- Parked: cert signatures, Comfy, P7 (`docs/HUMAN_PARKED.md`).
 
 ## Later
 

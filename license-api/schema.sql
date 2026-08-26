@@ -1,4 +1,4 @@
--- Netie Space license schema (Stripe columns ready; Checkout later)
+-- Netie Space license schema (Stripe columns used by /v1/checkout + webhook)
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,

@@ -1,0 +1,64 @@
+"""Contract checks for Stripe Checkout + Buy API (secrets-gated)."""
+from __future__ import annotations
+
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+WORKER = ROOT / "license-api/src/index.ts"
+STRIPE = ROOT / "license-api/src/stripe.ts"
+CLIENT = ROOT / "src/NetieSpace/Services/Licensing/LicenseApiClient.cs"
+SETUP = ROOT / "src/NetieSpace/Views/ApiSetupWindow.xaml.cs"
+HUMAN = ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md"
+PILLAR = ROOT / "docs/HUMAN_PILLAR1_TEST.md"
+PARKING = ROOT / "PARKING_LOT.md"
+
+
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def test_worker_checkout_routes():
+    src = _read(WORKER)
+    stripe = _read(STRIPE)
+    assert 'url.pathname === "/v1/checkout"' in src
+    assert 'url.pathname === "/v1/webhooks/stripe"' in src
+    assert 'error: "stripe_not_configured"' in src
+    assert "createCheckoutSession" in src
+    assert "verifyStripeSignature" in src
+    assert "fulfillCheckoutSession" in stripe
+    assert "payment_method_types" not in stripe
+    assert "automatic_tax" not in stripe
+    assert 'mode", "subscription"' in stripe or 'body.set("mode", "subscription")' in stripe
+    assert "integration_identifier" in stripe
+    assert "2026-07-29.dahlia" in stripe
+
+
+def test_wpf_buy_calls_checkout():
+    client = _read(CLIENT)
+    setup = _read(SETUP)
+    assert "CreateCheckoutAsync" in client
+    assert "checkout_url" in client
+    assert "CreateCheckoutAsync" in setup
+    assert "OpenBuyFallback" in setup
+    assert "HUMAN_STRIPE_CHECKOUT.md" in setup
+    assert "HUMAN_PILLAR1_TEST.md" in setup
+
+
+def test_human_docs_exist():
+    pillar = _read(PILLAR)
+    human = _read(HUMAN)
+    parking = _read(PARKING)
+    assert "Playwright cannot open Netie Space" in pillar
+    assert "Select -> Split -> Drag -> Delete" in pillar or "Select -> Split" in pillar
+    assert "STRIPE_SECRET_KEY" in human
+    assert "4242 4242 4242 4242" in human
+    assert "stripe_not_configured" in human
+    assert "Buy API flow" in parking
+    assert "Stripe Checkout" in parking
+
+
+if __name__ == "__main__":
+    test_worker_checkout_routes()
+    test_wpf_buy_calls_checkout()
+    test_human_docs_exist()
+    print("PASS test_stripe_checkout")
