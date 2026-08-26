@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Export shifts caption / overlay times across wipe joins. A clip-2 cue at 1.8s used to burn at 1.8s on the 3.1s file (0.7s into clip 2). UI packed ruler stays pre-wipe.
 - Video: CC cue drag / merge push undo and restore the sidecar text. Drag used to overwrite the SRT with no stack frame, so extra Ctrl+Z popped + Clip (Export ~1.6s).
 - Video: More... LUT pushes undo and Ctrl+Z restores `GlobalLutPath`. Extra Ctrl+Z after a cube used to pop + Clip so Export was ~1.6s.
 - Video: Auto captions pushes undo. Extra Ctrl+Z after captions used to pop + Clip so Export was ~1.6s (same stack hole Fade / Wipe had).

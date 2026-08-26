@@ -127,6 +127,8 @@ Export should land near that.
     (not + Clip). More... LUT does the same (undo restores the cube path).
     CC cue drag / merge restore the previous SRT text (used to overwrite
     the sidecar, then extra Ctrl+Z popped + Clip).
+    Wipe shortens the file; Export shifts caption / OV times so clip-2
+    text still sits on clip 2 (UI packed ruler stays 1.6s + 2.0s).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).

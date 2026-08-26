@@ -251,6 +251,10 @@ public sealed class FfmpegService
         if (string.IsNullOrWhiteSpace(project.PrimarySourcePath) || !IoFile.Exists(project.PrimarySourcePath))
             return Fail("No primary source for timeline export.");
 
+        // UI packed time ignores wipe. PreviewWindow clones before this
+        // call; remap captions/OV so clip-2 text still sits on clip 2.
+        project.ApplyWipeExportRemap();
+
         var kept = project.ToKeptRanges();
         var vTrack = project.VideoTrack;
         var hasEffects = vTrack?.Clips.Any(c =>
