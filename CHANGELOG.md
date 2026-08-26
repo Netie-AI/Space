@@ -4,6 +4,9 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- CI: `scripts/ci-cursor.sh` now runs `dotnet test` on `tests/NetieSpace.Tests` (net8, no WPF). `ci-cursor-install.sh` installs the 8.0 SDK. Same suite as Windows CI; live ffmpeg wipe encodes here too.
+- PDF: `PdfCmsSigner.TryVerify` checks the detached CMS against `/ByteRange`. `Sign` fail-closes if self-check fails. Adobe Reader panel is still human.
+- License: `setup-license-api.ps1 -Deploy` prompts for `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (Enter skips).
 - Comfy: after queue, GET `/view` writes `{stem}.comfy.png` and reloads it so Copy / drag-out work like rembg. Workflow is LoadImage + SaveImage. Live GPU still human.
 - Comfy: **Send to Comfy...** POSTs `/upload/image` before `/prompt` so the open file is in Comfy's input folder. Upload fail -> sidecar + filename-only LoadImage. rembg / Copy stay the offline path.
 - PDF: cert sign now incremental-overrides the first page `/Annots` and writes a Form XObject appearance (`Digitally signed`). Adobe Signature panel is still a human check.

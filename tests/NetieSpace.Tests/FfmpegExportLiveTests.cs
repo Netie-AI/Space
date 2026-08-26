@@ -18,7 +18,7 @@ public class FfmpegExportLiveTests
         {
             Assert.False(
                 IsCi(),
-                "ffmpeg/ffprobe required on Windows CI for V1 export smoke");
+                "ffmpeg/ffprobe required on CI for V1 export smoke");
             return;
         }
 

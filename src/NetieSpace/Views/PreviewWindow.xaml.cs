@@ -4862,7 +4862,7 @@ public partial class PreviewWindow : Window
                 password,
                 System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.Exportable);
             PdfCmsSigner.SignFile(path, cert);
-            ConvertStatusText.Text = "Cert sign written. Open in Adobe Reader to check the Signature panel.";
+            ConvertStatusText.Text = "Cert sign written (CMS self-check passed). Open in Adobe Reader to check the Signature panel.";
             _ = LoadFileAsync(path);
         }
         catch (Exception ex)

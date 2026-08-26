@@ -4,8 +4,8 @@
 
 ## Now
 
-1. **Cursor-origin CI** -- `scripts/ci-cursor.sh`. Ignore GitHub Actions billing.
-2. **Ready PRs #4-#32 landed**. Draft #1 stays draft.
+1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
+2. **Ready PRs #4-#34 landed**. Draft #1 stays draft.
 3. **Stripe test catalog** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    You still put `STRIPE_SECRET_KEY` + webhook secret.
 4. **ComfyUI** -- code-ready local client (upload + queue + /view); live GPU still human.

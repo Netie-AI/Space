@@ -50,4 +50,14 @@ public class PdfCmsSignerTests
         Assert.True(PdfCmsSigner.HasDetachedPkcs7Marker(File.ReadAllBytes(path)));
         try { Directory.Delete(dir, true); } catch { /* temp */ }
     }
+
+    [Fact]
+    public void Sign_self_verifies_detached_cms()
+    {
+        var src = PdfCmsSigner.CreateMinimalPdf();
+        using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+        var signed = PdfCmsSigner.Sign(src, cert);
+        Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        Assert.False(PdfCmsSigner.TryVerify(src, out _));
+    }
 }

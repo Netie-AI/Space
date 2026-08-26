@@ -36,6 +36,9 @@ def test_worker_checkout_routes():
     wrangler = _read(ROOT / "license-api/wrangler.toml")
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in wrangler
     assert "STRIPE_PRICE_ID" in wrangler
+    setup = _read(ROOT / "scripts/setup-license-api.ps1")
+    assert "STRIPE_SECRET_KEY" in setup
+    assert "STRIPE_WEBHOOK_SECRET" in setup
 
 
 def test_wpf_buy_calls_checkout():

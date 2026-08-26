@@ -53,6 +53,49 @@ public static class PdfCmsSigner
     public static bool HasDetachedPkcs7Marker(ReadOnlySpan<byte> pdf) =>
         IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;
 
+    /// <summary>
+    /// Verify the last detached PKCS#7 against /ByteRange. Does not talk to Adobe.
+    /// </summary>
+    public static bool TryVerify(byte[] pdf, out string? error)
+    {
+        error = null;
+        try
+        {
+            if (!TryParseByteRange(pdf, out var r0, out var r1, out var r2, out var r3))
+            {
+                error = "ByteRange missing.";
+                return false;
+            }
+            if (r0 != 0 || r1 <= 0 || r2 <= r1 || r2 + r3 > pdf.Length)
+            {
+                error = "ByteRange out of range.";
+                return false;
+            }
+
+            var toSign = new byte[r1 + r3];
+            Buffer.BlockCopy(pdf, r0, toSign, 0, r1);
+            Buffer.BlockCopy(pdf, r2, toSign, r1, r3);
+
+            if (!TryReadContentsHex(pdf, out var hex))
+            {
+                error = "Contents hex missing.";
+                return false;
+            }
+
+            var cmsBytes = DecodeCmsFromPaddedHex(hex);
+            var content = new ContentInfo(toSign);
+            var signed = new SignedCms(content, detached: true);
+            signed.Decode(cmsBytes);
+            signed.CheckSignature(verifySignatureOnly: true);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            error = ex.Message;
+            return false;
+        }
+    }
+
     public static void SignFile(string pdfPath, X509Certificate2 cert)
     {
         var original = File.ReadAllBytes(pdfPath);
@@ -188,7 +231,71 @@ public static class PdfCmsSigner
         var hex = Convert.ToHexString(cms).ToLowerInvariant().PadRight(ContentsReserveBytes * 2, '0');
         var hexBytes = Encoding.ASCII.GetBytes(hex);
         Array.Copy(hexBytes, 0, assembled, hexStart, hexBytes.Length);
+        if (!TryVerify(assembled, out var verifyErr))
+            throw new InvalidOperationException("Cert sign self-check failed. " + verifyErr);
         return assembled;
+    }
+
+    private static bool TryParseByteRange(byte[] pdf, out int r0, out int r1, out int r2, out int r3)
+    {
+        r0 = r1 = r2 = r3 = 0;
+        var brAt = LastIndexOf(pdf, "/ByteRange "u8);
+        if (brAt < 0)
+            return false;
+        var span = Encoding.ASCII.GetString(pdf, brAt, Math.Min(96, pdf.Length - brAt));
+        var m = Regex.Match(span, @"/ByteRange\s*\[\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*\]");
+        if (!m.Success)
+            return false;
+        r0 = int.Parse(m.Groups[1].Value);
+        r1 = int.Parse(m.Groups[2].Value);
+        r2 = int.Parse(m.Groups[3].Value);
+        r3 = int.Parse(m.Groups[4].Value);
+        return true;
+    }
+
+    private static bool TryReadContentsHex(byte[] pdf, out string hex)
+    {
+        hex = "";
+        var token = Encoding.ASCII.GetBytes("/Contents <");
+        var open = LastIndexOf(pdf, token);
+        if (open < 0)
+            return false;
+        var hexStart = open + token.Length;
+        var close = IndexOf(pdf.AsSpan(hexStart), ">"u8);
+        if (close < 0)
+            return false;
+        hex = Encoding.ASCII.GetString(pdf, hexStart, close);
+        return hex.Length > 0;
+    }
+
+    private static byte[] DecodeCmsFromPaddedHex(string hex)
+    {
+        var raw = Convert.FromHexString(hex.Trim());
+        if (raw.Length < 2 || raw[0] != 0x30)
+            throw new InvalidOperationException("CMS is not a DER SEQUENCE.");
+        int headerLen;
+        int contentLen;
+        if ((raw[1] & 0x80) == 0)
+        {
+            headerLen = 2;
+            contentLen = raw[1];
+        }
+        else
+        {
+            var n = raw[1] & 0x7F;
+            if (n < 1 || n > 4 || 2 + n > raw.Length)
+                throw new InvalidOperationException("CMS DER length is invalid.");
+            headerLen = 2 + n;
+            contentLen = 0;
+            for (var i = 0; i < n; i++)
+                contentLen = (contentLen << 8) | raw[2 + i];
+        }
+        var total = headerLen + contentLen;
+        if (total <= 0 || total > raw.Length)
+            throw new InvalidOperationException("CMS truncated.");
+        var cms = new byte[total];
+        Buffer.BlockCopy(raw, 0, cms, 0, total);
+        return cms;
     }
 
     private static byte[] CreateDetachedCms(byte[] data, X509Certificate2 cert)

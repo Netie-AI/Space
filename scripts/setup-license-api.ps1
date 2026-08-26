@@ -78,7 +78,9 @@ if ($Deploy) {
         @{ Name = 'OWNER_NOTIFY_EMAIL'; Prompt = 'Owner notify email (you)' },
         @{ Name = 'RESEND_FROM_EMAIL'; Prompt = 'From email (verified in Resend, e.g. Netie <onboarding@resend.dev>)' },
         @{ Name = 'JWT_SECRET'; Prompt = 'JWT secret (long random string)' },
-        @{ Name = 'DEVICE_PEPPER'; Prompt = 'Device pepper (match appsettings License.DevicePepper)' }
+        @{ Name = 'DEVICE_PEPPER'; Prompt = 'Device pepper (match appsettings License.DevicePepper)' },
+        @{ Name = 'STRIPE_SECRET_KEY'; Prompt = 'Stripe restricted key (rk_test_... or sk_test_...). Enter skips' },
+        @{ Name = 'STRIPE_WEBHOOK_SECRET'; Prompt = 'Stripe webhook secret (whsec_...). Enter skips' }
     )
     foreach ($s in $secrets) {
         $val = Read-Host $s.Prompt
