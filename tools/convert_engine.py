@@ -645,19 +645,41 @@ def write_docx_images(dest: Path, pngs: list[bytes]) -> str:
     return "docx-zip-images"
 
 
-def pdf_pages_to_docx(src: Path, dest: Path) -> str:
+def pdf_page_pngs(src: Path, cap: int = 24) -> list[bytes]:
     pymupdf = require_pymupdf()
     doc = pymupdf.open(str(src))
     pngs: list[bytes] = []
     try:
         for i, page in enumerate(doc, 1):
-            if i > 24:
+            if i > cap:
                 break
             pix = page.get_pixmap()
             pngs.append(pix.tobytes("png"))
     finally:
         doc.close()
-    return write_docx_images(dest, pngs)
+    return pngs
+
+
+def pdf_pages_to_docx(src: Path, dest: Path) -> str:
+    return write_docx_images(dest, pdf_page_pngs(src))
+
+
+def pdf_pages_to_html(src: Path, dest: Path) -> str:
+    """Scan / image-only PDF -> HTML. Share Export as HTML used to need a text layer."""
+    import base64
+
+    pngs = pdf_page_pngs(src)
+    parts: list[str] = []
+    for i, blob in enumerate(pngs, 1):
+        b64 = base64.b64encode(blob).decode("ascii")
+        parts.append(
+            f'<section class="slide"><h2>Page {i}</h2>'
+            f'<p><img src="data:image/png;base64,{b64}" alt="Page {i}"></p></section>'
+        )
+    if not parts:
+        parts.append("<p></p>")
+    write_text(dest, wrap_html("\n".join(parts), src.name))
+    return "pymupdf-html-images"
 
 
 def file_to_docx(src: Path, dest: Path) -> str:
@@ -1555,9 +1577,14 @@ def action_export_as(argv: list[str]) -> dict:
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dest)
             return ok(dest, "copy")
-        text, tool = file_to_markdown(src)
-        write_text(dest, wrap_html(markdown_to_html(text), src.name))
-        return ok(dest, tool)
+        try:
+            text, tool = file_to_markdown(src)
+            write_text(dest, wrap_html(markdown_to_html(text), src.name))
+            return ok(dest, tool)
+        except RuntimeError:
+            if src_ext == ".pdf":
+                return ok(dest, pdf_pages_to_html(src, dest))
+            raise
     if dest_ext in VIDEO_EXTS or dest_ext in AUDIO_EXTS or (
         dest_ext == ".gif" and src_ext in VIDEO_EXTS
     ):

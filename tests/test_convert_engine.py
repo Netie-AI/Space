@@ -723,6 +723,37 @@ def test_pdf_word_image_only() -> None:
             assert "word/media/image1.png" in zf.namelist()
 
 
+def test_pdf_html_image_only() -> None:
+    """Share Export as HTML on a scan / image-only PDF used to need a text layer."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def pdf_pages_to_html" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "Web page|*.html" in dlg.split('".pdf" =>', 1)[1][:350]
+    if not pymupdf_available():
+        print("SKIP pdf html image-only -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP pdf html image-only -- Pillow missing")
+        return
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        png = d / "scan.png"
+        Image.new("RGB", (48, 32), (20, 80, 180)).save(png)
+        pdf = d / "scan.pdf"
+        res = run_engine(["export-as", str(png), str(pdf)])
+        assert res.get("success"), res
+        html_out = d / "scan.html"
+        res = run_engine(["export-as", str(pdf), str(html_out)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        html_text = html_out.read_text(encoding="utf-8")
+        assert "data:image/png;base64," in html_text
+        assert "Page 1" in html_text
+
+
 def test_silent_video_export_mp3() -> None:
     """Share Export as MP3 on a silent clip failed (no audio stream)."""
     import shutil
@@ -955,6 +986,7 @@ if __name__ == "__main__":
     test_sign_stamp_engine_raster()
     test_tiff_export_as_keeps_tiff()
     test_pdf_word_image_only()
+    test_pdf_html_image_only()
     test_silent_video_export_mp3()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
