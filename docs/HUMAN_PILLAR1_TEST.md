@@ -129,6 +129,7 @@ Export should land near that.
     the sidecar, then extra Ctrl+Z popped + Clip).
     Wipe shortens the file; Export shifts caption / OV times so clip-2
     text still sits on clip 2 (UI packed ruler stays 1.6s + 2.0s).
+    A cue that spans the join keeps its duration (used to invert and drop).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).

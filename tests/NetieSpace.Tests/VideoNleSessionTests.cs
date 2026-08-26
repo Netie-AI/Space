@@ -377,6 +377,17 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void RemapPackedCuesAfterWipe_join_spanning_cue_keeps_duration()
+    {
+        var clips = WipePair();
+        var cues = new[] { (TimeSpan.FromSeconds(1.4), TimeSpan.FromSeconds(1.8), "join") };
+        var mapped = TimelineProject.RemapPackedCuesAfterWipe(cues, clips);
+        Assert.Single(mapped);
+        Assert.Equal(TimeSpan.FromSeconds(1.4), mapped[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(1.8), mapped[0].End);
+    }
+
+    [Fact]
     public void RemapPackedCuesAfterWipe_leaves_clip1_cue()
     {
         var clips = WipePair();
