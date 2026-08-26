@@ -52,7 +52,11 @@ public static class LicenseActivation
         {
             var api = new LicenseApiClient(ResolveApiBase());
             var pepper = ResolvePepper();
-            var deviceHash = await Task.Run(() => DeviceFingerprint.ComputeHash(pepper), ct)
+            var (deviceHash, boardUuid) = await Task.Run(() =>
+                {
+                    var board = DeviceFingerprint.ProbeBoardUuid();
+                    return (DeviceFingerprint.ComputeHash(pepper, board), board);
+                }, ct)
                 .ConfigureAwait(false);
             var activate = await api.ActivateAsync(
                 session.Token,
@@ -80,7 +84,8 @@ public static class LicenseActivation
                 DeviceHash = deviceHash,
                 ActivatedAt = DateTime.UtcNow.ToString("O"),
                 EntitlementToken = activate.EntitlementToken,
-                PepperHint = pepper
+                PepperHint = pepper,
+                BoardUuid = boardUuid
             });
 
             return (true, "Activated — you can use Netie offline (except AI / re-login).", false);

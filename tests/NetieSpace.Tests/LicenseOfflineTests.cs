@@ -31,6 +31,16 @@ public class LicenseOfflineTests
     }
 
     [Fact]
+    public void PreferPersistedBoard_skips_a_later_wmi_unknown()
+    {
+        Assert.Equal("REAL-UUID", LicenseOffline.PreferPersistedBoard("REAL-UUID"));
+        Assert.Equal("REAL-UUID", LicenseOffline.PreferPersistedBoard(" REAL-UUID "));
+        Assert.Null(LicenseOffline.PreferPersistedBoard(null));
+        Assert.Null(LicenseOffline.PreferPersistedBoard(""));
+        Assert.Null(LicenseOffline.PreferPersistedBoard("   "));
+    }
+
+    [Fact]
     public void StableVolumeToken_is_deterministic_not_gethashcode()
     {
         Assert.Equal("DESKTOP-1", LicenseOffline.StableVolumeToken("DESKTOP-1"));
