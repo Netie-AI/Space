@@ -18,7 +18,7 @@ jobs:
   build-windows:
     name: build (windows)
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-dotnet@v5
@@ -28,6 +28,14 @@ jobs:
           cache-dependency-path: |
             **/*.csproj
             **/*.sln
+      - name: ffmpeg
+        shell: pwsh
+        run: |
+          choco install ffmpeg -y --no-progress
+          $bin = Join-Path $env:ChocolateyInstall "bin"
+          Add-Content -Path $env:GITHUB_PATH -Value $bin
+          & (Join-Path $bin "ffmpeg.exe") -hide_banner -version
+          & (Join-Path $bin "ffprobe.exe") -hide_banner -version
       - name: Restore, build, and test
         run: >
           dotnet test NetieSpace.sln -c Debug --nologo

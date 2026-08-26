@@ -33,6 +33,10 @@ def test_windows_ci_runs_dotnet_test():
     assert "Do not ProjectReference the WPF WinExe" in csproj
     assert "Select_split_drag_delete_ripples" in nle
     assert "Does not check the PARKING_LOT human Export gate" in nle
+    assert "choco install ffmpeg -y --no-progress" in yml
+    live = (ROOT / "tests/NetieSpace.Tests/FfmpegExportLiveTests.cs").read_text(encoding="utf-8")
+    assert "FfmpegExportGraph.XfadeWithAudio" in live
+    assert "ffmpeg/ffprobe required on Windows CI" in live
 
 
 if __name__ == "__main__":
