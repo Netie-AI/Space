@@ -93,6 +93,12 @@ public sealed class TimelineProject
     public IEnumerable<TimelineTrack> AudioTracks => Tracks.Where(t => t.Kind == TrackKind.Audio);
     public TimelineTrack? OverlayTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Overlay);
 
+    /// <summary>Sentinel V1 source for Leave-black packed holes (lavfi on export).</summary>
+    public const string BlackSourcePath = ":black";
+
+    public static bool IsBlackPlaceholder(string? path) =>
+        string.Equals(path, BlackSourcePath, StringComparison.Ordinal);
+
     /// <summary>Sum of V1 media clips (no overlays). Wipe shortens the file later.</summary>
     public TimeSpan PackedVideoDuration()
     {
@@ -156,7 +162,9 @@ public sealed class TimelineProject
                 return false;
             string? first = null;
             foreach (var c in v.Clips.Where(c =>
-                         c.Overlay == OverlayKind.None && !string.IsNullOrWhiteSpace(c.SourcePath)))
+                         c.Overlay == OverlayKind.None &&
+                         !string.IsNullOrWhiteSpace(c.SourcePath) &&
+                         !IsBlackPlaceholder(c.SourcePath)))
             {
                 if (first is null)
                 {
@@ -425,7 +433,10 @@ public sealed class TimelineProject
 
         // Rebuild A1 to mirror V1 ranges (keeps audio locked to video after drag/delete)
         a.Clips.Clear();
-        foreach (var c in v.Clips.Where(x => x.Overlay == OverlayKind.None && !string.IsNullOrWhiteSpace(x.SourcePath)))
+        foreach (var c in v.Clips.Where(x =>
+                     x.Overlay == OverlayKind.None &&
+                     !string.IsNullOrWhiteSpace(x.SourcePath) &&
+                     !IsBlackPlaceholder(x.SourcePath)))
         {
             a.Clips.Add(new TimelineClip
             {
@@ -609,7 +620,10 @@ public sealed class TimelineProject
             return [];
 
         return v.Clips
-            .Where(c => c.Overlay == OverlayKind.None && !string.IsNullOrWhiteSpace(c.SourcePath))
+            .Where(c =>
+                c.Overlay == OverlayKind.None &&
+                !string.IsNullOrWhiteSpace(c.SourcePath) &&
+                !IsBlackPlaceholder(c.SourcePath))
             .OrderBy(c => c.TimelineStart)
             .Select(c => (c.SourceIn, c.SourceOut))
             .ToList();

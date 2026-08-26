@@ -59,6 +59,8 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("FfmpegExportGraph.ClipVideoFilters", ffmpeg)
         self.assertIn("FfmpegExportGraph.PadBlackAfterVideo", ffmpeg)
         self.assertIn("FfmpegExportGraph.EscapeFilterPath(safeSrt)", ffmpeg)
+        self.assertIn("IsBlackPlaceholder", ffmpeg)
+        self.assertIn("_ns_hole_", ffmpeg)
         self.assertIn("GetTempPath()", ffmpeg)
         self.assertIn("_ns_burn_", ffmpeg)
         self.assertIn("BlackPadAfterVideo", ffmpeg)

@@ -145,7 +145,9 @@ public sealed class VideoEditSession
     /// </summary>
     public int AppendClip(string sourcePath, TimeSpan duration)
     {
-        if (string.IsNullOrWhiteSpace(sourcePath) || duration < TimeSpan.FromMilliseconds(40))
+        if (string.IsNullOrWhiteSpace(sourcePath) ||
+            TimelineProject.IsBlackPlaceholder(sourcePath) ||
+            duration < TimeSpan.FromMilliseconds(40))
             return -1;
         _kept.Add(new KeptClip(TimeSpan.Zero, duration, sourcePath));
         SelectedIndex = _kept.Count - 1;
@@ -314,6 +316,20 @@ public sealed class VideoEditSession
             FadeIn = default
         });
         SelectedIndex = i;
+    }
+
+    /// <summary>
+    /// Leave black keeps a packed hole so the next clip is not covered
+    /// by the title card and Export can lavfi that span.
+    /// </summary>
+    public bool InsertBlackPlaceholder(int index, TimeSpan duration)
+    {
+        if (duration < TimeSpan.FromMilliseconds(40))
+            duration = TimeSpan.FromSeconds(1);
+        index = Math.Clamp(index, 0, _kept.Count);
+        _kept.Insert(index, new KeptClip(TimeSpan.Zero, duration, TimelineProject.BlackSourcePath));
+        SelectedIndex = -1;
+        return true;
     }
 
     /// <summary>Ripple-delete the selected clip, or the segment that contains playhead.</summary>
@@ -492,9 +508,11 @@ public sealed class VideoEditSession
             ? "No clips (all deleted)"
             : string.Join(" · ", _kept.Select((s, i) =>
             {
-                var name = string.IsNullOrWhiteSpace(s.SourcePath)
-                    ? ""
-                    : $" {IoPath.GetFileName(s.SourcePath)}";
+                var name = TimelineProject.IsBlackPlaceholder(s.SourcePath)
+                    ? " black"
+                    : string.IsNullOrWhiteSpace(s.SourcePath)
+                        ? ""
+                        : $" {IoPath.GetFileName(s.SourcePath)}";
                 var speed = Math.Abs(s.Speed - 1) > 0.01 ? $" {s.Speed:0.#}x" : "";
                 return $"{(i == SelectedIndex ? "▸" : "")}[{i + 1}]{name} {Format(s.Start)}–{Format(s.End)}{speed}";
             }));
@@ -550,6 +568,18 @@ public sealed class VideoEditSession
         {
             var a = _kept[i].Start;
             var b = _kept[i].End;
+            if (TimelineProject.IsBlackPlaceholder(_kept[i].SourcePath))
+            {
+                var blackDur = OutputDuration(_kept[i]);
+                if (blackDur > TimeSpan.Zero)
+                {
+                    list.Add(new TimelineSegment(i, cursor, cursor + blackDur, a, b, IsBlack: true));
+                    cursor += blackDur;
+                }
+
+                continue;
+            }
+
             if (fillSourceGapsWithBlack && i > 0 && ClipSourceEquals(i, _kept[i - 1].SourcePath))
             {
                 var prevEnd = _kept[i - 1].End;
