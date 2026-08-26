@@ -703,6 +703,68 @@ def test_html_photo_export() -> None:
             doc.close()
 
 
+def test_html_svg_photo_export() -> None:
+    """Share dest Word / Markdown on photo-only HTML with SVG pictures was empty / 1-byte."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _svg_bytes_to_png" in src
+    assert "svg\\+xml" in src
+    if not pymupdf_available():
+        print("SKIP html svg photo export -- pymupdf missing")
+        return
+    import base64
+    import zipfile
+
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30">'
+        '<rect width="40" height="30" fill="#00aa00"/></svg>'
+    )
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        html = d / "svgpic.html"
+        html.write_text(
+            f'<html><body><img src="data:image/svg+xml;base64,{b64}" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "svgpic.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "svgpic.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "svgpic.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+            assert "[image]" not in doc[0].get_text()
+        finally:
+            doc.close()
+        sib = d / "pic.svg"
+        sib.write_text(svg, encoding="utf-8")
+        rel = d / "rel.svg.html"
+        rel.write_text('<html><body><img src="pic.svg" alt=""></body></html>', encoding="utf-8")
+        rmd = d / "rel.svg.md"
+        res = run_engine(["to-md", str(rel), str(rmd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in rmd.read_text(encoding="utf-8")
+        rdocx = d / "rel.svg.docx"
+        res = run_engine(["export-as", str(rel), str(rdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(rdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist())
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -1528,6 +1590,7 @@ if __name__ == "__main__":
     test_export_as_preview_text_to_pdf()
     test_html_export_same_file()
     test_html_photo_export()
+    test_html_svg_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()

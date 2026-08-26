@@ -637,6 +637,27 @@ def markdown_to_html(text: str) -> str:
     return _markdown_to_html_stdlib(text)
 
 
+def _svg_bytes_to_png(raw: bytes) -> bytes | None:
+    """Pillow cannot open SVG. Photo HTML dest Word/MD used empty / 1-byte files."""
+    head = raw.lstrip()[:240].lower()
+    if b"<svg" not in head:
+        return None
+    try:
+        pymupdf = require_pymupdf()
+    except RuntimeError:
+        return None
+    try:
+        doc = pymupdf.open(stream=raw, filetype="svg")
+        try:
+            if doc.page_count < 1:
+                return None
+            return doc[0].get_pixmap().tobytes("png")
+        finally:
+            doc.close()
+    except Exception:
+        return None
+
+
 def _bytes_to_png(raw: bytes) -> bytes | None:
     import io
 
@@ -653,21 +674,44 @@ def _bytes_to_png(raw: bytes) -> bytes | None:
     except Exception:
         if raw[:8] == b"\x89PNG\r\n\x1a\n":
             return raw
-    return None
+    return _svg_bytes_to_png(raw)
+
+
+def _png_data_uri(png: bytes) -> str:
+    import base64
+
+    return "data:image/png;base64," + base64.b64encode(png).decode("ascii")
+
+
+def _svg_data_uri_to_png(href: str) -> bytes | None:
+    import base64
+
+    m = re.match(r"data:image/svg\+xml(?:;charset=[^;,]+)?;base64,([A-Za-z0-9+/=\s]+)$", href, re.I)
+    if not m:
+        return None
+    try:
+        raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
+    except Exception:
+        return None
+    return _bytes_to_png(raw)
 
 
 def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
     """Story cannot load file:// or relative imgs. Share dest 2 HTML / dest 1 MD."""
-    import base64
-
     n = 0
     root = base.resolve()
 
     def repl(m: re.Match[str]) -> str:
         nonlocal n
         href = m.group(1)
-        if href.startswith("data:") or n >= cap:
+        if n >= cap:
             return m.group(0)
+        if href.startswith("data:"):
+            png = _svg_data_uri_to_png(href)
+            if not png:
+                return m.group(0)
+            n += 1
+            return f'src="{_png_data_uri(png)}"'
         path = (base / href).resolve()
         try:
             path.relative_to(root)
@@ -679,8 +723,7 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
         if not png:
             return m.group(0)
         n += 1
-        b64 = base64.b64encode(png).decode("ascii")
-        return f'src="data:image/png;base64,{b64}"'
+        return f'src="{_png_data_uri(png)}"'
 
     return re.sub(r'src=["\']([^"\']+)["\']', repl, markup)
 
@@ -1560,7 +1603,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
 
     pngs: list[bytes] = []
     for m in re.finditer(
-        r"data:image/(?:png|jpeg|jpg|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)",
+        r"data:image/(?:png|jpeg|jpg|gif|webp|bmp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)",
         text,
         re.I,
     ):
