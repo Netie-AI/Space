@@ -68,4 +68,16 @@ public class FfmpegExportGraphTests
             FfmpegExportGraph.EscapeFilterPath(@"C:\Users\Mom's clips\a.srt"));
         Assert.Equal("/tmp/a.srt", FfmpegExportGraph.EscapeFilterPath("/tmp/a.srt"));
     }
+
+    [Fact]
+    public void Concat_demuxer_line_uses_file_name_only()
+    {
+        Assert.Equal(
+            "file '_ns_tlseg_ab.mp4'",
+            FfmpegExportGraph.ConcatDemuxerLine(@"C:\Users\Mom's clips\_ns_tlseg_ab.mp4"));
+        Assert.Equal(
+            "file '_ns_a.mp4'",
+            FfmpegExportGraph.ConcatDemuxerLine("/tmp/Mom's clips/_ns_a.mp4"));
+        Assert.DoesNotContain("Mom", FfmpegExportGraph.ConcatDemuxerLine(@"C:\Users\Mom's clips\a.mp4"));
+    }
 }

@@ -8,14 +8,15 @@
    Live wipe encode gate is 2.8..3.4s (hard-cut ~3.6s fails).
    `ci-cursor.sh` runs `encode-pillar1-wipe.sh` (same window).
    Windows CI runs `encode-pillar1-wipe.ps1`.
-2. **Ready PRs #4-#115 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#116 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
    Speed 2x shrinks packed width. Order... and Leave-black use that
    packed length. OV lane and the preview picture show the title card.
    Leave black seeks, pauses, keeps a V1 hole, and Export pads past V1.
-   Export range slices (`SlicePacked`).
+   Export range slices (`SlicePacked`). Concat lists use file names so
+   a folder like Mom's clips does not open as Moms.
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.

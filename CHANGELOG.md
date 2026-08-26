@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: concat demuxer lists use the file name only. Absolute `Mom's clips` paths failed even with `'\\''` (ffmpeg opened `Moms`). Wipe `-i` quotes were fine; hard-cut / merge / delete-middle concat was not.
 - Video: Add-text Export writes drawtext / fallback SRT under `%TEMP%`. Export to a folder like Mom's clips used to fail after #113 only fixed the whisper sidecar path.
 - Video: Leave black inserts a packed V1 black hole (`:black` lavfi). Ripple used to slide the next clip under the title card, so Export blacked out remaining footage.
 - Video: caption burn-in copies the SRT to a quote-free temp file before `subtitles=`. A sidecar / whisper SRT under a folder like Mom's clips used to fail Export (the filter strips apostrophes).
