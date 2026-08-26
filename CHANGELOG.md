@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: packed Play clock rebases on seek/click. After #102 a clip-2 click while autoplay ran was overwritten ~200ms later by origin+elapsed, so Split missed that clip.
 - Video: packed Play clock auto-starts if the clip is already playing (open autoplay / Edit / + Clip). #101 only began the clock on the Play click, so the slider stayed frozen while clip-1 pixels ran and Split used the old packed time.
 - Video: Play after + Clip advances the packed slider past clip 1. MediaEnded used to stop at the open-file duration, so Split at the playing frame used slider 0 and failed as an edge. Preview Source stays on clip 1.
 - Video: Order... lists packed output length (and `2x`) after Speed. Source End-Start made a 2x clip still look like 1.6s+2.0s in that dialog.

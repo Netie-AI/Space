@@ -2636,6 +2636,10 @@ public partial class PreviewWindow : Window
             _suppressSliderValueChanged = true;
             try { VideoSlider.Value = seconds; }
             finally { _suppressSliderValueChanged = false; }
+            // Packed play clock used origin+elapsed and overwrote a clip-2
+            // click ~200ms later. Rebase so Split stays on the click.
+            if (PlayPauseButton.Content?.ToString() == "Pause")
+                BeginPackedPlayClock();
             var packedMax = TimelineMaxSeconds();
             VideoTimeText.Text =
                 $"{FormatTs(TimeSpan.FromSeconds(seconds))} / {FormatTs(TimeSpan.FromSeconds(packedMax))}";
