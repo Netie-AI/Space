@@ -6214,7 +6214,14 @@ public partial class PreviewWindow : Window
         {
             var ext = IoPath.GetExtension(f).ToLowerInvariant();
             if (PdfOrganizeWindow.IsImagePath(f) ||
-                ext is ".pdf" or ".doc" or ".docx" or ".odt" or ".rtf" or ".txt" or ".text" or
+                ext is ".pdf" or ".doc" or ".docx" or ".odt" or ".rtf" or
+                    ".txt" or ".text" or ".log" or ".csv" or
+                    ".json" or ".xml" or ".cs" or ".js" or ".ts" or ".tsx" or ".jsx" or
+                    ".py" or ".java" or ".cpp" or ".c" or ".h" or ".hpp" or
+                    ".rs" or ".go" or ".rb" or ".php" or
+                    ".yaml" or ".yml" or ".toml" or ".ini" or ".cfg" or
+                    ".sql" or ".sh" or ".ps1" or ".bat" or
+                    ".css" or ".scss" or ".vue" or ".swift" or ".kt" or
                     ".md" or ".markdown" or ".html" or ".htm" or
                     ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
                     ".svg" or ".ico" or ".heic" or

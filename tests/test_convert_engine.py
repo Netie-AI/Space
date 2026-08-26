@@ -573,6 +573,22 @@ def test_text_markdown_drop_merge_lists() -> None:
         assert pdf.is_file() and pdf.stat().st_size > 200
 
 
+def test_code_drop_merge_lists() -> None:
+    """Drop previewed .json / .py onto a PDF used to ignore the file (lists stopped at .txt)."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".json"' in preview and '".py"' in preview and '".cs"' in preview
+    assert '".json"' in merge and '".py"' in merge and '".log"' in merge
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        js = d / "config.json"
+        js.write_text('{"name": "netie"}\n', encoding="utf-8")
+        pdf = d / "config.pdf"
+        res = run_engine(["export-as", str(js), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+
+
 def test_export_as_preview_video_gif() -> None:
     """Share Export as GIF on previewed .wmv. VIDEO_EXTS used to omit C# video suffixes."""
     import shutil
@@ -671,6 +687,7 @@ if __name__ == "__main__":
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_text_markdown_drop_merge_lists()
+    test_code_drop_merge_lists()
     test_export_as_preview_video_gif()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
