@@ -153,6 +153,9 @@ def test_scripts_and_docs():
     assert "RenderOverlayTrack" in layout
     assert "LostMouseCapture += CaptionCue_LostMouseCapture" in preview
     assert "EndCaptionDrag" in preview
+    cap_drag = preview[preview.index("private void EndCaptionDrag"):preview.index("private void CaptionCue_PreviewMouseRightButtonUp")]
+    assert "PushVideoUndo" in cap_drag
+    assert "_captionDragBaseStart" in cap_drag
     xaml_preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml").read_text(encoding="utf-8")
     assert 'x:Name="OverlayTrackCanvas"' in xaml_preview
     assert 'x:Name="VideoOverlayPreview"' in xaml_preview

@@ -1,3 +1,4 @@
+using System.IO;
 using NetieSpace.Services.Timeline;
 
 namespace NetieSpace.Services;
@@ -16,7 +17,8 @@ public sealed class VideoEditSession
         List<TimelineClip> Overlays,
         bool FillGaps,
         string? SubtitleBurnPath,
-        string? GlobalLutPath);
+        string? GlobalLutPath,
+        string? SubtitleBurnText);
 
     public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept =>
         _kept.ConvertAll(c => (c.Start, c.End));
@@ -117,12 +119,14 @@ public sealed class VideoEditSession
     /// </summary>
     public void PushUndo(TimelineProject? project)
     {
+        var srt = project?.SubtitleBurnPath;
         _undo.Push(new UndoFrame(
             _kept.Select(c => c).ToList(),
             project?.SnapshotOverlays() ?? [],
             FillGapsWithBlack,
-            project?.SubtitleBurnPath,
-            project?.GlobalLutPath));
+            srt,
+            project?.GlobalLutPath,
+            ReadSubtitleSnapshot(srt)));
         if (_undo.Count <= 40)
             return;
         var keep = _undo.Take(30).Reverse().ToList();
@@ -145,9 +149,38 @@ public sealed class VideoEditSession
             project.FillGapsWithBlack = frame.FillGaps;
             project.SubtitleBurnPath = frame.SubtitleBurnPath;
             project.GlobalLutPath = frame.GlobalLutPath;
+            WriteSubtitleSnapshot(frame.SubtitleBurnPath, frame.SubtitleBurnText);
         }
         project?.RestoreOverlays(frame.Overlays);
         return true;
+    }
+
+    private static string? ReadSubtitleSnapshot(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            return null;
+        try
+        {
+            return File.ReadAllText(path);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static void WriteSubtitleSnapshot(string? path, string? text)
+    {
+        if (string.IsNullOrWhiteSpace(path) || text is null)
+            return;
+        try
+        {
+            File.WriteAllText(path, text);
+        }
+        catch
+        {
+            // Undo still restores the path; PreviewWindow reloads if the file exists.
+        }
     }
 
     /// <summary>

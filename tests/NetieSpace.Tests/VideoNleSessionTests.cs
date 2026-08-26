@@ -525,6 +525,32 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Undo_restores_overwritten_srt_text()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "ns-undo-srt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "cues.srt");
+        File.WriteAllText(path, "1\n00:00:00,000 --> 00:00:01,000\nbefore\n");
+        try
+        {
+            var session = TenSecond(@"C:\clips\a.mp4");
+            var project = new TimelineProject();
+            project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+            project.SubtitleBurnPath = path;
+            session.PushUndo(project);
+            File.WriteAllText(path, "1\n00:00:00,000 --> 00:00:01,000\nafter\n");
+            Assert.True(session.TryUndo(project));
+            Assert.Equal(path, project.SubtitleBurnPath);
+            Assert.Contains("before", File.ReadAllText(path), StringComparison.Ordinal);
+            Assert.DoesNotContain("after", File.ReadAllText(path), StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { Directory.Delete(dir, true); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
     public void Undo_restores_subtitle_burn_path()
     {
         var session = TenSecond(@"C:\clips\a.mp4");
