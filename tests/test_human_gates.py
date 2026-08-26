@@ -96,6 +96,10 @@ def test_scripts_and_docs():
     assert "EndFadeHandleDrag" in handle_up
     assert "FadeHandle_LostMouseCapture" in handle_up
     assert "LostMouseCapture += FadeHandle_LostMouseCapture" in preview
+    assert "LostMouseCapture += ClipBlock_LostMouseCapture" in preview
+    assert "EndClipDrag" in preview
+    clip_drag = preview[preview.index("private void ClipBlock_PreviewMouseLeftButtonUp"):preview.index("private void FadeInButton_Click")]
+    assert "DiscardLastVideoUndo" in clip_drag
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
     keys = preview.index("private void Window_KeyDown")

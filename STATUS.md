@@ -15,7 +15,7 @@
    Pillar clip/check scripts use that bundle, not PATH-only.
    Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
    Failed Split / + Clip / cancel Delete / no-op fade-handle / fade-handle
-   capture-loss / second Wipe discard that undo.
+   or clip-drag capture-loss / second Wipe discard that undo.
    Ctrl+Z after Leave black removes the title card (Export must not burn it).
    Delete key runs the same ribbon Delete dialog.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.

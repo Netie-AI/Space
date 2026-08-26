@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: clip-drag capture-loss (alt-tab) still drops -- session `MoveClip` + clear the ghost transform. MouseUp used to be the only drop path, so a lost capture left a translated clip the session never reordered.
 - Video: fade-handle capture-loss (alt-tab) commits or discards the undo MouseDown pushed. MouseUp used to be the only path, so a lost capture left a no-op frame and Ctrl+Z popped + Clip.
 - License: Buy on a live Worker with no session is `register_first` and stays in-app (Sign in first). After #87 showed Buy on a dead Worker, that click used to open netie.space and look like Checkout was still down.
 - Video: Ctrl+Z after Leave black restores overlay cards. Session undo used to bring the clip back and leave the title card, so Export burned a leftover black overlay.
