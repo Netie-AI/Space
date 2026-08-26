@@ -2745,7 +2745,6 @@ public partial class PreviewWindow : Window
     }
 
     /// <summary>
-    /// <summary>
     /// In edit mode marks are packed seconds (Export range slices the
     /// timeline). After + Clip, source times from two files cannot be
     /// compared or TrimAsync'd on the open file.
@@ -4031,6 +4030,12 @@ public partial class PreviewWindow : Window
         }
 
         SyncTimelineFromSession();
+        // MediaOpened set In/Out to clip-1 duration. After + Clip that
+        // leftover window is still packed 0..1.6s, so More... Export range
+        // SlicePacked only clip 1 (looks like the old TrimAsync bug).
+        _markIn = TimeSpan.Zero;
+        _markOut = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+        UpdateMarkLabel();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)
