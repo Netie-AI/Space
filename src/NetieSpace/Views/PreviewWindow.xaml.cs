@@ -2963,6 +2963,7 @@ public partial class PreviewWindow : Window
             border.PreviewMouseLeftButtonDown += ClipBlock_PreviewMouseLeftButtonDown;
             border.PreviewMouseMove += ClipBlock_PreviewMouseMove;
             border.PreviewMouseLeftButtonUp += ClipBlock_PreviewMouseLeftButtonUp;
+            border.LostMouseCapture += ClipBlock_LostMouseCapture;
             Canvas.SetLeft(border, x0 + 1);
             Canvas.SetTop(border, 1);
             TimelineClipCanvas.Children.Add(border);
@@ -3364,16 +3365,27 @@ public partial class PreviewWindow : Window
 
     private void ClipBlock_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not Border b)
-            return;
-        b.ReleaseMouseCapture();
-        b.RenderTransform = null;
+        EndClipDrag(sender as Border, e.GetPosition(TimelineClipCanvas));
+        e.Handled = true;
+    }
+
+    private void ClipBlock_LostMouseCapture(object sender, MouseEventArgs e) =>
+        EndClipDrag(sender as Border, e.GetPosition(TimelineClipCanvas));
+
+    /// <summary>
+    /// Playbook drag+drop. Alt-tab used to skip MouseUp, so the ghost
+    /// transform stayed and the session never MoveClip'd. Clear the drag
+    /// index before ReleaseMouseCapture so LostMouseCapture is a no-op.
+    /// </summary>
+    private void EndClipDrag(Border? b, Point pos)
+    {
+        if (b is not null)
+            b.RenderTransform = null;
         if (_dragClipIndex < 0)
             return;
 
         if (_dragMoved && TimelineClipCanvas is not null)
         {
-            var pos = e.GetPosition(TimelineClipCanvas);
             var w = Math.Max(1, TimelineClipCanvas.ActualWidth);
             var packed = _videoEdit.BuildPackedTimeline(true);
             var total = _videoEdit.PackedDuration(true);
@@ -3398,13 +3410,15 @@ public partial class PreviewWindow : Window
                 if (TimelineHintText is not null)
                     TimelineHintText.Text = _videoEdit.Describe();
             }
+            else if (_dragClipIndex != target)
+                DiscardLastVideoUndo();
         }
 
         _dragClipIndex = -1;
         _dragMoved = false;
+        b?.ReleaseMouseCapture();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
-        e.Handled = true;
     }
 
     private void FadeInButton_Click(object sender, RoutedEventArgs e)

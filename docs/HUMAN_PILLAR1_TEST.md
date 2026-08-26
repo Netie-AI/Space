@@ -65,9 +65,10 @@ Export should land near that.
    removes that title card (Export used to burn the leftover overlay).
    A failed Split (playhead on
    an edge), a fade-handle click that does not move the diamond, a
-   fade-handle drag that loses mouse capture, or a
+   fade-handle or clip-drag that loses mouse capture, or a
    second Wipe on an already-wiped join discards that undo so Ctrl+Z
-   cannot pop + Clip.
+   cannot pop + Clip. A clip-drag alt-tab still drops (session MoveClip),
+   not a leftover ghost transform.
 9. Select the first remaining clip. Click **Fade In**. Select the last
    clip. Click **Fade Out**. Context-menu Fade and timeline handles write
    the same session (Export syncs from session, not a leftover timeline fade).
