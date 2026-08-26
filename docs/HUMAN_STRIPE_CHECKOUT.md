@@ -62,8 +62,10 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
    this laptop** on the login gate (so `SkipGate: false` is not a deadlock).
 3. Login gate or Setup -> Get Netie subscription.
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
-5. You land on `/v1/checkout/success`. The Worker retrieves that session and
-   fulfills the license even if the webhook is a few seconds late.
+5. You land on `/v1/checkout/success` on the same Worker host the app called
+   (local `:8787` or your `workers.dev`), not the committed `PUBLIC_BASE_URL`.
+   The Worker retrieves that session and fulfills the license even if the
+   webhook is a few seconds late.
 6. Login / Setup -> **Activate this laptop**. Needs a session from step 2.
    Success page already fulfilled the license. Activate without a Stripe
    session id returns `payment_required`.

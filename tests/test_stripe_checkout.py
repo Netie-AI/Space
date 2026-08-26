@@ -26,8 +26,12 @@ def test_worker_checkout_routes():
     assert 'url.pathname === "/v1/webhooks/stripe"' in src
     assert 'error: "stripe_not_configured"' in src
     assert "createCheckoutSession" in src
+    assert "requestPublicBase(req, env)" in src
     assert "verifyStripeSignature" in src
     assert "fulfillCheckoutSession" in stripe
+    assert "export function requestPublicBase" in stripe
+    assert "opts.publicBase" in stripe
+    assert "env.PUBLIC_BASE_URL}/v1/checkout/success" not in stripe
     assert "retrieveCheckoutSession" in stripe
     assert "checkoutSessionPaid" in stripe
     assert "export function stripeRefId" in stripe
@@ -120,6 +124,7 @@ def test_human_docs_exist():
     assert "payment_required" in human
     assert "already_paid" in human
     assert "billing/return" in human or "Billing updated" in human
+    assert "request host" in human.lower() or "Worker you called" in human or "same Worker" in human
     assert "REPLACE_AFTER_D1_CREATE" in human
     assert "do not run `npx wrangler deploy`" in human or "do not run" in human.lower()
     assert "Buy API flow" in parking

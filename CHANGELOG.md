@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- License: Checkout success/cancel and portal return use the Worker host that handled the request (`requestPublicBase`). Local `:8787` and `netie-space-license.<you>.workers.dev` no longer bounce to the committed `PUBLIC_BASE_URL` (`netie-space-license.workers.dev`).
 - PDF: `PdfClassicXref` strips Chrome/Word incremental xref-stream tails (last classic `%%EOF`) before PdfSharp. PdfSharp Open fails on those hybrids (`no trailer found`). Leftover `/Type /XRef` after rewrite still throws. xunit rewrite+signs both shapes.
 - PDF: `Sign` refuses leftover hybrid/xref-stream (`NeedsClassicXrefRewrite`). The old `xref` substring matches `startxref`, so a failed rewrite used to write a PKCS#7 Adobe will not show. `/Pages` is fail-closed (no default object 2). Stripe playbook: do not `wrangler deploy` while D1 id is `REPLACE_AFTER_D1_CREATE`.
 - PDF: cert sign rewrites hybrid files (classic trailer plus `/Type /XRef` stream). A trailer alone is not enough -- Adobe incremental PKCS#7 still fails on those.

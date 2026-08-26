@@ -15,6 +15,7 @@ import {
   checkoutSessionPaid,
   createCheckoutSession,
   createPortalSession,
+  requestPublicBase,
   fulfillCheckoutSession,
   markSubscriptionStatus,
   retrieveCheckoutSession,
@@ -677,6 +678,7 @@ async function handleCheckout(req: Request, env: Env): Promise<Response> {
       userId,
       email,
       customerId: paid?.stripe_customer_id,
+      publicBase: requestPublicBase(req, env),
     });
     return json(env, req, { checkout_url: session.url, session_id: session.id });
   } catch (err) {
@@ -704,7 +706,7 @@ async function handleBillingPortal(req: Request, env: Env): Promise<Response> {
   }
 
   try {
-    const portal = await createPortalSession(env, user.stripe_customer_id);
+    const portal = await createPortalSession(env, user.stripe_customer_id, requestPublicBase(req, env));
     return json(env, req, { portal_url: portal.url });
   } catch (err) {
     return json(env, req, { error: "stripe_error", message: String(err) }, 502);
