@@ -349,11 +349,17 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
                 return got
         raise RuntimeError("no PDF-to-markdown backend (pdfmd / pymupdf4llm / markitdown / pymupdf)")
 
-    if ext in {".pptx", ".ppt", ".odp"}:
+    if ext == ".odp":
+        return odp_to_text(src), "odp-zip"
+
+    if ext in {".pptx", ".ppt"}:
         got = via_pptx2md(src) or via_markitdown(src)
         if got:
             return got
-        raise RuntimeError("no PPTX-to-markdown backend (pptx2md / markitdown)")
+        got = via_soffice_markdown(src)
+        if got:
+            return got
+        raise RuntimeError("no PPTX-to-markdown backend (pptx2md / markitdown / LibreOffice)")
 
     if ext in IMAGE_EXTS:
         got = via_markitdown(src)
@@ -370,6 +376,9 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         return "\n".join(" | ".join(r) for r in rows) + "\n", "ods-zip"
 
     got = via_markitdown(src)
+    if got:
+        return got
+    got = via_soffice_markdown(src)
     if got:
         return got
     if ext in {".html", ".htm"}:
@@ -591,6 +600,11 @@ def odt_to_text(src: Path) -> str:
     return "\n".join(t for t in paras if t) + ("\n" if any(paras) else "")
 
 
+def odp_to_text(src: Path) -> str:
+    """Same ODF text:p walk as ODT. Share Export as PDF on .odp used pptx2md."""
+    return odt_to_text(src)
+
+
 def ods_to_rows(src: Path) -> list[list[str]]:
     root = _odf_content_root(src)
     ns = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
@@ -657,6 +671,18 @@ def via_soffice(src: Path, dest: Path) -> str | None:
             return None
         shutil.copy2(produced[0], dest)
         return "libreoffice"
+
+
+def via_soffice_markdown(src: Path) -> tuple[str, str] | None:
+    """OLE .doc/.xls/.ppt (and leftovers) -> text when LibreOffice is installed."""
+    with tempfile.TemporaryDirectory() as td:
+        out = Path(td) / (src.stem + ".txt")
+        if not via_soffice(src, out) or not out.is_file():
+            return None
+        text = out.read_text(encoding="utf-8", errors="replace").strip()
+        if not text:
+            return None
+        return text + "\n", "libreoffice"
 
 
 def file_to_xlsx(src: Path, dest: Path) -> str:
@@ -1257,7 +1283,7 @@ def action_export_as(argv: list[str]) -> dict:
     if dest_ext in HTML_EXTS:
         if src_ext in {".docx", ".doc"}:
             return ok(dest, mammoth_to_html(src, dest))
-        if src_ext in {".pptx", ".ppt", ".odp"}:
+        if src_ext in {".pptx", ".ppt"}:
             return ok(dest, pptx_to_html(src, dest))
         if src_ext in HTML_EXTS:
             dest.parent.mkdir(parents=True, exist_ok=True)
