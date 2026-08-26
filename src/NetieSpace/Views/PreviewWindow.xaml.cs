@@ -446,6 +446,8 @@ public partial class PreviewWindow : Window
             CopyImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (CompressImageButton is not null)
             CompressImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
+        if (SendToComfyButton is not null)
+            SendToComfyButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
 
         if (VideoEditorChrome is not null)
             VideoEditorChrome.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
@@ -4071,6 +4073,69 @@ public partial class PreviewWindow : Window
             ConvertStatusText.Text = $"Copied {IoPath.GetFileName(path)} — paste or drag the picture out.";
         else
             ConvertStatusText.Text = $"Copy failed: {err}";
+    }
+
+    private async void SendToComfyButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_content?.Kind != PreviewKind.Image || !TryRequireFile(out var path))
+            return;
+
+        try
+        {
+            var client = new ComfyUiClient();
+            ConvertStatusText.Text = "Checking local ComfyUI...";
+            var up = await client.IsAvailableAsync();
+            if (!up)
+            {
+                var msg = ComfyUiClient.OfflineMessage(client.BaseUrl);
+                ConvertStatusText.Text = msg;
+                if (StatusText is not null)
+                    StatusText.Text = "ComfyUI offline";
+                try
+                {
+                    ToastHud.Show("ComfyUI is not running -- rembg / Copy still work");
+                }
+                catch
+                {
+                    // Toast must never crash Space.
+                }
+                return;
+            }
+
+            string? sidecar = null;
+            try
+            {
+                sidecar = ComfyUiClient.WriteInputSidecar(path);
+            }
+            catch (Exception ex)
+            {
+                ConvertStatusText.Text = $"Could not write Comfy sidecar: {ex.Message}";
+            }
+
+            ConvertStatusText.Text = "Sending to ComfyUI...";
+            var workflow = ComfyUiClient.BuildLoadImageWorkflow(IoPath.GetFileName(path));
+            var result = await client.QueuePromptAsync(workflow);
+            if (result.Success)
+            {
+                ConvertStatusText.Text = result.Message;
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(sidecar))
+            {
+                ConvertStatusText.Text =
+                    $"Wrote {IoPath.GetFileName(sidecar)} -- run that workflow in ComfyUI. rembg / Copy still work.";
+                try { ToastHud.Show("Comfy sidecar written -- run the workflow locally"); }
+                catch { /* toast is optional */ }
+                return;
+            }
+
+            ConvertStatusText.Text = result.Message;
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"ComfyUI: {ex.Message}. rembg / Copy still work.";
+        }
     }
 
     private void PreviewImage_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

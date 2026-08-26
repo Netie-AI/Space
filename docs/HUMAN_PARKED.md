@@ -21,14 +21,22 @@ on error (same rule as highlight persist).
 
 ## ComfyUI / Windows AI
 
-Needs a Windows PC with a GPU and a local ComfyUI install. This Linux
-cloud agent has neither.
+Code-ready local client: `ComfyUiClient` talks to `http://127.0.0.1:8188`
+(override `NETIE_COMFY_URL`). Probe GET /system_stats (~1.2s). Down ->
+toast/status only; rembg / Copy still work. Live GPU still human.
 
-What you do:
+Click path (image preview):
 
-1. Install ComfyUI on Windows. Confirm `http://127.0.0.1:8188` loads.
-2. Decide the Space hook: Image ribbon -> Send to Comfy (path + workflow
-   JSON) or a watched output folder.
+1. Space an image.
+2. Image ribbon -> Send to Comfy...
+3. If 8188 is down: status/toast, no hang, no crash. rembg / Copy still work.
+4. If up: POST a minimal LoadImage workflow and/or write `{file}.comfy-input.json`
+   next to the image; run that workflow in ComfyUI.
+
+What you do on a Windows GPU:
+
+1. Install ComfyUI. Confirm `http://127.0.0.1:8188` loads.
+2. Click Send to Comfy... on an image. Confirm queue or sidecar.
 3. Keep rembg / Copy as the offline path when Comfy is down.
 
 What to check: Space still previews if Comfy is offline; no hang; output

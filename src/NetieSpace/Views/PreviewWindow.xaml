@@ -147,6 +147,10 @@
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="CompressImageButton_Click"
                                 ToolTip="Lower JPEG file size (quality picker)"/>
+                        <Button x:Name="SendToComfyButton" Content="Send to Comfy..." Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                                Click="SendToComfyButton_Click"
+                                ToolTip="Queue this image in local ComfyUI (127.0.0.1:8188). rembg / Copy still work if Comfy is down."/>
                         <!-- Share replaces the old text "convert" entry: icon only, sheet does the rest -->
                         <Button x:Name="ShareButton"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"

@@ -28,6 +28,7 @@
     <Compile Include="..\..\src\NetieSpace\Services\Timeline\TimelineProject.cs" Link="Linked\TimelineProject.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\CortexWasmPolicy.cs" Link="Linked\CortexWasmPolicy.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegExportGraph.cs" Link="Linked\FfmpegExportGraph.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\ComfyUiClient.cs" Link="Linked\ComfyUiClient.cs" />
   </ItemGroup>
 
 </Project>

@@ -11,13 +11,15 @@
    and PreviewWindow More menu (watermark / protect / unlock / OCR) call it.
 4. **Buy / Stripe** -- Worker `/v1/checkout` + webhook + portal. Live pay needs
    your Stripe secrets (`docs/HUMAN_STRIPE_CHECKOUT.md`).
+5. **ComfyUI** -- code-ready local client (`ComfyUiClient`, Image ribbon
+   Send to Comfy...). Live GPU still human (`docs/HUMAN_PARKED.md`).
 
 ## Next
 
 - Human Windows: Select->Split->Drag->Delete->Fade->Wipe->Export
   (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open this WPF app.
 - Human: Stripe secrets + test card, then tick Buy API / Stripe.
-- Parked: cert signatures, Comfy, P7 (`docs/HUMAN_PARKED.md`).
+- Parked: cert signatures, Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 
 ## Later
 
