@@ -47,7 +47,7 @@ public sealed class LicenseApiClient
         var res = await _http.SendAsync(req, ct);
         var body = await res.Content.ReadAsStringAsync(ct);
         if (!res.IsSuccessStatusCode)
-            return CheckoutResult.Fail(ParseError(body));
+            return CheckoutResult.Fail(ParseError(body), ParseErrorCode(body));
 
         var dto = JsonSerializer.Deserialize<CheckoutDto>(body, JsonOpts);
         if (string.IsNullOrWhiteSpace(dto?.CheckoutUrl))
@@ -251,8 +251,13 @@ public sealed class CheckoutResult
 {
     public bool Success { get; init; }
     public string? Error { get; init; }
+    public string? ErrorCode { get; init; }
     public string? CheckoutUrl { get; init; }
     public string? SessionId { get; init; }
+
+    public bool AlreadyPaid =>
+        string.Equals(ErrorCode, "already_paid", StringComparison.OrdinalIgnoreCase)
+        || (Error?.Contains("Already paid", StringComparison.OrdinalIgnoreCase) == true);
 
     public static CheckoutResult Ok(string url, string? sessionId) => new()
     {
@@ -261,7 +266,8 @@ public sealed class CheckoutResult
         SessionId = sessionId
     };
 
-    public static CheckoutResult Fail(string error) => new() { Success = false, Error = error };
+    public static CheckoutResult Fail(string error, string? errorCode = null) =>
+        new() { Success = false, Error = error, ErrorCode = errorCode };
 }
 
 public sealed class PortalResult

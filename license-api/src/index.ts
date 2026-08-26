@@ -628,8 +628,37 @@ async function handleCheckout(req: Request, env: Env): Promise<Response> {
     userId = existing.id;
   }
 
+  const paid = await env.DB.prepare(
+    `SELECT l.status, l.stripe_checkout_session_id, u.stripe_customer_id
+     FROM licenses l
+     JOIN users u ON u.id = l.user_id
+     WHERE l.user_id = ?
+     ORDER BY l.created_at DESC LIMIT 1`
+  )
+    .bind(userId)
+    .first<{
+      status: string;
+      stripe_checkout_session_id: string | null;
+      stripe_customer_id: string | null;
+    }>();
+  if (paid?.status === "active" && paid.stripe_checkout_session_id) {
+    return json(
+      env,
+      req,
+      {
+        error: "already_paid",
+        message: "Already paid. Activate this laptop (do not checkout again).",
+      },
+      409
+    );
+  }
+
   try {
-    const session = await createCheckoutSession(env, { userId, email });
+    const session = await createCheckoutSession(env, {
+      userId,
+      email,
+      customerId: paid?.stripe_customer_id,
+    });
     return json(env, req, { checkout_url: session.url, session_id: session.id });
   } catch (err) {
     return json(env, req, { error: "stripe_error", message: String(err) }, 502);

@@ -274,6 +274,12 @@ public partial class ApiSetupWindow : Window
                 return;
             }
 
+            if (checkout.AlreadyPaid)
+            {
+                StatusText.Text = checkout.Error ?? "Already paid. Activate this laptop.";
+                return;
+            }
+
             OpenBuyFallback(checkout.Error);
         }
         catch (Exception ex)

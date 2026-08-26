@@ -77,6 +77,9 @@ opens netie.space. That is expected until step 2 is done.
 - Buyer email (Resend) has the license key. Password is never in that mail.
 - Cancel at Checkout lands on `/v1/checkout/cancel`. License stays unchanged.
 - A second pay with the same session id does not create a second license.
+- A second **Get Netie subscription** click after a paid active license
+  returns `already_paid` (409). Do not checkout again -- Activate.
+  Expired licenses can checkout again and reuse the Stripe customer id.
 - After a customer id exists, `POST /v1/billing-portal` (signed in) returns a
   `billing.stripe.com` URL. Cancel / update card there, then license status
   follows `customer.subscription.updated` / `deleted`.
