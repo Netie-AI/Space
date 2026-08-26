@@ -37,9 +37,9 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"`
 
 ## API surface (Stripe-ready)
 
-- `POST /v1/register` — email + password → user + license key + Resend
+- `POST /v1/register` — email + password → user + license key + Resend. License is `pending` when Stripe secrets are live, `active` only on a local/dev Worker without secrets
 - `POST /v1/login`
-- `POST /v1/activate` — Bearer + `device_hash` → one laptop bind + entitlement token
+- `POST /v1/activate` — Bearer + `device_hash` → one laptop bind + entitlement token. 403 `payment_required` until Stripe fulfill stamps `stripe_checkout_session_id` (when Stripe is configured)
 - `POST /v1/download` — one-shot download token (burns on GET)
 - `GET /v1/me`
 - `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). 503 `stripe_not_configured` until secrets are set. Sign in first.

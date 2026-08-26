@@ -173,6 +173,9 @@ async function handleRegister(req: Request, env: Env): Promise<Response> {
   const licenseKey = randomLicenseKey();
   const now = new Date().toISOString();
   const passwordHash = await hashPassword(password);
+  // Pay-first when Stripe secrets are live. Local/dev Worker without secrets
+  // still grants active so SkipGate testers can Activate without a card.
+  const licenseStatus = stripeConfigured(env) ? "pending" : "active";
 
   await env.DB.batch([
     env.DB.prepare(
@@ -181,8 +184,8 @@ async function handleRegister(req: Request, env: Env): Promise<Response> {
     ).bind(userId, email, passwordHash, now),
     env.DB.prepare(
       `INSERT INTO licenses (id, user_id, license_key, status, max_devices, created_at, stripe_subscription_id, stripe_checkout_session_id)
-       VALUES (?, ?, ?, 'active', 1, ?, NULL, NULL)`
-    ).bind(licenseId, userId, licenseKey, now),
+       VALUES (?, ?, ?, ?, 1, ?, NULL, NULL)`
+    ).bind(licenseId, userId, licenseKey, licenseStatus, now),
   ]);
 
   const { token, expiresAt, tokenHash } = await createSessionToken(env.JWT_SECRET, userId);
@@ -204,7 +207,11 @@ async function handleRegister(req: Request, env: Env): Promise<Response> {
     env,
     email,
     `Welcome to ${env.APP_NAME}`,
-    `Your account is ready.\n\nLicense key: ${licenseKey}\n\nSign in inside Netie Space, then Activate on this laptop (one device).\n\nWe never email your password.`
+    `Your account is ready.\n\nLicense key: ${licenseKey}\n\n${
+      stripeConfigured(env)
+        ? "Pay first (Get Netie subscription), then Activate this laptop (one device)."
+        : "Sign in inside Netie Space, then Activate on this laptop (one device)."
+    }\n\nWe never email your password.`
   );
 
   return json(env, req, {
@@ -277,7 +284,7 @@ async function handleActivate(req: Request, env: Env): Promise<Response> {
 
   let license = licenseKey
     ? await env.DB.prepare(
-        "SELECT id, user_id, license_key, status, max_devices FROM licenses WHERE license_key = ?"
+        "SELECT id, user_id, license_key, status, max_devices, stripe_checkout_session_id FROM licenses WHERE license_key = ?"
       )
         .bind(licenseKey)
         .first<{
@@ -286,9 +293,10 @@ async function handleActivate(req: Request, env: Env): Promise<Response> {
           license_key: string;
           status: string;
           max_devices: number;
+          stripe_checkout_session_id: string | null;
         }>()
     : await env.DB.prepare(
-        "SELECT id, user_id, license_key, status, max_devices FROM licenses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1"
+        "SELECT id, user_id, license_key, status, max_devices, stripe_checkout_session_id FROM licenses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1"
       )
         .bind(auth.userId)
         .first<{
@@ -297,13 +305,36 @@ async function handleActivate(req: Request, env: Env): Promise<Response> {
           license_key: string;
           status: string;
           max_devices: number;
+          stripe_checkout_session_id: string | null;
         }>();
 
   if (!license || license.user_id !== auth.userId) {
     return json(env, req, { error: "license_not_found" }, 404);
   }
   if (license.status !== "active") {
-    return json(env, req, { error: "license_inactive" }, 403);
+    const unpaid = license.status === "pending" || !license.stripe_checkout_session_id;
+    return json(
+      env,
+      req,
+      {
+        error: unpaid ? "payment_required" : "license_inactive",
+        message: unpaid
+          ? "Pay first (Get Netie subscription), then Activate this laptop."
+          : "License is not active.",
+      },
+      403
+    );
+  }
+  if (stripeConfigured(env) && !license.stripe_checkout_session_id) {
+    return json(
+      env,
+      req,
+      {
+        error: "payment_required",
+        message: "Pay first (Get Netie subscription), then Activate this laptop.",
+      },
+      403
+    );
   }
 
   const now = new Date().toISOString();
