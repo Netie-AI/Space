@@ -615,7 +615,7 @@ public sealed class FfmpegService
     }
 
     private static string EscapeFilterPath(string path) =>
-        path.Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");
+        FfmpegExportGraph.EscapeFilterPath(path);
 
     private static string? ResolveDrawtextFont()
     {
@@ -646,14 +646,24 @@ public sealed class FfmpegService
             return Fail("Video missing for subtitle burn-in.");
 
         var burned = SiblingOutput(videoPath, "subs");
-        // ffmpeg subtitles= needs forward slashes and escaped drive colon
-        var escaped = srtPath.Replace('\\', '/').Replace(":", "\\:");
-        var r = await RunAsync(
-            $"-y -i \"{videoPath}\" -vf \"subtitles='{escaped}'\" " +
-            $"-c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{burned}\"",
-            burned, ct);
-        if (!r.Success)
-            return r;
+        // subtitles= strips ' even with \'. A sidecar under Mom's clips
+        // must be copied to a quote-free temp, then colon-escaped.
+        var safeSrt = IoPath.Combine(IoPath.GetTempPath(), $"_ns_burn_{Guid.NewGuid():N}.srt");
+        IoFile.Copy(srtPath, safeSrt, overwrite: true);
+        try
+        {
+            var escaped = FfmpegExportGraph.EscapeFilterPath(safeSrt);
+            var r = await RunAsync(
+                $"-y -i \"{videoPath}\" -vf \"subtitles='{escaped}'\" " +
+                $"-c:v libx264 -preset veryfast -crf 23 -c:a copy -movflags +faststart \"{burned}\"",
+                burned, ct);
+            if (!r.Success)
+                return r;
+        }
+        finally
+        {
+            TryDelete(safeSrt);
+        }
 
         TryDelete(videoPath);
         var finalize = await FinalizeToOutputAsync(burned, videoPath, ct);

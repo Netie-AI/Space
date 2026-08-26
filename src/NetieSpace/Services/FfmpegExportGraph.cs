@@ -89,4 +89,11 @@ public static class FfmpegExportGraph
     /// </summary>
     public static string PadBlackAfterVideo(double padSeconds) =>
         $"tpad=stop_mode=add:stop_duration={Math.Max(0, padSeconds):0.###}";
+
+    /// <summary>
+    /// ffmpeg filter path (subtitles / drawtext). Drive colon and
+    /// apostrophe must be escaped or a folder like Mom's clips fails burn-in.
+    /// </summary>
+    public static string EscapeFilterPath(string path) =>
+        path.Replace('\\', '/').Replace(":", "\\:").Replace("'", "\\'");
 }

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: caption burn-in copies the SRT to a quote-free temp file before `subtitles=`. A sidecar / whisper SRT under a folder like Mom's clips used to fail Export (the filter strips apostrophes).
 - Video: Export pads black after remaining V1 when a title card sits past the last clip. Last-clip Leave black used to burn 1.6s with the overlay after EOF, so the card never landed.
 - Video: Leave black on the last + Clip source keeps the packed ruler through the title card. Ripple used to end the scale on the leftover clip, so the OV card was a sliver at 100% and Play on that card hit MediaEnded.
 - Video: Leave black pauses after seeking onto the title card. + Clip autoplay used to walk the packed clock off that range ~200ms later, so the preview flash was gone before you could read it.

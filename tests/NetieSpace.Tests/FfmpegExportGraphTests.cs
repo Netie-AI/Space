@@ -59,4 +59,13 @@ public class FfmpegExportGraphTests
         Assert.Contains("stop_mode=add", FfmpegExportGraph.PadBlackAfterVideo(0.5));
         Assert.DoesNotContain("clone", FfmpegExportGraph.PadBlackAfterVideo(2));
     }
+
+    [Fact]
+    public void Escape_filter_path_escapes_apostrophe_and_drive_colon()
+    {
+        Assert.Equal(
+            "C\\:/Users/Mom\\'s clips/a.srt",
+            FfmpegExportGraph.EscapeFilterPath(@"C:\Users\Mom's clips\a.srt"));
+        Assert.Equal("/tmp/a.srt", FfmpegExportGraph.EscapeFilterPath("/tmp/a.srt"));
+    }
 }

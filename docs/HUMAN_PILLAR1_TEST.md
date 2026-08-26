@@ -116,6 +116,8 @@ Export should land near that.
     `tools/ffmpeg/ffprobe` as Export (not PATH only). Status says
     "captions burned in" only if the SRT was already on the snapshot
     when you clicked Export (a whisper finish after that does not count).
+    Sidecar / whisper SRT under a folder like Mom's clips still burns
+    (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
 
 ### What to check after Export
 
