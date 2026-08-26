@@ -540,6 +540,35 @@ def test_export_as_preview_text_to_pdf() -> None:
         assert text_pdf.is_file() and text_pdf.stat().st_size > 200
 
 
+def test_html_export_same_file() -> None:
+    """Share dest 1 on HTML is HTML in the source folder. copy2 raised SameFileError."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def copy_file" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    html_dlg = dlg.split('".html"', 1)[1][:220]
+    assert "Web page|*.html" in html_dlg
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        html = d / "page.html"
+        body = "<html><body><h1>Hello leftover</h1></body></html>"
+        html.write_text(body, encoding="utf-8")
+        res = run_engine(["export-as", str(html), str(html)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+        assert html.read_text(encoding="utf-8") == body
+        other = d / "page-out.html"
+        res = run_engine(["export-as", str(html), str(other)])
+        assert res.get("success"), res
+        assert other.read_text(encoding="utf-8") == body
+        docx = d / "note.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        res = run_engine(["export-as", str(docx), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "copy", res
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -1347,6 +1376,7 @@ if __name__ == "__main__":
     test_export_as_pps()
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
+    test_html_export_same_file()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
