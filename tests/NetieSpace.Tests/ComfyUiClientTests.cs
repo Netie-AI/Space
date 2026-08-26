@@ -45,6 +45,15 @@ public class ComfyUiClientTests
     }
 
     [Fact]
+    public void ImageContentType_uses_extension_not_octet_stream()
+    {
+        Assert.Equal("image/png", ComfyUiClient.ImageContentType("shot.png"));
+        Assert.Equal("image/jpeg", ComfyUiClient.ImageContentType(@"C:\img.JPG"));
+        Assert.Equal("image/webp", ComfyUiClient.ImageContentType("a.webp"));
+        Assert.Equal("image/png", ComfyUiClient.ImageContentType("noext"));
+    }
+
+    [Fact]
     public void BuildLoadImageWorkflow_includes_save_image()
     {
         var json = ComfyUiClient.BuildLoadImageWorkflow("shot.png");

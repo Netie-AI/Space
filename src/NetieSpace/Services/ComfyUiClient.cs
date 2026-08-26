@@ -80,7 +80,7 @@ public sealed class ComfyUiClient
             using var form = new MultipartFormDataContent();
             var bytes = await File.ReadAllBytesAsync(imagePath, linked.Token).ConfigureAwait(false);
             var file = new ByteArrayContent(bytes);
-            file.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+            file.Headers.ContentType = new MediaTypeHeaderValue(ImageContentType(imagePath));
             form.Add(file, "image", Path.GetFileName(imagePath));
             form.Add(new StringContent("true"), "overwrite");
             form.Add(new StringContent("input"), "type");
@@ -313,6 +313,20 @@ public sealed class ComfyUiClient
         {
             return null;
         }
+    }
+
+    public static string ImageContentType(string imagePath)
+    {
+        var ext = Path.GetExtension(imagePath).ToLowerInvariant();
+        return ext switch
+        {
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".webp" => "image/webp",
+            ".gif" => "image/gif",
+            ".bmp" => "image/bmp",
+            ".tif" or ".tiff" => "image/tiff",
+            _ => "image/png"
+        };
     }
 
     /// <summary>Write {file}.comfy-input.json next to the image (sidecar fallback).</summary>

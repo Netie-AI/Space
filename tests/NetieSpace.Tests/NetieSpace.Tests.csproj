@@ -36,4 +36,8 @@
     <Compile Include="..\..\src\NetieSpace\Services\PdfClassicXref.cs" Link="Linked\PdfClassicXref.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\xrefstream-mupdf.pdf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

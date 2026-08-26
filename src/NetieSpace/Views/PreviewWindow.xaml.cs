@@ -4098,16 +4098,6 @@ public partial class PreviewWindow : Window
                 return;
             }
 
-            string? sidecar = null;
-            try
-            {
-                sidecar = ComfyUiClient.WriteInputSidecar(path);
-            }
-            catch (Exception ex)
-            {
-                ConvertStatusText.Text = $"Could not write Comfy sidecar: {ex.Message}";
-            }
-
             ConvertStatusText.Text = "Sending to ComfyUI...";
             var uploaded = await client.UploadImageAsync(path);
             var fileName = uploaded ?? IoPath.GetFileName(path);
@@ -4123,21 +4113,22 @@ public partial class PreviewWindow : Window
                     await LoadFileAsync(saved);
                     return;
                 }
-
-                ConvertStatusText.Text = result.Message + " Copy / drag-out still work.";
-                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(sidecar))
+            // Sidecar only when upload / queue / download fails (playbook).
+            string? sidecar = null;
+            try { sidecar = ComfyUiClient.WriteInputSidecar(path); }
+            catch (Exception ex)
             {
                 ConvertStatusText.Text =
-                    $"Wrote {IoPath.GetFileName(sidecar)} -- run that workflow in ComfyUI. rembg / Copy still work.";
-                try { ToastHud.Show("Comfy sidecar written -- run the workflow locally"); }
-                catch { /* toast is optional */ }
+                    $"{result.Message} Could not write Comfy sidecar: {ex.Message}";
                 return;
             }
 
-            ConvertStatusText.Text = result.Message;
+            ConvertStatusText.Text =
+                $"Wrote {IoPath.GetFileName(sidecar)} -- run that workflow in ComfyUI. rembg / Copy still work.";
+            try { ToastHud.Show("Comfy sidecar written -- run the workflow locally"); }
+            catch { /* toast is optional */ }
         }
         catch (Exception ex)
         {
