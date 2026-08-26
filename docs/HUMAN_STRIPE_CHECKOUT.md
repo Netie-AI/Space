@@ -37,7 +37,8 @@ Use the `whsec_...` that `stripe listen` prints.
 If `license-api/wrangler.toml` still says `database_id = "REPLACE_AFTER_D1_CREATE"`,
 do not run `npx wrangler deploy`. That placeholder is not a D1 id. Wrangler will
 reject it or bind a new empty database. Run `.\scripts\setup-license-api.ps1 -Deploy`
-first (creates D1 and writes the id). After the id exists:
+first (writes the D1 id; reuses `netie-licenses` if that name already
+exists -- `d1 create` used to exit 1). After the id exists:
 
 ```
 cd license-api

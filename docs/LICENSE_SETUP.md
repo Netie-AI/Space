@@ -18,7 +18,7 @@
 
 ```powershell
 cd "D:\Netie Space"
-.\scripts\setup-license-api.ps1          # npm install + D1 create + local migrate
+.\scripts\setup-license-api.ps1          # npm install + D1 create/reuse + local migrate
 .\scripts\setup-license-api.ps1 -LocalOnly   # wrangler dev on :8787
 .\scripts\setup-license-api.ps1 -Deploy      # remote migrate + secrets + deploy
 ```
