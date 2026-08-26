@@ -542,11 +542,11 @@ def test_svg_ico_drop_merge_lists() -> None:
     merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
     organize = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(encoding="utf-8")
     explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
-    assert '".svg" or ".ico" or ".heic"' in preview
-    assert '".svg"' in merge and '".ico"' in merge and '".heic"' in merge
+    assert '".svg" or ".ico" or ".heic" or ".heif"' in preview
+    assert '".svg"' in merge and '".ico"' in merge and '".heic"' in merge and '".heif"' in merge
     # Organize still uses PdfSharp XImage -- do not treat SVG as a raster insert.
     assert '".svg"' not in organize.split("public static bool IsImagePath", 1)[1][:400]
-    assert '".svg"' in explorer and '".ico"' in explorer
+    assert '".svg"' in explorer and '".ico"' in explorer and '".heif"' in explorer
     ico = ROOT / "src/NetieSpace/Assets/netie.ico"
     if ico.is_file() and pymupdf_available():
         with tempfile.TemporaryDirectory() as tmp:

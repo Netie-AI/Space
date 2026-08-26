@@ -63,6 +63,7 @@ public class ComfyUiClientTests
         Assert.Equal("image/svg+xml", ComfyUiClient.ImageContentType("mark.svg"));
         Assert.Equal("image/x-icon", ComfyUiClient.ImageContentType("netie.ico"));
         Assert.Equal("image/heic", ComfyUiClient.ImageContentType("photo.heic"));
+        Assert.Equal("image/heic", ComfyUiClient.ImageContentType("photo.heif"));
         Assert.Equal("image/png", ComfyUiClient.ImageContentType("noext"));
     }
 
