@@ -37,6 +37,10 @@ def test_client_file_exists():
     assert "/prompt" in text
     assert "Success=false" in text
     assert "/history/" in text
+    assert "PollRoutes" in text
+    assert '["jobs", "history"]' in text
+    assert "TryReadJob" in text
+    assert "TryReadPoll" in text
     assert "IsAvailableAsync" in text
     assert "QueuePromptAsync" in text
     assert "Success=false" in text or "Fail(" in text
@@ -104,6 +108,9 @@ def test_xunit_compile_include():
     assert "TryReadHistory_completed_without_images_keeps_polling" in tests
     assert "DownloadFirstOutput_down_server_returns_null" in tests
     assert "RoutePrefixes_official_api_then_legacy" in tests
+    assert "PollRoutes_official_jobs_then_history" in tests
+    assert "TryReadHistory_does_not_read_job_payload" in tests
+    assert "TryReadJob_completed_without_images_keeps_polling" in tests
 
 
 def test_docs_code_ready():

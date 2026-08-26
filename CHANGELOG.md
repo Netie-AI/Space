@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Image: ComfyUI client polls `/api/jobs/{id}` then `/history/{id}`. Official 2026 OpenAPI superseded history; a jobs-only proxy used to 404 the poll and time out Send to Comfy.
 - Image: ComfyUI client tries `/api/` (2026 OpenAPI) then the unprefixed master routes. An `/api/`-only proxy used to false-offline the probe.
 - Video: Wipe export remap keeps a join-spanning cue. Per-edge shift used to invert 1.4..1.8 to 1.4..1.3 and drop the text.
 - Video: Export shifts caption / overlay times across wipe joins. A clip-2 cue at 1.8s used to burn at 1.8s on the 3.1s file (0.7s into clip 2). UI packed ruler stays pre-wipe.

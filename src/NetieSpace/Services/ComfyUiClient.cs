@@ -31,7 +31,11 @@ public sealed class ComfyUiClient
     /// <summary>Official ComfyUI 2026 OpenAPI first, then still-mounted unprefixed master routes.</summary>
     public static readonly string[] RoutePrefixes = ["/api", ""];
 
+    /// <summary>Official GET /api/jobs/{id} first; deprecated /history/{id} still mounted on master.</summary>
+    public static readonly string[] PollRoutes = ["jobs", "history"];
+
     string? _routePrefix;
+    string? _pollRoute;
 
     public ComfyUiClient(string? baseUrl = null)
     {
@@ -88,6 +92,39 @@ public sealed class ComfyUiClient
             {
                 if (last.IsSuccessStatusCode)
                     _routePrefix = prefix;
+                return last;
+            }
+        }
+
+        return last!;
+    }
+
+    IEnumerable<string> PollTries()
+    {
+        if (_pollRoute != null)
+        {
+            yield return _pollRoute;
+            yield break;
+        }
+
+        foreach (var r in PollRoutes)
+            yield return r;
+    }
+
+    async Task<HttpResponseMessage> GetPollAsync(HttpClient http, string promptId, CancellationToken ct)
+    {
+        HttpResponseMessage? last = null;
+        foreach (var route in PollTries())
+        {
+            last?.Dispose();
+            last = await SendWithPrefixAsync(
+                http,
+                prefix => new HttpRequestMessage(HttpMethod.Get, UrlFor(prefix, $"{route}/{promptId}")),
+                ct).ConfigureAwait(false);
+            if (last.IsSuccessStatusCode || !RetryableRoute(last) || _pollRoute != null)
+            {
+                if (last.IsSuccessStatusCode)
+                    _pollRoute = route;
                 return last;
             }
         }
@@ -171,8 +208,8 @@ public sealed class ComfyUiClient
     }
 
     /// <summary>
-    /// POST /api/prompt then /prompt; poll /api/history/{id} then /history/{id}
-    /// until an image output or ~30s.
+    /// POST /api/prompt then /prompt; poll /api/jobs/{id} then /api/history/{id}
+    /// (unprefixed last) until an image output or ~30s.
     /// status.completed with empty outputs is not done (Comfy history race).
     /// Down / error -> Success=false. Never throws to the UI.
     /// </summary>
@@ -228,13 +265,10 @@ public sealed class ComfyUiClient
             while (clock.Elapsed < QueueTimeout)
             {
                 ct.ThrowIfCancellationRequested();
-                using var hist = await SendWithPrefixAsync(
-                    http,
-                    prefix => new HttpRequestMessage(HttpMethod.Get, UrlFor(prefix, $"history/{promptId}")),
-                    ct).ConfigureAwait(false);
+                using var hist = await GetPollAsync(http, promptId, ct).ConfigureAwait(false);
                 var histText = await hist.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 if (hist.IsSuccessStatusCode &&
-                    TryReadHistory(histText, promptId, out var outputs, out var histError))
+                    TryReadPoll(histText, promptId, out var outputs, out var histError))
                 {
                     if (histError is not null)
                         return ComfyUiResult.Fail(histError);
@@ -436,6 +470,78 @@ public sealed class ComfyUiClient
         {
             ["prompt"] = doc.RootElement.Clone()
         });
+    }
+
+    /// <summary>
+    /// Official JobDetailResponse first (status is a string), then history
+    /// keyed by prompt_id. Image outputs -> success. error/failed -> error.
+    /// completed with no images -> false (keep polling).
+    /// </summary>
+    public static bool TryReadPoll(
+        string json,
+        string promptId,
+        out string? outputsJson,
+        out string? error)
+    {
+        if (TryReadJob(json, out outputsJson, out error))
+            return true;
+        return TryReadHistory(json, promptId, out outputsJson, out error);
+    }
+
+    /// <summary>
+    /// GET /api/jobs/{id} body. status is a string (not the history object).
+    /// completed with no images -> false (keep polling).
+    /// </summary>
+    public static bool TryReadJob(string json, out string? outputsJson, out string? error)
+    {
+        outputsJson = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(json) || json.Trim() == "{}")
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return false;
+            if (!root.TryGetProperty("status", out var status) ||
+                status.ValueKind != JsonValueKind.String)
+            {
+                return false;
+            }
+
+            var statusStr = status.GetString();
+            if (statusStr is "error" or "failed" or "cancelled")
+            {
+                error = "ComfyUI prompt failed. rembg / Copy still work.";
+                return true;
+            }
+
+            if (root.TryGetProperty("execution_error", out var execErr) &&
+                execErr.ValueKind is JsonValueKind.Object)
+            {
+                error = "ComfyUI prompt failed. rembg / Copy still work.";
+                return true;
+            }
+
+            if (root.TryGetProperty("outputs", out var outputs) &&
+                outputs.ValueKind == JsonValueKind.Object)
+            {
+                var raw = outputs.GetRawText();
+                if (TryFirstOutputImage(raw, out _, out _, out _))
+                {
+                    outputsJson = raw;
+                    return true;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        return false;
     }
 
     /// <summary>
