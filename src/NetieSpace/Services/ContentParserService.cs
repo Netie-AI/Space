@@ -17,7 +17,7 @@ public sealed class ContentParserService
     ];
     private static readonly HashSet<string> ImageExtensions =
     [
-        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".ico", ".heic"
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tif", ".tiff", ".ico", ".heic", ".heif"
     ];
 
     private const int MaxCodePreviewChars = 400_000;
@@ -694,7 +694,7 @@ public sealed class ContentParserService
         ".svg" => "image/svg+xml",
         ".tif" or ".tiff" => "image/tiff",
         ".ico" => "image/x-icon",
-        ".heic" => "image/heic",
+        ".heic" or ".heif" => "image/heic",
         _ => "image/jpeg"
     };
     private static string GetVideoMime(string extension) => extension.ToLowerInvariant() switch

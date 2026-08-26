@@ -6224,7 +6224,7 @@ public partial class PreviewWindow : Window
                     ".css" or ".scss" or ".vue" or ".swift" or ".kt" or
                     ".md" or ".markdown" or ".html" or ".htm" or
                     ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
-                    ".svg" or ".ico" or ".heic" or
+                    ".svg" or ".ico" or ".heic" or ".heif" or
                     ".png" or ".jpg")
                 files.Add(f);
         }

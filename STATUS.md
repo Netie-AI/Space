@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#161 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#162 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
    skips the 200ms canvas rebuild (Clear used to abort the drag).
@@ -30,7 +30,7 @@
    Ctrl+Z after Leave black restores the title card and fill-gaps flag.
    A2 uses packed start (preview-only, no amix).
    Share Export as Word / Excel writes real .docx / .xlsx. Opening those
-   plus .xlsm / text / .text / SVG / ODT / .ppsx / .markdown / SVG-drop / text-drop / code-drop merge.
+   plus .xlsm / text / .text / SVG / ODT / .ppsx / .markdown / SVG-drop / text-drop / code-drop / HEIF-drop merge.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
