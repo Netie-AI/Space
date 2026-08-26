@@ -556,6 +556,23 @@ def test_svg_ico_drop_merge_lists() -> None:
             assert pdf.is_file() and pdf.stat().st_size > 200
 
 
+def test_text_markdown_drop_merge_lists() -> None:
+    """Drop .text / .markdown onto a PDF used to ignore the file (lists had .txt / no markdown)."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".txt" or ".text"' in preview
+    assert '".md" or ".markdown"' in preview
+    assert '".text"' in merge and '".markdown"' in merge
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        notes = d / "notes.text"
+        notes.write_text("hello space from .text drop\n", encoding="utf-8")
+        pdf = d / "notes.pdf"
+        res = run_engine(["export-as", str(notes), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+
+
 def test_export_as_preview_video_gif() -> None:
     """Share Export as GIF on previewed .wmv. VIDEO_EXTS used to omit C# video suffixes."""
     import shutil
@@ -653,6 +670,7 @@ if __name__ == "__main__":
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
+    test_text_markdown_drop_merge_lists()
     test_export_as_preview_video_gif()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()

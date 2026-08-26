@@ -6214,7 +6214,8 @@ public partial class PreviewWindow : Window
         {
             var ext = IoPath.GetExtension(f).ToLowerInvariant();
             if (PdfOrganizeWindow.IsImagePath(f) ||
-                ext is ".pdf" or ".doc" or ".docx" or ".odt" or ".rtf" or ".txt" or ".html" or ".htm" or
+                ext is ".pdf" or ".doc" or ".docx" or ".odt" or ".rtf" or ".txt" or ".text" or
+                    ".md" or ".markdown" or ".html" or ".htm" or
                     ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
                     ".svg" or ".ico" or ".heic" or
                     ".png" or ".jpg")
