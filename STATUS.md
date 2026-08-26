@@ -13,7 +13,7 @@
 ## Next
 
 - Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open WPF.
-- Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (page box + Signature panel).
+- Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (xref rewrite + Signature panel).
 - Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`).
 
 ## Later

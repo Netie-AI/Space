@@ -33,6 +33,7 @@ def test_signer_is_cms_not_itext():
     assert "TryVerify" in src
     assert "CheckSignature" in src
     assert "self-check" in src
+    assert "NeedsClassicXrefRewrite" in src
 
 
 def test_ui_and_packages():
@@ -44,7 +45,11 @@ def test_ui_and_packages():
     assert "PdfCertSign_Click" in xaml
     assert "PdfCertSign_Click" in cs
     assert "PdfCmsSigner.SignFile" in cs
+    assert "RewriteClassicXref" in cs
     assert "WriteAllBytes(path, backup)" in cs
+    edit = _read(ROOT / "src/NetieSpace/Services/PdfEditService.cs")
+    assert "RewriteClassicXref" in edit
+    assert "PdfDocumentOpenMode.Modify" in edit
     assert "System.Security.Cryptography.Pkcs" in app
     assert "PdfCmsSigner.cs" in tests
     assert "System.Security.Cryptography.Pkcs" in tests
@@ -55,6 +60,7 @@ def test_xunit_and_parking():
     parking = _read(PARKING)
     assert "Sign_embeds_detached_pkcs7_and_keeps_hello" in unit
     assert "Sign_self_verifies_detached_cms" in unit
+    assert "NeedsClassicXrefRewrite_detects_missing_trailer" in unit
     assert "Cryptographic digital signature" in parking
     assert "PdfCmsSigner" in parking or "PKCS#7" in parking
 

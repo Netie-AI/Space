@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- PDF: Cert sign rewrites xref-stream to classic xref via PdfSharp before PKCS#7. `NeedsClassicXrefRewrite` has no PdfSharp types. Failed rewrite leaves original bytes.
+- Export: toast includes ffprobe duration; 2.8..3.4s adds `(wipe expect ~3.1s)` for the pillar1 human check.
 - License: `GET /v1/checkout/success?session_id=` retrieves the Stripe session and fulfills if paid (webhook backup). `GET /v1/stripe/status` is a no-secret probe; Setup shows configured vs `stripe_not_configured`.
 - Export: `scripts/check-pillar1-export.ps1` / `.sh` ffprobes a Windows Export (2.8..3.4s). Not a substitute for the click path.
 - CI: `scripts/ci-cursor.sh` now runs `dotnet test` on `tests/NetieSpace.Tests` (net8, no WPF). `ci-cursor-install.sh` installs the 8.0 SDK. Same suite as Windows CI; live ffmpeg wipe encodes here too.

@@ -54,6 +54,18 @@ public static class PdfCmsSigner
         IndexOf(pdf, Encoding.ASCII.GetBytes("/" + SubFilter)) >= 0;
 
     /// <summary>
+    /// True when the file has no classic trailer (xref-stream / missing startxref).
+    /// PdfSharp rewrite comes first; this method has no PdfSharp types.
+    /// </summary>
+    public static bool NeedsClassicXrefRewrite(ReadOnlySpan<byte> pdf)
+    {
+        var sx = LastIndexOf(pdf, "startxref"u8);
+        if (sx < 0)
+            return true;
+        return LastIndexOf(pdf[..sx], "trailer"u8) < 0;
+    }
+
+    /// <summary>
     /// Verify the last detached PKCS#7 against /ByteRange. Does not talk to Adobe.
     /// </summary>
     public static bool TryVerify(byte[] pdf, out string? error)

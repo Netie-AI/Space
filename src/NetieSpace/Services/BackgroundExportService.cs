@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using NetieSpace.Helpers;
 using NetieSpace.Views;
 
@@ -41,7 +43,7 @@ public sealed class BackgroundExportService
         {
             var result = await RunJobAsync(label, work, uiProgress, ct);
             if (result.Success && !string.IsNullOrWhiteSpace(result.OutputPath) && IoFile.Exists(result.OutputPath))
-                ToastHud.ShowExportComplete(result.OutputPath);
+                ToastHud.ShowExportComplete(result.OutputPath, TryFormatDuration(result.OutputPath));
             else if (!result.Success)
                 AppLogger.Warn($"{label} failed: {result.Error}");
 
@@ -93,6 +95,63 @@ public sealed class BackgroundExportService
         {
             Interlocked.Decrement(ref _activeCaptions);
         }
+    }
+
+    /// <summary>ffprobe duration for the export toast. 2.8..3.4s notes the pillar1 wipe expect.</summary>
+    internal static string? TryFormatDuration(string path)
+    {
+        try
+        {
+            var exe = WhichFfprobe();
+            if (exe is null || string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
+                return null;
+
+            using var p = Process.Start(new ProcessStartInfo
+            {
+                FileName = exe,
+                Arguments = $"-v error -show_entries format=duration -of csv=p=0 \"{path}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            });
+            if (p is null)
+                return null;
+            var text = p.StandardOutput.ReadToEnd();
+            if (!p.WaitForExit(4000))
+                return null;
+            if (!double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var sec) ||
+                sec <= 0 || double.IsNaN(sec) || double.IsInfinity(sec))
+            {
+                return null;
+            }
+
+            var note = $"{sec:0.00}s";
+            if (sec is >= 2.8 and <= 3.4)
+                note += " (wipe expect ~3.1s)";
+            return note;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static string? WhichFfprobe()
+    {
+        foreach (var name in new[] { "ffprobe", "ffprobe.exe" })
+        {
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in path.Split(IoPath.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(dir))
+                    continue;
+                var candidate = IoPath.Combine(dir, name);
+                if (IoFile.Exists(candidate))
+                    return candidate;
+            }
+        }
+        return null;
     }
 
     private static async Task<T> RunJobAsync<T>(

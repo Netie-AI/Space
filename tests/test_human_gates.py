@@ -32,6 +32,11 @@ def test_scripts_and_docs():
     assert "2.8" in check_sh and "3.4" in check_sh
     assert "2.8" in check_ps and "3.4" in check_ps
     assert "check-pillar1-export.ps1" in pillar
+    export = (ROOT / "src/NetieSpace/Services/BackgroundExportService.cs").read_text(encoding="utf-8")
+    toast = (ROOT / "src/NetieSpace/Views/ToastHud.xaml.cs").read_text(encoding="utf-8")
+    assert "TryFormatDuration" in export
+    assert "wipe expect ~3.1s" in export
+    assert "durationNote" in toast
     enc = (ROOT / "scripts/encode-pillar1-wipe.sh").read_text(encoding="utf-8")
     assert "wipeleft" in enc
     assert "offset=1.1" in enc
