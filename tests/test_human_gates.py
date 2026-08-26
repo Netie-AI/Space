@@ -107,6 +107,9 @@ def test_scripts_and_docs():
     assert "wipeleft" in enc
     assert "offset=1.1" in enc
     assert "_ffmpeg.sh" in enc
+    assert "check-pillar1-export.sh" in enc
+    cursor_ci = (ROOT / "scripts/ci-cursor.sh").read_text(encoding="utf-8")
+    assert "encode-pillar1-wipe.sh" in cursor_ci
     assert "tools/ffmpeg" in pillar
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in (ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md").read_text(encoding="utf-8")
     publish_ps = (ROOT / "scripts/publish.ps1").read_text(encoding="utf-8")
