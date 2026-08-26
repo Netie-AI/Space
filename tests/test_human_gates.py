@@ -104,6 +104,11 @@ def test_scripts_and_docs():
     assert "PackedPlayheadAfterElapsed" in preview
     assert "PackedPlayContinuesAfterSourceEnded" in preview
     assert "BeginPackedPlayClock" in preview
+    ui = preview[preview.index("private void UpdateVideoUi"):preview.index("private async void AddVideoButton_Click")]
+    assert "_packedPlayUtc is null" in ui
+    assert "BeginPackedPlayClock" in ui
+    add = preview[preview.index("private async void AddVideoButton_Click"):preview.index("private void OrderClipsButton_Click")]
+    assert "BeginPackedPlayClock" in add
     ended = preview[preview.index("private void PreviewVideo_MediaEnded"):preview.index("private void PlayPauseButton_Click")]
     assert "PackedPlayContinuesAfterSourceEnded" in ended
     assert "PreviewVideo.Stop()" in ended

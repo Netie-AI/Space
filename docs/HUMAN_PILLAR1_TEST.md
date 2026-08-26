@@ -44,8 +44,10 @@ Export should land near that.
 4. Click a clip so it is selected (blue outline).
 5. Drag the clip left or right. It should move. Drop it.
 6.    Move the playhead to the middle of a clip (clip 2 is OK). Play after
-   + Clip advances the packed slider (MediaEnded used to stop at clip 1
-   so Split at the playing frame used slider 0). Click **Split**.
+   + Clip advances the packed slider -- including if the clip was already
+   playing from open (autoplay used to leave the slider frozen). MediaEnded
+   used to stop at clip 1 so Split at the playing frame used slider 0.
+   Click **Split**.
    You should now have three clips. The packed slider and the playhead
    line on the clip track must stay on that clip -- both used to sit on
    clip 1 after + Clip (`GetPlayhead` is still the open file). Preview

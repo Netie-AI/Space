@@ -11,8 +11,9 @@
 2. **Ready PRs #4-#100 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip expands In/Out and slider max.
    Play after + Clip advances the packed slider (MediaEnded used to
-   stop at clip 1). Speed 2x shrinks packed width. Order... and
-   Leave-black use that packed length.
+   stop at clip 1; autoplay after + Clip now starts that clock too).
+   Speed 2x shrinks packed width. Order... and Leave-black use that
+   packed length.
    Export range slices (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.

@@ -4010,22 +4010,29 @@ public partial class PreviewWindow : Window
                 VideoSlider.Maximum = packedMax;
             if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
                 UsePackedPlayClock() &&
-                PlayPauseButton.Content?.ToString() == "Pause" &&
-                _packedPlayUtc is DateTime origin)
+                PlayPauseButton.Content?.ToString() == "Pause")
             {
-                var next = VideoEditSession.PackedPlayheadAfterElapsed(
-                    _packedPlayOrigin,
-                    (now - origin).TotalSeconds,
-                    packedMax);
-                _suppressSliderValueChanged = true;
-                try { VideoSlider.Value = next; }
-                finally { _suppressSliderValueChanged = false; }
-                if (next >= packedMax - 0.001)
+                // Autoplay / Edit / + Clip can already be playing. Play click
+                // is the only place that used to BeginPackedPlayClock, so the
+                // slider stayed frozen while clip-1 pixels ran.
+                if (_packedPlayUtc is null)
+                    BeginPackedPlayClock();
+                if (_packedPlayUtc is DateTime origin)
                 {
-                    PlayPauseButton.Content = "Play";
-                    try { PreviewVideo.Pause(); }
-                    catch { /* ignore */ }
-                    StopPackedPlayClock();
+                    var next = VideoEditSession.PackedPlayheadAfterElapsed(
+                        _packedPlayOrigin,
+                        (now - origin).TotalSeconds,
+                        packedMax);
+                    _suppressSliderValueChanged = true;
+                    try { VideoSlider.Value = next; }
+                    finally { _suppressSliderValueChanged = false; }
+                    if (next >= packedMax - 0.001)
+                    {
+                        PlayPauseButton.Content = "Play";
+                        try { PreviewVideo.Pause(); }
+                        catch { /* ignore */ }
+                        StopPackedPlayClock();
+                    }
                 }
             }
             else if (!_sliderDragging && _timelineDrag == TimelineDragMode.None &&
@@ -4101,6 +4108,8 @@ public partial class PreviewWindow : Window
         // clamps Value to the join and Split fails as an edge. Marks
         // staying at 0..1.6s made Export range SlicePacked only clip 1.
         SyncPackedSlider(resetMarks: true);
+        if (PlayPauseButton.Content?.ToString() == "Pause")
+            BeginPackedPlayClock();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)
