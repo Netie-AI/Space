@@ -909,6 +909,129 @@ def write_xlsx(dest: Path, rows: list[list[str]]) -> str:
     return "xlsx-zip"
 
 
+def write_xlsx_images(dest: Path, pngs: list[bytes]) -> str:
+    """Photo ODS -> Excel. Share Export as Excel used empty cell text (no pictures)."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not pngs:
+        return write_xlsx(dest, [[""]])
+    anchors: list[str] = []
+    drawing_rels: list[str] = []
+    media: list[tuple[str, bytes]] = []
+    row = 0
+    for i, blob in enumerate(pngs, 1):
+        name = f"image{i}.png"
+        media.append((name, blob))
+        rid = f"rId{i}"
+        drawing_rels.append(
+            f'<Relationship Id="{rid}" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" '
+            f'Target="../media/{name}"/>'
+        )
+        w_px, h_px = 400, 300
+        try:
+            from PIL import Image
+            import io
+
+            im = Image.open(io.BytesIO(blob))
+            w_px, h_px = im.size
+            im.close()
+        except Exception:
+            pass
+        emu_w = min(int(w_px * 9525), 9144000)
+        emu_h = max(1, int(h_px * (emu_w / max(w_px, 1))))
+        anchors.append(
+            "<xdr:oneCellAnchor>"
+            f"<xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff>"
+            f"<xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>"
+            f'<xdr:ext cx="{emu_w}" cy="{emu_h}"/>'
+            "<xdr:pic><xdr:nvPicPr>"
+            f'<xdr:cNvPr id="{i}" name="Picture {i}"/><xdr:cNvPicPr/>'
+            "</xdr:nvPicPr><xdr:blipFill>"
+            f'<a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch>'
+            "</xdr:blipFill><xdr:spPr><a:xfrm>"
+            f'<a:off x="0" y="0"/><a:ext cx="{emu_w}" cy="{emu_h}"/>'
+            '</a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr>'
+            "</xdr:pic><xdr:clientData/></xdr:oneCellAnchor>"
+        )
+        row += max(8, min(40, int(h_px / 15) + 2))
+    drawing_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" '
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        f"{''.join(anchors)}</xdr:wsDr>"
+    )
+    sheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        "<sheetData/>"
+        '<drawing r:id="rId1"/>'
+        "</worksheet>"
+    )
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+        'Target="worksheets/sheet1.xml"/>'
+        "</Relationships>"
+    )
+    sheet_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" '
+        'Target="../drawings/drawing1.xml"/>'
+        "</Relationships>"
+    )
+    drawing_rels_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f"{''.join(drawing_rels)}</Relationships>"
+    )
+    root_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="xl/workbook.xml"/>'
+        "</Relationships>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Default Extension="png" ContentType="image/png"/>'
+        '<Override PartName="/xl/workbook.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        '<Override PartName="/xl/drawings/drawing1.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>'
+        "</Types>"
+    )
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", root_rels)
+        zf.writestr("xl/workbook.xml", workbook_xml)
+        zf.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+        zf.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+        zf.writestr("xl/worksheets/_rels/sheet1.xml.rels", sheet_rels)
+        zf.writestr("xl/drawings/drawing1.xml", drawing_xml)
+        zf.writestr("xl/drawings/_rels/drawing1.xml.rels", drawing_rels_xml)
+        for name, blob in media:
+            zf.writestr(f"xl/media/{name}", blob)
+    return "xlsx-zip-images"
+
+
 def rtf_to_text(src: Path) -> str:
     """Best-effort RTF -> plain text. Share Export as PDF/Word on .rtf used markitdown."""
     s = src.read_bytes().decode("latin-1", errors="replace")
@@ -1043,7 +1166,13 @@ def file_to_xlsx(src: Path, dest: Path) -> str:
     if ext == ".csv":
         return write_xlsx(dest, csv_to_rows(src))
     if ext == ".ods":
-        return write_xlsx(dest, ods_to_rows(src))
+        rows = ods_to_rows(src)
+        if any((c or "").strip() for r in rows for c in r):
+            return write_xlsx(dest, rows)
+        pngs = office_media_pngs(src)
+        if pngs:
+            return write_xlsx_images(dest, pngs)
+        return write_xlsx(dest, rows)
     tool = via_soffice(src, dest)
     if tool:
         return tool
