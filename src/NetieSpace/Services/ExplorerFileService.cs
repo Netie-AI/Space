@@ -1014,7 +1014,10 @@ public sealed class ExplorerFileService
         ".svg", ".ico", ".heic",
         ".pdf", ".docx", ".doc", ".odt", ".rtf", ".pptx", ".ppt", ".ppsx", ".pps", ".odp",
         ".xlsx", ".xlsm", ".xls", ".ods",
-        ".txt", ".text", ".md", ".markdown", ".csv", ".json", ".xml", ".html", ".htm",
+        ".txt", ".text", ".log", ".csv", ".json", ".xml", ".cs", ".js", ".ts", ".tsx", ".jsx",
+        ".py", ".java", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".rb", ".php",
+        ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sql", ".sh", ".ps1", ".bat",
+        ".css", ".scss", ".vue", ".swift", ".kt", ".md", ".markdown", ".html", ".htm",
         ".zip", ".7z", ".rar", ".lnk"
     ];
 

@@ -579,6 +579,9 @@ def test_code_drop_merge_lists() -> None:
     merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
     assert '".json"' in preview and '".py"' in preview and '".cs"' in preview
     assert '".json"' in merge and '".py"' in merge and '".log"' in merge
+    assert "*.yaml" in merge and "*.kt" in merge and "*.rs" in merge
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
+    assert '".py"' in explorer and '".cs"' in explorer and '".yaml"' in explorer
     with tempfile.TemporaryDirectory() as tmp:
         d = Path(tmp)
         js = d / "config.json"
