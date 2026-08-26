@@ -653,6 +653,22 @@ def test_organize_engine_image_insert() -> None:
         assert png.is_file() and png.stat().st_size > 50
 
 
+def test_sign_stamp_engine_raster() -> None:
+    """Sign stamp picker hid WebP/HEIC; All files + WebP fed XImage and a fake PNG data URL."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    stamp = preview.split("PdfSignStamp_Click", 1)[1].split("PdfSignLibrary_Click", 1)[0]
+    assert "RasterizeForXImageAsync" in stamp
+    assert "*.webp" in stamp and "*.heic" in stamp and "*.svg" in stamp
+    lib = preview.split("PdfSignLibrary_Click", 1)[1].split("PdfCommentHighlight_Click", 1)[0]
+    assert "RasterizeForXImageAsync" in lib
+    helper = preview.split("private async Task<string?> RasterizeForXImageAsync", 1)[1][:500]
+    assert "IsEngineImagePath" in helper and "IsImagePath" in helper
+    image_path = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(
+        encoding="utf-8"
+    ).split("public static bool IsImagePath", 1)[1][:500]
+    assert '".webp"' not in image_path
+
+
 def test_heic_pdf_uses_pillow() -> None:
     """Share / drop HEIC as PDF used MuPDF insert_image (no heic decoder). JPG already used Pillow."""
     engine = ENGINE.read_text(encoding="utf-8")
@@ -851,6 +867,7 @@ if __name__ == "__main__":
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
+    test_sign_stamp_engine_raster()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()
     test_code_drop_merge_lists()
