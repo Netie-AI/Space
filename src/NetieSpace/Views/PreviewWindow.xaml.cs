@@ -1620,6 +1620,7 @@ public partial class PreviewWindow : Window
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)
             TimelineHintText.Text = _videoEdit.Describe();
+        UpdateOverlayPreview();
     }
 
     private async void ExportEditButton_Click(object sender, RoutedEventArgs e) =>
@@ -2597,6 +2598,46 @@ public partial class PreviewWindow : Window
         if (_editMode && _videoEdit.Kept.Count > 0)
             return TimeSpan.FromSeconds(VideoSlider.Value);
         return GetPlayhead();
+    }
+
+    /// <summary>
+    /// Preview picture follows OverlayTrack at the packed playhead.
+    /// OV lane alone left Leave-black / Add text invisible on the frame,
+    /// so Export "picture is not black" was the first cue.
+    /// </summary>
+    private void UpdateOverlayPreview()
+    {
+        if (VideoOverlayPreview is null)
+            return;
+        if (!_editMode || _content?.Kind != PreviewKind.Video)
+        {
+            VideoOverlayPreview.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var t = PackedPlayhead();
+        var ov = _timeline.OverlayTrack?.Clips
+            .LastOrDefault(c =>
+                c.Overlay != OverlayKind.None &&
+                t >= c.TimelineStart &&
+                t < c.TimelineStart + c.Duration);
+        if (ov is null)
+        {
+            VideoOverlayPreview.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        VideoOverlayPreview.Visibility = Visibility.Visible;
+        VideoOverlayPreview.Background = ov.Overlay switch
+        {
+            OverlayKind.Black => new SolidColorBrush(Color.FromArgb(0xE6, 0x00, 0x00, 0x00)),
+            OverlayKind.White => new SolidColorBrush(Color.FromArgb(0xE6, 0xF4, 0xF4, 0xF4)),
+            _ => new SolidColorBrush(Color.FromArgb(0x99, 0x00, 0x00, 0x00))
+        };
+        if (VideoOverlayPreviewText is null)
+            return;
+        VideoOverlayPreviewText.Text = ov.Overlay == OverlayKind.Text ? (ov.Text ?? "") : "";
+        VideoOverlayPreviewText.Foreground = ov.Overlay == OverlayKind.White ? Brushes.Black : Brushes.White;
     }
 
     private void VideoSlider_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -3632,6 +3673,7 @@ public partial class PreviewWindow : Window
         {
             ConvertStatusText.Text = "Text overlay on canvas — burns into Export (drawtext / SRT fallback).";
             ScheduleTimelineLayout();
+            UpdateOverlayPreview();
         }
     }
 
@@ -3948,6 +3990,7 @@ public partial class PreviewWindow : Window
             action();
             ConvertStatusText.Text = $"{header} — applied (export with Export timeline).";
             ScheduleTimelineLayout();
+            UpdateOverlayPreview();
         };
         return item;
     }
@@ -4095,6 +4138,7 @@ public partial class PreviewWindow : Window
                     $"{FormatTs(TimeSpan.FromSeconds(displayPos))} / {FormatTs(TimeSpan.FromSeconds(displayMax))}";
                 if (_editMode)
                     ScheduleTimelineLayout();
+                UpdateOverlayPreview();
                 return;
             }
 
@@ -4168,6 +4212,7 @@ public partial class PreviewWindow : Window
         VideoTimeText.Text = $"{FormatTs(TimeSpan.FromSeconds(displayPos2))} / {FormatTs(TimeSpan.FromSeconds(displayMax2))}";
         if (_editMode)
             ScheduleTimelineLayout();
+        UpdateOverlayPreview();
     }
 
     private async void AddVideoButton_Click(object sender, RoutedEventArgs e)
@@ -5023,6 +5068,7 @@ public partial class PreviewWindow : Window
         SyncPackedSlider();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
+        UpdateOverlayPreview();
         ConvertStatusText.Text = "Undid last timeline edit";
     }
 
