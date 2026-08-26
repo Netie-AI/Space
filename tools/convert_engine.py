@@ -75,7 +75,7 @@ def fail(error: str, tool: str | None = None) -> dict:
 
 IMAGE_EXTS = {
     ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff",
-    ".ico", ".heic", ".heif",
+    ".ico", ".heic", ".heif", ".svg",
 }
 VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi", ".m4v"}
 AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg"}
@@ -860,6 +860,15 @@ def markdown_to_pdf(text: str, dest: Path) -> str:
 def image_to_pdf(src: Path, dest: Path) -> str:
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
+    # SVG is a document to MuPDF (insert_image rejects it). Preview already
+    # treats .svg as an image; Share Export as PDF used markitdown.
+    if src.suffix.lower() == ".svg":
+        doc = pymupdf.open(str(src))
+        try:
+            dest.write_bytes(doc.convert_to_pdf())
+        finally:
+            doc.close()
+        return "pymupdf"
     doc = pymupdf.open()
     img = pymupdf.open(str(src))
     try:
@@ -906,6 +915,15 @@ def load_pil_image(src: Path):
         from PIL import Image
     except Exception as e:
         raise RuntimeError(f"Pillow missing: {e}") from e
+    if src.suffix.lower() == ".svg":
+        import io
+        pymupdf = require_pymupdf()
+        doc = pymupdf.open(str(src))
+        try:
+            pix = doc[0].get_pixmap()
+            return Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGBA")
+        finally:
+            doc.close()
     if src.suffix.lower() in {".heic", ".heif"}:
         try:
             from pillow_heif import register_heif_opener
