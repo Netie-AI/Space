@@ -5,13 +5,13 @@
 ## Now
 
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit). Ignore GHA billing.
-2. **Ready PRs #4-#82 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#83 landed**. Draft #1 stays draft.
    Marks are packed seconds. Export range slices the timeline (`SlicePacked`).
    Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
    `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
    Pillar clip/check scripts use that bundle, not PATH-only.
    Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
-   Failed Split / + Clip / cancel Delete / no-op fade-handle discard that undo.
+   Failed Split / + Clip / cancel Delete / no-op fade-handle / second Wipe discard that undo.
    Delete key runs the same ribbon Delete dialog.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all

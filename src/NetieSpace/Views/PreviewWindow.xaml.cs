@@ -3437,7 +3437,7 @@ public partial class PreviewWindow : Window
         if (!_videoEdit.ApplyWipeAtJoin())
         {
             DiscardLastVideoUndo();
-            ConvertStatusText.Text = "Wipe needs two clips — Split or + Clip, then click Wipe on either side of the join.";
+            ConvertStatusText.Text = "Wipe already on that join.";
             return;
         }
 

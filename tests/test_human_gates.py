@@ -78,6 +78,7 @@ def test_scripts_and_docs():
     wipe_end = preview.index("private void OverlayTextButton_Click")
     assert "PushVideoUndo" in preview[wipe:wipe_end]
     assert "DiscardLastVideoUndo" in preview[wipe:wipe_end]
+    assert "Wipe already on that join" in preview[wipe:wipe_end]
     split = preview.index("private void SplitAtPlayhead_Click")
     split_end = preview.index("private void CutMiddleButton_Click")
     assert "DiscardLastVideoUndo" in preview[split:split_end]
