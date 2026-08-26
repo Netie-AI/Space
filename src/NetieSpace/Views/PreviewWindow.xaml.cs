@@ -4030,12 +4030,18 @@ public partial class PreviewWindow : Window
         }
 
         SyncTimelineFromSession();
-        // MediaOpened set In/Out to clip-1 duration. After + Clip that
-        // leftover window is still packed 0..1.6s, so More... Export range
-        // SlicePacked only clip 1 (looks like the old TrimAsync bug).
+        // MediaOpened set In/Out and slider max to clip-1 duration.
+        // After + Clip that leftover max is still 1.6s, so a clip-2 seek
+        // clamps Value to the join and Split fails as an edge. Marks
+        // staying at 0..1.6s made Export range SlicePacked only clip 1.
+        var packed = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+        _suppressSliderValueChanged = true;
+        try { VideoSlider.Maximum = Math.Max(0.001, packed.TotalSeconds); }
+        finally { _suppressSliderValueChanged = false; }
         _markIn = TimeSpan.Zero;
-        _markOut = _videoEdit.PackedDuration(_videoEdit.FillGapsWithBlack);
+        _markOut = packed;
         UpdateMarkLabel();
+        UpdateVideoUi();
         RefreshDeleteVisibility();
         ScheduleTimelineLayout();
         if (TimelineHintText is not null)

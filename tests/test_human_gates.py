@@ -100,6 +100,7 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in preview[add:add_end]
     assert "PackedDuration" in preview[add:add_end]
     assert "_markOut =" in preview[add:add_end]
+    assert "VideoSlider.Maximum" in preview[add:add_end]
     handle_up = preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     assert "ApplyFadeAt" in handle_up
     assert "DiscardLastVideoUndo" in handle_up
