@@ -90,6 +90,9 @@ OFFICE_EXTS = {
 PPTX_EXTS = {".pptx", ".ppsx", ".ppt", ".pps"}
 # Share default PDF is blank when these have pictures and no text.
 PHOTO_OFFICE_EXTS = PPTX_EXTS | {".odp", ".odt", ".docx", ".ods", ".xlsx", ".xlsm"}
+# OLE binaries. Share hides these. Merge / drop to-pdf used empty markdown
+# (573-byte blank PDF) when soffice is missing.
+OLE_SOFFICE_EXTS = {".doc", ".xls"}
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
 # Matches ContentParserService.TextExtensions minus .html/.md (own paths).
@@ -1204,7 +1207,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         return markdown_to_pdf(text, dest)
     try:
         text, _tool = file_to_markdown(src)
-        if text.strip() or ext not in PHOTO_OFFICE_EXTS:
+        if text.strip() or (ext not in PHOTO_OFFICE_EXTS and ext not in OLE_SOFFICE_EXTS):
             return markdown_to_pdf(text, dest)
     except RuntimeError:
         text = ""
@@ -1213,6 +1216,11 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         if pngs:
             name = "pymupdf-pptx-images" if ext in PPTX_EXTS else "pymupdf-office-images"
             return images_to_pdf(pngs, dest, tool=name)
+    if ext in OLE_SOFFICE_EXTS and not (text or "").strip():
+        tool = via_soffice(src, dest)
+        if tool:
+            return tool
+        raise RuntimeError("LibreOffice required to export this file as PDF")
     if text.strip() or ext not in PHOTO_OFFICE_EXTS:
         return markdown_to_pdf(text, dest)
     raise RuntimeError(f"no PDF converter for {ext or 'unknown'}")
