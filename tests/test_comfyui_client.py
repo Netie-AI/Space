@@ -97,7 +97,7 @@ def test_menu_and_handler_names():
     assert "rembg / Copy still work" in cs
     assert "SendToComfyButton.Visibility = isImage" in cs
     assert "RasterizeForComfyAsync" in cs
-    assert 'ext is not (".svg" or ".ico")' in cs
+    assert 'ext is not (".svg" or ".ico" or ".heic" or ".heif")' in cs
     copy = cs.split("CopyImageButton_Click", 1)[1].split("SendToComfyButton_Click", 1)[0]
     assert "RasterizeForComfyAsync" in copy
     compress = cs.split("CompressImageButton_Click", 1)[1].split("Window_Loaded", 1)[0]
