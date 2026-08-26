@@ -1057,6 +1057,31 @@ def test_ole_doc_xls_pdf_not_blank() -> None:
             assert not dest.is_file() or dest.stat().st_size < 100
 
 
+def test_ole_ppt_md_not_blank() -> None:
+    """Share Markdown on OLE .ppt/.pps wrote a 1-byte file (empty pptx-md-images)."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def photo_office_to_markdown" in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "Markdown|*.md" in dlg
+    ole = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"not-a-real-ole" * 20
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        for name in ("deck.ppt", "show.pps"):
+            src_path = d / name
+            src_path.write_bytes(ole)
+            dest = d / (src_path.stem + ".md")
+            res = run_engine(["to-md", str(src_path), str(dest)])
+            assert not res.get("success"), res
+            err = (res.get("error") or "").lower()
+            assert "libreoffice" in err or "ole" in err or "markdown" in err, res
+            assert not dest.is_file() or dest.stat().st_size < 4
+            dest2 = d / (src_path.stem + "-export.md")
+            res = run_engine(["export-as", str(src_path), str(dest2)])
+            assert not res.get("success"), res
+            assert not dest2.is_file() or dest2.stat().st_size < 4
+
+
 def test_silent_video_export_mp3() -> None:
     """Share Export as MP3 on a silent clip failed (no audio stream)."""
     import shutil
@@ -1314,6 +1339,7 @@ if __name__ == "__main__":
     test_photo_odp_docx_export()
     test_photo_ods_xlsx_export()
     test_ole_doc_xls_pdf_not_blank()
+    test_ole_ppt_md_not_blank()
     test_silent_video_export_mp3()
     test_ico_preview_uses_html()
     test_heic_preview_uses_engine()

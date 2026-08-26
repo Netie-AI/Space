@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Markdown / `to-md` on OLE `.ppt` / `.pps` no longer writes a 1-byte file when there are no zip pictures. Empty `pptx-md-images` used to succeed. Photo PPTX still embeds `ppt/media`.
 - Convert: Merge / drop `.doc` / `.xls` to PDF no longer writes a 573-byte blank file when soffice is missing. Those used empty markdown (`pymupdf-story`). Share still hides them. Empty RTF stays the empty-input PDF. `.ppt` already raised.
 - Convert: Space a photo XLSX / XLSM embeds `xl/media` in the preview HTML. OpenXML `TryParse` showed an empty grid; `preview-html` already had the picture fallback. Text sheets stay the OpenXML grid (`xlsx-zip`).
 - Convert: Space a photo ODT / ODP / ODS embeds `Pictures/` in the preview HTML. `preview-html` used empty zip text (blank page). Share Export as HTML already did this; text ODF stays the zip text path.
