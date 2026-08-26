@@ -118,6 +118,83 @@ public class FfmpegExportLiveTests
         Assert.True(dur is >= 3.4 and <= 3.8, $"ExportTimeline hard-cut {dur} expect ~3.6");
     }
 
+    [Fact]
+    public async Task ExportTimeline_leave_black_last_clip_keeps_card_duration()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var a = Path.Combine(tmp.Path, "clip_a.mp4");
+        var b = Path.Combine(tmp.Path, "clip_b.mp4");
+        var outPath = Path.Combine(tmp.Path, "leave_black.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+
+        var session = new VideoEditSession();
+        session.Reset(TimeSpan.FromSeconds(1.6), a);
+        session.AppendClip(b, TimeSpan.FromSeconds(2.0));
+        session.Select(1);
+        var gapStart = session.PackedStartOf(1);
+        var gapDur = session.PackedEndOf(1) - gapStart;
+        Assert.True(session.DeleteSelectedOrAt(TimeSpan.Zero));
+        Assert.True(session.InsertBlackPlaceholder(1, gapDur));
+
+        var project = new TimelineProject();
+        project.ResetFromSource(a, TimeSpan.FromSeconds(1.6), 320, 240);
+        session.ApplyTo(project, a);
+        project.Width = 320;
+        project.Height = 240;
+        project.AddOverlay(OverlayKind.Black, gapStart, gapDur);
+
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable);
+        var result = await svc.ExportTimelineAsync(project, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        // Leftover 1.6 + 2.0 hole. Missing hole/pad used to burn 1.6s and drop the card.
+        Assert.True(dur is >= 3.4 and <= 3.8, $"Leave-black last clip {dur} expect ~3.6 (1.6 leftover used to drop the card)");
+    }
+
+    [Fact]
+    public async Task ExportTimeline_caption_and_text_from_apostrophe_folder()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var folder = Path.Combine(tmp.Path, "Mom's clips");
+        Directory.CreateDirectory(folder);
+        var a = Path.Combine(folder, "clip_a.mp4");
+        var b = Path.Combine(folder, "clip_b.mp4");
+        var srt = Path.Combine(folder, "clip_a.srt");
+        var outPath = Path.Combine(folder, "captions.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+        File.WriteAllText(srt, "1\n00:00:00,000 --> 00:00:00,400\nhi\n");
+
+        var project = PlaybookProject(a, b, wipe: true);
+        project.SubtitleBurnPath = srt;
+        project.AddOverlay(OverlayKind.Text, TimeSpan.FromSeconds(0.2), TimeSpan.FromSeconds(1), "Title");
+
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable);
+        var result = await svc.ExportTimelineAsync(project, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        Assert.True(dur is >= 2.8 and <= 3.4, $"caption+text wipe {dur} expect 2.8..3.4");
+    }
+
     private static TimelineProject PlaybookProject(string clipA, string clipB, bool wipe)
     {
         var session = new VideoEditSession();

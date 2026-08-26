@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- CI: `ExportTimelineAsync` also encodes last-clip Leave black (~3.6s hole, not 1.6s leftover) and caption + Add-text burn from `Mom's clips`.
 - CI: Cursor CI links `FfmpegService` (no WPF) and runs `ExportTimelineAsync` for Fade+Wipe (~3.1s) and hard-cut concat (~3.6s) into `Mom's clips`. `ResolveFfmpeg` walks PATH for `ffmpeg` (Linux has no `where`).
 - Video: concat demuxer lists use the file name only. Absolute `Mom's clips` paths failed even with `'\\''` (ffmpeg opened `Moms`). Wipe `-i` quotes were fine; hard-cut / merge / delete-middle concat was not.
 - Video: Add-text Export writes drawtext / fallback SRT under `%TEMP%`. Export to a folder like Mom's clips used to fail after #113 only fixed the whisper sidecar path.
