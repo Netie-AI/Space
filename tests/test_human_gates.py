@@ -86,6 +86,11 @@ def test_scripts_and_docs():
     assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
+    keys = preview.index("private void Window_KeyDown")
+    keys_end = preview.index("public bool IsTypingOrEditCapture")
+    assert "Key.Delete" in preview[keys:keys_end]
+    assert "CutMiddleButton_Click" in preview[keys:keys_end]
+    assert "IsTypingOrEditCapture" in preview[keys:keys_end]
     burned_line = [ln for ln in preview[start:end].splitlines() if "SubtitleBurnPath" in ln]
     assert burned_line, "export status must mention SubtitleBurnPath"
     assert all("timelineSnapshot.SubtitleBurnPath" in ln for ln in burned_line)

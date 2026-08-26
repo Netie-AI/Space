@@ -12,6 +12,7 @@
    Pillar clip/check scripts use that bundle, not PATH-only.
    Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
    Failed Split / + Clip / cancel Delete discard that undo.
+   Delete key runs the same ribbon Delete dialog.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits
