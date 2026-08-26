@@ -4560,12 +4560,14 @@ public partial class PreviewWindow : Window
         }
     }
 
-    private void CopyImageButton_Click(object sender, RoutedEventArgs e)
+    private async void CopyImageButton_Click(object sender, RoutedEventArgs e)
     {
         if (!TryRequireFile(out var path))
             return;
 
-        if (TryCopyImageFile(path, out var err))
+        // SVG/ICO preview as Image. WPF BitmapImage cannot decode those.
+        var copyPath = await RasterizeForComfyAsync(path);
+        if (TryCopyImageFile(copyPath, out var err))
             ConvertStatusText.Text = $"Copied {IoPath.GetFileName(path)} — paste or drag the picture out.";
         else
             ConvertStatusText.Text = $"Copy failed: {err}";
