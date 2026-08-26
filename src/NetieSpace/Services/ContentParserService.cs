@@ -52,6 +52,10 @@ public sealed class ContentParserService
         // WebP: WPF BitmapImage has no decoder. ParseImage catch was ShellInfo and hid Share.
         if (extension == ".webp")
             return await Task.Run(() => ParseHtmlPicture(filePath, fileName, fileInfo.Length, "image/webp", "WebP"), ct);
+        // HEIC: WPF has no decoder unless the HEIF WIC pack is installed. Chromium often
+        // cannot paint .heic either. Engine PNG keeps Kind=Image so Share stays visible.
+        if (extension is ".heic" or ".heif")
+            return await ParseHeicPreviewAsync(filePath, fileName, fileInfo.Length, maxImageDimension, ct);
 
         if (ImageExtensions.Contains(extension))
             return await Task.Run(() => ParseImage(filePath, fileName, fileInfo.Length, maxImageDimension), ct);
@@ -279,9 +283,9 @@ public sealed class ContentParserService
 
     /// <summary>WebView2 paints the file. Used when WPF BitmapImage has no decoder.</summary>
     private static PreviewContent ParseHtmlPicture(
-        string filePath, string fileName, long size, string mime, string label)
+        string filePath, string fileName, long size, string mime, string label, string? picturePath = null)
     {
-        var fileUri = new Uri(filePath).AbsoluteUri;
+        var fileUri = new Uri(picturePath ?? filePath).AbsoluteUri;
         var html = $$"""
             <!DOCTYPE html>
             <html>
@@ -328,6 +332,21 @@ public sealed class ContentParserService
             RenderedHtml = html,
             RawText = $"{label}: {fileName}"
         };
+    }
+
+    private async Task<PreviewContent> ParseHeicPreviewAsync(
+        string filePath, string fileName, long size, int maxDimension, CancellationToken ct)
+    {
+        var native = await Task.Run(() => ParseImage(filePath, fileName, size, maxDimension), ct);
+        if (native.Kind == PreviewKind.Image)
+            return native;
+        if (!_conversion.IsAvailable)
+            return native;
+        var dest = Path.Combine(Path.GetTempPath(), $"netie_heic_{Guid.NewGuid():N}.png");
+        var result = await _conversion.ExportAsAsync(filePath, dest, ct);
+        if (!result.Success || !File.Exists(dest))
+            return native;
+        return ParseHtmlPicture(filePath, fileName, size, "image/png", "HEIC", dest);
     }
 
     private PreviewContent ParseImage(string filePath, string fileName, long size, int maxDimension)
