@@ -327,6 +327,23 @@ public sealed class VideoEditSession
         return true;
     }
 
+    /// <summary>
+    /// Packed timeline start of a kept clip. <see cref="KeptClip.Start"/> is the
+    /// source in-point (often 0 on + Clip), so a black title card must not use it.
+    /// </summary>
+    public TimeSpan PackedStartOf(int index)
+    {
+        if (index < 0 || index >= _kept.Count)
+            return TimeSpan.Zero;
+        foreach (var s in BuildPackedTimeline(false))
+        {
+            if (!s.IsBlack && s.ClipIndex == index)
+                return s.TimelineIn;
+        }
+
+        return TimeSpan.Zero;
+    }
+
     public int IndexAt(TimeSpan playhead) => PickIndexForSourcePlayhead(playhead);
 
     /// <summary>Hit-test a normalized 0–1 packed timeline position.</summary>

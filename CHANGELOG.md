@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Delete → Leave black scene uses packed clip start (`PackedStartOf`). `KeptClip.Start` is the source in-point (0 on + Clip), so the title card used to cover clip 1.
 - Export: context-menu Fade and timeline fade-handle drag write `VideoEditSession`. Export `SyncTimelineFromSession` used to wipe those fades (ribbon Fade In/Out already wrote the session).
 - Export: in-window "captions burned in" uses the encode snapshot. A whisper finish after Export clicked used to claim a burn that ffmpeg never saw.
 - License: WMI `Win32_ComputerSystemProduct` UUID is cached and capped at 3s. `SkipGate: false` launch and Activate used to hang the UI on a stuck CIMOM.

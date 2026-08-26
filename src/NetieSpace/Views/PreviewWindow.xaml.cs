@@ -1545,7 +1545,9 @@ public partial class PreviewWindow : Window
         _videoEdit.FillGapsWithBlack = choice == "black";
         _timeline.FillGapsWithBlack = _videoEdit.FillGapsWithBlack;
 
-        var gapStart = _videoEdit.HasSelection ? _videoEdit.Kept[_videoEdit.SelectedIndex].Start : GetPlayhead();
+        var gapStart = _videoEdit.HasSelection
+            ? _videoEdit.PackedStartOf(_videoEdit.SelectedIndex)
+            : GetPlayhead();
         var gapDur = _videoEdit.HasSelection
             ? _videoEdit.Kept[_videoEdit.SelectedIndex].End - _videoEdit.Kept[_videoEdit.SelectedIndex].Start
             : TimeSpan.FromSeconds(1);

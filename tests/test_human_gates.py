@@ -51,6 +51,8 @@ def test_scripts_and_docs():
     fade_bool_body = preview[fade_bool:fade_bool_end]
     assert "ApplyFadeToSelected(fadeIn: TimeSpan.FromMilliseconds(500)" in fade_bool_body
     assert "ApplyFadeAt" in preview[preview.index("FadeHandle_PreviewMouseLeftButtonUp"):preview.index("private void RenderCaptionTrack")]
+    delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
+    assert "PackedStartOf" in delete_body
     burned_line = [ln for ln in preview[start:end].splitlines() if "SubtitleBurnPath" in ln]
     assert burned_line, "export status must mention SubtitleBurnPath"
     assert all("timelineSnapshot.SubtitleBurnPath" in ln for ln in burned_line)
