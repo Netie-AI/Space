@@ -23,7 +23,8 @@
 5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
    match is not a substring (`12` != `2`). Indirect `/Kids` and `/Annots`
    plus compact MuPDF `/Kids[4 0 R]` resolve so the first-page box lands.
-   `make-test-pfx.ps1` uses Windows PKI (no openssl). Adobe panel still human.
+   `make-test-pfx.ps1` uses Windows PKI (no openssl). UI `LoadPfx` uses
+   EphemeralKeySet (same as xunit). Adobe panel still human.
 
 ## Next
 

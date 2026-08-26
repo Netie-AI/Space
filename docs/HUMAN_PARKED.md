@@ -14,6 +14,7 @@ What you do:
 2. Open a PDF (xref-stream and hybrid trailer+/Type /XRef are rewritten
    to classic xref first).
 3. More... -> Cert sign (PFX)... Pick `netie-test.pfx`. Password `test`.
+   Space loads that file with `LoadPfx` (Exportable + EphemeralKeySet).
 4. Open the same file in Adobe Reader. Signature panel should list a
    signature. A self-signed test cert shows as untrusted, not "unsigned".
    The first page should show a small "Digitally signed" box (page Annots +
@@ -24,7 +25,8 @@ What you do:
    Untrusted is OK; missing from the Signature panel is not.
    Space already ran a CMS self-check (`TryVerify`) before writing.
    In-app `sample.pdf` / `Q3_Report.pdf` are compact MuPDF (`/Kids[4 0 R]`,
-   `/Type/Page`); Cursor CI rewrite+signs those too.
+   `/Type/Page`); Cursor CI rewrite+signs those and a disk `netie-test.pfx`
+   reload (`Sign_after_disk_pfx_load_matches_ui`).
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 
 Cert sign rewrites xref-stream and hybrid files first (`PdfClassicXref`): drop the
