@@ -21,12 +21,13 @@ public partial class ToastHud : Window
         Top = SystemParameters.WorkArea.Height - Height - 24;
     }
 
-    public static void ShowExportComplete(string outputPath)
+    public static void ShowExportComplete(string outputPath, string? durationNote = null)
     {
         var name = System.IO.Path.GetFileName(outputPath);
+        var body = string.IsNullOrWhiteSpace(durationNote) ? name : $"{name}  {durationNote}";
         Application.Current.Dispatcher.BeginInvoke(() =>
         {
-            var hud = new ToastHud("Video exported", name, outputPath);
+            var hud = new ToastHud("Video exported", body, outputPath);
             hud.Show();
         });
     }

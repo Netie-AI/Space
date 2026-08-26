@@ -52,6 +52,16 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void NeedsClassicXrefRewrite_detects_missing_trailer()
+    {
+        var ok = PdfCmsSigner.CreateMinimalPdf();
+        Assert.False(PdfCmsSigner.NeedsClassicXrefRewrite(ok));
+        var streamy = System.Text.Encoding.ASCII.GetBytes(
+            "%PDF-1.5\n1 0 obj<< /Type /XRef >>endobj\nstartxref\n9\n%%EOF\n");
+        Assert.True(PdfCmsSigner.NeedsClassicXrefRewrite(streamy));
+    }
+
+    [Fact]
     public void Sign_self_verifies_detached_cms()
     {
         var src = PdfCmsSigner.CreateMinimalPdf();

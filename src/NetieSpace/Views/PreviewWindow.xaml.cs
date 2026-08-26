@@ -4861,8 +4861,13 @@ public partial class PreviewWindow : Window
                 dlg.FileName,
                 password,
                 System.Security.Cryptography.X509Certificates.X509KeyStorageFlags.Exportable);
+            var rewritten = false;
+            try { rewritten = _pdfEdit.RewriteClassicXref(path); }
+            catch { /* SignFile still throws a clear classic-xref error */ }
             PdfCmsSigner.SignFile(path, cert);
-            ConvertStatusText.Text = "Cert sign written (CMS self-check passed). Open in Adobe Reader to check the Signature panel.";
+            ConvertStatusText.Text = rewritten
+                ? "Cert sign written (rewrote xref-stream, CMS self-check passed). Open in Adobe Reader to check the Signature panel."
+                : "Cert sign written (CMS self-check passed). Open in Adobe Reader to check the Signature panel.";
             _ = LoadFileAsync(path);
         }
         catch (Exception ex)

@@ -46,7 +46,8 @@ produced 3.12s here. Your Windows Export should land near that.
 9. Click **Wipe** on the join between the two remaining clips (or the
    wipe control on the transition). Export should burn a wipeleft xfade
    of 0.5s.
-10. Click **Export all**. Pick a folder. Wait for the toast.
+10. Click **Export all**. Pick a folder. Wait for the toast. The toast should
+    show the duration (about 3.1s / `wipe expect ~3.1s` on these clips).
 
 ### What to check after Export
 
