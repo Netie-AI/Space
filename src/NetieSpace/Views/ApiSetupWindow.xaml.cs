@@ -277,7 +277,7 @@ public partial class ApiSetupWindow : Window
                     FileName = checkout.CheckoutUrl,
                     UseShellExecute = true
                 });
-                StatusText.Text = "Opened Stripe Checkout. After pay: tray -> Account / Sign in -> Activate.";
+                StatusText.Text = "Opened Stripe Checkout. After pay: Setup -> Activate this laptop.";
                 return;
             }
 
@@ -286,6 +286,23 @@ public partial class ApiSetupWindow : Window
         catch (Exception ex)
         {
             OpenBuyFallback(ex.Message);
+        }
+    }
+
+    private async void ActivateLaptopButton_Click(object sender, RoutedEventArgs e)
+    {
+        StatusText.Text = "Activating this laptop…";
+        try
+        {
+            var (ok, message) = await LicenseActivation.ActivateCurrentSessionAsync().ConfigureAwait(true);
+            StatusText.Text = message;
+            LicenseStatusText.Text = ok
+                ? "This device is licensed. You’re on the Netie path — BYO keys below are optional until Ult ships."
+                : message;
+        }
+        catch (Exception ex)
+        {
+            StatusText.Text = ex.Message;
         }
     }
 

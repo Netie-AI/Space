@@ -73,6 +73,10 @@
                                                 Style="{StaticResource GhostButton}" Margin="8,0,0,0"
                                                 Click="ManageBillingButton_Click"
                                                 ToolTip="Stripe Customer Portal after you have paid once"/>
+                                        <Button x:Name="ActivateLaptopButton" Content="Activate this laptop"
+                                                Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                                                Click="ActivateLaptopButton_Click"
+                                                ToolTip="After Stripe pay: bind this PC (same as tray Account Activate)"/>
                                     </WrapPanel>
                                     <TextBlock x:Name="LicenseStatusText" Foreground="#A8D8D0" FontSize="11.5"
                                                Margin="0,10,0,0" TextWrapping="Wrap"/>

@@ -53,7 +53,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
 5. You land on `/v1/checkout/success`. The Worker retrieves that session and
    fulfills the license even if the webhook is a few seconds late.
-6. Tray -> Account / Sign in -> Activate this laptop.
+6. Setup -> **Activate this laptop** (or tray -> Account / Sign in). Needs a
+   session from step 2. Success page already fulfilled the license.
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
 

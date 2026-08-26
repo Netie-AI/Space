@@ -25,6 +25,7 @@ def test_scripts_and_docs():
     assert "3.1s" in pillar
     assert "make-test-pfx.ps1" in parked
     assert 'x:Name="ManageBillingButton"' in xaml
+    assert 'x:Name="ActivateLaptopButton"' in xaml
     assert (ROOT / "scripts/make-pillar1-clips.ps1").is_file()
     assert (ROOT / "scripts/make-test-pfx.ps1").is_file()
     check_sh = (ROOT / "scripts/check-pillar1-export.sh").read_text(encoding="utf-8")

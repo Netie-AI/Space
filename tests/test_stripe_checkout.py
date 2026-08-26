@@ -58,6 +58,11 @@ def test_wpf_buy_calls_checkout():
     assert "CreatePortalAsync" in setup
     assert "RefreshStripeStatusAsync" in setup
     assert "ManageBillingButton_Click" in setup
+    assert "ActivateLaptopButton_Click" in setup
+    assert "LicenseActivation.ActivateCurrentSessionAsync" in setup
+    activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
+    assert "ActivateCurrentSessionAsync" in activation
+    assert "System.Windows" not in activation
     assert "OpenBuyFallback" in setup
     assert "HUMAN_STRIPE_CHECKOUT.md" in setup
     assert "HUMAN_PILLAR1_TEST.md" in setup
