@@ -512,6 +512,19 @@ public class VideoNleSessionTests
     }
 
     [Fact]
+    public void Undo_restores_global_lut_path()
+    {
+        var session = TenSecond(@"C:\clips\a.mp4");
+        var project = new TimelineProject();
+        project.ResetFromSource(@"C:\clips\a.mp4", TimeSpan.FromSeconds(10));
+        project.GlobalLutPath = @"C:\clips\before.cube";
+        session.PushUndo(project);
+        project.GlobalLutPath = @"C:\clips\after.cube";
+        Assert.True(session.TryUndo(project));
+        Assert.Equal(@"C:\clips\before.cube", project.GlobalLutPath);
+    }
+
+    [Fact]
     public void Undo_restores_subtitle_burn_path()
     {
         var session = TenSecond(@"C:\clips\a.mp4");

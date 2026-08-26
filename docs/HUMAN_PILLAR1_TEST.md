@@ -124,7 +124,7 @@ Export should land near that.
     remaps those packed cues (used to leave text on the old clip).
     Ctrl+Z after Speed / drag restores the previous sidecar too.
     Auto captions also pushes undo, so an extra Ctrl+Z undoes captions
-    (not + Clip).
+    (not + Clip). More... LUT does the same (undo restores the cube path).
     Sidecar / whisper SRT under a folder like Mom's clips still burns
     (subtitles= strips apostrophes; Space copies the SRT to a temp file first).
     Add text + Export to that folder also works (drawtext files go to temp).

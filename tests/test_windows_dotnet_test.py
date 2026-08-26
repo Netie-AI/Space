@@ -42,6 +42,7 @@ def test_windows_ci_runs_dotnet_test():
     assert "Second_wipe_undo_does_not_consume_plus_clip" in nle
     assert "Leave_black_undo_removes_overlay_card" in nle
     assert "Undo_restores_subtitle_burn_path" in nle
+    assert "Undo_restores_global_lut_path" in nle
     assert "Leave_black_last_clip_keeps_ruler_for_overlay" in nle
     assert "Leave_black_inserts_v1_hole_not_cover_next_clip" in nle
     assert "SlicePacked_second_clip_drops_clip1_captions" in nle
