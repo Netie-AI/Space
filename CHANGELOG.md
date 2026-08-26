@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: track `tools/convert_engine.py` (`tools/` stays ignored except the engine). JSON last-line `{success, output_path, tool, bytes, error}` for to-md / to-pdf / preview / preview-html / preview-pptx-html / export-as / pdf-watermark / pdf-protect / pdf-unlock / pdf-ocr. `tests/test_convert_engine.py` skips pymupdf smoke if the dep is missing.
 - License: Setup **Get Netie subscription** calls `POST /v1/checkout`. Worker creates a Stripe subscription Checkout Session (no `payment_method_types`, no `automatic_tax`). Missing secrets return 503 `stripe_not_configured`. Webhook `/v1/webhooks/stripe` verifies `Stripe-Signature` and writes D1 Stripe columns. `POST /v1/billing-portal` opens Customer Portal after a customer id exists. HMAC vectors in `tests/test_stripe_checkout.py`. Human secrets + test pay: `docs/HUMAN_STRIPE_CHECKOUT.md`.
 - Docs: Windows Pillar 1 click playbook (`docs/HUMAN_PILLAR1_TEST.md`). Playwright cannot open the WPF app. Parked-ticket process: `docs/HUMAN_PARKED.md`.
 - CI: Cursor-origin gate is `scripts/ci-cursor.sh` (python + license-api + ffmpeg). GitHub hosted runners hit a spending limit; do not wait on them.

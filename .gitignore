@@ -18,7 +18,10 @@ scripts/7zip-full/
 scripts/sfpro-extract/
 
 # Heavy local-only (not needed for source/docs handoff)
+# Track only the conversion engine; keep ffmpeg/binaries local.
 tools/
+!tools/
+!tools/convert_engine.py
 video-assets/
 installer/
 optional/
