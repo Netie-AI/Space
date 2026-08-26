@@ -156,6 +156,8 @@ def test_scripts_and_docs():
     assert "PackedStartOf" in delete_body
     assert "PackedEndOf" in delete_body
     assert "Kept[_videoEdit.SelectedIndex].End -" not in delete_body
+    assert "SeekTimelineSeconds(gapStart" in delete_body
+    assert "choice == \"black\"" in delete_body
     a2 = preview[preview.index("private void AudioTrack_PreviewMouseLeftButtonDown"):preview.index("private void TimelineTrack_PreviewMouseRightButtonUp")]
     assert "PackedStartOf" in a2
     assert "TimelineStart = a" not in a2
