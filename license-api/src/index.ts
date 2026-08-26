@@ -13,6 +13,7 @@ import {
 import { emailBuyer, notifyOwner } from "./email";
 import {
   createCheckoutSession,
+  createPortalSession,
   fulfillCheckoutSession,
   markSubscriptionStatus,
   stripeConfigured,
@@ -115,6 +116,9 @@ export default {
       }
       if (url.pathname === "/v1/checkout" && req.method === "POST") {
         return await handleCheckout(req, env);
+      }
+      if (url.pathname === "/v1/billing-portal" && req.method === "POST") {
+        return await handleBillingPortal(req, env);
       }
       if (url.pathname === "/v1/webhooks/stripe" && req.method === "POST") {
         return await handleStripeWebhook(req, env);
@@ -571,6 +575,33 @@ async function handleCheckout(req: Request, env: Env): Promise<Response> {
   try {
     const session = await createCheckoutSession(env, { userId, email });
     return json(env, req, { checkout_url: session.url, session_id: session.id });
+  } catch (err) {
+    return json(env, req, { error: "stripe_error", message: String(err) }, 502);
+  }
+}
+
+async function handleBillingPortal(req: Request, env: Env): Promise<Response> {
+  if (!stripeConfigured(env)) {
+    return json(env, req, { error: "stripe_not_configured" }, 503);
+  }
+  const auth = await requireUser(env, req);
+  if (auth instanceof Response) return auth;
+
+  const user = await env.DB.prepare("SELECT stripe_customer_id FROM users WHERE id = ?")
+    .bind(auth.userId)
+    .first<{ stripe_customer_id: string | null }>();
+  if (!user?.stripe_customer_id) {
+    return json(
+      env,
+      req,
+      { error: "no_customer", message: "Pay first (Setup -> Get Netie subscription), then manage billing." },
+      404
+    );
+  }
+
+  try {
+    const portal = await createPortalSession(env, user.stripe_customer_id);
+    return json(env, req, { portal_url: portal.url });
   } catch (err) {
     return json(env, req, { error: "stripe_error", message: String(err) }, 502);
   }

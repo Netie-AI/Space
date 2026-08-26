@@ -44,6 +44,7 @@ Local Worker: `"ApiBaseUrl": "http://127.0.0.1:8787"`
 - `GET /v1/me`
 - `POST /v1/checkout` — Stripe Checkout Session (`mode=subscription`). 503 `stripe_not_configured` until secrets are set. Sign in first.
 - `POST /v1/webhooks/stripe` — verifies `Stripe-Signature`; fulfills `checkout.session.completed`
+- `POST /v1/billing-portal` — Stripe Customer Portal (Bearer + existing `stripe_customer_id`)
 - `GET /v1/checkout/success` · `GET /v1/checkout/cancel`
 - D1 columns `stripe_customer_id`, `stripe_subscription_id`, `stripe_checkout_session_id` written by the webhook
 - Human secrets + click path: [`docs/HUMAN_STRIPE_CHECKOUT.md`](HUMAN_STRIPE_CHECKOUT.md)

@@ -63,6 +63,9 @@ opens netie.space. That is expected until step 2 is done.
 - Buyer email (Resend) has the license key. Password is never in that mail.
 - Cancel at Checkout lands on `/v1/checkout/cancel`. License stays unchanged.
 - A second pay with the same session id does not create a second license.
+- After a customer id exists, `POST /v1/billing-portal` (signed in) returns a
+  `billing.stripe.com` URL. Cancel / update card there, then license status
+  follows `customer.subscription.updated` / `deleted`.
 - After Activate, preview / edit works offline (`SkipGate` can stay true on
   your own PC while you test).
 

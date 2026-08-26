@@ -1,6 +1,8 @@
 """Contract checks for Stripe Checkout + Buy API (secrets-gated)."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -55,10 +57,54 @@ def test_human_docs_exist():
     assert "stripe_not_configured" in human
     assert "Buy API flow" in parking
     assert "Stripe Checkout" in parking
+    assert 'url.pathname === "/v1/billing-portal"' in _read(WORKER)
+
+
+def _hmac_hex(secret: str, payload: str) -> str:
+    return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+
+def _verify_stripe_sig(raw: str, header: str, secret: str, now: int, tolerance: int = 300) -> bool:
+    ts = ""
+    v1: list[str] = []
+    for part in header.split(","):
+        part = part.strip()
+        if "=" not in part:
+            continue
+        k, v = part.split("=", 1)
+        if k == "t":
+            ts = v
+        if k == "v1":
+            v1.append(v)
+    if not ts or not v1:
+        return False
+    try:
+        tsi = int(ts)
+    except ValueError:
+        return False
+    if abs(now - tsi) > tolerance:
+        return False
+    expected = _hmac_hex(secret, f"{ts}.{raw}")
+    return any(hmac.compare_digest(sig, expected) for sig in v1)
+
+
+def test_stripe_signature_vectors():
+    secret = "whsec_test_secret"
+    raw = '{"id":"evt_1","type":"checkout.session.completed"}'
+    now = 1_700_000_000
+    good = _hmac_hex(secret, f"{now}.{raw}")
+    header = f"t={now},v1={good}"
+    assert _verify_stripe_sig(raw, header, secret, now) is True
+    assert _verify_stripe_sig(raw, header, "wrong", now) is False
+    assert _verify_stripe_sig(raw, f"t={now - 400},v1={_hmac_hex(secret, f'{now - 400}.{raw}')}", secret, now) is False
+    assert _verify_stripe_sig("tampered", header, secret, now) is False
+    assert "verifyStripeSignature" in _read(STRIPE)
+    assert "WEBHOOK_TOLERANCE_SEC = 300" in _read(STRIPE)
 
 
 if __name__ == "__main__":
     test_worker_checkout_routes()
     test_wpf_buy_calls_checkout()
     test_human_docs_exist()
+    test_stripe_signature_vectors()
     print("PASS test_stripe_checkout")

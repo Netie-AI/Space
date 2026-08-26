@@ -9,7 +9,8 @@ import {
 } from "./crypto";
 import { emailBuyer, notifyOwner } from "./email";
 
-const STRIPE_API = "https://api.stripe.com/v1/checkout/sessions";
+const STRIPE_CHECKOUT_API = "https://api.stripe.com/v1/checkout/sessions";
+const STRIPE_PORTAL_API = "https://api.stripe.com/v1/billing_portal/sessions";
 const STRIPE_VERSION = "2026-07-29.dahlia";
 const WEBHOOK_TOLERANCE_SEC = 300;
 
@@ -90,7 +91,7 @@ export async function createCheckoutSession(
   body.set("subscription_data[metadata][user_id]", opts.userId);
   body.set("integration_identifier", `netie-spc-${randomSuffix()}`);
 
-  const res = await fetch(STRIPE_API, {
+  const res = await fetch(STRIPE_CHECKOUT_API, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
@@ -203,6 +204,30 @@ export async function fulfillCheckoutSession(env: Env, session: CheckoutSession)
     `${env.APP_NAME} subscription active`,
     `Payment received.\n\nLicense key: ${license.license_key}\n\nOpen Netie Space → tray → Account / Sign in → Activate this laptop.\n\nWe never email your password.`
   );
+}
+
+export async function createPortalSession(
+  env: Env,
+  customerId: string
+): Promise<{ url: string }> {
+  const body = new URLSearchParams();
+  body.set("customer", customerId);
+  body.set("return_url", `${env.PUBLIC_BASE_URL}/v1/checkout/success`);
+
+  const res = await fetch(STRIPE_PORTAL_API, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": STRIPE_VERSION,
+    },
+    body,
+  });
+  const json = (await res.json()) as { url?: string; error?: { message?: string } };
+  if (!res.ok || !json.url) {
+    throw new Error(json.error?.message || `stripe_portal_${res.status}`);
+  }
+  return { url: json.url };
 }
 
 export async function markSubscriptionStatus(
