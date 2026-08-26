@@ -918,6 +918,78 @@ def test_photo_odp_docx_export() -> None:
         assert "data:image/png;base64," in dhtml.read_text(encoding="utf-8")
 
 
+def test_photo_ods_xlsx_export() -> None:
+    """Share default PDF on a photo ODS / image-only XLSX used empty cell text."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".ods", ".xlsx", ".xlsm"' in src
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    dlg = preview.split("var imageDefaultExt", 1)[1]
+    assert "PDF document|*.pdf" in dlg.split('".ods"', 1)[1][:220]
+    if not pymupdf_available():
+        print("SKIP photo ods/xlsx export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP photo ods/xlsx export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (10, 80, 200)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        ods = d / "chart.ods"
+        content = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+            ' xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
+            ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"'
+            ' xmlns:xlink="http://www.w3.org/1999/xlink">'
+            "<office:body><office:spreadsheet><table:table><table:table-row>"
+            '<table:table-cell><draw:frame><draw:image xlink:href="Pictures/image1.png"/>'
+            "</draw:frame></table:table-cell></table:table-row></table:table>"
+            "</office:spreadsheet></office:body></office:document-content>"
+        )
+        with zipfile.ZipFile(ods, "w") as zf:
+            zf.writestr("mimetype", "application/vnd.oasis.opendocument.spreadsheet")
+            zf.writestr("content.xml", content)
+            zf.writestr("Pictures/image1.png", png)
+        pdf = d / "ods.pdf"
+        res = run_engine(["export-as", str(ods), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        assert pdf.is_file() and pdf.stat().st_size > 2000
+        html_out = d / "ods.html"
+        res = run_engine(["export-as", str(ods), str(html_out)])
+        assert res.get("success"), res
+        assert "data:image/png;base64," in html_out.read_text(encoding="utf-8")
+
+        xlsx = d / "chart.xlsx"
+        with zipfile.ZipFile(xlsx, "w") as zf:
+            zf.writestr(
+                "xl/worksheets/sheet1.xml",
+                '<?xml version="1.0"?><worksheet '
+                'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+                "<sheetData/></worksheet>",
+            )
+            zf.writestr("xl/media/image1.png", png)
+        xpdf = d / "xlsx.pdf"
+        res = run_engine(["export-as", str(xlsx), str(xpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        assert xpdf.is_file() and xpdf.stat().st_size > 2000
+        xlsm = d / "chart.xlsm"
+        xlsm.write_bytes(xlsx.read_bytes())
+        xmpdf = d / "xlsm.pdf"
+        res = run_engine(["export-as", str(xlsm), str(xmpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        assert xmpdf.is_file() and xmpdf.stat().st_size > 2000
+
+
 def test_silent_video_export_mp3() -> None:
     """Share Export as MP3 on a silent clip failed (no audio stream)."""
     import shutil
@@ -1154,6 +1226,7 @@ if __name__ == "__main__":
     test_pdf_markdown_image_only()
     test_pptx_photo_export()
     test_photo_odp_docx_export()
+    test_photo_ods_xlsx_export()
     test_silent_video_export_mp3()
     test_heic_pdf_uses_pillow()
     test_text_markdown_drop_merge_lists()

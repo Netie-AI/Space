@@ -89,7 +89,7 @@ OFFICE_EXTS = {
 }
 PPTX_EXTS = {".pptx", ".ppsx", ".ppt", ".pps"}
 # Share default PDF is blank when these have pictures and no text.
-PHOTO_OFFICE_EXTS = PPTX_EXTS | {".odp", ".odt", ".docx"}
+PHOTO_OFFICE_EXTS = PPTX_EXTS | {".odp", ".odt", ".docx", ".ods", ".xlsx", ".xlsm"}
 MD_EXTS = {".md", ".markdown"}
 HTML_EXTS = {".html", ".htm"}
 # Matches ContentParserService.TextExtensions minus .html/.md (own paths).
@@ -355,10 +355,12 @@ def office_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     ext = src.suffix.lower()
     if ext in PPTX_EXTS:
         return pptx_media_pngs(src, cap)
-    if ext in {".odp", ".odt"}:
+    if ext in {".odp", ".odt", ".ods"}:
         return zip_media_pngs(src, ("Pictures/", "media/"), cap)
     if ext == ".docx":
         return zip_media_pngs(src, ("word/media/",), cap)
+    if ext in {".xlsx", ".xlsm"}:
+        return zip_media_pngs(src, ("xl/media/",), cap)
     return []
 
 
@@ -1759,14 +1761,14 @@ def action_export_as(argv: list[str]) -> dict:
             return ok(dest, "copy")
         try:
             text, tool = file_to_markdown(src)
-            if text.strip() or src_ext not in {".odp", ".odt", ".pdf"}:
+            if text.strip() or src_ext not in {".odp", ".odt", ".ods", ".xlsx", ".xlsm", ".pdf"}:
                 write_text(dest, wrap_html(markdown_to_html(text), src.name))
                 return ok(dest, tool)
         except RuntimeError:
             text = ""
         if src_ext == ".pdf":
             return ok(dest, pdf_pages_to_html(src, dest))
-        if src_ext in {".odp", ".odt"}:
+        if src_ext in {".odp", ".odt", ".ods", ".xlsx", ".xlsm"}:
             pngs = office_media_pngs(src)
             if pngs:
                 return ok(dest, pngs_to_html(pngs, dest, src.name))
