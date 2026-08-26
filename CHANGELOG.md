@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- CI: live ffmpeg wipe encode (xunit + `test_ffmpeg_nle_export.py`) expects 2.8..3.4s, same as `check-pillar1-export`. The old 2.5..4.0 window passed a hard-cut concat (~3.6s) when xfade was skipped.
 - Video: a second Wipe on an already-wiped join returns false and discards that undo. Extra Ctrl+Z after a double-click used to pop a no-op frame (wipe stayed) so the next Ctrl+Z popped + Clip.
 - Video: fade-handle click (no diamond move) and a second Fade chip discard the undo they pushed. `ApplyFadeAt` returns false when values are unchanged. A miss-click on the gold diamond after + Clip used to leave a no-op undo so Ctrl+Z popped + Clip.
 - Video: Delete key in edit mode opens the same ripple/black dialog as the ribbon Delete. Playbook "Press Delete" used to do nothing (only the chip worked).

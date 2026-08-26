@@ -129,9 +129,10 @@ class FfmpegNleExportTests(unittest.TestCase):
             )
             self.assertTrue(out.exists() and out.stat().st_size > 1000)
             dur = _probe_duration(out)
-            # faded 1.6 + b 2 - 0.5 wipe ≈ 3.1s
-            self.assertGreater(dur, 2.5)
-            self.assertLess(dur, 4.0)
+            # faded 1.6 + b 2 - 0.5 wipe ≈ 3.1s. Hard-cut concat is ~3.6s
+            # and used to pass the old 2.5..4.0 window.
+            self.assertGreaterEqual(dur, 2.8)
+            self.assertLessEqual(dur, 3.4)
 
 
 if __name__ == "__main__":
