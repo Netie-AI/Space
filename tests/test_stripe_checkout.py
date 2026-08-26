@@ -109,11 +109,15 @@ def test_wpf_buy_calls_checkout():
     assert "ParseErrorCode" in client
     assert "PaymentRequired" in client
     assert "AlreadyPaid" in client
+    assert "NeedsAccount" in client
+    assert "register_first" in client
     assert "AlreadyPaid" in login
+    assert "NeedsAccount" in login
     assert "https://netie.space" in login
     assert "ShowPayFirstButtons" in login
     assert "worker_unreachable" in login
     assert "AlreadyPaid" in setup
+    assert "NeedsAccount" in setup
     activation = _read(ROOT / "src/NetieSpace/Services/Licensing/LicenseActivation.cs")
     assert "ActivateCurrentSessionAsync" in activation
     assert "PaymentRequired" in activation
@@ -171,6 +175,7 @@ def test_human_docs_exist():
     assert "4242 4242 4242 4242" in human
     assert "stripe_not_configured" in human
     assert "worker_unreachable" in human
+    assert "register_first" in human
     assert "pending" in human
     assert "payment_required" in human
     assert "already_paid" in human

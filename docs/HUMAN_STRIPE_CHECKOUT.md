@@ -89,7 +89,9 @@ host (the committed `workers.dev` name does not resolve until
 `setup-license-api.ps1 -Deploy`) returns `worker_unreachable` instead of
 throwing; Setup and the login-gate Buy still open netie.space. Sign in /
 Register on that miss still show **Get Netie subscription** so
-`SkipGate: false` is not a deadlock.
+`SkipGate: false` is not a deadlock. After the Worker is up, Buy without
+a session is `register_first` -- Sign in first. That click does **not**
+open netie.space (used to look like Checkout was still down).
 
 ## 4. What to check
 

@@ -280,6 +280,12 @@ public partial class ApiSetupWindow : Window
                 return;
             }
 
+            if (checkout.NeedsAccount)
+            {
+                StatusText.Text = checkout.Error ?? "Sign in first (tray -> Account), then Get Netie subscription.";
+                return;
+            }
+
             OpenBuyFallback(checkout.Error);
         }
         catch (Exception ex)
