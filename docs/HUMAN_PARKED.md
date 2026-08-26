@@ -18,8 +18,9 @@ What you do:
    The first page should show a small "Digitally signed" box (page Annots +
    appearance). Object ids are matched whole (`12 0 obj` is not object 2).
    Chrome/Word often store `/Kids` as an indirect array (`/Kids 5 0 R`);
-   Space resolves that to page 1. Untrusted is OK; missing from the
-   Signature panel is not.
+   Space resolves that to page 1. Existing `/Annots N 0 R` arrays are
+   inlined so the widget is a real annot, not `[widget arrayObj]`.
+   Untrusted is OK; missing from the Signature panel is not.
    Space already ran a CMS self-check (`TryVerify`) before writing.
 5. If sign fails, Space restores the original bytes. Stamp path still works.
 

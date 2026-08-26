@@ -168,6 +168,27 @@ public class PdfCmsSignerTests
     }
 
     [Fact]
+    public void Sign_inlines_indirect_annots_array_onto_first_page()
+    {
+        var src = PdfCmsSigner.CreateMinimalPdfWithIndirectAnnots();
+        Assert.Contains("/Annots 5 0 R", System.Text.Encoding.ASCII.GetString(src));
+        using var cert = PdfCmsSigner.CreateEphemeralSelfSigned();
+        var signed = PdfCmsSigner.Sign(src, cert);
+        Assert.True(PdfCmsSigner.TryVerify(signed, out var err), err);
+        var text = System.Text.Encoding.ASCII.GetString(signed);
+        var lastPage = text.LastIndexOf("3 0 obj", StringComparison.Ordinal);
+        Assert.True(lastPage >= 0);
+        var pageDict = text[lastPage..];
+        var end = pageDict.IndexOf("endobj", StringComparison.Ordinal);
+        if (end > 0)
+            pageDict = pageDict[..end];
+        Assert.Contains("/Annots [", pageDict, StringComparison.Ordinal);
+        Assert.Contains("6 0 R", pageDict, StringComparison.Ordinal);
+        Assert.DoesNotContain("5 0 R", pageDict, StringComparison.Ordinal);
+        Assert.DoesNotContain("/Rect [0 0 0 0]", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void RewriteFile_noop_on_classic_minimal()
     {
         var dir = Path.Combine(Path.GetTempPath(), "netie-xref-" + Guid.NewGuid().ToString("N"));
