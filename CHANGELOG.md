@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Drop / merge a `.text` / `.md` / `.markdown` onto a PDF uses the engine `to-pdf` path. Lists only had `.txt`, so those clicks were ignored after Share Export as was already visible.
 - Image: Compress on a previewed SVG/ICO rasterizes to PNG beside the source first. WPF `BitmapImage` cannot decode those; a temp PNG would have written the smaller file under `%TEMP%`.
 - Image: OCR on a previewed SVG/ICO rasterizes to PNG first. Tesseract / GDI+ `Image.FromFile` cannot read those; the button is visible because they preview as Image.
 - Image: Copy on a previewed SVG/ICO rasterizes to PNG first. Those files preview as Image so the button is visible; WPF `BitmapImage` cannot decode them.

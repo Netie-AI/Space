@@ -19,7 +19,7 @@ public partial class PdfMergeWindow : Window
     {
         ".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff",
         ".svg", ".ico", ".heic",
-        ".doc", ".docx", ".odt", ".rtf", ".txt", ".html", ".htm",
+        ".doc", ".docx", ".odt", ".rtf", ".txt", ".text", ".md", ".markdown", ".html", ".htm",
         ".pptx", ".ppsx", ".ppt", ".odp", ".xlsx", ".xlsm", ".xls", ".ods"
     };
 
@@ -102,7 +102,7 @@ public partial class PdfMergeWindow : Window
             Filter =
                 "Documents & images|*.pdf;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff;" +
                 "*.svg;*.ico;*.heic;" +
-                "*.doc;*.docx;*.odt;*.rtf;*.txt;*.html;*.htm;*.pptx;*.ppsx;*.ppt;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
+                "*.doc;*.docx;*.odt;*.rtf;*.txt;*.text;*.md;*.markdown;*.html;*.htm;*.pptx;*.ppsx;*.ppt;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
                 "PDF|*.pdf|Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All files|*.*",
             Multiselect = true
         };
