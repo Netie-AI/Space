@@ -763,6 +763,24 @@ def test_html_svg_photo_export() -> None:
         assert res.get("tool") == "docx-zip-images", res
         with zipfile.ZipFile(rdocx) as zf:
             assert any(n.startswith("word/media/") for n in zf.namelist())
+        from urllib.parse import quote
+
+        enc = d / "enc.svg.html"
+        enc.write_text(
+            f'<html><body><img src="data:image/svg+xml,{quote(svg)}" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        emd = d / "enc.svg.md"
+        res = run_engine(["to-md", str(enc), str(emd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in emd.read_text(encoding="utf-8")
+        edocx = d / "enc.svg.docx"
+        res = run_engine(["export-as", str(enc), str(edocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(edocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist())
 
 
 def test_export_as_svg() -> None:

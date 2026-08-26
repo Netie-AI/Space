@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest Word / Markdown on photo-only HTML with urlencoded SVG data URIs rasters via MuPDF. Base64 / sibling SVG landed in #194; this encoding still wrote empty Word / 1-byte MD.
 - Convert: Share dest Word / Markdown on photo-only HTML with SVG pictures (data-URI or sibling `.svg`) rasters via MuPDF. `html-strip` used to write a 1-byte MD and empty Word. Raster photo HTML stays the PNG path.
 - Convert: Share Markdown on photo-only HTML embeds data-URI / sibling pictures. `html-strip` used to write a 1-byte file. Text HTML stays the strip path.
 - Convert: Share dest 1 PDF on Markdown renders headings (stdlib fallback; `markdown` is not a CI dep). Used to dump `#` source. Sibling images on HTML dest 2/3 and MD dest 1/4 inline as data URIs so Story / Word keep the pictures.
