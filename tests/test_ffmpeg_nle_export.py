@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FFMPEG_CS = ROOT / "src/NetieSpace/Services/FfmpegService.cs"
+GRAPH_CS = ROOT / "src/NetieSpace/Services/FfmpegExportGraph.cs"
 TIMELINE = ROOT / "src/NetieSpace/Services/Timeline/TimelineProject.cs"
 
 
@@ -51,12 +52,15 @@ class FfmpegNleExportTests(unittest.TestCase):
 
     def test_cs_wipe_graph_still_wipeleft(self):
         ffmpeg = FFMPEG_CS.read_text(encoding="utf-8")
+        graph = GRAPH_CS.read_text(encoding="utf-8")
         timeline = TIMELINE.read_text(encoding="utf-8")
         self.assertIn('public const string XfadeWipeName = "wipeleft"', timeline)
-        self.assertIn("XfadeWipeName", ffmpeg)
-        self.assertIn("xfade=transition=", ffmpeg)
-        self.assertIn("fade=t=in", ffmpeg)
-        self.assertIn("fade=t=out", ffmpeg)
+        self.assertIn("FfmpegExportGraph.XfadeWithAudio", ffmpeg)
+        self.assertIn("FfmpegExportGraph.ClipVideoFilters", ffmpeg)
+        self.assertIn("xfade=transition=", graph)
+        self.assertIn("fade=t=in", graph)
+        self.assertIn("fade=t=out", graph)
+        self.assertIn("XfadeOffsetSeconds", graph)
         yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn("apt-get install -y -qq ffmpeg", yml)
         self.assertIn("cache: true", yml)

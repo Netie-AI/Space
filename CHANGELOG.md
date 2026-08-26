@@ -2,6 +2,10 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-08-26
+
+- Export: `FfmpegExportGraph` owns fade/wipe filter math; Windows xunit + python ffmpeg smoke use the same wipeleft offset (`left − 0.5s`). Not a substitute for the human Export gate.
+
 ## 2026-08-25
 
 - CI: `license-api` job runs `tsc --noEmit` (schema-only Worker; Stripe Checkout still parked). Aggregator `ci` now requires Windows + python + license-api.
