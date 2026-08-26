@@ -873,14 +873,30 @@ def image_to_pdf(src: Path, dest: Path) -> str:
         finally:
             doc.close()
         return "pymupdf"
+    raster = src
+    tmp: Path | None = None
+    if src.suffix.lower() == ".ico":
+        # MuPDF insert_image rejects many .ico files. Preview already treats
+        # them as images; Share / drop-on-PDF used to fail.
+        im = load_pil_image(src)
+        try:
+            fd, name = tempfile.mkstemp(suffix=".png")
+            os.close(fd)
+            tmp = Path(name)
+            save_pil(im, tmp, "PNG")
+            raster = tmp
+        finally:
+            im.close()
     doc = pymupdf.open()
-    img = pymupdf.open(str(src))
+    img = pymupdf.open(str(raster))
     try:
         rect = img[0].rect
         page = doc.new_page(width=rect.width, height=rect.height)
-        page.insert_image(page.rect, filename=str(src))
+        page.insert_image(page.rect, filename=str(raster))
     finally:
         img.close()
+        if tmp is not None:
+            tmp.unlink(missing_ok=True)
     doc.save(str(dest))
     doc.close()
     return "pymupdf"

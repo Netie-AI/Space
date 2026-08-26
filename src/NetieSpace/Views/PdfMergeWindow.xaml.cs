@@ -18,6 +18,7 @@ public partial class PdfMergeWindow : Window
     private static readonly HashSet<string> MergeableExt = new(StringComparer.OrdinalIgnoreCase)
     {
         ".pdf", ".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff",
+        ".svg", ".ico", ".heic",
         ".doc", ".docx", ".odt", ".rtf", ".txt", ".html", ".htm",
         ".pptx", ".ppsx", ".ppt", ".odp", ".xlsx", ".xlsm", ".xls", ".ods"
     };
@@ -100,6 +101,7 @@ public partial class PdfMergeWindow : Window
             Title = "Add files to merge",
             Filter =
                 "Documents & images|*.pdf;*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp;*.tif;*.tiff;" +
+                "*.svg;*.ico;*.heic;" +
                 "*.doc;*.docx;*.odt;*.rtf;*.txt;*.html;*.htm;*.pptx;*.ppsx;*.ppt;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
                 "PDF|*.pdf|Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All files|*.*",
             Multiselect = true

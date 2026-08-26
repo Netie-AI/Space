@@ -524,6 +524,26 @@ def test_export_as_svg() -> None:
         assert jpg.is_file() and jpg.stat().st_size > 200
 
 
+def test_svg_ico_drop_merge_lists() -> None:
+    """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
+    organize = (ROOT / "src/NetieSpace/Views/PdfOrganizeWindow.xaml.cs").read_text(encoding="utf-8")
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
+    assert '".svg" or ".ico" or ".heic"' in preview
+    assert '".svg"' in merge and '".ico"' in merge and '".heic"' in merge
+    # Organize still uses PdfSharp XImage -- do not treat SVG as a raster insert.
+    assert '".svg"' not in organize.split("public static bool IsImagePath", 1)[1][:400]
+    assert '".svg"' in explorer and '".ico"' in explorer
+    ico = ROOT / "src/NetieSpace/Assets/netie.ico"
+    if ico.is_file() and pymupdf_available():
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf = Path(tmp) / "icon.pdf"
+            res = run_engine(["export-as", str(ico), str(pdf)])
+            assert res.get("success"), res
+            assert pdf.is_file() and pdf.stat().st_size > 200
+
+
 def test_export_as_preview_video_gif() -> None:
     """Share Export as GIF on previewed .wmv. VIDEO_EXTS used to omit C# video suffixes."""
     import shutil
@@ -620,6 +640,7 @@ if __name__ == "__main__":
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()
+    test_svg_ico_drop_merge_lists()
     test_export_as_preview_video_gif()
     test_pdf_ocr_force_uses_ocrmypdf_force_api()
     test_pdf_ocr_force_live()
