@@ -48,7 +48,8 @@ Export should land near that.
    playing from open (autoplay used to leave the slider frozen). MediaEnded
    used to stop at clip 1 so Split at the playing frame used slider 0.
    A click/scrub on clip 2 while Play is running keeps that packed time
-   (the clock used to snap the slider back to origin+elapsed).
+   (the clock used to snap the slider back to origin+elapsed, then jump
+   ~0.9s after seek settle so Split hit an edge).
    Click **Split**.
    You should now have three clips. The packed slider and the playhead
    line on the clip track must stay on that clip -- both used to sit on
