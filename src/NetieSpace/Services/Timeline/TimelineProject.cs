@@ -93,6 +93,59 @@ public sealed class TimelineProject
     public IEnumerable<TimelineTrack> AudioTracks => Tracks.Where(t => t.Kind == TrackKind.Audio);
     public TimelineTrack? OverlayTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Overlay);
 
+    /// <summary>Sum of V1 media clips (no overlays). Wipe shortens the file later.</summary>
+    public TimeSpan PackedVideoDuration()
+    {
+        var v = VideoTrack;
+        if (v is null)
+            return TimeSpan.Zero;
+        var sec = 0.0;
+        foreach (var c in v.Clips)
+        {
+            if (c.Overlay != OverlayKind.None)
+                continue;
+            sec += c.Duration.TotalSeconds;
+        }
+
+        return TimeSpan.FromSeconds(sec);
+    }
+
+    /// <summary>Latest overlay TimelineEnd, or zero.</summary>
+    public TimeSpan OverlayEnd()
+    {
+        var ov = OverlayTrack;
+        if (ov is null || ov.Clips.Count == 0)
+            return TimeSpan.Zero;
+        var max = TimeSpan.Zero;
+        foreach (var c in ov.Clips)
+        {
+            if (c.TimelineEnd > max)
+                max = c.TimelineEnd;
+        }
+
+        return max;
+    }
+
+    /// <summary>
+    /// File length Export should target. Last-clip Leave black parks the
+    /// title card past remaining V1; without this pad the overlay enable
+    /// window is after EOF and the card never burns.
+    /// </summary>
+    public TimeSpan ExportDuration()
+    {
+        var v = PackedVideoDuration();
+        var o = OverlayEnd();
+        return o > v ? o : v;
+    }
+
+    /// <summary>Black frames to append so overlays past V1 still burn.</summary>
+    public TimeSpan BlackPadAfterVideo()
+    {
+        var v = PackedVideoDuration();
+        var o = OverlayEnd();
+        return o > v ? o - v : TimeSpan.Zero;
+    }
+
     /// <summary>True when V1 has clips from more than one source file.</summary>
     public bool HasMultipleVideoSources
     {

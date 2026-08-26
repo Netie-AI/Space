@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Export pads black after remaining V1 when a title card sits past the last clip. Last-clip Leave black used to burn 1.6s with the overlay after EOF, so the card never landed.
 - Video: Leave black on the last + Clip source keeps the packed ruler through the title card. Ripple used to end the scale on the leftover clip, so the OV card was a sliver at 100% and Play on that card hit MediaEnded.
 - Video: Leave black pauses after seeking onto the title card. + Clip autoplay used to walk the packed clock off that range ~200ms later, so the preview flash was gone before you could read it.
 - Video: Leave black seeks the packed playhead onto the title card. #108 only painted when the playhead was already on that range, so the picture stayed on the leftover clip until a manual seek.

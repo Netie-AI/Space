@@ -51,4 +51,12 @@ public class FfmpegExportGraphTests
         var vf = FfmpegExportGraph.ClipVideoFilters(clip, normalizeSize: false, 0, 0);
         Assert.Contains("fade=t=out:st=1.8:d=0.2", vf);
     }
+
+    [Fact]
+    public void Pad_black_after_video_uses_add_not_clone()
+    {
+        Assert.Equal("tpad=stop_mode=add:stop_duration=2", FfmpegExportGraph.PadBlackAfterVideo(2));
+        Assert.Contains("stop_mode=add", FfmpegExportGraph.PadBlackAfterVideo(0.5));
+        Assert.DoesNotContain("clone", FfmpegExportGraph.PadBlackAfterVideo(2));
+    }
 }

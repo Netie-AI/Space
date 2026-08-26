@@ -388,6 +388,10 @@ public class VideoNleSessionTests
         };
         Assert.Equal(TimeSpan.FromSeconds(10),
             VideoEditSession.RulerDuration(TimeSpan.FromSeconds(10), [inside]));
+        Assert.Equal(TimeSpan.FromSeconds(10), project.PackedVideoDuration());
+        Assert.Equal(TimeSpan.FromSeconds(12), project.OverlayEnd());
+        Assert.Equal(TimeSpan.FromSeconds(12), project.ExportDuration());
+        Assert.Equal(TimeSpan.FromSeconds(2), project.BlackPadAfterVideo());
     }
 
     [Fact]

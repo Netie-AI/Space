@@ -42,6 +42,8 @@ def test_windows_ci_runs_dotnet_test():
     assert "Second_wipe_undo_does_not_consume_plus_clip" in nle
     assert "Leave_black_undo_removes_overlay_card" in nle
     assert "Leave_black_last_clip_keeps_ruler_for_overlay" in nle
+    graph_cs = (ROOT / "tests/NetieSpace.Tests/FfmpegExportGraphTests.cs").read_text(encoding="utf-8")
+    assert "Pad_black_after_video_uses_add_not_clone" in graph_cs
     assert "Speed_survives_ApplyTo" in nle
     assert "Speed_2x_shrinks_packed_duration" in nle
     assert "Packed_play_clock_continues_past_clip1_end" in nle

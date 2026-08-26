@@ -47,6 +47,7 @@ def test_export_keeps_fade_wipe_and_skips_primary_only_concat():
     assert "HasMultipleVideoSources" in ffmpeg
     assert "so a second/third V1 clip is not exported from the primary path" in ffmpeg
     assert "FfmpegExportGraph.XfadeWithAudio" in ffmpeg
+    assert "FfmpegExportGraph.PadBlackAfterVideo" in ffmpeg
     assert "xfade=transition=" in graph
     assert "XfadeWipeName" in graph
     assert "ProbeDurationAsync" in ffmpeg
