@@ -56,6 +56,29 @@ public sealed class LicenseApiClient
         return CheckoutResult.Ok(dto.CheckoutUrl, dto.SessionId);
     }
 
+    public async Task<StripeStatusResult> GetStripeStatusAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var res = await _http.GetAsync($"{_baseUrl}/v1/stripe/status", ct);
+            var body = await res.Content.ReadAsStringAsync(ct);
+            if (!res.IsSuccessStatusCode)
+                return StripeStatusResult.Unknown();
+            var dto = JsonSerializer.Deserialize<StripeStatusDto>(body, JsonOpts);
+            return new StripeStatusResult
+            {
+                Known = true,
+                StripeConfigured = dto?.StripeConfigured == true,
+                WebhookConfigured = dto?.WebhookConfigured == true,
+                PriceIdSet = dto?.PriceIdSet == true
+            };
+        }
+        catch
+        {
+            return StripeStatusResult.Unknown();
+        }
+    }
+
     public async Task<PortalResult> CreatePortalAsync(string token, CancellationToken ct = default)
     {
         using var req = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/billing-portal");
@@ -150,6 +173,23 @@ public sealed class LicenseApiClient
     {
         [JsonPropertyName("portal_url")] public string? PortalUrl { get; set; }
     }
+
+    private sealed class StripeStatusDto
+    {
+        [JsonPropertyName("stripe_configured")] public bool StripeConfigured { get; set; }
+        [JsonPropertyName("webhook_configured")] public bool WebhookConfigured { get; set; }
+        [JsonPropertyName("price_id_set")] public bool PriceIdSet { get; set; }
+    }
+}
+
+public sealed class StripeStatusResult
+{
+    public bool Known { get; init; }
+    public bool StripeConfigured { get; init; }
+    public bool WebhookConfigured { get; init; }
+    public bool PriceIdSet { get; init; }
+
+    public static StripeStatusResult Unknown() => new() { Known = false };
 }
 
 public sealed class LicenseAuthResult

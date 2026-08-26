@@ -51,7 +51,8 @@ Also keep the existing Resend / JWT / DEVICE_PEPPER secrets from
 2. Tray -> Account / Sign in. Register if you have no account.
 3. Tray -> API Keys... -> Get Netie subscription.
 4. Browser opens Stripe Checkout. Pay with test card `4242 4242 4242 4242`.
-5. You land on `/v1/checkout/success`.
+5. You land on `/v1/checkout/success`. The Worker retrieves that session and
+   fulfills the license even if the webhook is a few seconds late.
 6. Tray -> Account / Sign in -> Activate this laptop.
 7. Setup -> **Manage billing** opens the Stripe Customer Portal (needs a
    customer id from step 4). If you have not paid, the button says so.
@@ -76,7 +77,8 @@ opens netie.space. That is expected until step 2 is done.
 
 ## 5. What this agent already proved
 
-- `license-api` typecheck includes `/v1/checkout` and `/v1/webhooks/stripe`.
+- `license-api` typecheck includes `/v1/checkout`, `/v1/checkout/success` fulfill,
+  `/v1/stripe/status`, and `/v1/webhooks/stripe`.
 - Missing secrets return 503 `stripe_not_configured` (no live charge).
 - Setup button calls `LicenseApiClient.CreateCheckoutAsync`.
 - Live pay, webhook, and WPF clicks: only you on Windows + Stripe Dashboard.

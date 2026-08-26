@@ -54,6 +54,7 @@ produced 3.12s here. Your Windows Export should land near that.
 - The file plays in Movies & TV or VLC. Picture is not black.
 - Duration is about `clip1 + clip2 - 0.5s` when Wipe is on
   (example: 1.6s + 2.0s - 0.5s = about 3.1s).
+  Check: `.\scripts\check-pillar1-export.ps1 path\to\export.mp4` (2.8..3.4s).
 - Fade In/Out is visible at the ends. Wipe is visible at the join.
 - The app did not crash. The toast said export finished, not failed.
 - If ffmpeg is missing, Export should say so instead of hanging.
