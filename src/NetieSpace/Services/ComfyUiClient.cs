@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -27,6 +28,11 @@ public sealed class ComfyUiClient
 
     public string BaseUrl { get; }
 
+    /// <summary>Official ComfyUI 2026 OpenAPI first, then still-mounted unprefixed master routes.</summary>
+    public static readonly string[] RoutePrefixes = ["/api", ""];
+
+    string? _routePrefix;
+
     public ComfyUiClient(string? baseUrl = null)
     {
         var raw = baseUrl;
@@ -43,8 +49,55 @@ public sealed class ComfyUiClient
         return $"ComfyUI is not running at {url}. rembg / Copy still work.";
     }
 
+    /// <summary>/api/system_stats or /system_stats depending on the prefix.</summary>
+    public static string RoutePath(string prefix, string path)
+    {
+        var p = path.TrimStart('/');
+        return string.IsNullOrEmpty(prefix) ? $"/{p}" : $"{prefix.TrimEnd('/')}/{p}";
+    }
+
+    string UrlFor(string prefix, string path) => $"{BaseUrl}{RoutePath(prefix, path)}";
+
+    IEnumerable<string> PrefixTries()
+    {
+        if (_routePrefix != null)
+        {
+            yield return _routePrefix;
+            yield break;
+        }
+
+        foreach (var p in RoutePrefixes)
+            yield return p;
+    }
+
+    static bool RetryableRoute(HttpResponseMessage resp) =>
+        resp.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed;
+
+    async Task<HttpResponseMessage> SendWithPrefixAsync(
+        HttpClient http,
+        Func<string, HttpRequestMessage> build,
+        CancellationToken ct)
+    {
+        HttpResponseMessage? last = null;
+        foreach (var prefix in PrefixTries())
+        {
+            last?.Dispose();
+            using var req = build(prefix);
+            last = await http.SendAsync(req, ct).ConfigureAwait(false);
+            if (last.IsSuccessStatusCode || !RetryableRoute(last) || _routePrefix != null)
+            {
+                if (last.IsSuccessStatusCode)
+                    _routePrefix = prefix;
+                return last;
+            }
+        }
+
+        return last!;
+    }
+
     /// <summary>
-    /// GET /system_stats with ~1.2s timeout. False on any failure. Never throws.
+    /// GET /api/system_stats then GET /system_stats with ~1.2s timeout.
+    /// False on any failure. Never throws.
     /// </summary>
     public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken = default)
     {
@@ -53,7 +106,10 @@ public sealed class ComfyUiClient
             using var http = new HttpClient { Timeout = ProbeTimeout };
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(ProbeTimeout);
-            using var res = await http.GetAsync($"{BaseUrl}/system_stats", linked.Token).ConfigureAwait(false);
+            using var res = await SendWithPrefixAsync(
+                http,
+                prefix => new HttpRequestMessage(HttpMethod.Get, UrlFor(prefix, "system_stats")),
+                linked.Token).ConfigureAwait(false);
             return res.IsSuccessStatusCode;
         }
         catch
@@ -63,8 +119,8 @@ public sealed class ComfyUiClient
     }
 
     /// <summary>
-    /// POST /upload/image (multipart). Returns Comfy input filename, or null.
-    /// Missing file / down / error -> null. Never throws.
+    /// POST /api/upload/image then POST /upload/image (multipart).
+    /// Returns Comfy input filename, or null. Missing file / down / error -> null. Never throws.
     /// </summary>
     public async Task<string?> UploadImageAsync(string imagePath, CancellationToken cancellationToken = default)
     {
@@ -77,16 +133,23 @@ public sealed class ComfyUiClient
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             linked.CancelAfter(UploadTimeout);
 
-            using var form = new MultipartFormDataContent();
             var bytes = await File.ReadAllBytesAsync(imagePath, linked.Token).ConfigureAwait(false);
-            var file = new ByteArrayContent(bytes);
-            file.Headers.ContentType = new MediaTypeHeaderValue(ImageContentType(imagePath));
-            form.Add(file, "image", Path.GetFileName(imagePath));
-            form.Add(new StringContent("true"), "overwrite");
-            form.Add(new StringContent("input"), "type");
-
-            using var res = await http.PostAsync($"{BaseUrl}/upload/image", form, linked.Token)
-                .ConfigureAwait(false);
+            using var res = await SendWithPrefixAsync(
+                http,
+                prefix =>
+                {
+                    var form = new MultipartFormDataContent();
+                    var file = new ByteArrayContent(bytes);
+                    file.Headers.ContentType = new MediaTypeHeaderValue(ImageContentType(imagePath));
+                    form.Add(file, "image", Path.GetFileName(imagePath));
+                    form.Add(new StringContent("true"), "overwrite");
+                    form.Add(new StringContent("input"), "type");
+                    return new HttpRequestMessage(HttpMethod.Post, UrlFor(prefix, "upload/image"))
+                    {
+                        Content = form
+                    };
+                },
+                linked.Token).ConfigureAwait(false);
             if (!res.IsSuccessStatusCode)
                 return null;
 
@@ -108,7 +171,8 @@ public sealed class ComfyUiClient
     }
 
     /// <summary>
-    /// POST /prompt then poll /history/{id} until an image output or ~30s.
+    /// POST /api/prompt then /prompt; poll /api/history/{id} then /history/{id}
+    /// until an image output or ~30s.
     /// status.completed with empty outputs is not done (Comfy history race).
     /// Down / error -> Success=false. Never throws to the UI.
     /// </summary>
@@ -125,8 +189,13 @@ public sealed class ComfyUiClient
             var ct = linked.Token;
 
             var body = WrapPromptBody(workflowJson);
-            using var content = new StringContent(body, Encoding.UTF8, "application/json");
-            using var post = await http.PostAsync($"{BaseUrl}/prompt", content, ct).ConfigureAwait(false);
+            using var post = await SendWithPrefixAsync(
+                http,
+                prefix => new HttpRequestMessage(HttpMethod.Post, UrlFor(prefix, "prompt"))
+                {
+                    Content = new StringContent(body, Encoding.UTF8, "application/json")
+                },
+                ct).ConfigureAwait(false);
             var postText = await post.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
             if (!post.IsSuccessStatusCode)
                 return ComfyUiResult.Fail(OfflineMessage(BaseUrl)); // Success=false path
@@ -159,7 +228,10 @@ public sealed class ComfyUiClient
             while (clock.Elapsed < QueueTimeout)
             {
                 ct.ThrowIfCancellationRequested();
-                using var hist = await http.GetAsync($"{BaseUrl}/history/{promptId}", ct).ConfigureAwait(false);
+                using var hist = await SendWithPrefixAsync(
+                    http,
+                    prefix => new HttpRequestMessage(HttpMethod.Get, UrlFor(prefix, $"history/{promptId}")),
+                    ct).ConfigureAwait(false);
                 var histText = await hist.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
                 if (hist.IsSuccessStatusCode &&
                     TryReadHistory(histText, promptId, out var outputs, out var histError))
@@ -269,7 +341,7 @@ public sealed class ComfyUiClient
     }
 
     /// <summary>
-    /// GET /view for the first history image and write {stem}.comfy{ext} next to the source.
+    /// GET /api/view then /view for the first history image and write {stem}.comfy{ext} next to the source.
     /// Missing outputs / down / error -> null. Never throws.
     /// </summary>
     public async Task<string?> DownloadFirstOutputAsync(
@@ -289,7 +361,10 @@ public sealed class ComfyUiClient
                 $"filename={Uri.EscapeDataString(name)}" +
                 $"&type={Uri.EscapeDataString(type)}" +
                 $"&subfolder={Uri.EscapeDataString(sub)}";
-            using var res = await http.GetAsync($"{BaseUrl}/view?{qs}", linked.Token).ConfigureAwait(false);
+            using var res = await SendWithPrefixAsync(
+                http,
+                prefix => new HttpRequestMessage(HttpMethod.Get, UrlFor(prefix, $"view?{qs}")),
+                linked.Token).ConfigureAwait(false);
             if (!res.IsSuccessStatusCode)
                 return null;
 

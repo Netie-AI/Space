@@ -29,6 +29,9 @@ def test_client_file_exists():
     assert "8188" in text
     assert "NETIE_COMFY_URL" in text
     assert "/system_stats" in text
+    assert "/api/system_stats" in text
+    assert "RoutePrefixes" in text
+    assert '["/api", ""]' in text
     assert "ProbeTimeoutMs = 1200" in text
     assert "QueueTimeoutMs = 30_000" in text
     assert "/prompt" in text
@@ -100,6 +103,7 @@ def test_xunit_compile_include():
     assert "TryFirstOutputImage_reads_filename" in tests
     assert "TryReadHistory_completed_without_images_keeps_polling" in tests
     assert "DownloadFirstOutput_down_server_returns_null" in tests
+    assert "RoutePrefixes_official_api_then_legacy" in tests
 
 
 def test_docs_code_ready():

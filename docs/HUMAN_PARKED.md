@@ -38,16 +38,19 @@ bytes stay. Cursor CI rewrite+signs both shapes; Adobe Reader panel is still hum
 ## ComfyUI / Windows AI
 
 Code-ready local client: `ComfyUiClient` talks to `http://127.0.0.1:8188`
-(override `NETIE_COMFY_URL`). Probe GET /system_stats (~1.2s). Down ->
-toast/status only; rembg / Copy still work. Live GPU still human.
+(override `NETIE_COMFY_URL`). Probe GET /api/system_stats then GET
+/system_stats (~1.2s). Official 2026 OpenAPI first; unprefixed master
+routes if that 404s. Down -> toast/status only; rembg / Copy still work.
+Live GPU still human.
 
 Click path (image preview):
 
 1. Space an image.
 2. Image ribbon -> Send to Comfy...
 3. If 8188 is down: status/toast, no hang, no crash. rembg / Copy still work.
-4. If up: POST `/upload/image`, then a LoadImage + SaveImage workflow.
-   Space GETs `/view` and writes `{stem}.comfy.png` next to the source, then
+4. If up: POST `/api/upload/image` (then `/upload/image`), then a
+   LoadImage + SaveImage workflow.
+   Space GETs `/api/view` (then `/view`) and writes `{stem}.comfy.png` next to the source, then
    reloads that file so Copy / drag-out work like rembg.
    If upload/queue/download fails, write `{file}.comfy-input.json` next to
    the image (not on success) and run that workflow in ComfyUI. Upload uses
