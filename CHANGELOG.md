@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Video: Order... lists packed output length (and `2x`) after Speed. Source End-Start made a 2x clip still look like 1.6s+2.0s in that dialog.
 - Video: Leave-black title card uses packed output length (`PackedEndOf - PackedStartOf`). Source in-out ignored Speed, so a 2x clip left a full-source black overlay and Export failed "picture is not black".
 - Video: packed timeline uses output duration (`source / Speed`). Accidental Speed 2x left the clip full width, so Export was ~2.3s with no visible cue to Ctrl+Z. `ApplyTo` repacks V1/A1 after Speed.
 - Video: + Clip grows `VideoSlider.Maximum` to the packed length. MediaOpened left it on clip-1 duration, so a clip-2 seek clamped to the join and Split failed as an edge (playbook slider must sit on clip 2).

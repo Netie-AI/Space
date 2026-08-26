@@ -385,6 +385,8 @@ public class VideoNleSessionTests
         Assert.Equal(TimeSpan.FromSeconds(5), session.PackedStartOf(1));
         Assert.Equal(TimeSpan.FromSeconds(5),
             session.PackedEndOf(0) - session.PackedStartOf(0));
+        Assert.Equal(TimeSpan.FromSeconds(5), session.Clips[0].OutputDuration);
+        Assert.Contains("2x", session.Describe(), StringComparison.Ordinal);
         Assert.Equal(TimeSpan.FromSeconds(2), session.SourceToPacked(TimeSpan.FromSeconds(4)));
         Assert.Equal(TimeSpan.FromSeconds(4), session.PackedToSource(TimeSpan.FromSeconds(2)));
         Assert.True(session.SplitAtPacked(TimeSpan.FromSeconds(2.5)));
