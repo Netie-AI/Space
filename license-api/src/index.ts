@@ -613,33 +613,19 @@ async function handleCheckout(req: Request, env: Env): Promise<Response> {
     if (row?.email) email = normalizeEmail(row.email);
   }
 
+  // Playbook: Buy without a session is register_first. An email-only
+  // lookup used to start Checkout for any registered address (Login
+  // sends EmailBox even when Sign in never ran).
   if (!userId) {
-    if (!email.includes("@")) {
-      return json(
-        env,
-        req,
-        {
-          error: "register_first",
-          message: "Sign in first (tray -> Account), then click Get Netie subscription.",
-        },
-        400
-      );
-    }
-    const existing = await env.DB.prepare("SELECT id FROM users WHERE email = ?")
-      .bind(email)
-      .first<{ id: string }>();
-    if (!existing) {
-      return json(
-        env,
-        req,
-        {
-          error: "register_first",
-          message: "Create an account first (tray -> Account / Sign in), then click Get Netie subscription.",
-        },
-        400
-      );
-    }
-    userId = existing.id;
+    return json(
+      env,
+      req,
+      {
+        error: "register_first",
+        message: "Sign in first (tray -> Account), then click Get Netie subscription.",
+      },
+      400
+    );
   }
 
   const paid = await env.DB.prepare(
