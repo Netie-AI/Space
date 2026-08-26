@@ -111,13 +111,26 @@ type CheckoutSession = {
   id: string;
   status?: string | null;
   payment_status?: string | null;
-  customer?: string | null;
-  subscription?: string | null;
+  customer?: unknown;
+  subscription?: unknown;
   customer_email?: string | null;
   customer_details?: { email?: string | null } | null;
   client_reference_id?: string | null;
   metadata?: Record<string, string> | null;
 };
+
+/** Stripe IDs arrive as strings or expanded `{ id }` objects. Never throw. */
+export function stripeRefId(value: unknown, prefix?: string): string | null {
+  let id = "";
+  if (typeof value === "string") id = value.trim();
+  else if (value && typeof value === "object" && "id" in value) {
+    const raw = (value as { id?: unknown }).id;
+    if (typeof raw === "string") id = raw.trim();
+  }
+  if (!id) return null;
+  if (prefix && !id.startsWith(prefix)) return null;
+  return id;
+}
 
 export function checkoutSessionPaid(session: {
   status?: string | null;
@@ -142,6 +155,8 @@ export async function retrieveCheckoutSession(
     if (!res.ok) return null;
     const json = (await res.json()) as CheckoutSession;
     if (!json?.id) return null;
+    json.customer = stripeRefId(json.customer, "cus_");
+    json.subscription = stripeRefId(json.subscription, "sub_");
     return json;
   } catch {
     return null;
@@ -152,12 +167,33 @@ export async function fulfillCheckoutSession(env: Env, session: CheckoutSession)
   const sessionId = session.id;
   if (!sessionId) return;
 
+  const customerId = stripeRefId(session.customer, "cus_");
+  const subscriptionId = stripeRefId(session.subscription, "sub_");
+
   const already = await env.DB.prepare(
-    "SELECT id FROM licenses WHERE stripe_checkout_session_id = ?"
+    "SELECT id, user_id FROM licenses WHERE stripe_checkout_session_id = ?"
   )
     .bind(sessionId)
-    .first();
-  if (already) return;
+    .first<{ id: string; user_id: string }>();
+  if (already) {
+    // Webhook may have written the session before customer/subscription IDs
+    // were parseable. Success-page retrieve must still backfill portal ids.
+    if (customerId) {
+      await env.DB.prepare(
+        "UPDATE users SET stripe_customer_id = COALESCE(stripe_customer_id, ?) WHERE id = ?"
+      )
+        .bind(customerId, already.user_id)
+        .run();
+    }
+    if (subscriptionId) {
+      await env.DB.prepare(
+        "UPDATE licenses SET stripe_subscription_id = COALESCE(stripe_subscription_id, ?) WHERE id = ?"
+      )
+        .bind(subscriptionId, already.id)
+        .run();
+    }
+    return;
+  }
 
   const email = normalizeEmail(
     session.metadata?.email ||
@@ -166,8 +202,6 @@ export async function fulfillCheckoutSession(env: Env, session: CheckoutSession)
       ""
   );
   const userId = session.client_reference_id || session.metadata?.user_id || "";
-  const customerId = session.customer || null;
-  const subscriptionId = session.subscription || null;
   const now = new Date().toISOString();
 
   let user = userId

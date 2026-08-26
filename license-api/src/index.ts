@@ -19,6 +19,7 @@ import {
   markSubscriptionStatus,
   retrieveCheckoutSession,
   stripeConfigured,
+  stripeRefId,
   stripeWebhookConfigured,
   verifyStripeSignature,
 } from "./stripe";
@@ -684,8 +685,8 @@ async function handleStripeWebhook(req: Request, env: Env): Promise<Response> {
   if (event.type === "checkout.session.completed") {
     await fulfillCheckoutSession(env, {
       id: String(obj.id ?? ""),
-      customer: typeof obj.customer === "string" ? obj.customer : null,
-      subscription: typeof obj.subscription === "string" ? obj.subscription : null,
+      customer: stripeRefId(obj.customer, "cus_"),
+      subscription: stripeRefId(obj.subscription, "sub_"),
       customer_email: typeof obj.customer_email === "string" ? obj.customer_email : null,
       customer_details:
         obj.customer_details && typeof obj.customer_details === "object"
