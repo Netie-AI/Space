@@ -4599,7 +4599,10 @@ public partial class PreviewWindow : Window
             }
 
             ConvertStatusText.Text = "Sending to ComfyUI...";
-            var uploaded = await client.UploadImageAsync(path);
+            // LoadImage wants a raster. SVG/ICO preview as Image; upload used to send
+            // those bytes as image/png.
+            var uploadPath = await RasterizeForComfyAsync(path);
+            var uploaded = await client.UploadImageAsync(uploadPath);
             var fileName = uploaded ?? IoPath.GetFileName(path);
             var workflow = ComfyUiClient.BuildLoadImageWorkflow(fileName);
             var result = await client.QueuePromptAsync(workflow);
@@ -4634,6 +4637,16 @@ public partial class PreviewWindow : Window
         {
             ConvertStatusText.Text = $"ComfyUI: {ex.Message}. rembg / Copy still work.";
         }
+    }
+
+    private async Task<string> RasterizeForComfyAsync(string path)
+    {
+        var ext = IoPath.GetExtension(path).ToLowerInvariant();
+        if (ext is not (".svg" or ".ico") || !_conversion.IsAvailable)
+            return path;
+        var dest = IoPath.Combine(IoPath.GetTempPath(), $"netie_comfy_{Guid.NewGuid():N}.png");
+        var result = await _conversion.ExportAsAsync(path, dest);
+        return result.Success && IoFile.Exists(dest) ? dest : path;
     }
 
     private void WindowsAiButton_Click(object sender, RoutedEventArgs e)

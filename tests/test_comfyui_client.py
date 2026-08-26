@@ -55,6 +55,8 @@ def test_client_file_exists():
     assert "UploadImageAsync" in text
     assert "ImageContentType" in text
     assert "image/png" in text
+    assert "image/svg+xml" in text
+    assert "image/x-icon" in text
     assert "application/octet-stream" not in text
     assert "UploadTimeoutMs = 10_000" in text
     assert "/view" in text
@@ -94,6 +96,8 @@ def test_menu_and_handler_names():
     assert "ToastHud.Show" in cs
     assert "rembg / Copy still work" in cs
     assert "SendToComfyButton.Visibility = isImage" in cs
+    assert "RasterizeForComfyAsync" in cs
+    assert 'ext is not (".svg" or ".ico")' in cs
 
 
 def test_xunit_compile_include():
