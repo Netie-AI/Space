@@ -30,7 +30,7 @@
    Ctrl+Z after Leave black restores the title card and fill-gaps flag.
    A2 uses packed start (preview-only, no amix).
    Share Export as Word / Excel writes real .docx / .xlsx. Opening those
-   plus .xlsm / SVG / ODT / .ppsx / scan-PDF Word+HTML+MD / photo office PDF / silent MP3.
+   plus .xlsm / SVG / ODT / .ppsx / scan-PDF Word+HTML+MD / photo office PDF+Space HTML / silent MP3.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits

@@ -1687,9 +1687,20 @@ def action_preview_html(argv: list[str]) -> dict:
     if ext in HTML_EXTS:
         shutil.copy2(src, dest)
         return ok(dest, "copy")
-    text, tool = file_to_markdown(src)
-    write_text(dest, wrap_html(markdown_to_html(text), src.name))
-    return ok(dest, tool)
+    # Space ODT/ODP/ODS uses this action. Empty zip text used to write a
+    # blank page while Share Export as HTML already embeds Pictures/.
+    try:
+        text, tool = file_to_markdown(src)
+    except RuntimeError:
+        text, tool = "", None
+    if (text or "").strip() or ext not in {".odp", ".odt", ".ods", ".xlsx", ".xlsm"}:
+        write_text(dest, wrap_html(markdown_to_html(text or ""), src.name))
+        return ok(dest, tool or "copy")
+    pngs = office_media_pngs(src)
+    if pngs:
+        return ok(dest, pngs_to_html(pngs, dest, src.name))
+    write_text(dest, wrap_html(markdown_to_html(text or ""), src.name))
+    return ok(dest, tool or "copy")
 
 
 @register("preview-pptx-html")

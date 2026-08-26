@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Space a photo ODT / ODP / ODS embeds `Pictures/` in the preview HTML. `preview-html` used empty zip text (blank page). Share Export as HTML already did this; text ODF stays the zip text path.
 - Image: Space an `.ico` previews as Image via WebView2 (same HTML picture path as WebP/SVG). Copy/Compress comments say WPF `BitmapImage` cannot decode ICO; `ParseImage` catch was `ShellInfo` and hid Share. `FilePath` stays the ICO so Copy / Compress still rasterize.
 - Image: Space a HEIC/HEIF previews as Image when WPF has no HEIF decoder. `ParseImage` catch was `ShellInfo` and hid Share. Engine rasters to a temp PNG for WebView2; `FilePath` stays the HEIC so Copy / Compress still rasterize. `pillow_heif` stays optional.
 - Image: Space a `.webp` previews as Image via WebView2 (same HTML picture path as SVG). WPF `BitmapImage` has no WebP decoder; `ParseImage` catch was `ShellInfo` and hid Share / Copy / Compress.
