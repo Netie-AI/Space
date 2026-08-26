@@ -187,7 +187,10 @@ public sealed class ComfyUiClient
         }
     }
 
-    /// <summary>Minimal LoadImage graph for POST /prompt (filename only -- Comfy input folder).</summary>
+    /// <summary>
+    /// LoadImage + SaveImage graph for POST /prompt (filename only -- Comfy input folder).
+    /// SaveImage writes an output Space can GET /view and Copy / drag-out.
+    /// </summary>
     public static string BuildLoadImageWorkflow(string imageFileName)
     {
         var name = string.IsNullOrWhiteSpace(imageFileName) ? "image.png" : imageFileName;
@@ -197,9 +200,119 @@ public sealed class ComfyUiClient
             {
                 ["class_type"] = "LoadImage",
                 ["inputs"] = new Dictionary<string, object> { ["image"] = name }
+            },
+            ["2"] = new Dictionary<string, object>
+            {
+                ["class_type"] = "SaveImage",
+                ["inputs"] = new Dictionary<string, object>
+                {
+                    ["images"] = new object[] { "1", 0 },
+                    ["filename_prefix"] = "netie"
+                }
             }
         };
         return JsonSerializer.Serialize(graph);
+    }
+
+    /// <summary>First images[] entry in a /history outputs object. False if none.</summary>
+    public static bool TryFirstOutputImage(
+        string? outputsJson,
+        out string fileName,
+        out string subfolder,
+        out string type)
+    {
+        fileName = "";
+        subfolder = "";
+        type = "output";
+        if (string.IsNullOrWhiteSpace(outputsJson))
+            return false;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(outputsJson);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return false;
+
+            foreach (var node in doc.RootElement.EnumerateObject())
+            {
+                if (node.Value.ValueKind != JsonValueKind.Object)
+                    continue;
+                if (!node.Value.TryGetProperty("images", out var images) ||
+                    images.ValueKind != JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var img in images.EnumerateArray())
+                {
+                    if (img.ValueKind != JsonValueKind.Object)
+                        continue;
+                    var name = img.TryGetProperty("filename", out var fn) ? fn.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(name))
+                        continue;
+                    fileName = name;
+                    subfolder = img.TryGetProperty("subfolder", out var sf) ? sf.GetString() ?? "" : "";
+                    type = img.TryGetProperty("type", out var t) ? t.GetString() ?? "output" : "output";
+                    if (string.IsNullOrWhiteSpace(type))
+                        type = "output";
+                    return true;
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// GET /view for the first history image and write {stem}.comfy{ext} next to the source.
+    /// Missing outputs / down / error -> null. Never throws.
+    /// </summary>
+    public async Task<string?> DownloadFirstOutputAsync(
+        string sourceImagePath,
+        string? outputsJson,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!TryFirstOutputImage(outputsJson, out var name, out var sub, out var type))
+                return null;
+
+            using var http = new HttpClient { Timeout = UploadTimeout };
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            linked.CancelAfter(UploadTimeout);
+            var qs =
+                $"filename={Uri.EscapeDataString(name)}" +
+                $"&type={Uri.EscapeDataString(type)}" +
+                $"&subfolder={Uri.EscapeDataString(sub)}";
+            using var res = await http.GetAsync($"{BaseUrl}/view?{qs}", linked.Token).ConfigureAwait(false);
+            if (!res.IsSuccessStatusCode)
+                return null;
+
+            var bytes = await res.Content.ReadAsByteArrayAsync(linked.Token).ConfigureAwait(false);
+            if (bytes.Length == 0)
+                return null;
+
+            var ext = Path.GetExtension(name);
+            if (string.IsNullOrWhiteSpace(ext))
+                ext = ".png";
+            var dir = Path.GetDirectoryName(sourceImagePath);
+            if (string.IsNullOrWhiteSpace(dir))
+                dir = ".";
+            var stem = Path.GetFileNameWithoutExtension(sourceImagePath);
+            if (string.IsNullOrWhiteSpace(stem))
+                stem = "comfy";
+            var dest = Path.Combine(dir, stem + ".comfy" + ext);
+            await File.WriteAllBytesAsync(dest, bytes, linked.Token).ConfigureAwait(false);
+            return dest;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>Write {file}.comfy-input.json next to the image (sidecar fallback).</summary>

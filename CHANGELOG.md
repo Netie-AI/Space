@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Comfy: after queue, GET `/view` writes `{stem}.comfy.png` and reloads it so Copy / drag-out work like rembg. Workflow is LoadImage + SaveImage. Live GPU still human.
 - Comfy: **Send to Comfy...** POSTs `/upload/image` before `/prompt` so the open file is in Comfy's input folder. Upload fail -> sidecar + filename-only LoadImage. rembg / Copy stay the offline path.
 - PDF: cert sign now incremental-overrides the first page `/Annots` and writes a Form XObject appearance (`Digitally signed`). Adobe Signature panel is still a human check.
 - License: test-mode Stripe Product `netie_space` + Price `price_1U8ckCFV5wcFod2faXiUCsaV` ($9/mo) on account NETIE; Worker `[vars]` has the Price id. Secret key + webhook still human.
