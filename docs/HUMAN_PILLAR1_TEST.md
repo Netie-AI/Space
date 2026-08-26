@@ -54,6 +54,9 @@ Export should land near that.
    ribbon Delete). The piece
    should disappear. Ripple (default) joins the gap. "Leave black scene"
    puts the title card at the packed clip start (not source in 0 on + Clip).
+   Ctrl+Z after Leave black also clears the fill-gaps flag (used to stay
+   on and insert same-source holes later). A2 clicks use packed start too
+   (not source in 0). A2 is preview-only -- Export does not amix.
    The hint text says: "Move playhead -> Split ->
    select clip -> Delete".
 8. Split/Delete is the click check. Ctrl+Z Undo (or close and + Clip both

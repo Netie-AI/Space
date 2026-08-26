@@ -3720,16 +3720,18 @@ public partial class PreviewWindow : Window
             // Ensure a clip exists on A2 mirroring selection
             if (track.Clips.Count == 0 && _videoEdit.HasSelection)
             {
-                var (a, b) = _videoEdit.Kept[_videoEdit.SelectedIndex];
-                var src = _videoEdit.Clips.ElementAtOrDefault(_videoEdit.SelectedIndex).SourcePath;
+                var kept = _videoEdit.Clips[_videoEdit.SelectedIndex];
+                var src = kept.SourcePath;
                 if (string.IsNullOrWhiteSpace(src))
                     src = _currentFilePath;
+                // KeptClip.Start is source in (0 on + Clip). Same trap as
+                // Leave-black title card -- A2 must sit on packed time.
                 track.Clips.Add(new TimelineClip
                 {
                     SourcePath = src,
-                    SourceIn = a,
-                    SourceOut = b,
-                    TimelineStart = a,
+                    SourceIn = kept.Start,
+                    SourceOut = kept.End,
+                    TimelineStart = _videoEdit.PackedStartOf(_videoEdit.SelectedIndex),
                     Muted = false
                 });
             }
@@ -3740,7 +3742,8 @@ public partial class PreviewWindow : Window
                 foreach (var c in a1.Clips)
                     c.Muted = true;
 
-            ConvertStatusText.Text = "Audio on A2 (music lane). A1 muted for export mix.";
+            ConvertStatusText.Text =
+                "A2 lane is preview-only. Export still uses V1/A1 (no amix).";
         }
         else
         {

@@ -16,8 +16,8 @@
    Fade / Wipe / drag push undo so extra Ctrl+Z keeps + Clip.
    Failed Split / + Clip / cancel Delete / no-op fade-handle / fade-handle
    or clip-drag capture-loss / second Wipe discard that undo.
-   Ctrl+Z after Leave black / context-menu Speed or Add black undoes that
-   (Export must not burn a leftover card or a 2x clip).
+   Ctrl+Z after Leave black restores the title card and fill-gaps flag.
+   A2 uses packed start (preview-only, no amix).
    Delete key runs the same ribbon Delete dialog.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all

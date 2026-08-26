@@ -47,6 +47,7 @@ def test_scripts_and_docs():
     assert "extra Ctrl+Z" in pillar or "push undo" in pillar.lower()
     assert "Leave black" in pillar
     assert "title card" in pillar
+    assert "no amix" in pillar.lower() or "preview-only" in pillar.lower() or "preview only" in pillar.lower()
     assert "mouse capture" in pillar.lower()
     assert "Speed 2x" in pillar or "Speed 2" in pillar
     assert "Space-close" in pillar or "snapped the timeline" in pillar
@@ -109,6 +110,11 @@ def test_scripts_and_docs():
     assert "DiscardLastVideoUndo" in clip_drag
     delete_body = preview[preview.index("Delete clip"):preview.index("private async void ExportEditButton_Click")]
     assert "PackedStartOf" in delete_body
+    a2 = preview[preview.index("private void AudioTrack_PreviewMouseLeftButtonDown"):preview.index("private void TimelineTrack_PreviewMouseRightButtonUp")]
+    assert "PackedStartOf" in a2
+    assert "TimelineStart = a" not in a2
+    assert "no amix" in a2
+    assert "export mix" not in a2
     keys = preview.index("private void Window_KeyDown")
     keys_end = preview.index("public bool IsTypingOrEditCapture")
     assert "Key.Delete" in preview[keys:keys_end]

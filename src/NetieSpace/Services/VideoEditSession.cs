@@ -11,7 +11,7 @@ public sealed class VideoEditSession
     private readonly List<KeptClip> _kept = [];
     private readonly Stack<UndoFrame> _undo = new();
 
-    private readonly record struct UndoFrame(List<KeptClip> Kept, List<TimelineClip> Overlays);
+    private readonly record struct UndoFrame(List<KeptClip> Kept, List<TimelineClip> Overlays, bool FillGaps);
 
     public IReadOnlyList<(TimeSpan Start, TimeSpan End)> Kept =>
         _kept.ConvertAll(c => (c.Start, c.End));
@@ -114,7 +114,8 @@ public sealed class VideoEditSession
     {
         _undo.Push(new UndoFrame(
             _kept.Select(c => c).ToList(),
-            project?.SnapshotOverlays() ?? []));
+            project?.SnapshotOverlays() ?? [],
+            FillGapsWithBlack));
         if (_undo.Count <= 40)
             return;
         var keep = _undo.Take(30).Reverse().ToList();
@@ -131,6 +132,9 @@ public sealed class VideoEditSession
             return false;
         var frame = _undo.Pop();
         RestoreKept(frame.Kept);
+        FillGapsWithBlack = frame.FillGaps;
+        if (project is not null)
+            project.FillGapsWithBlack = frame.FillGaps;
         project?.RestoreOverlays(frame.Overlays);
         return true;
     }
