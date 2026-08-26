@@ -846,6 +846,8 @@ def test_photo_odp_docx_export() -> None:
     src = ENGINE.read_text(encoding="utf-8")
     assert "PHOTO_OFFICE_EXTS" in src
     assert "def office_media_pngs" in src
+    preview_html = src.split('@register("preview-html")', 1)[1][:1400]
+    assert "office_media_pngs" in preview_html
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
     dlg = preview.split("var imageDefaultExt", 1)[1]
     assert "PDF document|*.pdf" in dlg.split('".odp"', 1)[1][:200]
@@ -891,6 +893,31 @@ def test_photo_odp_docx_export() -> None:
         res = run_engine(["export-as", str(odp), str(html_out)])
         assert res.get("success"), res
         assert "data:image/png;base64," in html_out.read_text(encoding="utf-8")
+        preview_html = d / "odp-preview.html"
+        res = run_engine(["preview-html", str(odp), str(preview_html)])
+        assert res.get("success"), res
+        assert res.get("tool") == "office-html-images", res
+        assert "data:image/png;base64," in preview_html.read_text(encoding="utf-8")
+        odt = d / "photos.odt"
+        odt_content = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+            ' xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"'
+            ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"'
+            ' xmlns:xlink="http://www.w3.org/1999/xlink">'
+            "<office:body><office:text>"
+            '<draw:frame><draw:image xlink:href="Pictures/image1.png"/></draw:frame>'
+            "</office:text></office:body></office:document-content>"
+        )
+        with zipfile.ZipFile(odt, "w") as zf:
+            zf.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+            zf.writestr("content.xml", odt_content)
+            zf.writestr("Pictures/image1.png", png)
+        odt_preview = d / "odt-preview.html"
+        res = run_engine(["preview-html", str(odt), str(odt_preview)])
+        assert res.get("success"), res
+        assert res.get("tool") == "office-html-images", res
+        assert "data:image/png;base64," in odt_preview.read_text(encoding="utf-8")
         md = d / "odp.md"
         res = run_engine(["to-md", str(odp), str(md)])
         assert res.get("success"), res
@@ -971,6 +998,11 @@ def test_photo_ods_xlsx_export() -> None:
         res = run_engine(["export-as", str(ods), str(html_out)])
         assert res.get("success"), res
         assert "data:image/png;base64," in html_out.read_text(encoding="utf-8")
+        ods_preview = d / "ods-preview.html"
+        res = run_engine(["preview-html", str(ods), str(ods_preview)])
+        assert res.get("success"), res
+        assert res.get("tool") == "office-html-images", res
+        assert "data:image/png;base64," in ods_preview.read_text(encoding="utf-8")
 
         xlsx = d / "chart.xlsx"
         with zipfile.ZipFile(xlsx, "w") as zf:
