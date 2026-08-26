@@ -10,6 +10,7 @@ Never fail stderr-only. Unknown actions and missing deps emit JSON + exit 1.
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import html
 import json
@@ -458,8 +459,161 @@ def file_to_docx(src: Path, dest: Path) -> str:
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dest)
         return "copy"
-    text, _tool = file_to_markdown(src)
-    return write_docx(dest, text)
+    try:
+        text, _tool = file_to_markdown(src)
+        return write_docx(dest, text)
+    except RuntimeError:
+        tool = via_soffice(src, dest)
+        if tool:
+            return tool
+        raise
+
+
+def _xlsx_col(index: int) -> str:
+    n = index + 1
+    out = ""
+    while n:
+        n, rem = divmod(n - 1, 26)
+        out = chr(65 + rem) + out
+    return out
+
+
+def write_xlsx(dest: Path, rows: list[list[str]]) -> str:
+    """Minimal Office Open XML .xlsx (stdlib zip). Share Export as Excel used this."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if not rows:
+        rows = [[""]]
+
+    def esc(s: str) -> str:
+        return html.escape(_XML_ILLEGAL.sub("", s), quote=False)
+
+    sheet_rows = []
+    for r_i, row in enumerate(rows, start=1):
+        cells = []
+        for c_i, value in enumerate(row):
+            ref = f"{_xlsx_col(c_i)}{r_i}"
+            cells.append(
+                f'<c r="{ref}" t="inlineStr"><is><t xml:space="preserve">{esc(str(value))}</t></is></c>'
+            )
+        sheet_rows.append(f'<row r="{r_i}">{"".join(cells)}</row>')
+    sheet_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+        f'<sheetData>{"".join(sheet_rows)}</sheetData></worksheet>'
+    )
+    workbook_xml = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+    )
+    workbook_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" '
+        'Target="worksheets/sheet1.xml"/>'
+        "</Relationships>"
+    )
+    root_rels = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Id="rId1" '
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" '
+        'Target="xl/workbook.xml"/>'
+        "</Relationships>"
+    )
+    content_types = (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="xml" ContentType="application/xml"/>'
+        '<Override PartName="/xl/workbook.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        '<Override PartName="/xl/worksheets/sheet1.xml" '
+        'ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'
+        "</Types>"
+    )
+    with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("[Content_Types].xml", content_types)
+        zf.writestr("_rels/.rels", root_rels)
+        zf.writestr("xl/workbook.xml", workbook_xml)
+        zf.writestr("xl/_rels/workbook.xml.rels", workbook_rels)
+        zf.writestr("xl/worksheets/sheet1.xml", sheet_xml)
+    return "xlsx-zip"
+
+
+def csv_to_rows(src: Path) -> list[list[str]]:
+    text = src.read_text(encoding="utf-8", errors="replace")
+    sample = text[:4096]
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
+    except csv.Error:
+        dialect = csv.excel
+    return [list(row) for row in csv.reader(text.splitlines(), dialect)]
+
+
+def find_soffice() -> str | None:
+    for name in ("soffice", "libreoffice"):
+        found = shutil.which(name)
+        if found:
+            return found
+    for c in (
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+    ):
+        if Path(c).is_file():
+            return c
+    return None
+
+
+def via_soffice(src: Path, dest: Path) -> str | None:
+    exe = find_soffice()
+    if not exe:
+        return None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    ext = dest.suffix.lower().lstrip(".")
+    if not ext:
+        return None
+    with tempfile.TemporaryDirectory() as td:
+        proc = subprocess.run(
+            [exe, "--headless", "--norestore", "--convert-to", ext, "--outdir", td, str(src)],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        produced = list(Path(td).glob(f"*.{ext}"))
+        if proc.returncode != 0 or not produced:
+            return None
+        shutil.copy2(produced[0], dest)
+        return "libreoffice"
+
+
+def file_to_xlsx(src: Path, dest: Path) -> str:
+    ext = src.suffix.lower()
+    if ext == ".xlsx":
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        return "copy"
+    if ext == ".csv":
+        return write_xlsx(dest, csv_to_rows(src))
+    tool = via_soffice(src, dest)
+    if tool:
+        return tool
+    raise RuntimeError(
+        "LibreOffice required to export this file as .xlsx (install soffice, or export CSV)"
+    )
+
+
+def file_to_pptx(src: Path, dest: Path) -> str:
+    if src.suffix.lower() == ".pptx":
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+        return "copy"
+    tool = via_soffice(src, dest)
+    if tool:
+        return tool
+    raise RuntimeError("LibreOffice required to export this file as .pptx")
 
 
 # ---------------------------------------------------------------------------
@@ -1051,6 +1205,10 @@ def action_export_as(argv: list[str]) -> dict:
             return ok(dest, "copy")
         if dest_ext == ".docx":
             return ok(dest, file_to_docx(src, dest))
+        if dest_ext == ".xlsx":
+            return ok(dest, file_to_xlsx(src, dest))
+        if dest_ext == ".pptx":
+            return ok(dest, file_to_pptx(src, dest))
         return fail(f"unsupported target: {dest_ext}")
     return fail(f"unsupported target: {dest_ext or '(none)'}")
 

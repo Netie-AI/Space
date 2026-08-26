@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share Export as Excel writes a real `.xlsx` from CSV (stdlib OOXML). `export-as` used to return `unsupported target: .xlsx` while the Save dialog offered Excel on CSV / XLS / ODS. `.xls` / `.ppt` / `.odt` use LibreOffice when `soffice` is installed (P8). Same-type office copy still works.
 - Convert: Share Export as Word writes a real `.docx` (stdlib OOXML). `export-as` used to return `unsupported target: .docx` while the Save dialog offered Word on PDF / Markdown / HTML. Same-type office copy still works; ODT/ODS filters dropped (engine cannot write those).
 - License: expired (subscription deleted/updated) Activate returns `payment_required` so the login gate shows Get Netie subscription. Used to return `license_inactive` while Checkout already allowed re-subscribe (`SkipGate: false` hid Buy).
 - Convert: `pdf-ocr --force` sends ocrmypdf 17 `force_ocr=True`. `skip_text=False` is the 17 default (abort if text exists), so `--force` used to raise PriorOcrFoundError. Skip-text still copies; no-force OCR still uses `skip_text=True`.
