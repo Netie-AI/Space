@@ -215,7 +215,7 @@ class FfmpegNleExportTests(unittest.TestCase):
             self.skipTest("ffmpeg not installed")
         graph = GRAPH_CS.read_text(encoding="utf-8")
         self.assertIn("ConcatDemuxerLine", graph)
-        self.assertIn("GetFileName", graph)
+        self.assertIn("LastIndexOf('\\\\')", graph)
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "Mom's clips"
             folder.mkdir()
