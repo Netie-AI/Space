@@ -146,7 +146,9 @@ If all of that works, tick the parking-lot line:
 
 ## 4. What this agent already proved (you do not repeat)
 
-- Cursor-origin CI: `./scripts/ci-cursor.sh` PASS.
+- Cursor-origin CI: `./scripts/ci-cursor.sh` PASS. That run includes
+  `ExportTimelineAsync` (the Export all function) for Fade+Wipe and
+  hard-cut concat into a Mom's clips folder.
 - Linux ffmpeg wipe encode: 3.2s mp4, 145528 bytes.
 - Windows xunit + live ffmpeg encode: GitHub Actions, last green run
   before billing lock (`2f4b64b`, all four jobs SUCCESS).

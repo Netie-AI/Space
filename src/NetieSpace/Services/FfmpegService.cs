@@ -11,6 +11,12 @@ public sealed class FfmpegResult
     public string? Error { get; init; }
 }
 
+public sealed class ExportProgressReport
+{
+    public double Percent { get; init; }
+    public string Message { get; init; } = "";
+}
+
 public sealed class FfmpegService
 {
     private readonly string? _ffmpegPath;
@@ -768,7 +774,9 @@ public sealed class FfmpegService
         if (!IsAvailable || string.IsNullOrWhiteSpace(input) || !IoFile.Exists(input))
             return null;
 
-        var cacheDir = AppResourceBudget.VideoPreviewCache;
+        var cacheDir = IoPath.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NetieSpace", "cache", "video-preview");
         IoDirectory.CreateDirectory(cacheDir);
         var stamp = new System.IO.FileInfo(input).LastWriteTimeUtc.Ticks;
         var output = IoPath.Combine(cacheDir, $"{IoPath.GetFileNameWithoutExtension(input)}_{stamp}_h264.mp4");
@@ -849,7 +857,7 @@ public sealed class FfmpegService
             {
                 FileName = _ffmpegPath!,
                 Arguments = args,
-                WorkingDirectory = IoPath.GetDirectoryName(outputPath) ?? EnvLoader.FindProjectRoot(),
+                WorkingDirectory = IoPath.GetDirectoryName(outputPath) ?? ProjectRoot.Find(),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -992,7 +1000,7 @@ public sealed class FfmpegService
             return null;
         }
 
-        var root = EnvLoader.FindProjectRoot();
+        var root = ProjectRoot.Find();
         var bundled = SiblingProbe(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg.exe"))
                       ?? SiblingProbe(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg"));
         if (bundled is not null)
@@ -1054,14 +1062,33 @@ public sealed class FfmpegService
 
     private static string? ResolveFfmpeg()
     {
-        var root = EnvLoader.FindProjectRoot();
-        var bundled = IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg.exe");
-        if (IoFile.Exists(bundled))
+        static string? Probe(string dir)
+        {
+            foreach (var name in new[] { "ffmpeg.exe", "ffmpeg" })
+            {
+                var p = IoPath.Combine(dir, name);
+                if (IoFile.Exists(p))
+                    return p;
+            }
+
+            return null;
+        }
+
+        var root = ProjectRoot.Find();
+        var bundled = Probe(IoPath.Combine(root, "tools", "ffmpeg"))
+                      ?? Probe(IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg"));
+        if (bundled is not null)
             return bundled;
 
-        var baseBundled = IoPath.Combine(AppContext.BaseDirectory, "tools", "ffmpeg", "ffmpeg.exe");
-        if (IoFile.Exists(baseBundled))
-            return baseBundled;
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in path.Split(IoPath.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(dir))
+                continue;
+            var hit = Probe(dir);
+            if (hit is not null)
+                return hit;
+        }
 
         try
         {
@@ -1083,7 +1110,7 @@ public sealed class FfmpegService
         }
         catch
         {
-            // ignore
+            // ignore -- Linux CI has no `where`; PATH walk above is the gate
         }
 
         return null;

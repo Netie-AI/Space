@@ -74,7 +74,7 @@ public static class EnvLoader
 
     public static void LoadFromProjectRoot()
     {
-        var root = FindProjectRoot();
+        var root = ProjectRoot.Find();
         LoadEnvFile(IoPath.Combine(root, ".env"));
         MigratePlaintextIfPresent();
         LoadSealedUserKeys();
@@ -193,25 +193,5 @@ public static class EnvLoader
         return $"{s[..4]}…{s[^4..]}";
     }
 
-    public static string FindProjectRoot()
-    {
-        var baseDir = AppContext.BaseDirectory;
-
-        if (IoDirectory.Exists(IoPath.Combine(baseDir, "tools")) ||
-            IoFile.Exists(IoPath.Combine(baseDir, ".env")))
-            return baseDir;
-
-        var dir = new System.IO.DirectoryInfo(baseDir);
-        while (dir is not null)
-        {
-            if (IoFile.Exists(IoPath.Combine(dir.FullName, ".env")) ||
-                IoFile.Exists(IoPath.Combine(dir.FullName, "convert_all.py")) ||
-                IoFile.Exists(IoPath.Combine(dir.FullName, "NetieSpace.sln")))
-                return dir.FullName;
-
-            dir = dir.Parent;
-        }
-
-        return baseDir;
-    }
+    public static string FindProjectRoot() => ProjectRoot.Find();
 }

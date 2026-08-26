@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using NetieSpace.Services;
+using NetieSpace.Services.Timeline;
 
 namespace NetieSpace.Tests;
 
@@ -55,6 +56,97 @@ public class FfmpegExportLiveTests
         // Same 2.8..3.4 as check-pillar1-export. Hard-cut concat is ~3.6s
         // and used to pass the old 2.5..4.0 window.
         Assert.True(dur is >= 2.8 and <= 3.4, $"duration {dur} expect 2.8..3.4 (wipe ~3.1; hard-cut ~3.6)");
+    }
+
+    [Fact]
+    public async Task ExportTimeline_playbook_fade_wipe_to_apostrophe_folder()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var folder = Path.Combine(tmp.Path, "Mom's clips");
+        Directory.CreateDirectory(folder);
+        var a = Path.Combine(folder, "clip_a.mp4");
+        var b = Path.Combine(folder, "clip_b.mp4");
+        var outPath = Path.Combine(folder, "export.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+
+        var project = PlaybookProject(a, b, wipe: true);
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable, "ResolveFfmpeg must find PATH ffmpeg (not Windows where only)");
+        var result = await svc.ExportTimelineAsync(project, outPath);
+        Assert.True(result.Success, result.Error);
+        Assert.True(File.Exists(outPath) && new FileInfo(outPath).Length > 1000);
+        var dur = ProbeDuration(ffprobe, outPath);
+        Assert.True(dur is >= 2.8 and <= 3.4, $"ExportTimeline wipe {dur} expect 2.8..3.4");
+    }
+
+    [Fact]
+    public async Task ExportTimeline_hardcut_concat_to_apostrophe_folder()
+    {
+        var ffmpeg = Which("ffmpeg");
+        var ffprobe = Which("ffprobe");
+        if (ffmpeg is null || ffprobe is null)
+        {
+            Assert.False(IsCi(), "ffmpeg/ffprobe required on CI for V1 export smoke");
+            return;
+        }
+
+        using var tmp = new TempDir();
+        var folder = Path.Combine(tmp.Path, "Mom's clips");
+        Directory.CreateDirectory(folder);
+        var a = Path.Combine(folder, "clip_a.mp4");
+        var b = Path.Combine(folder, "clip_b.mp4");
+        var outPath = Path.Combine(folder, "hardcut.mp4");
+        MakePillarClip(ffmpeg, a, "blue", 1.6, 440);
+        MakePillarClip(ffmpeg, b, "red", 2.0, 880);
+
+        var project = PlaybookProject(a, b, wipe: false);
+        var svc = new FfmpegService();
+        Assert.True(svc.IsAvailable, "ResolveFfmpeg must find PATH ffmpeg (not Windows where only)");
+        var result = await svc.ExportTimelineAsync(project, outPath);
+        Assert.True(result.Success, result.Error);
+        var dur = ProbeDuration(ffprobe, outPath);
+        // 1.6+2.0 hard-cut. Absolute concat paths used to open Moms and fail.
+        Assert.True(dur is >= 3.4 and <= 3.8, $"ExportTimeline hard-cut {dur} expect ~3.6");
+    }
+
+    private static TimelineProject PlaybookProject(string clipA, string clipB, bool wipe)
+    {
+        var session = new VideoEditSession();
+        session.Reset(TimeSpan.FromSeconds(1.6), clipA);
+        session.AppendClip(clipB, TimeSpan.FromSeconds(2.0));
+        session.Select(0);
+        session.ApplyFadeAt(0, TimeSpan.FromSeconds(0.5), null);
+        session.Select(1);
+        session.ApplyFadeAt(1, null, TimeSpan.FromSeconds(0.5));
+        if (wipe)
+        {
+            session.Select(0);
+            Assert.True(session.ApplyWipeAtJoin());
+        }
+
+        var project = new TimelineProject();
+        project.ResetFromSource(clipA, TimeSpan.FromSeconds(1.6), 320, 240);
+        session.ApplyTo(project, clipA);
+        project.Width = 320;
+        project.Height = 240;
+        return project;
+    }
+
+    private static void MakePillarClip(string ffmpeg, string path, string color, double seconds, int hz)
+    {
+        Run(ffmpeg,
+            "-y", "-f", "lavfi", "-i", $"color=c={color}:s=320x240:d={seconds}",
+            "-f", "lavfi", "-i", $"sine=f={hz}:d={seconds}", "-shortest",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", path);
     }
 
     private static bool IsCi()
