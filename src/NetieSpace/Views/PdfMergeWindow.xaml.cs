@@ -28,7 +28,7 @@ public partial class PdfMergeWindow : Window
         ".sql", ".sh", ".ps1", ".bat",
         ".css", ".scss", ".vue", ".swift", ".kt",
         ".md", ".markdown", ".html", ".htm",
-        ".pptx", ".ppsx", ".ppt", ".odp", ".xlsx", ".xlsm", ".xls", ".ods"
+        ".pptx", ".ppsx", ".ppt", ".pps", ".odp", ".xlsx", ".xlsm", ".xls", ".ods"
     };
 
     private readonly ObservableCollection<MergeRow> _files = new();
@@ -114,7 +114,7 @@ public partial class PdfMergeWindow : Window
                 "*.json;*.xml;*.cs;*.js;*.ts;*.tsx;*.jsx;*.py;*.java;*.cpp;*.c;*.h;*.hpp;" +
                 "*.rs;*.go;*.rb;*.php;*.yaml;*.yml;*.toml;*.ini;*.cfg;*.sql;*.sh;*.ps1;*.bat;" +
                 "*.css;*.scss;*.vue;*.swift;*.kt;*.md;*.markdown;*.html;*.htm;" +
-                "*.pptx;*.ppsx;*.ppt;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
+                "*.pptx;*.ppsx;*.ppt;*.pps;*.odp;*.xlsx;*.xlsm;*.xls;*.ods|" +
                 "PDF|*.pdf|Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp|All files|*.*",
             Multiselect = true
         };

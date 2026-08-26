@@ -396,6 +396,41 @@ def test_export_as_ppsx() -> None:
         assert "Hello PPSX" in html_out.read_text(encoding="utf-8")
 
 
+def test_export_as_pps() -> None:
+    """Share / drop a desktop .pps. Probe already found it; parser was ShellInfo and engine said need markitdown."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '".ppt", ".pps"' in src or '".pps"' in src
+    parser = (ROOT / "src/NetieSpace/Services/ContentParserService.cs").read_text(encoding="utf-8")
+    preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
+    explorer = (ROOT / "src/NetieSpace/Services/ExplorerFileService.cs").read_text(encoding="utf-8")
+    assert '".pps"' in explorer
+    assert 'extension is ".pptx" or ".ppsx" or ".pps"' in parser
+    assert '".pptx" or ".ppsx" or ".ppt" or ".pps"' in preview
+    convert_ok = preview.split("var convertOk", 1)[1].split(";", 1)[0]
+    assert "PreviewKind.ShellInfo" in convert_ok
+    merge = (ROOT / "src/NetieSpace/Views/PdfMergeWindow.xaml.cs").read_text(encoding="utf-8")
+    assert '".pps"' in merge
+    drop = preview.split(
+        "private static bool TryGetDroppedConvertibles", 1
+    )[1].split("private static bool TryGetDroppedImages", 1)[0]
+    assert '".pps"' in drop
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        pptx = d / "deck.pptx"
+        _write_pptx(pptx, ["Hello PPS"])
+        pps = d / "deck.pps"
+        pps.write_bytes(pptx.read_bytes())
+        pdf = d / "deck.pdf"
+        res = run_engine(["export-as", str(pps), str(pdf)])
+        assert res.get("success"), res
+        assert pdf.is_file() and pdf.stat().st_size > 200
+        html_out = d / "deck.html"
+        res = run_engine(["export-as", str(pps), str(html_out)])
+        assert res.get("success"), res
+        assert "Hello PPS" in html_out.read_text(encoding="utf-8")
+
+
 def _write_pptx(path: Path, slides: list[str]) -> None:
     import zipfile
 
@@ -781,6 +816,7 @@ if __name__ == "__main__":
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
     test_export_as_ppsx()
+    test_export_as_pps()
     test_export_as_docx_xlsx_to_pdf()
     test_export_as_preview_text_to_pdf()
     test_export_as_svg()

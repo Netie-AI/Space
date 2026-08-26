@@ -303,7 +303,7 @@ public partial class PreviewWindow : Window
         {
             // Instant first paint for PPTX: Shell thumbnail while COM / LO / HTML warms
             var ext = IoPath.GetExtension(filePath).ToLowerInvariant();
-            if (ext is ".pptx" or ".ppsx" or ".ppt")
+            if (ext is ".pptx" or ".ppsx" or ".ppt" or ".pps")
                 TryShowInstantThumbnail(filePath);
 
             _content = await _parser.ParseAsync(filePath, 1024, ct);
@@ -6227,7 +6227,7 @@ public partial class PreviewWindow : Window
                     ".sql" or ".sh" or ".ps1" or ".bat" or
                     ".css" or ".scss" or ".vue" or ".swift" or ".kt" or
                     ".md" or ".markdown" or ".html" or ".htm" or
-                    ".pptx" or ".ppsx" or ".ppt" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
+                    ".pptx" or ".ppsx" or ".ppt" or ".pps" or ".odp" or ".xlsx" or ".xlsm" or ".xls" or ".ods" or
                     ".svg" or ".ico" or ".heic" or ".heif" or
                     ".webp" or ".tif" or ".tiff" or
                     ".png" or ".jpg")
@@ -6674,7 +6674,7 @@ public partial class PreviewWindow : Window
         {
             ".docx" or ".doc" or ".odt" or ".rtf" => "PDF, Word, HTML…",
             ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => "PDF, Excel, HTML…",
-            ".pptx" or ".ppsx" or ".ppt" or ".odp" => "PDF, PowerPoint, HTML…",
+            ".pptx" or ".ppsx" or ".ppt" or ".pps" or ".odp" => "PDF, PowerPoint, HTML…",
             ".pdf" => "PDF, JPG, PNG, Word, HTML…",
             ".md" or ".markdown" => "PDF, Markdown, HTML, Word…",
             _ when kind == PreviewKind.Image => "JPG, PNG, WEBP, GIF, PDF…",
@@ -6725,7 +6725,7 @@ public partial class PreviewWindow : Window
             ".xlsx" or ".xlsm" or ".xls" or ".ods" or ".csv" => (
                 "PDF document|*.pdf|Excel workbook|*.xlsx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
-            ".pptx" or ".ppsx" or ".ppt" or ".odp" => (
+            ".pptx" or ".ppsx" or ".ppt" or ".pps" or ".odp" => (
                 "PDF document|*.pdf|PowerPoint presentation|*.pptx|Web page|*.html|All files|*.*",
                 "pdf", 1, stem),
             ".pdf" => (
