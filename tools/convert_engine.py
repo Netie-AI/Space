@@ -888,7 +888,14 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
         try:
             if doc.page_count < 1:
                 return None
-            return doc[0].get_pixmap().tobytes("png")
+            pix = doc[0].get_pixmap()
+            # Leftover <use href="#missing"/> / empty <path> still have
+            # paint tags so the skip above misses them. MuPDF writes a
+            # letter-size white page that steals dest Word first.
+            samples = pix.samples
+            if samples and all(b >= 250 for b in samples):
+                return None
+            return pix.tobytes("png")
         finally:
             doc.close()
     except Exception:
