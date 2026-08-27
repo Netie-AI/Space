@@ -733,10 +733,24 @@ def _svg_bytes_to_png(raw: bytes) -> bytes | None:
 def _bytes_to_png(raw: bytes) -> bytes | None:
     import io
 
-    try:
+    def _open():
         from PIL import Image
 
-        im = Image.open(io.BytesIO(raw))
+        return Image.open(io.BytesIO(raw))
+
+    try:
+        try:
+            im = _open()
+        except Exception:
+            # Sibling .heic in photo HTML. load_pil_image already registers
+            # for file dests; Image.open here never saw pillow_heif.
+            try:
+                from pillow_heif import register_heif_opener
+
+                register_heif_opener()
+                im = _open()
+            except Exception:
+                raise
         try:
             buf = io.BytesIO()
             im.convert("RGBA").save(buf, format="PNG")

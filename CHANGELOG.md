@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML whose sibling is `.heic` embeds that picture. File HEIC dests already registered pillow_heif; `_bytes_to_png` did not, so dests were empty Word / 1-byte MD / Story without pictures. `pillow_heif` stays optional.
 - Convert: Share dest Word / HTML / PDF on Markdown `![](pic&#46;png)` embeds that picture. Stdlib html.escape turned `&#46;` into `&amp;#46;`; one unescape still left a `#` fragment (`pic&`). `_local_href` now unescapes until stable before the split.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose sibling path uses a numeric character reference (`src="pic&#46;png"` / `url(pic&#x2e;png)`) embeds that picture. `#` split before unescape treated `&#46;` as a fragment (`pic&`).
 - Convert: Share dest Word / Markdown / PDF on photo HTML with a real `src` next to `data-src` / `data-srcset`, or `src="pic&amp;co.png"`, embeds that picture. Greedy `src=` used to take `data-src` (empty Word / 1-byte MD / Story without pictures). `_local_href` unescapes HTML entities after percent-decode.
