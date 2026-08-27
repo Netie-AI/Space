@@ -2443,8 +2443,10 @@ def html_visible_text(text: str) -> str:
     # Leftover "Photo" in <w:delText> stole dest Word on photo Word-HTML
     # and photo Word 2003 XML (binData pictures path). Stop at the next
     # tag so mixed Hello stays the text path.
+    # <w:delInstrText> is deleted field-code text (same class as
+    # instrText). Leftover "Photo" stole dest Word / dest PDF Story.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:delText|instrText|commentText))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:[\w.-]+:)?(?:delInstrText|delText|instrText|commentText))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
     )
