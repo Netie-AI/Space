@@ -1928,9 +1928,24 @@ def _srcset_hrefs(attr: str) -> list[str]:
     return hrefs
 
 
+_CURLY_QUOTES = str.maketrans({
+    "\u201c": '"',
+    "\u201d": '"',
+    "\u201e": '"',
+    "\u2018": "'",
+    "\u2019": "'",
+})
+
+
+def _straight_quotes(text: str) -> str:
+    """Word smart quotes around src= used empty Word / html-strip."""
+    return text.translate(_CURLY_QUOTES)
+
+
 def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -> list[bytes]:
     import base64
 
+    text = _straight_quotes(text)
     pngs: list[bytes] = []
     for m in re.finditer(
         r"data:image/(?:png|jpeg|jpg|gif|webp|bmp|svg\+xml)(?:;[^,;]+)*;base64,([A-Za-z0-9+/=\s]+)",

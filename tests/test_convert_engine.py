@@ -2095,6 +2095,69 @@ def test_html_utf16_photo_export() -> None:
         assert res.get("tool") == "pymupdf-story-html", res
 
 
+def test_html_curly_src_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose src uses Word smart quotes."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _straight_quotes" in src
+    if not pymupdf_available():
+        print("SKIP html curly src photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html curly src photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "pic.png", format="PNG")
+
+        def assert_dests(html_path: Path, stem: str) -> None:
+            md = d / f"{stem}.md"
+            res = run_engine(["to-md", str(html_path), str(md)])
+            assert res.get("success"), res
+            assert res.get("tool") == "html-md-images", res
+            assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+            docx = d / f"{stem}.docx"
+            res = run_engine(["export-as", str(html_path), str(docx)])
+            assert res.get("success"), res
+            assert res.get("tool") == "docx-zip-images", res
+            with zipfile.ZipFile(docx) as zf:
+                assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+            pdf = d / f"{stem}.pdf"
+            res = run_engine(["export-as", str(html_path), str(pdf)])
+            assert res.get("success"), res
+            assert res.get("tool") == "pymupdf-html-images", res
+            import pymupdf
+
+            doc = pymupdf.open(pdf)
+            try:
+                assert doc[0].get_images()
+            finally:
+                doc.close()
+
+        curly = d / "curly.html"
+        curly.write_text(
+            "<html><body><img src=\u201cpic.png\u201d></body></html>",
+            encoding="utf-8",
+        )
+        assert_dests(curly, "curly")
+        css = d / "css.html"
+        css.write_text(
+            "<html><body><style>div{background-image:url(\u201cpic.png\u201d)}</style>"
+            "<div></div></body></html>",
+            encoding="utf-8",
+        )
+        assert_dests(css, "css")
+        srcset = d / "srcset.html"
+        srcset.write_text(
+            "<html><body><img srcset=\u201cpic.png 1x\u201d></body></html>",
+            encoding="utf-8",
+        )
+        assert_dests(srcset, "srcset")
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2941,6 +3004,7 @@ if __name__ == "__main__":
     test_html_base_href_photo_export()
     test_html_bom_visible_photo_export()
     test_html_utf16_photo_export()
+    test_html_curly_src_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
