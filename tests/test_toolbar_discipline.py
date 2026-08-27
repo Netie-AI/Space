@@ -44,7 +44,10 @@ def test_parking_lot_toolbar_checked():
 
 
 def test_ci_runs_contract_scripts():
-    yml = _read(CI)
+    yml = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in sorted((ROOT / ".github/workflows").glob("*.yml"))
+    )
     assert "python -m compileall -q -f tests scripts" in yml
     assert "for f in tests/test_*.py" in yml
     assert 'python "$f"' in yml
