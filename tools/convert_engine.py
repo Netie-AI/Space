@@ -737,6 +737,23 @@ def markdown_to_html(text: str) -> str:
     return _markdown_to_html_stdlib(text)
 
 
+def _image_rest_with_size(rest: str, png: bytes) -> str:
+    """MuPDF skips <image> without width/height. Dest PNG was a white page."""
+    rest = rest.strip().strip("/")
+    if (
+        (not _html_attr(rest, "width") or not _html_attr(rest, "height"))
+        and png[:8] == b"\x89PNG\r\n\x1a\n"
+        and len(png) >= 24
+    ):
+        w = int.from_bytes(png[16:20], "big")
+        h = int.from_bytes(png[20:24], "big")
+        if not _html_attr(rest, "width"):
+            rest += f' width="{w}"'
+        if not _html_attr(rest, "height"):
+            rest += f' height="{h}"'
+    return rest.rstrip().rstrip("/")
+
+
 def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
     """<image href> / <svg:image> / <use href> dest PNG used a white page."""
     if depth > 3 or not text:
@@ -766,7 +783,7 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
             "",
             attrs,
         )
-        rest = rest.rstrip().rstrip("/")
+        rest = _image_rest_with_size(rest, png)
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
     text = re.sub(
@@ -810,19 +827,7 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
             "",
             attrs,
         )
-        rest = rest.strip().strip("/")
-        if (
-            (not _html_attr(rest, "width") or not _html_attr(rest, "height"))
-            and png[:8] == b"\x89PNG\r\n\x1a\n"
-            and len(png) >= 24
-        ):
-            w = int.from_bytes(png[16:20], "big")
-            h = int.from_bytes(png[20:24], "big")
-            if not _html_attr(rest, "width"):
-                rest += f' width="{w}"'
-            if not _html_attr(rest, "height"):
-                rest += f' height="{h}"'
-        rest = rest.rstrip().rstrip("/")
+        rest = _image_rest_with_size(rest, png)
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
     return re.sub(
@@ -848,15 +853,20 @@ def _svg_lower_root(text: str) -> str:
 
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
     """Pillow cannot open SVG. Photo HTML dest Word/MD used empty / 1-byte files."""
-    head = raw.lstrip()[:240].lower()
-    if b"<svg" not in head:
-        return None
     try:
         pymupdf = require_pymupdf()
     except RuntimeError:
         return None
     try:
-        text = raw.decode("utf-8", errors="replace")
+        if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+            text = raw.decode("utf-16")
+        elif raw.startswith(b"\xef\xbb\xbf"):
+            text = raw.decode("utf-8-sig")
+        else:
+            text = raw.decode("utf-8", errors="replace")
+        # Illustrator / Inkscape comments sit past 240 bytes. Dest PNG raised.
+        if not re.search(r"(?i)<(?:[\w.-]+:)?svg\b", text):
+            return None
         if root is not None:
             text = _inline_svg_sibling_images(text, root, depth)
         raw = _svg_lower_root(text).encode("utf-8")
@@ -872,10 +882,10 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
 
 
 def _path_to_png(path: Path, depth: int = 0) -> bytes | None:
-    raw = path.read_bytes()
     if path.suffix.lower() == ".svg":
-        return _svg_bytes_to_png(raw, path.parent, depth)
-    return _bytes_to_png(raw)
+        # Notepad Unicode sibling SVG dest Word used empty / no pictures.
+        return _svg_bytes_to_png(_read_markup(path).encode("utf-8"), path.parent, depth)
+    return _bytes_to_png(path.read_bytes())
 
 
 def _bytes_to_png(raw: bytes) -> bytes | None:
