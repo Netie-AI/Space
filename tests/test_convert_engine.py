@@ -4081,6 +4081,67 @@ def test_html_svg_black_raster_photo_export() -> None:
                 im.close()
 
 
+def test_html_unclosed_style_photo_export() -> None:
+    """Share dest Word on photo HTML whose leftover is unclosed <style> / <title>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?=</?(?:body|div|p|img|h[1-6]|table)\\b)" in src
+    if not pymupdf_available():
+        print("SKIP html unclosed style -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html unclosed style -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        (d / "pic.png").write_bytes(buf.getvalue())
+        for leftover in (
+            '<style>body{color:red}\n</body></html>',
+            '<script>var x=1\n</body></html>',
+            '<title>Photo<body><img src="pic.png"></body></html>',
+        ):
+            html = d / "photo.html"
+            if leftover.startswith("<title>"):
+                html.write_text(
+                    "<html><head>" + leftover,
+                    encoding="utf-8",
+                )
+            else:
+                html.write_text(
+                    '<html><body><img src="pic.png">' + leftover,
+                    encoding="utf-8",
+                )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            "<html><head><title>Photo</title></head>"
+            '<body><img src="pic.png">Hello</body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4927,6 +4988,7 @@ if __name__ == "__main__":
     test_html_vs16_photo_export()
     test_html_svg_white_raster_photo_export()
     test_html_svg_black_raster_photo_export()
+    test_html_unclosed_style_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
