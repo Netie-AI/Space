@@ -2529,6 +2529,16 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # style=mso-element:comment / comment-list is Office comment storage.
+    # Leftover "Photo" stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
