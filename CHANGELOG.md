@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<aml:annotation>` / `<w:comment>` / `<w:moveFromText>` embeds that picture. Word 2003 comments / move-from text are not page copy; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. MathML `<annotation>` stays parked. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<w:delText>` / `<w:instrText>` / `<w:commentText>` embeds that picture. Track-change / field / comment text is not page copy; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. Mixed `Hello` stays the text path. `w:sdt` / smart tags stay parked.
 - Convert: Share dest Word / PDF on photo HTML whose leftover is `<noframes>` / `<noembed>` embeds that picture. Same class as `<noscript>` / `<template>`; leftover "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. Unclosed tags stop at the next tag. Mixed `Hello` stays the text path. Unused SVG defs / VML stay parked.
 - Convert: Share dest Word / PDF on photo Word 2003 XML (`.xml`) whose picture is leftover `<w:binData>` embeds that picture. Text dest used to dump the XML source (`docx-zip` / Story). Same picture scan as HTML. Mixed `Hello` stays the text path. VML `imagedata` / `body` background stay parked.

@@ -2360,6 +2360,16 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word 2003 HTML comments / move-from leftovers are not page copy.
+    # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
+    # stole dest Word on photo Word-HTML and leftover binData XML.
+    # Do not strip MathML <annotation> (parked). Stop at the next tag so
+    # mixed Hello stays the text path.
+    text = re.sub(
+        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
