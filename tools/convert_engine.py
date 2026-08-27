@@ -738,7 +738,7 @@ def markdown_to_html(text: str) -> str:
 
 
 def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
-    """<image href='pic.png'> / <use href='icon.svg'> dest PNG used a white page."""
+    """<image href> / <svg:image> / <use href> dest PNG used a white page."""
     if depth > 3 or not text:
         return text
     root = root.resolve()
@@ -769,7 +769,7 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
         rest = rest.rstrip().rstrip("/")
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
-    text = re.sub(r"(?is)<image\b([^>]*)/?>", repl, text)
+    text = re.sub(r"(?is)<(?:[\w.-]+:)?image\b([^>]*)/?>", repl, text)
 
     def repl_use(m: re.Match[str]) -> str:
         attrs = m.group(1)
@@ -821,7 +821,7 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
         rest = rest.rstrip().rstrip("/")
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
-    return re.sub(r"(?is)<use\b([^>]*)/?>", repl_use, text)
+    return re.sub(r"(?is)<(?:[\w.-]+:)?use\b([^>]*)/?>", repl_use, text)
 
 
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
