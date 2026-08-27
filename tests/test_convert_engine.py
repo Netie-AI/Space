@@ -1717,6 +1717,67 @@ def test_html_heic_sibling_photo_export() -> None:
             doc.close()
 
 
+def test_html_data_uri_charset_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose picture is a charset data URI."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?:;[^,;]+)*;base64," in src
+    if not pymupdf_available():
+        print("SKIP html data uri charset photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html data uri charset photo export -- Pillow missing")
+        return
+    import base64
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        html = d / "charset.html"
+        html.write_text(
+            f'<html><body><img src="data:image/png;charset=utf-8;base64,{b64}" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "charset.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "charset.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "charset.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        named = d / "named.html"
+        named.write_text(
+            f'<html><body><img src="data:image/png;name=pic.png;base64,{b64}" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        ndocx = d / "named.docx"
+        res = run_engine(["export-as", str(named), str(ndocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(ndocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2557,6 +2618,7 @@ if __name__ == "__main__":
     test_html_num_entity_href_photo_export()
     test_md_num_entity_href_photo_export()
     test_html_heic_sibling_photo_export()
+    test_html_data_uri_charset_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
