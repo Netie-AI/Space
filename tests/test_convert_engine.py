@@ -1778,6 +1778,79 @@ def test_html_data_uri_charset_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_title_visible_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML with <title> still embeds the picture."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert r"<head\b" in src
+    assert r"<title\b" in src
+    if not pymupdf_available():
+        print("SKIP html title visible photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html title visible photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        sib = d / "pic.png"
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(sib, format="PNG")
+        html = d / "titled.html"
+        html.write_text(
+            "<html><head><title>Photo</title></head>"
+            '<body><img src="pic.png"></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "titled.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "titled.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "titled.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        svg = (
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            "<title>Mark</title>"
+            '<rect width="64" height="48" fill="#1460c8"/>'
+            "</svg>"
+        )
+        inline = d / "svg-title.html"
+        inline.write_text(f"<html><body>{svg}</body></html>", encoding="utf-8")
+        idocx = d / "svg-title.docx"
+        res = run_engine(["export-as", str(inline), str(idocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(idocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        text = d / "note.html"
+        text.write_text(
+            "<html><head><title>Note</title></head>"
+            "<body><h1>Hello leftover</h1></body></html>",
+            encoding="utf-8",
+        )
+        tpdf = d / "note.pdf"
+        res = run_engine(["export-as", str(text), str(tpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story-html", res
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2619,6 +2692,7 @@ if __name__ == "__main__":
     test_md_num_entity_href_photo_export()
     test_html_heic_sibling_photo_export()
     test_html_data_uri_charset_photo_export()
+    test_html_title_visible_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
