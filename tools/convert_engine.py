@@ -1653,6 +1653,64 @@ def _sibling_url_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> lis
     return pngs
 
 
+def _css_import_hrefs(css: str) -> list[str]:
+    """@import url(page.css) / @import "page.css". Not background url()."""
+    hrefs: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"""(?i)@import\s+url\(\s*['"]?([^'")\s]+)['"]?\s*\)""", css):
+        val = m.group(1).strip()
+        if val and val not in seen:
+            seen.add(val)
+            hrefs.append(val)
+    for m in re.finditer(r"""(?i)@import\s+['"]([^'"]+)['"]""", css):
+        val = m.group(1).strip()
+        if val and val not in seen:
+            seen.add(val)
+            hrefs.append(val)
+    return hrefs
+
+
+def _load_css_file_pngs(
+    css_path: Path, root: Path, cap: int, budget: list[int], seen: set[Path]
+) -> list[bytes]:
+    if cap <= 0 or budget[0] <= 0:
+        return []
+    resolved = css_path.resolve()
+    if resolved in seen:
+        return []
+    try:
+        css = css_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    seen.add(resolved)
+    budget[0] -= 1
+    pngs = html_string_media_pngs(css, None, cap)
+    pngs.extend(_sibling_url_pngs(css, css_path.parent, root, cap - len(pngs)))
+    pngs.extend(_imported_css_pngs(css, css_path.parent, root, cap - len(pngs), budget, seen))
+    return pngs
+
+
+def _imported_css_pngs(
+    css: str, css_dir: Path, root: Path, cap: int, budget: list[int], seen: set[Path]
+) -> list[bytes]:
+    """Follow @import .css. Share dests used empty Word / 1-byte MD / 573-byte PDF."""
+    pngs: list[bytes] = []
+    for href in _css_import_hrefs(css):
+        if len(pngs) >= cap or budget[0] <= 0:
+            break
+        if href.startswith(("data:", "http:", "https:", "//", "#")):
+            continue
+        try:
+            path = (css_dir / href).resolve()
+            path.relative_to(root)
+        except (OSError, ValueError):
+            continue
+        if path.suffix.lower() != ".css" or not path.is_file():
+            continue
+        pngs.extend(_load_css_file_pngs(path, root, cap - len(pngs), budget, seen))
+    return pngs
+
+
 def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -> list[bytes]:
     import base64
 
@@ -1708,9 +1766,15 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
             pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
     pngs.extend(_sibling_url_pngs(text, base, root, cap - len(pngs)))
-    # Linked .css url() is relative to the CSS file. Inline scan never saw it.
-    for href in _stylesheet_hrefs(text)[:8]:
+    budget = [8]
+    seen: set[Path] = set()
+    for block in re.finditer(r"(?is)<style\b[^>]*>(.*?)</style>", text):
         if len(pngs) >= cap:
+            break
+        pngs.extend(_imported_css_pngs(block.group(1), base, root, cap - len(pngs), budget, seen))
+    # Linked .css url() is relative to the CSS file. Inline scan never saw it.
+    for href in _stylesheet_hrefs(text):
+        if len(pngs) >= cap or budget[0] <= 0:
             break
         if href.startswith(("data:", "http:", "https:", "//", "#")):
             continue
@@ -1721,12 +1785,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
             continue
         if css_path.suffix.lower() != ".css" or not css_path.is_file():
             continue
-        try:
-            css = css_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        pngs.extend(html_string_media_pngs(css, None, cap - len(pngs)))
-        pngs.extend(_sibling_url_pngs(css, css_path.parent, root, cap - len(pngs)))
+        pngs.extend(_load_css_file_pngs(css_path, root, cap - len(pngs), budget, seen))
     return pngs
 
 
