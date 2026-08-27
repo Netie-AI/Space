@@ -2085,6 +2085,9 @@ def html_visible_text(text: str) -> str:
 _META_CHARSET = re.compile(
     r'(?is)<meta\b[^>]*\bcharset\s*=\s*["\']?([a-z0-9_\-]+)',
 )
+_XML_ENCODING = re.compile(
+    r'''(?is)<\?xml\b[^>]*\bencoding\s*=\s*["\']?([a-z0-9_\-]+)''',
+)
 _SAFE_CHARSETS = {
     "windows-1252": "cp1252",
     "cp1252": "cp1252",
@@ -2096,7 +2099,7 @@ _SAFE_CHARSETS = {
 
 
 def _meta_charset(text: str) -> str | None:
-    m = _META_CHARSET.search(text)
+    m = _META_CHARSET.search(text) or _XML_ENCODING.search(text)
     if not m:
         return None
     return _SAFE_CHARSETS.get(m.group(1).lower().replace("_", "-"))
@@ -2110,7 +2113,7 @@ def _read_markup(src: Path) -> str:
     if raw.startswith(b"\xef\xbb\xbf"):
         return raw.decode("utf-8-sig")
     text = raw.decode("utf-8", errors="replace")
-    # ANSI HTML with a declared charset: src="été.png" used empty Word.
+    # ANSI HTML with a declared charset / xml encoding: src="été.png" used empty Word.
     # No meta / no chardet -- those stay parked.
     if "\ufffd" not in text:
         return text
