@@ -586,8 +586,85 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     raise RuntimeError(f"no markdown converter for {ext or 'unknown'} (need markitdown)")
 
 
+_MD_LINK_DEF = re.compile(
+    r"""^[ \t]{0,3}\[([^\]]+)\]:[ \t]*(?:<([^>]+)>|(\S+))"""
+    r"""(?:[ \t]+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?[ \t]*$"""
+)
+_MD_INLINE_IMG = re.compile(
+    r"""!\[([^\]]*)\]\(\s*(?:<([^>]*)>|([^\s)]+))"""
+    r"""(?:\s+(?:"([^"]*)"|'([^']*)'|\(([^)]*)\)))?\s*\)"""
+)
+_MD_REF_IMG = re.compile(r"""!\[([^\]]*)\]\[([^\]]*)\]""")
+_MD_SHORTCUT_IMG = re.compile(r"""!\[([^\]]+)\](?!\(|\[)""")
+
+
+def _md_label(label: str) -> str:
+    return re.sub(r"\s+", " ", (label or "").strip()).lower()
+
+
+def _md_link_defs(text: str) -> dict[str, str]:
+    """`[id]: pic.png` / `[id]: <pic.png> \"t\"`. First label wins."""
+    defs: dict[str, str] = {}
+    for raw in text.replace("\r\n", "\n").split("\n"):
+        m = _MD_LINK_DEF.fullmatch(raw.rstrip())
+        if not m:
+            continue
+        key = _md_label(m.group(1))
+        href = (m.group(2) or m.group(3) or "").strip()
+        if key and href and key not in defs:
+            defs[key] = href
+    return defs
+
+
+def _md_inline_html(text: str, defs: dict[str, str]) -> str:
+    """Images with title / <dest> / [ref]. Bare `![alt](url)` already worked."""
+    out: list[str] = []
+    i = 0
+    n = len(text)
+    while i < n:
+        bang = text.find("!", i)
+        if bang < 0:
+            out.append(html.escape(text[i:]))
+            break
+        if bang > i:
+            out.append(html.escape(text[i:bang]))
+        m = _MD_INLINE_IMG.match(text, bang)
+        href = ""
+        alt = ""
+        end = -1
+        if m:
+            alt = m.group(1)
+            href = (m.group(2) or m.group(3) or "").strip()
+            end = m.end()
+        else:
+            m = _MD_REF_IMG.match(text, bang)
+            if m:
+                alt = m.group(1)
+                href = defs.get(_md_label(m.group(2) or alt), "")
+                if href:
+                    end = m.end()
+            if end < 0:
+                m = _MD_SHORTCUT_IMG.match(text, bang)
+                if m:
+                    alt = m.group(1)
+                    href = defs.get(_md_label(alt), "")
+                    if href:
+                        end = m.end()
+        if end >= 0 and href:
+            out.append(
+                f'<img src="{html.escape(href, quote=True)}" '
+                f'alt="{html.escape(alt, quote=True)}">'
+            )
+            i = end
+            continue
+        out.append("!")
+        i = bang + 1
+    return "".join(out)
+
+
 def _markdown_to_html_stdlib(text: str) -> str:
     """Share dest 1 PDF on .md. The markdown package is not a Cursor CI dep."""
+    defs = _md_link_defs(text)
     lines = text.replace("\r\n", "\n").split("\n")
     parts: list[str] = []
     para: list[str] = []
@@ -602,27 +679,21 @@ def _markdown_to_html_stdlib(text: str) -> str:
         if not raw.strip():
             flush()
             continue
+        if _MD_LINK_DEF.fullmatch(raw):
+            continue
         if raw.startswith("### "):
             flush()
-            parts.append(f"<h3>{html.escape(raw[4:])}</h3>")
+            parts.append(f"<h3>{_md_inline_html(raw[4:], defs)}</h3>")
             continue
         if raw.startswith("## "):
             flush()
-            parts.append(f"<h2>{html.escape(raw[3:])}</h2>")
+            parts.append(f"<h2>{_md_inline_html(raw[3:], defs)}</h2>")
             continue
         if raw.startswith("# "):
             flush()
-            parts.append(f"<h1>{html.escape(raw[2:])}</h1>")
+            parts.append(f"<h1>{_md_inline_html(raw[2:], defs)}</h1>")
             continue
-        img = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", raw.strip())
-        if img:
-            flush()
-            alt, href = img.group(1), img.group(2)
-            parts.append(
-                f'<p><img src="{html.escape(href)}" alt="{html.escape(alt)}"></p>'
-            )
-            continue
-        para.append(html.escape(raw))
+        para.append(_md_inline_html(raw, defs))
     flush()
     return "\n".join(parts) or "<p></p>"
 
