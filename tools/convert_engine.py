@@ -1554,6 +1554,15 @@ def rtf_to_text(src: Path) -> str:
     """Best-effort RTF -> plain text. Share Export as PDF/Word on .rtf used markitdown."""
     s = src.read_bytes().decode("latin-1", errors="replace")
     s = re.sub(r"\{\\pict\b[^{}]*\}", "", s)
+    # WordPad / Word photo RTF always writes fonttbl / info. Leftover
+    # "Calibri" / "Photo" stole dest Word (docx-zip) and dest PDF (Story).
+    for dest_name in ("fonttbl", "colortbl", "stylesheet", "info"):
+        s = re.sub(
+            rf"\{{\\{dest_name}\b(?:[^{{}}]|{{[^{{}}]*}})*\}}",
+            "",
+            s,
+            flags=re.I,
+        )
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
         lambda m: bytes.fromhex(m.group(1)).decode("latin-1"),
