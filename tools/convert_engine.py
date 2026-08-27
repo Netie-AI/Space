@@ -1709,12 +1709,14 @@ def require_pymupdf():
 
 
 def _local_href(href: str) -> str:
-    """Sibling ` pic.png ` / pic.png#x / my%20pic.png / pic&amp;co.png used empty Word."""
+    """Sibling ` pic.png ` / pic.png#x / my%20pic.png / pic&#46;png used empty Word."""
     href = (href or "").strip()
     if not href or href.lower().startswith(("data:", "http:", "https:", "//")):
         return href
+    # Unescape before '#' split so &#46; / &#x2e; stay a dot, not a fragment.
+    href = html.unescape(href)
     href = href.split("#", 1)[0].split("?", 1)[0].strip()
-    return html.unescape(unquote(href))
+    return unquote(href)
 
 
 def _html_attr(attrs: str, name: str) -> str | None:
