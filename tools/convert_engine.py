@@ -832,6 +832,20 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
     )
 
 
+def _svg_lower_root(text: str) -> str:
+    """MuPDF rejects <SVG>. Word HTML dest Word / dest PNG used empty / raise."""
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?svg)\b",
+        lambda m: "<" + m.group(1).lower(),
+        text,
+    )
+    return re.sub(
+        r"(?is)</((?:[\w.-]+:)?svg)(\s*)>",
+        lambda m: "</" + m.group(1).lower() + m.group(2) + ">",
+        text,
+    )
+
+
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
     """Pillow cannot open SVG. Photo HTML dest Word/MD used empty / 1-byte files."""
     head = raw.lstrip()[:240].lower()
@@ -842,9 +856,10 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
     except RuntimeError:
         return None
     try:
+        text = raw.decode("utf-8", errors="replace")
         if root is not None:
-            text = raw.decode("utf-8", errors="replace")
-            raw = _inline_svg_sibling_images(text, root, depth).encode("utf-8")
+            text = _inline_svg_sibling_images(text, root, depth)
+        raw = _svg_lower_root(text).encode("utf-8")
         doc = pymupdf.open(stream=raw, filetype="svg")
         try:
             if doc.page_count < 1:
@@ -2403,7 +2418,7 @@ def image_to_pdf(src: Path, dest: Path) -> str:
     # SVG is a document to MuPDF (insert_image rejects it). Preview already
     # treats .svg as an image; Share Export as PDF used markitdown.
     if src.suffix.lower() == ".svg":
-        text = _inline_svg_sibling_images(_read_markup(src), src.parent)
+        text = _svg_lower_root(_inline_svg_sibling_images(_read_markup(src), src.parent))
         if "data:image/" not in text:
             doc = pymupdf.open(stream=text.encode("utf-8"), filetype="svg")
             try:
