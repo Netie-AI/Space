@@ -2268,6 +2268,8 @@ def html_visible_text(text: str) -> str:
     # IE / Word conditional comments are not page copy. Leftover "Photo"
     # inside <!--[if IE]> stole dest Word / MD.
     text = re.sub(r"(?s)<!--.*?-->", "", text)
+    # Unclosed <!-- Photo leftover stole dest Word and dest PDF (Story white).
+    text = re.sub(r"(?s)<!--.*$", "", text)
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
@@ -2339,6 +2341,7 @@ def html_visible_text(text: str) -> str:
         text = nxt
     # MD dest Word html.escape'd <!-- comment --> back into page copy.
     text = re.sub(r"(?s)<!--.*?-->", "", text)
+    text = re.sub(r"(?s)<!--.*$", "", text)
     # Format marks are not page copy. Leftover &#xfe0f; (emoji VS16)
     # stole dest Word and wrote dest PDF white (Story of an empty page).
     # Cf covers LRM / ZWSP / SHY / WJ. VS16 / CGJ are Mn.
