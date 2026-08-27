@@ -2,6 +2,10 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-08-27
+
+- Convert: Share dest Word / HTML / PDF on Markdown images with a title (`![cat](pic.png "t")`), angle dest (`<pic.png>`), or `[ref]` embeds that picture. Bare `![cat](pic.png)` already worked; title / angle / ref dumped `![` source or wrote Word with no `word/media`.
+
 ## 2026-08-26
 
 - Convert: Share dest Word / Markdown / PDF on photo-only AMP HTML whose picture is only in `<amp-img src>` / `srcset` embeds that picture. `image-set` landed in #206; amp-img used empty Word / 1-byte MD / 573-byte Story PDF.

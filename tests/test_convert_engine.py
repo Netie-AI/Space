@@ -1338,6 +1338,84 @@ def test_html_amp_img_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_md_image_title_ref_export() -> None:
+    """Share dest Word/HTML/PDF on MD images with title, <dest>, or [ref]."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _md_inline_html" in src
+    assert "def _md_link_defs" in src
+    if not pymupdf_available():
+        print("SKIP md image title/ref export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP md image title/ref export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "pic.png").write_bytes(png)
+        import pymupdf
+
+        def assert_dests(md_path: Path, stem: str) -> None:
+            docx = d / f"{stem}.docx"
+            res = run_engine(["export-as", str(md_path), str(docx)])
+            assert res.get("success"), res
+            assert res.get("tool") == "docx-zip-images", res
+            with zipfile.ZipFile(docx) as zf:
+                assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+            html = d / f"{stem}.html"
+            res = run_engine(["export-as", str(md_path), str(html)])
+            assert res.get("success"), res
+            body = html.read_text(encoding="utf-8")
+            assert "data:image/png;base64," in body
+            assert "![" not in body
+            assert "pic.png &quot;" not in body
+            pdf = d / f"{stem}.pdf"
+            res = run_engine(["export-as", str(md_path), str(pdf)])
+            assert res.get("success"), res
+            doc = pymupdf.open(pdf)
+            try:
+                assert doc[0].get_images(), doc[0].get_text()
+                dumped = doc[0].get_text()
+                assert "![" not in dumped
+                assert "[id]:" not in dumped
+            finally:
+                doc.close()
+
+        titled = d / "title.md"
+        titled.write_text('![cat](pic.png "A cat")\n', encoding="utf-8")
+        assert_dests(titled, "title")
+        angled = d / "angle.md"
+        angled.write_text("![cat](<pic.png>)\n", encoding="utf-8")
+        assert_dests(angled, "angle")
+        ref = d / "ref.md"
+        ref.write_text("![cat][id]\n\n[id]: pic.png\n", encoding="utf-8")
+        assert_dests(ref, "ref")
+        mid = d / "mid.md"
+        mid.write_text("see ![cat](pic.png) here\n", encoding="utf-8")
+        html = d / "mid.html"
+        res = run_engine(["export-as", str(mid), str(html)])
+        assert res.get("success"), res
+        body = html.read_text(encoding="utf-8")
+        assert "data:image/png;base64," in body
+        assert "see " in body
+        pdf = d / "mid.pdf"
+        res = run_engine(["export-as", str(mid), str(pdf)])
+        assert res.get("success"), res
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images(), doc[0].get_text()
+            assert "![" not in doc[0].get_text()
+        finally:
+            doc.close()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2172,6 +2250,7 @@ if __name__ == "__main__":
     test_html_src_strip_photo_export()
     test_html_imageset_photo_export()
     test_html_amp_img_photo_export()
+    test_md_image_title_ref_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
