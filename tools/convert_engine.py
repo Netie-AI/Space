@@ -24,6 +24,7 @@ import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import unquote
 
 # ---------------------------------------------------------------------------
 # Contract helpers
@@ -1708,11 +1709,12 @@ def require_pymupdf():
 
 
 def _local_href(href: str) -> str:
-    """Sibling ` pic.png ` / pic.png#x used empty Word / 1-byte MD."""
+    """Sibling ` pic.png ` / pic.png#x / my%20pic.png used empty Word / 1-byte MD."""
     href = (href or "").strip()
     if not href or href.lower().startswith(("data:", "http:", "https:", "//")):
         return href
-    return href.split("#", 1)[0].split("?", 1)[0].strip()
+    href = href.split("#", 1)[0].split("?", 1)[0].strip()
+    return unquote(href)
 
 
 def _html_attr(attrs: str, name: str) -> str | None:
