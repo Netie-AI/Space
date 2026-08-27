@@ -55,6 +55,7 @@ the previous):
 12. #292 leftover WordML `pStyle=CommentText`
 13. #293 leftover Word `LidThemeOther` / `LidThemeAsian`
 14. #294 leftover Word `docVar` / `docVars`
+15. #295 leftover Word `mso-deletion` / `msoChangeDel`
 
 Draft #1 (demo video) stays draft. Parked leftovers stay parked
 (headers / footnotes / smart tags / `w:sdt` / xml islands outside
