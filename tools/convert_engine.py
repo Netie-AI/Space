@@ -1750,6 +1750,28 @@ def _html_attr(attrs: str, name: str) -> str | None:
     return val or None
 
 
+def _html_base_dir(text: str, html_parent: Path) -> Path:
+    """<base href=images/> used empty Word: src=pic.png lives under images/."""
+    root = html_parent.resolve()
+    m = re.search(r"(?is)<base\b([^>]*)>", text)
+    if not m:
+        return html_parent
+    href = _html_attr(m.group(1), "href")
+    if not href:
+        return html_parent
+    href = _local_href(href)
+    if not href or href.startswith(("data:", "http:", "https:", "//", "#")):
+        return html_parent
+    try:
+        cand = (html_parent / href).resolve()
+        cand.relative_to(root)
+    except (OSError, ValueError):
+        return html_parent
+    if cand.is_file():
+        cand = cand.parent
+    return cand
+
+
 def _stylesheet_hrefs(html: str) -> list[str]:
     """Sibling <link rel=stylesheet href>. Inline / <style> url() already scanned."""
     hrefs: list[str] = []
@@ -1931,6 +1953,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     if base is None:
         return pngs
     root = base.resolve()
+    resolve_dir = _html_base_dir(text, base)
     for m in re.finditer(
         r'<(?:img|amp-img)\b[^>]*(?<![\w-])src\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
         text,
@@ -1941,7 +1964,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         href = _local_href(m.group(1) or m.group(2) or "")
         if not href:
             continue
-        path = (base / href).resolve()
+        path = (resolve_dir / href).resolve()
         try:
             path.relative_to(root)
         except ValueError:
@@ -1961,7 +1984,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
                 break
             if href.startswith(("data:", "http:", "https:", "//", "#")):
                 continue
-            path = (base / href).resolve()
+            path = (resolve_dir / href).resolve()
             try:
                 path.relative_to(root)
             except ValueError:
@@ -1972,14 +1995,14 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
             if png:
                 pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
-    pngs.extend(_sibling_url_pngs(text, base, root, cap - len(pngs)))
-    pngs.extend(_sibling_imageset_pngs(text, base, root, cap - len(pngs)))
+    pngs.extend(_sibling_url_pngs(text, resolve_dir, root, cap - len(pngs)))
+    pngs.extend(_sibling_imageset_pngs(text, resolve_dir, root, cap - len(pngs)))
     budget = [8]
     seen: set[Path] = set()
     for block in re.finditer(r"(?is)<style\b[^>]*>(.*?)</style>", text):
         if len(pngs) >= cap:
             break
-        pngs.extend(_imported_css_pngs(block.group(1), base, root, cap - len(pngs), budget, seen))
+        pngs.extend(_imported_css_pngs(block.group(1), resolve_dir, root, cap - len(pngs), budget, seen))
     # Linked .css url() is relative to the CSS file. Inline scan never saw it.
     for href in _stylesheet_hrefs(text):
         if len(pngs) >= cap or budget[0] <= 0:
@@ -1988,7 +2011,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         if href.startswith(("data:", "http:", "https:", "//", "#")) or not href:
             continue
         try:
-            css_path = (base / href).resolve()
+            css_path = (resolve_dir / href).resolve()
             css_path.relative_to(root)
         except (OSError, ValueError):
             continue
