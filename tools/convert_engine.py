@@ -1736,6 +1736,11 @@ def html_string_to_pdf(story_html: str, dest: Path) -> str:
 def html_to_pdf(src: Path, dest: Path) -> str:
     """Share dest 2 on HTML. markdown_to_html dumped source tags into the PDF."""
     text = src.read_text(encoding="utf-8", errors="replace")
+    visible = html_visible_text(text)
+    pngs = html_media_pngs(src)
+    # CSS background-image only: Story writes a 573-byte blank page.
+    if pngs and not visible:
+        return images_to_pdf(pngs, dest, tool="pymupdf-html-images")
     try:
         return html_string_to_pdf(inline_sibling_images(text, src.parent), dest)
     except RuntimeError:
