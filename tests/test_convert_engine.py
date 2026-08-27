@@ -2158,6 +2158,57 @@ def test_html_curly_src_photo_export() -> None:
         assert_dests(srcset, "srcset")
 
 
+def test_md_curly_dest_export() -> None:
+    """Share dest Word/HTML/PDF on MD images whose dest uses Word smart quotes."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _md_dest" in src
+    if not pymupdf_available():
+        print("SKIP md curly dest export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP md curly dest export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 160, 60)).save(d / "pic.png", format="PNG")
+
+        def assert_dests(md_path: Path, stem: str) -> None:
+            docx = d / f"{stem}.docx"
+            res = run_engine(["export-as", str(md_path), str(docx)])
+            assert res.get("success"), res
+            assert res.get("tool") == "docx-zip-images", res
+            with zipfile.ZipFile(docx) as zf:
+                assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+            html = d / f"{stem}.html"
+            res = run_engine(["export-as", str(md_path), str(html)])
+            assert res.get("success"), res
+            body = html.read_text(encoding="utf-8")
+            assert "data:image/png;base64," in body
+            assert "![" not in body
+            pdf = d / f"{stem}.pdf"
+            res = run_engine(["export-as", str(md_path), str(pdf)])
+            assert res.get("success"), res
+            import pymupdf
+
+            doc = pymupdf.open(pdf)
+            try:
+                assert doc[0].get_images(), doc[0].get_text()
+                assert "![" not in doc[0].get_text()
+            finally:
+                doc.close()
+
+        curly = d / "curly.md"
+        curly.write_text("![x](\u201cpic.png\u201d)\n", encoding="utf-8")
+        assert_dests(curly, "curly")
+        ref = d / "ref.md"
+        ref.write_text("![x][id]\n\n[id]: \u201cpic.png\u201d\n", encoding="utf-8")
+        assert_dests(ref, "ref")
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -3005,6 +3056,7 @@ if __name__ == "__main__":
     test_html_bom_visible_photo_export()
     test_html_utf16_photo_export()
     test_html_curly_src_photo_export()
+    test_md_curly_dest_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()

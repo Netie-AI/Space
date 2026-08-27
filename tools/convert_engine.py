@@ -617,6 +617,18 @@ def _md_label(label: str) -> str:
     return re.sub(r"\s+", " ", (label or "").strip()).lower()
 
 
+def _md_dest(href: str) -> str:
+    """Word smart quotes around ![x](dest) used empty Word / dumped source."""
+    href = (href or "").strip()
+    while (
+        len(href) >= 2
+        and href[0] in "\"'\u201c\u2018\u201e"
+        and href[-1] in "\"'\u201d\u2019\u201c"
+    ):
+        href = href[1:-1].strip()
+    return href
+
+
 def _md_link_defs(text: str) -> dict[str, str]:
     """`[id]: pic.png` / `[id]: <pic.png> \"t\"`. First label wins."""
     defs: dict[str, str] = {}
@@ -625,7 +637,7 @@ def _md_link_defs(text: str) -> dict[str, str]:
         if not m:
             continue
         key = _md_label(m.group(1))
-        href = (m.group(2) or m.group(3) or "").strip()
+        href = _md_dest(m.group(2) or m.group(3) or "")
         if key and href and key not in defs:
             defs[key] = href
     return defs
@@ -649,7 +661,7 @@ def _md_inline_html(text: str, defs: dict[str, str]) -> str:
         end = -1
         if m:
             alt = m.group(1)
-            href = (m.group(2) or m.group(3) or "").strip()
+            href = _md_dest(m.group(2) or m.group(3) or "")
             end = m.end()
         else:
             m = _MD_REF_IMG.match(text, bang)
