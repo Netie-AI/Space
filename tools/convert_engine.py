@@ -1896,7 +1896,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
 
     pngs: list[bytes] = []
     for m in re.finditer(
-        r"data:image/(?:png|jpeg|jpg|gif|webp|bmp|svg\+xml);base64,([A-Za-z0-9+/=\s]+)",
+        r"data:image/(?:png|jpeg|jpg|gif|webp|bmp|svg\+xml)(?:;[^,;]+)*;base64,([A-Za-z0-9+/=\s]+)",
         text,
         re.I,
     ):
