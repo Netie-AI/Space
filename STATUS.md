@@ -4,7 +4,7 @@
 
 ## Now
 
-1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Ignore GHA billing.
+1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Do not merge on red GHA.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
 2. **Ready PRs #4-#280 landed**. Draft #1 stays draft.
@@ -56,5 +56,5 @@
   Export clones the timeline (Space-close cannot mutate the encode). Caption
   status matches that snapshot. Ribbon / context-menu / handle Fade all write
   the session. Toast uses bundled ffprobe. Fresh clone: install downloads ffmpeg.
-- Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (hybrid rewrite + Sign refuse leftover hybrid).
+- Human: GHA billing unlock (`docs/HUMAN_GHA_BILLING.md`); Stripe key + webhook + `4242`; Adobe Reader on a cert-signed PDF.
 - Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`). Product identity later.

@@ -87,4 +87,6 @@ jobs:
           npm run typecheck
 
   # No 4th aggregator job. Workflow already fails if any of the three fail.
-  # After #25, aggregator `ci` never started: GitHub billing/spending limit.
+  # Hosted runners: "The job was not started because recent account payments
+  # have failed or your spending limit needs to be increased." Do not merge
+  # on that red. Unlock: docs/HUMAN_GHA_BILLING.md

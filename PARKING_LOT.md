@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-26** (Cursor-origin CI; ignore GHA billing).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-27** (do not merge on red GHA).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -48,6 +48,10 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] SEA-LION in API Keys UI + `user.env`
 - [x] Token savings — see `docs/TOKEN_SAVINGS.md`
 - [x] Port AirGPT `ditch_context` tiers into Netie conversation cache (`DitchContext.cs`)
+
+## CI
+
+- [ ] GitHub Actions hosted runners (org payments failed / spending limit; jobs die in 2-4s with empty steps -- `docs/HUMAN_GHA_BILLING.md`). Do not merge while `CI` is red.
 
 ## P2 — API product
 

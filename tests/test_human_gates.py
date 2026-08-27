@@ -222,6 +222,13 @@ def test_scripts_and_docs():
     yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     assert "encode-pillar1-wipe.ps1" in yml
     assert "encode-pillar1-wipe.sh" in yml
+    gha = (ROOT / "docs/HUMAN_GHA_BILLING.md").read_text(encoding="utf-8")
+    assert "spending limit needs to be increased" in gha
+    assert "Do **not** merge a PR while GitHub Actions `CI` is red" in gha
+    check = (ROOT / "scripts/gha-billing-check.sh").read_text(encoding="utf-8")
+    assert "spending limit needs to be increased" in check
+    assert "Do not merge" in check
+    assert "docs/HUMAN_GHA_BILLING.md" in parked
     assert "tools/ffmpeg" in pillar
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in (ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md").read_text(encoding="utf-8")
     publish_ps = (ROOT / "scripts/publish.ps1").read_text(encoding="utf-8")
