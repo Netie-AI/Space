@@ -2445,8 +2445,10 @@ def html_visible_text(text: str) -> str:
     # tag so mixed Hello stays the text path.
     # <w:delInstrText> is deleted field-code text (same class as
     # instrText). Leftover "Photo" stole dest Word / dest PDF Story.
+    # <w:fldData> is private field storage (not page copy). Leftover
+    # "Photo" / base64 stole dest Word / dest PDF Story the same way.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:delInstrText|delText|instrText|commentText))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:[\w.-]+:)?(?:delInstrText|delText|instrText|commentText|fldData))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
     )
