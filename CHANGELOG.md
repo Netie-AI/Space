@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML whose sibling `.css` is Notepad Unicode (UTF-16) embeds that picture. `read_text(utf-8)` garbled `url(pic.png)`, so dest Word / MD / PDF missed the sibling. Same BOM sniff as HTML/MD.
 - Convert: Share dest Excel on Notepad Unicode (UTF-16) / UTF-8 BOM CSV keeps the header cell. `read_text(utf-8)` left `name` as `name` with a BOM or replacement junk in A1. Same BOM sniff as HTML/MD.
 - Convert: Share dest Word / HTML / PDF on Notepad Unicode (UTF-16) Markdown and UTF-8 BOM Markdown embeds sibling pictures. `read_text(utf-8)` garbled `![]` or left U+FEFF as visible text, so dest Word had no `word/media`. Same BOM sniff as HTML. Text `.txt` dest PDF keeps the words.
 - Convert: Share dest Word / HTML / PDF on Markdown images whose dest uses Word smart quotes embeds that picture. Stdlib kept `“pic.png”` as the path, so dests dumped `![` source or wrote Word with no `word/media`.

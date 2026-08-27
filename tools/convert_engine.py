@@ -1894,7 +1894,7 @@ def _load_css_file_pngs(
     if resolved in seen:
         return []
     try:
-        css = css_path.read_text(encoding="utf-8", errors="replace")
+        css = _read_markup(css_path)
     except OSError:
         return []
     seen.add(resolved)
