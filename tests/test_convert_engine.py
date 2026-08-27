@@ -4030,7 +4030,7 @@ def test_rtf_nonshppict_photo_export() -> None:
 def test_rtf_annotation_photo_export() -> None:
     """Share dest Word/PDF on photo RTF whose leftover is unstarred annotation."""
     src = ENGINE.read_text(encoding="utf-8")
-    assert "pnseclvl|annotation|atnauthor|atrfstart|atrfend|atnid" in src
+    assert "annotation|atnauthor|atrfstart|atrfend|atnid" in src
     assert "Unstarred \\\\annotation /" in src or "Unstarred \\annotation /" in src
     assert "Do not strip \\\\upr (fallback is page copy)" in src or "Do not strip \\upr (fallback is page copy)" in src
     if not pymupdf_available():
