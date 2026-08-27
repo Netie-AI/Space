@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on WordPad / Word photo RTF whose picture is `\\pngblip` / `\\jpegblip` hex embeds that picture. Dest Word used `docx-zip` with no `word/media` (hex dump as page copy) and dest PDF used Story without pictures. WMF pict / mixed text+pict stay parked.
 - Convert: Share dest PDF / Word / HTML on photo ODT / DOCX / PPTX / ODP whose zip picture is `icon.svg` (or HEIC) embeds that picture. Pillow cannot open SVG, so dest PDF raised `no PDF converter` and dest Word had no `word/media`. Same `_bytes_to_png` path as sibling HTML. EMF / WMF stay parked.
 - Convert: Share dest Word on photo HTML whose leftover is double-encoded `&amp;nbsp;`, and photo Markdown whose leftover is `&nbsp;` / `&shy;` / an HTML comment, embeds that picture. One unescape left `"&nbsp;"`; MD dest Word used a naive tag strip. Real words still take the text path. Punctuation-only leftovers stay parked.
 - Convert: Share dest Word / Markdown on photo HTML whose leftover is Word `&shy;` or an IE / Word conditional comment (`<!--[if IE]>`) embeds that picture. Soft hyphen and comment inner text are not page copy; leftover "&shy;" / "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest MD (`html-strip`). Real words (`Hello`) still take the text path. `hidden` / button / label stay parked.
