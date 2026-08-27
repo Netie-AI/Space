@@ -1256,11 +1256,11 @@ def file_to_docx(src: Path, dest: Path) -> str:
             if src.suffix.lower() in MD_EXTS:
                 html = inline_sibling_images(markdown_to_html(text), src.parent)
                 pngs = html_string_media_pngs(html, src.parent)
-                stripped = re.sub(r"(?s)<[^>]+>", " ", html)
-                stripped = re.sub(r"\s+", " ", stripped).strip()
-                if not stripped and pngs:
+                # Naive tag strip left &nbsp; / comments as "page copy".
+                visible = html_visible_text(html)
+                if not visible and pngs:
                     return write_docx_images(dest, pngs)
-                return write_docx(dest, stripped or text)
+                return write_docx(dest, visible or text)
             if not text.strip() and src.suffix.lower() in HTML_EXTS:
                 pngs = html_media_pngs(src)
                 if pngs:
@@ -2246,8 +2246,15 @@ def html_visible_text(text: str) -> str:
     text = re.sub(r'(?is)<img\b[^>]*src\s*=\s*(["\'])(?:.*?)\1[^>]*>', "", text)
     text = re.sub(r"(?is)<img[^>]*>", "", text)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
-    # Word HTML <p>&nbsp;</p> / &shy; are not page copy. Entity text stole dest Word.
-    text = html.unescape(text)
+    # Word HTML <p>&nbsp;</p> / &shy; / &amp;nbsp; are not page copy.
+    # One unescape left "&nbsp;" and stole dest Word / MD.
+    for _ in range(3):
+        nxt = html.unescape(text)
+        if nxt == text:
+            break
+        text = nxt
+    # MD dest Word html.escape'd <!-- comment --> back into page copy.
+    text = re.sub(r"(?s)<!--.*?-->", "", text)
     for ch in ("\ufeff", "\u200b", "\u200c", "\u200d", "\u00ad"):
         text = text.replace(ch, "")
     return re.sub(r"\s+", " ", text).strip()
