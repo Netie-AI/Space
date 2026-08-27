@@ -956,6 +956,57 @@ def test_html_linked_css_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_css_utf16_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose sibling CSS is UTF-16 embeds the picture."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _read_markup" in src
+    assert "def _load_css_file_pngs" in src
+    if not pymupdf_available():
+        print("SKIP html css utf16 photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html css utf16 photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "pic.png", format="PNG")
+        (d / "page.css").write_bytes(
+            "div{background-image:url(pic.png)}".encode("utf-16")
+        )
+        html = d / "page.html"
+        html.write_text(
+            '<html><head><link rel="stylesheet" href="page.css"></head>'
+            "<body><div></div></body></html>",
+            encoding="utf-8",
+        )
+        md = d / "page.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "page.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "page.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+
+
 def test_html_css_import_photo_export() -> None:
     """Share dest Word/MD/PDF on photo-only HTML whose picture is only behind @import."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -3135,6 +3186,7 @@ if __name__ == "__main__":
     test_html_photo_export()
     test_html_svg_photo_export()
     test_html_linked_css_photo_export()
+    test_html_css_utf16_photo_export()
     test_html_css_import_photo_export()
     test_html_srcset_photo_export()
     test_html_src_spaced_eq_photo_export()
