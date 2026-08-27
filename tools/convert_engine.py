@@ -1693,6 +1693,11 @@ def _odf_p_in_leftover(el: ET.Element, parent: dict[ET.Element, ET.Element]) -> 
         local = cur.tag.rsplit("}", 1)[-1]
         if local in {"annotation", "deletion"}:
             return True
+        # Change-log copies are not page copy. Leftover <text:insertion> / <text:format-change> inside <text:changed-region> stole dest
+        # PDF / Word on photo ODT (Pictures/ already there). Body
+        # text:insertion stays page copy (not under tracked-changes).
+        if local in {"changed-region", "tracked-changes"}:
+            return True
         cur = parent.get(cur)
     return False
 
@@ -1703,6 +1708,9 @@ def _odf_visible_text(el: ET.Element) -> str:
     for child in list(el):
         local = child.tag.rsplit("}", 1)[-1]
         if local in {"annotation", "deletion"}:
+            parts.append(child.tail or "")
+            continue
+        if local in {"changed-region", "tracked-changes"}:
             parts.append(child.tail or "")
             continue
         parts.append(_odf_visible_text(child))
