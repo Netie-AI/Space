@@ -2517,6 +2517,15 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word HTML leftover settings are not page copy (same class as
+    # OfficeDocumentSettings).
+    # Leftover Print / false / 800x600 in <w:View> / <w:SaveIfXMLInvalid> / <w:BrowserLevel> stole dest Word / dest PDF Story.
+    # Prefix required. Do not strip <w:p> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize|DrawingGridHorizontalSpacing|DrawingGridVerticalSpacing|DisplayHorizontalDrawingGridEvery|DisplayVerticalDrawingGridEvery))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
