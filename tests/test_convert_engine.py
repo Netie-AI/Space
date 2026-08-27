@@ -240,6 +240,42 @@ def test_export_as_xlsx_from_csv() -> None:
         assert res.get("tool") == "copy", res
 
 
+def test_csv_utf16_export() -> None:
+    """Share dest Excel on Notepad Unicode / UTF-8 BOM CSV keeps the cell text."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def csv_to_rows" in src
+    assert "def _read_markup" in src
+    import zipfile
+    import re
+
+    def cells(path: Path) -> list[str]:
+        with zipfile.ZipFile(path) as zf:
+            xml = zf.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        return re.findall(r"<t[^>]*>([^<]*)</t>", xml)
+
+    body = "name,qty\nleftover,3\n"
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        utf16 = d / "u.csv"
+        utf16.write_bytes(body.encode("utf-16"))
+        out = d / "u.xlsx"
+        res = run_engine(["export-as", str(utf16), str(out)])
+        assert res.get("success"), res
+        assert res.get("tool") == "xlsx-zip", res
+        got = cells(out)
+        assert "name" in got, got
+        assert "leftover" in got, got
+        assert not any("\ufeff" in c or "\ufffd" in c for c in got), got
+        bom = d / "bom.csv"
+        bom.write_bytes(b"\xef\xbb\xbf" + body.encode("utf-8"))
+        bout = d / "bom.xlsx"
+        res = run_engine(["export-as", str(bom), str(bout)])
+        assert res.get("success"), res
+        got = cells(bout)
+        assert "name" in got, got
+        assert not any("\ufeff" in c for c in got), got
+
+
 def _write_odt(path: Path, paragraphs: list[str]) -> None:
     paras = "".join(f"<text:p>{p}</text:p>" for p in paragraphs)
     content = (
@@ -3088,6 +3124,7 @@ if __name__ == "__main__":
     test_export_as_docx_from_text_sources()
     test_export_as_markdown_suffix()
     test_export_as_xlsx_from_csv()
+    test_csv_utf16_export()
     test_export_as_rtf_odt_ods()
     test_export_as_odp()
     test_export_as_ppsx()
