@@ -2284,7 +2284,15 @@ def html_visible_text(text: str) -> str:
         text = nxt
     # MD dest Word html.escape'd <!-- comment --> back into page copy.
     text = re.sub(r"(?s)<!--.*?-->", "", text)
-    for ch in ("\ufeff", "\u200b", "\u200c", "\u200d", "\u00ad"):
+    # Word / RTL leftover &lrm; / &rlm; / &wj; are not page copy.
+    # Same class as ZWSP / SHY. Leftover marks stole dest Word.
+    for ch in (
+        "\ufeff", "\u200b", "\u200c", "\u200d", "\u00ad",
+        "\u200e", "\u200f", "\u2060",
+        "\u2066", "\u2067", "\u2068", "\u2069",
+        "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",
+        "\u061c",
+    ):
         text = text.replace(ch, "")
     return re.sub(r"\s+", " ", text).strip()
 

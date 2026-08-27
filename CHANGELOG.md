@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word on photo HTML whose leftover is Word / RTL `&lrm;` / `&rlm;` / `&NoBreak;` (U+2060) embeds that picture. Those marks are not page copy (same class as ZWSP / SHY). Leftover stole dest Word (`docx-zip` / no `word/media`). Real words (`Hello`) still take the text path. Punctuation-only leftovers stay parked.
 - Convert: Share dest PDF on photo Markdown whose only picture is `![](sib.png)` embeds that picture. Dest Word already used `docx-zip-images`; dest PDF used MuPDF Story after a data-URI inline and wrote a white page. Same photo-only `images_to_pdf` path as HTML. Mixed `Hello` + image stays Story.
 - Convert: Share dest PDF / Word / PPTX on photo ODT / ODS / ODP whose zip picture is only `ObjectReplacements/` (LibreOffice OLE replacement, often no suffix) embeds that picture. Dest PDF raised `no PDF converter` and dest Word was `docx-zip` with no `word/media` because zip walk used `Pictures/` / `media/` only. Mixed text+pict and `Thumbnails/` stay parked.
 - Convert: Share dest Word / PDF on WordPad / Word photo RTF whose picture is `\\pngblip` / `\\jpegblip` hex embeds that picture. Dest Word used `docx-zip` with no `word/media` (hex dump as page copy) and dest PDF used Story without pictures. WMF pict / mixed text+pict stay parked.
