@@ -2221,6 +2221,22 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(raw)
         if png:
             pngs.append(png)
+    # Word 2003 HTML / WordML leftover <w:binData> hex stole dest Word
+    # (base64 as page copy, wordml:// src is not a sibling file).
+    for m in re.finditer(
+        r"(?is)<(?:[\w.-]+:)?binData\b[^>]*>\s*([A-Za-z0-9+/=\s]+)\s*"
+        r"(?:</(?:[\w.-]+:)?binData\s*>|(?=<)|$)",
+        text,
+    ):
+        if len(pngs) >= cap:
+            break
+        try:
+            raw = base64.b64decode(re.sub(r"\s+", "", m.group(1)))
+        except Exception:
+            continue
+        png = _bytes_to_png(raw)
+        if png:
+            pngs.append(png)
     for m in re.finditer(r'src\s*=\s*(["\'])(data:image/svg\+xml.*?)\1', text, re.I | re.S):
         if len(pngs) >= cap:
             break
@@ -2320,6 +2336,12 @@ def html_visible_text(text: str) -> str:
     text = re.sub(r"(?s)<!--.*?-->", "", text)
     # Unclosed <!-- Photo leftover stole dest Word and dest PDF (Story white).
     text = re.sub(r"(?s)<!--.*$", "", text)
+    # WordML <w:binData> leftover base64 stole dest Word.
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?binData\b[^>]*>.*?(?:</(?:[\w.-]+:)?binData\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
