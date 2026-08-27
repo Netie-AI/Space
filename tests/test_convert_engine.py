@@ -3762,6 +3762,47 @@ def test_odf_object_replacements_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_md_image_photo_pdf() -> None:
+    """Share dest PDF on photo Markdown whose only picture is ![](sib.png)."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert 'tool="pymupdf-md-images"' in src
+    if not pymupdf_available():
+        print("SKIP md image photo pdf -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP md image photo pdf -- Pillow missing")
+        return
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        (d / "sib.png").write_bytes(buf.getvalue())
+        md = d / "photo.md"
+        md.write_text("![](sib.png)\n", encoding="utf-8")
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(md), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-md-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        mixed = d / "mixed.md"
+        mixed.write_text("Hello\n\n![](sib.png)\n", encoding="utf-8")
+        pdf2 = d / "mixed.pdf"
+        res = run_engine(["export-as", str(mixed), str(pdf2)])
+        assert res.get("success"), res
+        assert res.get("tool") != "pymupdf-md-images", res
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4602,6 +4643,7 @@ if __name__ == "__main__":
     test_office_svg_media_export()
     test_rtf_pict_photo_export()
     test_odf_object_replacements_export()
+    test_md_image_photo_pdf()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
