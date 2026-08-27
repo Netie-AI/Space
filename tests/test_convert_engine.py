@@ -1667,6 +1667,56 @@ def test_md_num_entity_href_photo_export() -> None:
             doc.close()
 
 
+def test_html_heic_sibling_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose sibling is .heic. File HEIC dests already rasterize."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "register_heif_opener" in src
+    if not pymupdf_available():
+        print("SKIP html heic sibling photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+        import pillow_heif
+
+        pillow_heif.register_heif_opener()
+    except Exception:
+        print("SKIP html heic sibling photo export -- pillow_heif missing (optional, not a Cursor CI dep)")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        heic = d / "pic.heic"
+        Image.new("RGB", (64, 48), (180, 90, 30)).save(heic)
+        html = d / "heic.html"
+        html.write_text(
+            '<html><body><img src="pic.heic" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "heic.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "heic.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "heic.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2506,6 +2556,7 @@ if __name__ == "__main__":
     test_html_src_not_data_src_photo_export()
     test_html_num_entity_href_photo_export()
     test_md_num_entity_href_photo_export()
+    test_html_heic_sibling_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
