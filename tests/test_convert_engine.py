@@ -4992,6 +4992,87 @@ def test_html_wdel_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_docx_del_t_photo_export() -> None:
+    """Share dest PDF/MD on photo DOCX whose leftover is <w:del><w:t>Photo."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Leftover <w:t>Photo</w:t> inside <w:del> stole dest PDF" in src
+    assert 'local in {"del", "moveFrom"}' in src
+    if not pymupdf_available():
+        print("SKIP docx del-t -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP docx del-t -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+    png = buf.getvalue()
+
+    def write_photo_docx(path: Path, body: str) -> None:
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr(
+                "[Content_Types].xml",
+                '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                '<Default Extension="png" ContentType="image/png"/>'
+                '<Override PartName="/word/document.xml" '
+                'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+                "</Types>",
+            )
+            zf.writestr(
+                "word/document.xml",
+                '<?xml version="1.0"?><w:document '
+                'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                f"<w:body>{body}</w:body></w:document>",
+            )
+            zf.writestr("word/media/image1.png", png)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        for leftover in (
+            "<w:p><w:del><w:r><w:t>Photo</w:t></w:r></w:del></w:p>",
+            "<w:p><w:moveFrom><w:r><w:t>Photo</w:t></w:r></w:moveFrom></w:p>",
+        ):
+            docx = d / "photo.docx"
+            write_photo_docx(docx, leftover)
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(docx), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-office-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+            md = d / "photo.md"
+            res = run_engine(["export-as", str(docx), str(md)])
+            assert res.get("success"), (leftover, res)
+            assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        mixed = d / "mixed.docx"
+        write_photo_docx(
+            mixed,
+            "<w:p><w:del><w:r><w:t>Photo</w:t></w:r></w:del></w:p>"
+            "<w:p><w:r><w:t>Hello</w:t></w:r></w:p>",
+        )
+        dest = d / "mixed.pdf"
+        res = run_engine(["export-as", str(mixed), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story", res
+        ins = d / "ins.docx"
+        write_photo_docx(ins, "<w:p><w:ins><w:r><w:t>Hello</w:t></w:r></w:ins></w:p>")
+        dest2 = d / "ins.pdf"
+        res = run_engine(["export-as", str(ins), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story", res
+
+
 def test_html_unclosed_comment_photo_export() -> None:
     """Share dest Word / PDF on photo HTML / MD whose leftover is unclosed <!-- Photo."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -5998,6 +6079,7 @@ if __name__ == "__main__":
     test_html_aml_comment_photo_export()
     test_html_msodel_photo_export()
     test_html_wdel_photo_export()
+    test_docx_del_t_photo_export()
     test_html_unclosed_comment_photo_export()
     test_md_frontmatter_photo_export()
     test_svg_ico_drop_merge_lists()

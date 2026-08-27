@@ -428,6 +428,17 @@ def pptx_extract_media(src: Path, dest_dir: Path) -> list[Path]:
     return saved
 
 
+def _docx_t_in_leftover(el: ET.Element, parent: dict[ET.Element, ET.Element]) -> bool:
+    """<w:t> inside <w:del> / <w:moveFrom> is not page copy (same as delText)."""
+    cur: ET.Element | None = el
+    while cur is not None:
+        local = cur.tag.rsplit("}", 1)[-1]
+        if local in {"del", "moveFrom"}:
+            return True
+        cur = parent.get(cur)
+    return False
+
+
 def docx_plain_html(src: Path) -> str | None:
     try:
         with zipfile.ZipFile(src) as zf:
@@ -435,11 +446,19 @@ def docx_plain_html(src: Path) -> str | None:
     except Exception:
         return None
     root = ET.fromstring(raw)
+    parent = {c: p for p in root.iter() for c in list(p)}
     paras: list[str] = []
     for p in root.iter():
         if not p.tag.endswith("}p"):
             continue
-        bits = [(el.text or "") for el in p.iter() if el.tag.endswith("}t")]
+        # Leftover <w:t>Photo</w:t> inside <w:del> stole dest PDF (Story)
+        # on photo DOCX that already had word/media/. Skip those runs.
+        # <w:ins> / <w:moveTo> stay page copy. <w:sdt> stays parked.
+        bits = [
+            (el.text or "")
+            for el in p.iter()
+            if el.tag.endswith("}t") and not _docx_t_in_leftover(el, parent)
+        ]
         line = "".join(bits).strip()
         if line:
             paras.append(f"<p>{html.escape(line)}</p>")
