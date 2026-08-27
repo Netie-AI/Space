@@ -701,6 +701,22 @@ def test_html_photo_export() -> None:
             assert "![pic]" not in doc[0].get_text()
         finally:
             doc.close()
+        bg = d / "bg.html"
+        bg.write_text(
+            '<html><body><div style="background-image:url(pic.png);width:64px;height:48px"></div></body></html>',
+            encoding="utf-8",
+        )
+        bgmd = d / "bg.md"
+        res = run_engine(["to-md", str(bg), str(bgmd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in bgmd.read_text(encoding="utf-8")
+        bgdocx = d / "bg.docx"
+        res = run_engine(["export-as", str(bg), str(bgdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(bgdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist())
 
 
 def test_html_svg_photo_export() -> None:

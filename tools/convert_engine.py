@@ -1665,6 +1665,23 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(path.read_bytes())
         if png:
             pngs.append(png)
+    # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
+    for m in re.finditer(r"url\(\s*['\"]?(?!data:)([^'\")\s]+)['\"]?\s*\)", text, re.I):
+        if len(pngs) >= cap:
+            break
+        href = m.group(1).strip()
+        if not href or href.startswith("#") or href.lower() in {"none", "inherit"}:
+            continue
+        path = (base / href).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        if not path.is_file():
+            continue
+        png = _bytes_to_png(path.read_bytes())
+        if png:
+            pngs.append(png)
     return pngs
 
 
