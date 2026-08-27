@@ -7,7 +7,7 @@
 1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Ignore GHA billing.
    Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
    (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#208 landed**. Draft #1 stays draft.
+2. **Ready PRs #4-#209 landed**. Draft #1 stays draft.
    Marks are packed seconds. + Clip Video filter lists mpeg / 3gp / flv / ts.
    WebP/HEIC/ICO Space as Image (WebView2). WebP/TIF/HEIC drop and WebP/HEIC OCR/Copy/Compress/Comfy rasterize via Pillow, not XImage.
    Play after + Clip advances the packed slider. Clip/fade/caption drag
@@ -30,7 +30,7 @@
    Ctrl+Z after Leave black restores the title card and fill-gaps flag.
    A2 uses packed start (preview-only, no amix).
    Share Export as Word / Excel writes real .docx / .xlsx. Opening those
-   plus .xlsm / SVG / ODT / .ppsx / scan-PDF Word+HTML+MD / photo office PDF+Space HTML (ODF+XLSX) / photo ODS Excel + photo ODP PPTX pictures / HTML Story PDF + MD dest 1 + photo HTML MD + SVG HTML Word+MD + CSS bg/@import+image-set+amp-img+PDF / MD title+ref / pct href / OLE no-blank / silent MP3.
+   plus .xlsm / SVG / ODT / .ppsx / scan-PDF Word+HTML+MD / photo office PDF+Space HTML (ODF+XLSX) / photo ODS Excel + photo ODP PPTX pictures / HTML Story PDF + MD dest 1 + photo HTML MD + SVG HTML Word+MD + CSS bg/@import+image-set+amp-img+PDF / MD title+ref / pct href / src not data-src / OLE no-blank / silent MP3.
 3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
    Register is `pending` until pay. Sign-in, Setup, and vault activate all
    persist Worker `license_key` via `LicenseActivation`. Gate exception exits

@@ -1709,12 +1709,12 @@ def require_pymupdf():
 
 
 def _local_href(href: str) -> str:
-    """Sibling ` pic.png ` / pic.png#x / my%20pic.png used empty Word / 1-byte MD."""
+    """Sibling ` pic.png ` / pic.png#x / my%20pic.png / pic&amp;co.png used empty Word."""
     href = (href or "").strip()
     if not href or href.lower().startswith(("data:", "http:", "https:", "//")):
         return href
     href = href.split("#", 1)[0].split("?", 1)[0].strip()
-    return unquote(href)
+    return html.unescape(unquote(href))
 
 
 def _html_attr(attrs: str, name: str) -> str | None:
@@ -1911,7 +1911,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         return pngs
     root = base.resolve()
     for m in re.finditer(
-        r'<(?:img|amp-img)\b[^>]*\bsrc\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
+        r'<(?:img|amp-img)\b[^>]*(?<![\w-])src\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
         text,
         re.I,
     ):
@@ -1932,7 +1932,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
             pngs.append(png)
     # srcset-only <img> / <picture><source> / AMP. Share dests used empty / 1-byte / 573-byte.
     for m in re.finditer(
-        r"""(?is)<(?:img|source|amp-img)\b[^>]*\bsrcset\s*=\s*(?:(['"])([^'"]+)\1|([^\s>]+))""",
+        r"""(?is)<(?:img|source|amp-img)\b[^>]*(?<![\w-])srcset\s*=\s*(?:(['"])([^'"]+)\1|([^\s>]+))""",
         text,
     ):
         for href in _srcset_hrefs(m.group(2) if m.group(1) else (m.group(3) or "")):

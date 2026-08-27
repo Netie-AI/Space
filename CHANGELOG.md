@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML with a real `src` next to `data-src` / `data-srcset`, or `src="pic&amp;co.png"`, embeds that picture. Greedy `src=` used to take `data-src` (empty Word / 1-byte MD / Story without pictures). `_local_href` unescapes HTML entities after percent-decode.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML / MD whose sibling picture path is percent-encoded (`my%20pic.png`) embeds that picture. Title / ref images landed in #208; encoded spaces used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / HTML / PDF on Markdown images with a title (`![cat](pic.png "t")`), angle dest (`<pic.png>`), or `[ref]` embeds that picture. Bare `![cat](pic.png)` already worked; title / angle / ref dumped `![` source or wrote Word with no `word/media`.
 
