@@ -2406,11 +2406,12 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
-    # <template> / <noscript> are not page copy. Leftover "Enable JS"
-    # stole dest Word when a sibling <img> was the only picture.
-    # Unclosed tags stop at the next tag so mixed Hello stays the text path.
+    # <template> / <noscript> / <noframes> / <noembed> are not page copy.
+    # Leftover "Enable JS" / "Photo" stole dest Word when a sibling <img>
+    # was the only picture. Unclosed tags stop at the next tag so mixed
+    # Hello stays the text path.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:template|noscript))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:[\w.-]+:)?(?:template|noscript|noframes|noembed))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
     )
