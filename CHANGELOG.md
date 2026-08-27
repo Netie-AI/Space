@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Docs: after-unlock merge order for leftover dest drafts #281-#290 (`docs/HUMAN_GHA_BILLING.md`). Do not undraft until hosted jobs have real steps and PASS. Draft #1 stays draft. Parked leftovers stay parked.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<o:DocumentProperties><o:Author>` / `<o:Company>` / `<o:OfficeDocumentSettings>` embeds that picture. `o:Title` was already stripped; leftover Author / Company / TargetScreenSize `800x600` stole dest Word (`docx-zip`) and dest PDF was Story white, including leftover `binData`. Xml islands outside `<head>` stay parked. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<o:CustomDocumentProperties>` embeds that picture. Custom document properties are not page copy (same class as RTF `\\userprops`); leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including leftover `binData`. Xml islands outside `<head>` stay parked. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word 2003 XML / Word-HTML whose leftover is nested `<aml:annotation><aml:content>Photo` / `<w:comment><w:p><w:t>Photo` embeds that picture. `(?=<)` stopped at the inner tag and leftover stole dest Word (`docx-zip`) and dest PDF was Story white, including leftover `binData`. MathML `<annotation>` stays parked. Mixed `Hello` stays the text path.

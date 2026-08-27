@@ -34,3 +34,24 @@ must be green.
 
 `scripts/gha-billing-check.sh` prints the latest job annotation and
 exits `1` while this lock is on.
+
+## After unlock (merge order)
+
+Draft leftover dest PRs wait on hosted jobs with real steps + PASS.
+Do not undraft until then. Merge this stack in order (each is based on
+the previous):
+
+1. #281 CI path-split + billing playbook
+2. #282 leftover RTF `fldinst`
+3. #283 leftover RTF `userprops`
+4. #284 leftover RTF `xmlopen`
+5. #285 leftover RTF `bkmk`
+6. #286 leftover `mso-element:comment`
+7. #287 leftover `<a class=msocomoff>`
+8. #288 nested `aml:annotation`
+9. #289 leftover `CustomDocumentProperties`
+10. #290 leftover `DocumentProperties` / `OfficeDocumentSettings`
+
+Draft #1 (demo video) stays draft. Parked leftovers stay parked
+(headers / footnotes / smart tags / `w:sdt` / xml islands outside
+`<head>` / RTF `\\fldrslt` / `\\header` / `\\upr`).
