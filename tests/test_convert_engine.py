@@ -4591,6 +4591,114 @@ def test_html_flddata_photo_export() -> None:
             assert not media, media
 
 
+def test_html_msoacetate_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is class=MsoAcetate."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList" in src
+    assert "Do not strip MsoHeader / MsoCaption (page copy)" in src
+    if not pymupdf_available():
+        print("SKIP html msoacetate -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html msoacetate -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<div class=MsoAcetate>Photo</div>",
+            "<p class=MsoCommentReply>Photo</p>",
+            "<div class=MsoCommentList>Photo</div>",
+            "<div class=MsoAcetate>Photo",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        b64 = base64.b64encode(png).decode("ascii")
+        xml = d / "photo.xml"
+        xml.write_text(
+            '<?xml version="1.0"?>'
+            '<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            "<div class=MsoAcetate>Photo</div></w:wordDocument>",
+            encoding="utf-8",
+        )
+        dest = d / "xml.docx"
+        res = run_engine(["export-as", str(xml), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<div class=MsoAcetate>Photo</div><p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        with zipfile.ZipFile(dest2) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "Hello" in xml
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert not media, media
+        header = d / "header.html"
+        header.write_text(
+            '<html><body><img src="pic.png"><p class=MsoHeader>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "header.docx"
+        res = run_engine(["export-as", str(header), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_unclosed_style_photo_export() -> None:
     """Share dest Word on photo HTML whose leftover is unclosed <style> / <title>."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -6659,6 +6767,7 @@ if __name__ == "__main__":
     test_html_delinstr_photo_export()
     test_html_msocomsubj_photo_export()
     test_html_flddata_photo_export()
+    test_html_msoacetate_photo_export()
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
     test_html_noframes_photo_export()
