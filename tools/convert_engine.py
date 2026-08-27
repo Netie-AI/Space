@@ -10,6 +10,7 @@ Never fail stderr-only. Unknown actions and missing deps emit JSON + exit 1.
 """
 from __future__ import annotations
 
+import codecs
 import csv
 import hashlib
 import html
@@ -2105,6 +2106,31 @@ _SAFE_CHARSETS = {
     "big5": "big5",
     "macintosh": "mac_roman",
 }
+# Transform codecs, not text encodings. Declared charset only -- no chardet.
+_UNSAFE_CODECS = {
+    "idna", "punycode", "rot_13", "rot13",
+    "base64", "base64_codec", "hex", "hex_codec",
+    "quopri", "quopri_codec", "uu", "uu_codec",
+    "zlib", "zlib_codec", "bz2", "bz2_codec",
+}
+
+
+def _declared_codec(label: str) -> str | None:
+    key = (label or "").lower().replace("_", "-")
+    if not key:
+        return None
+    mapped = _SAFE_CHARSETS.get(key)
+    if mapped:
+        return mapped
+    for cand in (key, key.replace("-", "_")):
+        try:
+            name = codecs.lookup(cand).name
+        except LookupError:
+            continue
+        if name in _UNSAFE_CODECS:
+            return None
+        return name
+    return None
 
 
 def _meta_charset(text: str) -> str | None:
@@ -2115,7 +2141,7 @@ def _meta_charset(text: str) -> str | None:
     )
     if not m:
         return None
-    return _SAFE_CHARSETS.get(m.group(1).lower().replace("_", "-"))
+    return _declared_codec(m.group(1))
 
 
 def _read_markup(src: Path) -> str:

@@ -2451,6 +2451,68 @@ def test_html_cjk_charset_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_iana_charset_photo_export() -> None:
+    """Share dest Word/MD/PDF on windows-1251 photo HTML with a non-ASCII sibling."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _declared_codec" in src
+    if not pymupdf_available():
+        print("SKIP html iana charset photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html iana charset photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "фото.png", format="PNG")
+        html = d / "cp1251.html"
+        html.write_bytes(
+            (
+                '<html><head><meta charset="windows-1251"></head>'
+                '<body><img src="фото.png"></body></html>'
+            ).encode("cp1251")
+        )
+        md = d / "cp1251.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "cp1251.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "cp1251.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        Image.new("RGB", (64, 48), (200, 80, 20)).save(d / "사진.png", format="PNG")
+        kr = d / "euckr.html"
+        kr.write_bytes(
+            (
+                '<html><head><meta charset="euc-kr"></head>'
+                '<body><img src="사진.png"></body></html>'
+            ).encode("euc_kr")
+        )
+        kdocx = d / "euckr.docx"
+        res = run_engine(["export-as", str(kr), str(kdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(kdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_html_curly_src_photo_export() -> None:
     """Share dest Word/MD/PDF on photo HTML whose src uses Word smart quotes."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -3479,6 +3541,7 @@ if __name__ == "__main__":
     test_html_meta_charset_photo_export()
     test_html_xml_encoding_photo_export()
     test_html_cjk_charset_photo_export()
+    test_html_iana_charset_photo_export()
     test_html_curly_src_photo_export()
     test_md_curly_dest_export()
     test_md_utf16_photo_export()

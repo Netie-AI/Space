@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML whose declared `<meta charset>` / `<?xml encoding>` / `@charset` is a Python text codec (`windows-1251`, `koi8-r`, `euc-kr`, ...) and whose sibling path is non-ASCII embeds that picture. The allow-list stopped at Latin/CJK, so dest Word had no `word/media`. Declared charset only. No chardet.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose `<meta charset>` is `gbk` / `gb2312` / `shift_jis` / `big5` / `macintosh` and whose sibling path is non-ASCII embeds that picture. `_SAFE_CHARSETS` only mapped Latin encodings, so dest Word had no `word/media`. Declared meta only. No chardet.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose sibling `.css` starts with `@charset "windows-1252"` / `iso-8859-1` and whose `url()` path is non-ASCII (`été.png`) embeds that picture. `_read_markup` only honored HTML `<meta>` / `<?xml encoding>`, so dest Word had no `word/media`. Same safe map. ANSI CSS with no `@charset` stays parked.
 - Convert: Share dest Word / Markdown / PDF on windows-1252 / iso-8859-1 photo XHTML whose `<?xml encoding=...?>` declares the charset and whose sibling path is non-ASCII (`été.png`) embeds that picture. `_read_markup` only honored `<meta charset>`, so dest Word had no `word/media`. Same safe map. No chardet.
