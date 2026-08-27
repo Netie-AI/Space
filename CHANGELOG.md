@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML with `<base href="images/">` and `src="pic.png"` embeds that picture. Sibling resolve used the HTML folder, so dest Word / MD / PDF missed `images/pic.png`. Remote `<base href="https://...">` still uses the HTML folder.
 - Convert: Share dest Word / Markdown / PDF on photo HTML with a normal `<title>` / `<head>` embeds that picture. `html_visible_text` counted title text as page copy, so dest Word wrote the word "Photo" with no `word/media` and dest MD used `html-strip`. `<header>` stays (page content).
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose picture is `data:image/png;charset=utf-8;base64,...` embeds that picture. The scan required `;base64,` immediately after the type, so charset / name params used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose sibling is `.heic` embeds that picture. File HEIC dests already registered pillow_heif; `_bytes_to_png` did not, so dests were empty Word / 1-byte MD / Story without pictures. `pillow_heif` stays optional.
