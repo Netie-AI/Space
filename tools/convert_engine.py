@@ -2286,9 +2286,15 @@ def html_visible_text(text: str) -> str:
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
-    # Unclosed <head> leftover "Photo" stole dest Word. Stop at the next
-    # tag so a sibling <img> stays the pictures path.
-    text = re.sub(r"(?is)<head\b[^>]*>.*?(?:</head>|(?=<)|$)", "", text)
+    # Unclosed <head> leftover "Photo" stole dest Word. Stop at </head> /
+    # body / img so Word <xml> inside a closed head is not page copy, and
+    # a sibling <img> after an unclosed head stays the pictures path.
+    # (?=<) used to win first and leave <o:Author>Photo</o:Author>.
+    text = re.sub(
+        r"(?is)<head\b[^>]*>.*?(?:</head>|(?=<(?:body|img)\b)|$)",
+        "",
+        text,
+    )
     # Unclosed <title> leftover "Photo" stole dest Word. Stop at the next
     # tag so mixed Hello after <body> stays the text path.
     text = re.sub(

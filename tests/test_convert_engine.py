@@ -4205,6 +4205,59 @@ def test_html_unclosed_desc_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_head_xml_photo_export() -> None:
+    """Share dest Word on photo Word-HTML whose leftover is <xml> inside <head>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?=<(?:body|img)\\b)" in src
+    assert "(?=<) used to win first" in src
+    if not pymupdf_available():
+        print("SKIP html head xml -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html head xml -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        (d / "pic.png").write_bytes(buf.getvalue())
+        html = d / "photo.html"
+        html.write_text(
+            '<html><head><xml><o:DocumentProperties>'
+            "<o:Author>Photo</o:Author></o:DocumentProperties></xml>"
+            '</head><body><img src="pic.png"></body></html>',
+            encoding="utf-8",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(html), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><head><xml><o:Author>Photo</o:Author></xml></head>'
+            '<body><img src="pic.png">Hello</body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_unclosed_comment_photo_export() -> None:
     """Share dest Word / PDF on photo HTML / MD whose leftover is unclosed <!-- Photo."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -5201,6 +5254,7 @@ if __name__ == "__main__":
     test_html_svg_black_raster_photo_export()
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
+    test_html_head_xml_photo_export()
     test_html_unclosed_comment_photo_export()
     test_md_frontmatter_photo_export()
     test_svg_ico_drop_merge_lists()
