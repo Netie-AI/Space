@@ -528,7 +528,7 @@ def xlsx_to_rows(src: Path) -> list[list[str]]:
 def file_to_markdown(src: Path) -> tuple[str, str]:
     ext = src.suffix.lower()
     if ext in MD_EXTS or ext in TEXT_EXTS:
-        return src.read_text(encoding="utf-8", errors="replace"), "copy"
+        return _read_markup(src), "copy"
 
     if ext == ".pdf":
         for fn in (via_pdfmd, via_pymupdf4llm, via_markitdown, via_pymupdf_text):
@@ -2083,7 +2083,7 @@ def html_visible_text(text: str) -> str:
 
 
 def _read_markup(src: Path) -> str:
-    """Notepad Unicode HTML is UTF-16. utf-8 replace used empty Word / html-strip."""
+    """Notepad Unicode HTML/MD/txt is UTF-16. utf-8 replace used empty Word."""
     raw = src.read_bytes()
     if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
         return raw.decode("utf-16")
@@ -2282,7 +2282,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
     if ext in MD_EXTS or ext in TEXT_EXTS or ext in HTML_EXTS:
         if ext in HTML_EXTS:
             return html_to_pdf(src, dest)
-        text = src.read_text(encoding="utf-8", errors="replace")
+        text = _read_markup(src)
         if ext in MD_EXTS:
             html = inline_sibling_images(markdown_to_html(text), src.parent)
             try:
