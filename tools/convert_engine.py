@@ -2477,6 +2477,15 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word mail-merge leftovers are not page copy (same class as fldData).
+    # Leftover "Photo" in <w:mailMerge> / <w:odso> / <w:recipients> stole dest Word / dest PDF Story.
+    # (?=<) would stop at nested <w:odso>. Prefix required.
+    # Do not strip HTML form leftovers (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)(?:mailMerge|odso|recipients))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
