@@ -2088,6 +2088,9 @@ _META_CHARSET = re.compile(
 _XML_ENCODING = re.compile(
     r'''(?is)<\?xml\b[^>]*\bencoding\s*=\s*["\']?([a-z0-9_\-]+)''',
 )
+_AT_CHARSET = re.compile(
+    r'''(?is)@charset\s*["']([a-z0-9_\-]+)["']''',
+)
 _SAFE_CHARSETS = {
     "windows-1252": "cp1252",
     "cp1252": "cp1252",
@@ -2099,7 +2102,11 @@ _SAFE_CHARSETS = {
 
 
 def _meta_charset(text: str) -> str | None:
-    m = _META_CHARSET.search(text) or _XML_ENCODING.search(text)
+    m = (
+        _META_CHARSET.search(text)
+        or _XML_ENCODING.search(text)
+        or _AT_CHARSET.search(text)
+    )
     if not m:
         return None
     return _SAFE_CHARSETS.get(m.group(1).lower().replace("_", "-"))
