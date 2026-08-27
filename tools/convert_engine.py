@@ -1711,6 +1711,16 @@ def _imported_css_pngs(
     return pngs
 
 
+def _srcset_hrefs(attr: str) -> list[str]:
+    """img/source srcset='pic.png 1x, other.png 2x' -> sibling paths."""
+    hrefs: list[str] = []
+    for part in attr.split(","):
+        tok = part.strip().split()
+        if tok:
+            hrefs.append(tok[0])
+    return hrefs
+
+
 def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -> list[bytes]:
     import base64
 
@@ -1764,6 +1774,23 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(path.read_bytes())
         if png:
             pngs.append(png)
+    # srcset-only <img> / <picture><source>. Share dests used empty / 1-byte / 573-byte.
+    for m in re.finditer(r"""(?is)<(?:img|source)\b[^>]*\bsrcset\s*=\s*(['"])([^'"]+)\1""", text):
+        for href in _srcset_hrefs(m.group(2)):
+            if len(pngs) >= cap:
+                break
+            if href.startswith(("data:", "http:", "https:", "//", "#")):
+                continue
+            path = (base / href).resolve()
+            try:
+                path.relative_to(root)
+            except ValueError:
+                continue
+            if not path.is_file():
+                continue
+            png = _bytes_to_png(path.read_bytes())
+            if png:
+                pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
     pngs.extend(_sibling_url_pngs(text, base, root, cap - len(pngs)))
     budget = [8]
