@@ -4291,9 +4291,9 @@ def test_html_unclosed_comment_photo_export() -> None:
 
 
 def test_md_frontmatter_photo_export() -> None:
-    """Share dest Word / PDF on photo Markdown whose leftover is YAML frontmatter."""
+    """Share dest Word / PDF on photo Markdown whose leftover is YAML / TOML frontmatter."""
     src = ENGINE.read_text(encoding="utf-8")
-    assert "YAML frontmatter is not page copy" in src
+    assert "YAML / TOML frontmatter is not page copy" in src
     if not pymupdf_available():
         print("SKIP md frontmatter -- pymupdf missing")
         return
@@ -4311,36 +4311,40 @@ def test_md_frontmatter_photo_export() -> None:
         Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
         (d / "pic.png").write_bytes(buf.getvalue())
         md = d / "photo.md"
-        md.write_text("---\ntitle: Photo\n---\n![](pic.png)\n", encoding="utf-8")
-        dest = d / "photo.docx"
-        res = run_engine(["export-as", str(md), str(dest)])
-        assert res.get("success"), res
-        assert res.get("tool") == "docx-zip-images", res
-        with zipfile.ZipFile(dest) as zf:
-            media = [n for n in zf.namelist() if n.startswith("word/media/")]
-            assert media, zf.namelist()
-            im = Image.open(io.BytesIO(zf.read(media[0])))
+        for fence, body in (
+            ("yaml", "---\ntitle: Photo\n---\n![](pic.png)\n"),
+            ("toml", '+++\ntitle = "Photo"\n+++\n![](pic.png)\n'),
+        ):
+            md.write_text(body, encoding="utf-8")
+            dest = d / f"{fence}.docx"
+            res = run_engine(["export-as", str(md), str(dest)])
+            assert res.get("success"), (fence, res)
+            assert res.get("tool") == "docx-zip-images", (fence, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (fence, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (fence, px)
+                finally:
+                    im.close()
+            pdf = d / f"{fence}.pdf"
+            res = run_engine(["export-as", str(md), str(pdf)])
+            assert res.get("success"), (fence, res)
+            assert res.get("tool") == "pymupdf-md-images", (fence, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
             try:
-                px = im.convert("RGB").getpixel((8, 8))
-                assert px[1] >= 160 and px[0] < 40, px
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (fence, r, g)
             finally:
-                im.close()
-        pdf = d / "photo.pdf"
-        res = run_engine(["export-as", str(md), str(pdf)])
-        assert res.get("success"), res
-        assert res.get("tool") == "pymupdf-md-images", res
-        import pymupdf
-        doc = pymupdf.open(pdf)
-        try:
-            pix = doc[0].get_pixmap()
-            i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
-            r, g = pix.samples[i], pix.samples[i + 1]
-            assert g >= 160 and r < 40, (r, g)
-        finally:
-            doc.close()
+                doc.close()
         mixed = d / "mixed.md"
         mixed.write_text(
-            "---\ntitle: Photo\n---\n![](pic.png)\n\nHello\n",
+            '+++\ntitle = "Photo"\n+++\n![](pic.png)\n\nHello\n',
             encoding="utf-8",
         )
         dest2 = d / "mixed.docx"

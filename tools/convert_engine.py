@@ -725,11 +725,16 @@ def _markdown_to_html_stdlib(text: str) -> str:
 
 
 def markdown_to_html(text: str) -> str:
-    # YAML frontmatter is not page copy. Leftover "title: Photo" stole
-    # dest Word / dest PDF (Story white) on photo Markdown.
-    # Require a key: line so a leading --- rule around an image stays.
+    # YAML / TOML frontmatter is not page copy. Leftover "title: Photo"
+    # stole dest Word / dest PDF (Story white) on photo Markdown.
+    # Require a key: / key = line so a leading --- / +++ rule stays.
     text = re.sub(
         r"(?s)\A---\r?\n(?=[\w.-]+:\s).*?\r?\n---\r?\n",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?s)\A\+\+\+\r?\n(?=[\w.-]+\s*=).*?\r?\n\+\+\+\r?\n",
         "",
         text,
     )
