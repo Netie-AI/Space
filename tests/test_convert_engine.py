@@ -647,7 +647,7 @@ def test_html_photo_export() -> None:
         pdf = d / "only.pdf"
         res = run_engine(["export-as", str(html), str(pdf)])
         assert res.get("success"), res
-        assert res.get("tool") == "pymupdf-story-html", res
+        assert res.get("tool") == "pymupdf-html-images", res
         import pymupdf
 
         doc = pymupdf.open(pdf)
@@ -717,6 +717,16 @@ def test_html_photo_export() -> None:
         assert res.get("tool") == "docx-zip-images", res
         with zipfile.ZipFile(bgdocx) as zf:
             assert any(n.startswith("word/media/") for n in zf.namelist())
+        bgpdf = d / "bg.pdf"
+        res = run_engine(["export-as", str(bg), str(bgpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        assert bgpdf.is_file() and bgpdf.stat().st_size > 2000
+        doc = pymupdf.open(bgpdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
 
 
 def test_html_svg_photo_export() -> None:

@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest 2 PDF on photo-only HTML with only CSS `background-image` embeds those pictures. Story used to write a 573-byte blank page. Dest Word/MD landed in #198.
 - Convert: Share dest Word / Markdown on photo-only HTML that only has CSS `background-image:url(sib.png)` embeds that picture. `html-strip` used to write empty Word / 1-byte MD. Data-URI backgrounds already hit the raster path.
 - Convert: Share dest Word / Markdown on photo-only HTML with a single-quoted raw SVG data URI (xmlns quotes inside `src='...'`) rasters via MuPDF. `<img[^>]*>` used to stop at `>` in the SVG and leftover `' alt=''>` stole the pictures path. `;utf8` data URIs work too.
 - Convert: Share dest Word / Markdown on photo-only HTML with inline `<svg>` rasters via MuPDF. No `<img>` used to write empty Word / 1-byte MD. `<title>` inside SVG still counts as visible text.
