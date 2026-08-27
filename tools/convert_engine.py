@@ -2272,7 +2272,13 @@ def html_visible_text(text: str) -> str:
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
     text = re.sub(r"(?is)<head\b[^>]*>.*?</head>", "", text)
-    text = re.sub(r"(?is)<(?:[\w.-]+:)?title\b[^>]*>.*?</(?:[\w.-]+:)?title\s*>", "", text)
+    # Unclosed <title> leftover "Photo" stole dest Word. Stop at the next
+    # tag so mixed Hello after <body> stays the text path.
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?title\b[^>]*>.*?(?:</(?:[\w.-]+:)?title\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # SVG <desc> / <metadata> / <svg:title> are not page copy. Leftover
     # "A photo" stole dest Word / MD / Story PDF (no pictures).
     text = re.sub(r"(?is)<(?:[\w.-]+:)?desc\b[^>]*>.*?</(?:[\w.-]+:)?desc\s*>", "", text)
@@ -2289,8 +2295,17 @@ def html_visible_text(text: str) -> str:
         text,
     )
     text = re.sub(r"(?is)<inkscape:label\b[^>]*>.*?</inkscape:label\s*>", "", text)
-    text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
-    text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
+    # Unclosed <style> / <script> leftover CSS / JS stole dest Word.
+    text = re.sub(
+        r"(?is)<script\b[^>]*>.*?(?:</script>|(?=</?(?:body|div|p|img|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?is)<style\b[^>]*>.*?(?:</style>|(?=</?(?:body|div|p|img|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # <template> / <noscript> are not page copy. Leftover "Enable JS"
     # stole dest Word when a sibling <img> was the only picture.
     text = re.sub(
