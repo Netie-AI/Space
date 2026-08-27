@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word on photo HTML whose leftover SVG is `<pattern>` / `feImage` / CSS `fill:url` embeds the sibling picture only. MuPDF rasterizes those to a solid black first page. All-black SVG pixmaps are dropped the same way as all-white. Pattern-only dest (no sibling photo) stays parked.
 - Convert: Share dest Word on photo HTML whose leftover SVG is `<use href="#missing"/>` / empty `<path>` embeds the sibling picture only. Those still have paint tags so the empty-SVG skip missed them; MuPDF wrote a letter-size white first page. All-white SVG pixmaps are dropped. Pattern / marker stay parked.
 - Convert: Share dest Word / PDF on photo HTML whose leftover is emoji `&#xfe0f;` / CGJ / other format marks embeds that picture. Those marks are not page copy (same class as LRM / ZWSP). Leftover stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. `html_visible_text` drops Unicode Cf plus VS16 / CGJ. Real words still take the text path. Punctuation-only leftovers stay parked.
 - Convert: Share dest Word on photo HTML whose leftover is an empty `<svg>` / whitespace-only `<text>` embeds the sibling picture only. MuPDF rasterized that leftover to a letter-size white page (`word/media/image1.png` 612x792) in front of the photo. No-paint SVG is skipped. Pattern / marker / `foreignObject` stay parked.
