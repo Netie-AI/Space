@@ -3882,6 +3882,74 @@ def test_rtf_filetbl_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_rtf_themedata_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred themedata / datastore."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "themedata|colorschememapping|passwordhash|datastore|mmathPr|" in src
+    assert "Unstarred \\\\themedata /" in src or "Unstarred \\themedata /" in src
+    if not pymupdf_available():
+        print("SKIP rtf themedata -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf themedata -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\themedata Photo}",
+            r"{\datastore Photo}",
+            r"{\latentstyles Photo}",
+            r"{\colorschememapping Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\themedata Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_odf_object_replacements_export() -> None:
     """Share dest PDF/Word on photo ODT whose zip picture is ObjectReplacements/."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -6928,6 +6996,7 @@ if __name__ == "__main__":
     test_rtf_fonttbl_photo_export()
     test_rtf_dest_group_photo_export()
     test_rtf_filetbl_photo_export()
+    test_rtf_themedata_photo_export()
     test_odf_object_replacements_export()
     test_md_image_photo_pdf()
     test_html_lrm_wj_photo_export()

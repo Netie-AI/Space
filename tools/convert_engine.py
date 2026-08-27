@@ -1644,7 +1644,10 @@ def _rtf_strip_dest_groups(s: str) -> str:
             rest = s[i + 2 :]
             if rest.startswith("*") or re.match(
                 r"(?i)(?:fonttbl|colortbl|stylesheet|info|filetbl|"
-                r"listoverridetable|listtable|revtbl|rsidtbl|xmlnstbl|generator)\b",
+                r"listoverridetable|listtable|revtbl|rsidtbl|xmlnstbl|generator|"
+                r"themedata|colorschememapping|passwordhash|datastore|mmathPr|"
+                r"latentstyles|pgdsctbl|fchars|lchars|protusertbl|userdata|"
+                r"oldcprops|oldpprops|wgrffmtfilter)\b",
                 rest,
             ):
                 i = _rtf_end_group(s, i)
@@ -1661,7 +1664,9 @@ def rtf_to_text(src: Path) -> str:
     # Word photo RTF always writes nested {\\*listtable} / {\\*latentstyles}
     # / {\\*fonttbl{\\f0 {\\*panose}Calibri;}}. Leftover "Calibri" / "Photo"
     # stole dest Word (docx-zip) and dest PDF (Story). Unstarred \\filetbl /
-    # \\listtable / \\generator stole the same way. Header / footer stay.
+    # \\listtable / \\generator stole the same way. Unstarred \\themedata /
+    # \\datastore / \\latentstyles stole dest Word the same way.
+    # Header / footer stay.
     s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
