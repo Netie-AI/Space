@@ -1621,6 +1621,52 @@ def test_html_num_entity_href_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_md_num_entity_href_photo_export() -> None:
+    """Share dest Word/HTML/PDF on MD ![](pic&#46;png). html.escape used to leave &amp;#46;."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "html.unescape" in src
+    if not pymupdf_available():
+        print("SKIP md num entity href photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP md num entity href photo export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "pic.png").write_bytes(png)
+        md = d / "ent.md"
+        md.write_text("![](pic&#46;png)\n", encoding="utf-8")
+        docx = d / "ent.docx"
+        res = run_engine(["export-as", str(md), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        html = d / "ent.html"
+        res = run_engine(["export-as", str(md), str(html)])
+        assert res.get("success"), res
+        assert "data:image/png;base64," in html.read_text(encoding="utf-8")
+        pdf = d / "ent.pdf"
+        res = run_engine(["export-as", str(md), str(pdf)])
+        assert res.get("success"), res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images(), doc[0].get_text()
+            assert "![" not in doc[0].get_text()
+        finally:
+            doc.close()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2459,6 +2505,7 @@ if __name__ == "__main__":
     test_html_pct_href_photo_export()
     test_html_src_not_data_src_photo_export()
     test_html_num_entity_href_photo_export()
+    test_md_num_entity_href_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
