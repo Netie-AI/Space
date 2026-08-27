@@ -1408,7 +1408,7 @@ def ods_to_rows(src: Path) -> list[list[str]]:
 
 
 def csv_to_rows(src: Path) -> list[list[str]]:
-    text = src.read_text(encoding="utf-8", errors="replace")
+    text = _read_markup(src)
     sample = text[:4096]
     try:
         dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
