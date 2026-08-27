@@ -1838,7 +1838,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         return pngs
     root = base.resolve()
     for m in re.finditer(
-        r'<img[^>]+src\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
+        r'<(?:img|amp-img)\b[^>]*\bsrc\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
         text,
         re.I,
     ):
@@ -1857,9 +1857,9 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(path.read_bytes())
         if png:
             pngs.append(png)
-    # srcset-only <img> / <picture><source>. Share dests used empty / 1-byte / 573-byte.
+    # srcset-only <img> / <picture><source> / AMP. Share dests used empty / 1-byte / 573-byte.
     for m in re.finditer(
-        r"""(?is)<(?:img|source)\b[^>]*\bsrcset\s*=\s*(?:(['"])([^'"]+)\1|([^\s>]+))""",
+        r"""(?is)<(?:img|source|amp-img)\b[^>]*\bsrcset\s*=\s*(?:(['"])([^'"]+)\1|([^\s>]+))""",
         text,
     ):
         for href in _srcset_hrefs(m.group(2) if m.group(1) else (m.group(3) or "")):
