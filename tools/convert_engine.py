@@ -2212,7 +2212,15 @@ def html_visible_text(text: str) -> str:
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
     text = re.sub(r"(?is)<head\b[^>]*>.*?</head>", "", text)
-    text = re.sub(r"(?is)<title\b[^>]*>.*?</title>", "", text)
+    text = re.sub(r"(?is)<(?:[\w.-]+:)?title\b[^>]*>.*?</(?:[\w.-]+:)?title\s*>", "", text)
+    # SVG <desc> / <metadata> / <svg:title> are not page copy. Leftover
+    # "A photo" stole dest Word / MD / Story PDF (no pictures).
+    text = re.sub(r"(?is)<(?:[\w.-]+:)?desc\b[^>]*>.*?</(?:[\w.-]+:)?desc\s*>", "", text)
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?metadata\b[^>]*>.*?</(?:[\w.-]+:)?metadata\s*>",
+        "",
+        text,
+    )
     text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
     text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
     # Raw SVG data URIs contain '>' inside src='...'. [^>]* used to leave
