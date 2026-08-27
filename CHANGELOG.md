@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest Word / Markdown / PDF on photo-only HTML with pretty-printed `src = "pic.png"` (spaces around `=`) embeds that picture. `src=` with no spaces / srcset landed in #194-#202; spaced `src` used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML whose picture is only in `srcset` (`<img srcset>` or `<picture><source srcset>`) embeds that picture. `@import` landed in #201; srcset-only used empty Word / 1-byte MD / 573-byte Story PDF.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML whose picture is only behind `@import` (`<style>@import url(page.css)` or a linked CSS that imports another) embeds that picture. Linked sibling CSS landed in #200; `@import` used empty Word / 1-byte MD / 573-byte Story PDF.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML whose picture is only in a sibling `.css` (`<link rel=stylesheet>`) embeds that picture. `url()` now resolves against the CSS file (nested `css/page.css` + `url(../pic.png)` too). Inline / `<style>` landed in #198/#199; linked CSS used empty Word / 1-byte MD / 573-byte Story PDF.

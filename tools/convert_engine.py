@@ -739,7 +739,8 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
         return f"src={quote}{_png_data_uri(png)}{quote}"
 
     # Same-quote close so raw SVG data URIs can keep xmlns="..." inside src='...'.
-    return re.sub(r'src=(["\'])(.*?)\1', repl, markup, flags=re.I | re.S)
+    # Pretty-printed `src = "..."` used empty Word / 1-byte MD.
+    return re.sub(r'src\s*=\s*(["\'])(.*?)\1', repl, markup, flags=re.I | re.S)
 
 
 def wrap_html(body: str, title: str = "Preview") -> str:
@@ -1739,7 +1740,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(raw)
         if png:
             pngs.append(png)
-    for m in re.finditer(r'src=(["\'])(data:image/svg\+xml.*?)\1', text, re.I | re.S):
+    for m in re.finditer(r'src\s*=\s*(["\'])(data:image/svg\+xml.*?)\1', text, re.I | re.S):
         if len(pngs) >= cap:
             break
         href = m.group(2)
@@ -1761,7 +1762,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     if base is None:
         return pngs
     root = base.resolve()
-    for m in re.finditer(r'<img[^>]+src=["\'](?!data:)([^"\']+)["\']', text, re.I):
+    for m in re.finditer(r'<img[^>]+src\s*=\s*["\'](?!data:)([^"\']+)["\']', text, re.I):
         if len(pngs) >= cap:
             break
         path = (base / m.group(1)).resolve()
@@ -1821,7 +1822,7 @@ def html_visible_text(text: str) -> str:
     text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
     # Raw SVG data URIs contain '>' inside src='...'. [^>]* used to leave
     # "' alt=''>" and steal the pictures path (empty Word / html-strip).
-    text = re.sub(r'(?is)<img\b[^>]*src=(["\'])(?:.*?)\1[^>]*>', "", text)
+    text = re.sub(r'(?is)<img\b[^>]*src\s*=\s*(["\'])(?:.*?)\1[^>]*>', "", text)
     text = re.sub(r"(?is)<img[^>]*>", "", text)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
     return re.sub(r"\s+", " ", text).strip()
