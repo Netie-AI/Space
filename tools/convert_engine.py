@@ -1647,13 +1647,31 @@ def _odf_content_root(src: Path) -> ET.Element:
     return ET.fromstring(xml)
 
 
+def _odf_p_in_leftover(el: ET.Element, parent: dict[ET.Element, ET.Element]) -> bool:
+    """text:p inside office:annotation / text:deletion is not page copy."""
+    cur: ET.Element | None = el
+    while cur is not None:
+        local = cur.tag.rsplit("}", 1)[-1]
+        if local in {"annotation", "deletion"}:
+            return True
+        cur = parent.get(cur)
+    return False
+
+
 def odt_to_text(src: Path) -> str:
     root = _odf_content_root(src)
-    paras = [
-        "".join(p.itertext()).strip()
-        for p in root.iter("{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p")
-    ]
-    return "\n".join(t for t in paras if t) + ("\n" if any(paras) else "")
+    parent = {c: p for p in root.iter() for c in list(p)}
+    paras: list[str] = []
+    # Leftover <office:annotation><text:p>Photo stole dest PDF (Story)
+    # on photo ODT / ODP that already had Pictures/. Same class as
+    # DOCX w:del / w:t. text:insertion stays page copy.
+    for p in root.iter("{urn:oasis:names:tc:opendocument:xmlns:text:1.0}p"):
+        if _odf_p_in_leftover(p, parent):
+            continue
+        t = "".join(p.itertext()).strip()
+        if t:
+            paras.append(t)
+    return "\n".join(paras) + ("\n" if paras else "")
 
 
 def odp_to_text(src: Path) -> str:

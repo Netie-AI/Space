@@ -5073,6 +5073,115 @@ def test_docx_del_t_photo_export() -> None:
         assert res.get("tool") == "pymupdf-story", res
 
 
+def test_odf_annotation_photo_export() -> None:
+    """Share dest PDF/Word on photo ODT/ODP whose leftover is office:annotation / text:deletion."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Leftover <office:annotation><text:p>Photo stole dest PDF" in src
+    assert 'local in {"annotation", "deletion"}' in src
+    if not pymupdf_available():
+        print("SKIP odf annotation -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP odf annotation -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+    png = buf.getvalue()
+    ns = (
+        'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+        'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+        'xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" '
+        'xmlns:xlink="http://www.w3.org/1999/xlink"'
+    )
+
+    def write_odf(path: Path, body: str, mime: str) -> None:
+        content = (
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            f"<office:document-content {ns}>{body}</office:document-content>"
+        )
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("mimetype", mime)
+            zf.writestr("content.xml", content)
+            zf.writestr("Pictures/image1.png", png)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        leftovers = (
+            (
+                d / "ann.odt",
+                "<office:body><office:text>"
+                "<office:annotation><text:p>Photo</text:p></office:annotation>"
+                '<draw:frame><draw:image xlink:href="Pictures/image1.png"/></draw:frame>'
+                "</office:text></office:body>",
+                "application/vnd.oasis.opendocument.text",
+            ),
+            (
+                d / "del.odt",
+                "<office:body><office:text>"
+                "<text:tracked-changes><text:changed-region><text:deletion>"
+                "<text:p>Photo</text:p></text:deletion></text:changed-region>"
+                "</text:tracked-changes>"
+                '<draw:frame><draw:image xlink:href="Pictures/image1.png"/></draw:frame>'
+                "</office:text></office:body>",
+                "application/vnd.oasis.opendocument.text",
+            ),
+            (
+                d / "ann.odp",
+                "<office:body><office:presentation><draw:page>"
+                "<office:annotation><text:p>Photo</text:p></office:annotation>"
+                '<draw:frame><draw:image xlink:href="Pictures/image1.png"/></draw:frame>'
+                "</draw:page></office:presentation></office:body>",
+                "application/vnd.oasis.opendocument.presentation",
+            ),
+        )
+        for src_path, body, mime in leftovers:
+            write_odf(src_path, body, mime)
+            pdf = d / (src_path.stem + ".pdf")
+            res = run_engine(["export-as", str(src_path), str(pdf)])
+            assert res.get("success"), (src_path.name, res)
+            assert res.get("tool") == "pymupdf-office-images", (src_path.name, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (src_path.name, r, g)
+            finally:
+                doc.close()
+            dest = d / (src_path.stem + ".docx")
+            res = run_engine(["export-as", str(src_path), str(dest)])
+            assert res.get("success"), (src_path.name, res)
+            assert res.get("tool") == "docx-zip-images", (src_path.name, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (src_path.name, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (src_path.name, px)
+                finally:
+                    im.close()
+        mixed = d / "mixed.odt"
+        write_odf(
+            mixed,
+            "<office:body><office:text>"
+            "<office:annotation><text:p>Photo</text:p></office:annotation>"
+            "<text:p>Hello</text:p>"
+            "</office:text></office:body>",
+            "application/vnd.oasis.opendocument.text",
+        )
+        dest = d / "mixed.pdf"
+        res = run_engine(["export-as", str(mixed), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story", res
+
+
 def test_html_unclosed_comment_photo_export() -> None:
     """Share dest Word / PDF on photo HTML / MD whose leftover is unclosed <!-- Photo."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -6080,6 +6189,7 @@ if __name__ == "__main__":
     test_html_msodel_photo_export()
     test_html_wdel_photo_export()
     test_docx_del_t_photo_export()
+    test_odf_annotation_photo_export()
     test_html_unclosed_comment_photo_export()
     test_md_frontmatter_photo_export()
     test_svg_ico_drop_merge_lists()
