@@ -875,6 +875,13 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
             return None
         if root is not None:
             text = _inline_svg_sibling_images(text, root, depth)
+        # Leftover empty <svg> / whitespace-only <text> rasterize to a
+        # letter-size white page and steal dest Word (first word/media).
+        if not re.search(
+            r"(?is)<(?:[\w.-]+:)?(?:image|use|rect|path|circle|polygon|ellipse|line|polyline)\b",
+            text,
+        ):
+            return None
         raw = _svg_lower_root(text).encode("utf-8")
         doc = pymupdf.open(stream=raw, filetype="svg")
         try:
