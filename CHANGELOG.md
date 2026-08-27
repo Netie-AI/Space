@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on Notepad Unicode (UTF-16 LE/BE) photo HTML embeds that picture. `read_text(utf-8)` garbled `src=`, so dest Word / MD / PDF missed the sibling. BOM sniff only; no chardet.
 - Convert: Share dest Word / Markdown / PDF on photo HTML with a UTF-8 BOM embeds that picture. `html_visible_text` counted the BOM as page copy (it is not whitespace), so dest Word had no `word/media` and dest MD used `html-strip`.
 - Convert: Share dest Word / HTML / PDF on Markdown images whose dest wraps to the next line embeds that picture. Stdlib parsed one line at a time, so dests dumped `![` source or wrote Word with no `word/media`.
 - Convert: Share dest Word / Markdown / PDF on photo HTML with `<base href="images/">` and `src="pic.png"` embeds that picture. Sibling resolve used the HTML folder, so dest Word / MD / PDF missed `images/pic.png`. Remote `<base href="https://...">` still uses the HTML folder.
