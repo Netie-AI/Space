@@ -2478,9 +2478,13 @@ def html_visible_text(text: str) -> str:
     # Hello stays the text path.
     # class=MsoCommentSubject is the comment title line (same class as
     # msoCommentText). Leftover "Photo" stole dest Word / dest PDF Story.
+    # class=MsoAcetate / MsoCommentReply / MsoCommentList is the comment
+    # balloon chrome (Word Save-as-HTML). Leftover "Photo" stole dest
+    # Word / dest PDF Story. Do not strip MsoHeader / MsoCaption (page copy)
+    # or msoHide (parked CSS visibility).
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject)\b"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
