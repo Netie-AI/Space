@@ -1635,7 +1635,7 @@ def _rtf_end_group(s: str, start: int) -> int:
 
 
 def _rtf_strip_dest_groups(s: str) -> str:
-    """{\\*...} / fonttbl / info are not page copy. Nested braces used to leak."""
+    """{\\*...} / fonttbl / info / filetbl are not page copy. Nested braces used to leak."""
     out: list[str] = []
     i = 0
     n = len(s)
@@ -1643,7 +1643,9 @@ def _rtf_strip_dest_groups(s: str) -> str:
         if s[i] == "{" and i + 2 < n and s[i + 1] == "\\":
             rest = s[i + 2 :]
             if rest.startswith("*") or re.match(
-                r"(?i)(?:fonttbl|colortbl|stylesheet|info)\b", rest
+                r"(?i)(?:fonttbl|colortbl|stylesheet|info|filetbl|"
+                r"listoverridetable|listtable|revtbl|rsidtbl|xmlnstbl|generator)\b",
+                rest,
             ):
                 i = _rtf_end_group(s, i)
                 continue
@@ -1658,7 +1660,8 @@ def rtf_to_text(src: Path) -> str:
     s = re.sub(r"\{\\pict\b[^{}]*\}", "", s)
     # Word photo RTF always writes nested {\\*listtable} / {\\*latentstyles}
     # / {\\*fonttbl{\\f0 {\\*panose}Calibri;}}. Leftover "Calibri" / "Photo"
-    # stole dest Word (docx-zip) and dest PDF (Story). Header / footer stay.
+    # stole dest Word (docx-zip) and dest PDF (Story). Unstarred \\filetbl /
+    # \\listtable / \\generator stole the same way. Header / footer stay.
     s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
