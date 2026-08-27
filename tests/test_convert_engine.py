@@ -4027,6 +4027,83 @@ def test_rtf_nonshppict_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_rtf_annotation_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred annotation."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "annotation|atnauthor|atrfstart|atrfend|atnid" in src
+    assert "Unstarred \\\\annotation /" in src or "Unstarred \\annotation /" in src
+    assert "Do not strip \\\\upr (fallback is page copy)" in src or "Do not strip \\upr (fallback is page copy)" in src
+    if not pymupdf_available():
+        print("SKIP rtf annotation -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf annotation -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\annotation Photo}",
+            r"{\atnauthor Photo}",
+            r"{\atrfstart Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\annotation Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        header = d / "header.rtf"
+        header.write_text(
+            r"{\rtf1\ansi{\header Hello}{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest3 = d / "header.docx"
+        res = run_engine(["export-as", str(header), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_odf_object_replacements_export() -> None:
     """Share dest PDF/Word on photo ODT whose zip picture is ObjectReplacements/."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -7373,6 +7450,7 @@ if __name__ == "__main__":
     test_rtf_filetbl_photo_export()
     test_rtf_themedata_photo_export()
     test_rtf_nonshppict_photo_export()
+    test_rtf_annotation_photo_export()
     test_odf_object_replacements_export()
     test_md_image_photo_pdf()
     test_html_lrm_wj_photo_export()
