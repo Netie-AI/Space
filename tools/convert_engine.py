@@ -2474,9 +2474,11 @@ def html_visible_text(text: str) -> str:
     # Word-HTML and leftover binData XML. Do not strip msoIns (page copy)
     # or mso-hide (parked CSS visibility). Stop at the next tag so mixed
     # Hello stays the text path.
+    # class=MsoCommentSubject is the comment title line (same class as
+    # msoCommentText). Leftover "Photo" stole dest Word / dest PDF Story.
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference)\b"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,

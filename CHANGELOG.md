@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `class=MsoCommentSubject` embeds that picture. The comment title line is the same class as `msoCommentText`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. `msoIns` stays page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<w:delInstrText>` embeds that picture. Deleted field-code text is the same class as `<w:instrText>`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF / PNG on unused SVG `<defs><image href="pic.png"/>` (no `<use>`) embeds that picture. MuPDF does not paint unused defs -- dest Word stayed empty, dest PDF was Story white, and standalone SVG dest PNG raised. Same class as a sibling `<img>` the rasterizer never reached. Pattern / clipPath / mask stay parked (`#249` still one media). Mixed `Hello` stays the text path.
 - Convert: Share dest PDF / Word / Excel on photo ODS whose leftover is `<office:annotation><text:p>Photo` inside a cell embeds `Pictures/`. `ods_to_rows` used `itertext()`, so leftover stole dest PDF (Story) / dest Word / dest Excel while the picture was already in the zip. Same class as ODT annotation. Mixed `Hello` stays the text path. XLSX `comments.xml` stays parked (already pictures).
