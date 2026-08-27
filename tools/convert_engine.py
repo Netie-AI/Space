@@ -737,7 +737,41 @@ def markdown_to_html(text: str) -> str:
     return _markdown_to_html_stdlib(text)
 
 
-def _svg_bytes_to_png(raw: bytes) -> bytes | None:
+def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
+    """<image href='pic.png'> dest PNG/PDF used a white page. Path-safe siblings only."""
+    if depth > 3 or not text:
+        return text
+    root = root.resolve()
+
+    def repl(m: re.Match[str]) -> str:
+        attrs = m.group(1)
+        href = _html_attr(attrs, "href") or _html_attr(attrs, "xlink:href")
+        if not href:
+            return m.group(0)
+        href = _local_href(href)
+        if not href or href.startswith(("data:", "http:", "https:", "//")):
+            return m.group(0)
+        try:
+            path = (root / href).resolve()
+            path.relative_to(root)
+        except (OSError, ValueError):
+            return m.group(0)
+        if not path.is_file():
+            return m.group(0)
+        png = _path_to_png(path, depth + 1)
+        if not png:
+            return m.group(0)
+        rest = re.sub(
+            r"(?i)\s*(?:xlink:)?href\s*=\s*(?:(['\"]).*?\1|[^\s>]+)",
+            "",
+            attrs,
+        )
+        return f'<image href="{_png_data_uri(png)}"{rest}{m.group(2)}>'
+
+    return re.sub(r"(?is)<image\b([^>]*)(/?)>", repl, text)
+
+
+def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
     """Pillow cannot open SVG. Photo HTML dest Word/MD used empty / 1-byte files."""
     head = raw.lstrip()[:240].lower()
     if b"<svg" not in head:
@@ -747,6 +781,9 @@ def _svg_bytes_to_png(raw: bytes) -> bytes | None:
     except RuntimeError:
         return None
     try:
+        if root is not None:
+            text = raw.decode("utf-8", errors="replace")
+            raw = _inline_svg_sibling_images(text, root, depth).encode("utf-8")
         doc = pymupdf.open(stream=raw, filetype="svg")
         try:
             if doc.page_count < 1:
@@ -756,6 +793,13 @@ def _svg_bytes_to_png(raw: bytes) -> bytes | None:
             doc.close()
     except Exception:
         return None
+
+
+def _path_to_png(path: Path, depth: int = 0) -> bytes | None:
+    raw = path.read_bytes()
+    if path.suffix.lower() == ".svg":
+        return _svg_bytes_to_png(raw, path.parent, depth)
+    return _bytes_to_png(raw)
 
 
 def _bytes_to_png(raw: bytes) -> bytes | None:
@@ -849,7 +893,7 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
             return m.group(0)
         if not path.is_file():
             return m.group(0)
-        png = _bytes_to_png(path.read_bytes())
+        png = _path_to_png(path)
         if not png:
             return m.group(0)
         n += 1
@@ -871,7 +915,7 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
             return m.group(0)
         if not path.is_file():
             return m.group(0)
-        png = _bytes_to_png(path.read_bytes())
+        png = _path_to_png(path)
         if not png:
             return m.group(0)
         n += 1
@@ -1834,7 +1878,7 @@ def _sibling_url_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> lis
             continue
         if not path.is_file():
             continue
-        png = _bytes_to_png(path.read_bytes())
+        png = _path_to_png(path)
         if png:
             pngs.append(png)
     return pngs
@@ -1863,7 +1907,7 @@ def _sibling_imageset_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -
                 continue
             if not path.is_file():
                 continue
-            png = _bytes_to_png(path.read_bytes())
+            png = _path_to_png(path)
             if png:
                 pngs.append(png)
     return pngs
@@ -1990,7 +2034,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         prefix = text[max(0, m.start() - 48):m.start()].lower()
         if "data:image/svg" in prefix:
             continue
-        png = _svg_bytes_to_png(m.group(0).encode("utf-8"))
+        png = _svg_bytes_to_png(m.group(0).encode("utf-8"), base)
         if png:
             pngs.append(png)
     if base is None:
@@ -2014,7 +2058,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
             continue
         if not path.is_file():
             continue
-        png = _bytes_to_png(path.read_bytes())
+        png = _path_to_png(path)
         if png:
             pngs.append(png)
     # srcset-only <img> / <picture><source> / AMP. Share dests used empty / 1-byte / 573-byte.
@@ -2034,7 +2078,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
                 continue
             if not path.is_file():
                 continue
-            png = _bytes_to_png(path.read_bytes())
+            png = _path_to_png(path)
             if png:
                 pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
@@ -2298,14 +2342,26 @@ def image_to_pdf(src: Path, dest: Path) -> str:
     # SVG is a document to MuPDF (insert_image rejects it). Preview already
     # treats .svg as an image; Share Export as PDF used markitdown.
     if src.suffix.lower() == ".svg":
-        doc = pymupdf.open(str(src))
-        try:
-            dest.write_bytes(doc.convert_to_pdf())
-        finally:
-            doc.close()
-        return "pymupdf"
-    raster = src
-    tmp: Path | None = None
+        text = _inline_svg_sibling_images(_read_markup(src), src.parent)
+        if "data:image/" not in text:
+            doc = pymupdf.open(stream=text.encode("utf-8"), filetype="svg")
+            try:
+                dest.write_bytes(doc.convert_to_pdf())
+            finally:
+                doc.close()
+            return "pymupdf"
+        # convert_to_pdf still drops sibling <image href> after data-URI rewrite.
+        png = _svg_bytes_to_png(text.encode("utf-8"))
+        if not png:
+            raise RuntimeError("cannot rasterize SVG")
+        fd, name = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        tmp = Path(name)
+        tmp.write_bytes(png)
+        raster = tmp
+    else:
+        raster = src
+        tmp = None
     if src.suffix.lower() in {".ico", ".webp", ".heic", ".heif"}:
         # MuPDF insert_image rejects .ico / .webp / .heic. Preview already
         # treats them as images; Share / drop-on-PDF used to fail. HEIC
@@ -2395,13 +2451,10 @@ def load_pil_image(src: Path):
         raise RuntimeError(f"Pillow missing: {e}") from e
     if src.suffix.lower() == ".svg":
         import io
-        pymupdf = require_pymupdf()
-        doc = pymupdf.open(str(src))
-        try:
-            pix = doc[0].get_pixmap()
-            return Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGBA")
-        finally:
-            doc.close()
+        png = _svg_bytes_to_png(_read_markup(src).encode("utf-8"), src.parent)
+        if not png:
+            raise RuntimeError("cannot rasterize SVG")
+        return Image.open(io.BytesIO(png)).convert("RGBA")
     if src.suffix.lower() in {".heic", ".heif"}:
         try:
             from pillow_heif import register_heif_opener
