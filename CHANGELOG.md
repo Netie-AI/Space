@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\fldinst` / `\\datafield` embeds that picture. Those dest groups are the same leftover class as HTML `instrText` / `fldData`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. `\\fldrslt` / header / `\\upr` stay page copy. Mixed `Hello` stays the text path.
 - CI: Split hosted workflows by path so leftover dest PRs do not start `windows-latest` (2x minutes). Windows is `src/` / xunit / wipe ps1; python is tests/tools/scripts; license-api is `license-api/`. Hosted runners stay billing-locked until org Billing is fixed. Do not merge on that red (`docs/HUMAN_GHA_BILLING.md`).
 - CI: GitHub-hosted `CI` jobs die in 2-4s with empty steps. Job annotation is spending-limit / failed payments, not a test fail. Do not merge while that check is red. Unlock is org Billing (`docs/HUMAN_GHA_BILLING.md`). `scripts/gha-billing-check.sh` prints the annotation.
 - Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\annotation` / `\\atnauthor` / `\\atrfstart` embeds that picture. Those dest groups are the same leftover class as HTML comment chrome / `\\nonshppict`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. Header / footer / `\\upr` stay page copy. Mixed `Hello` stays the text path.

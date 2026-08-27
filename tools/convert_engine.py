@@ -1648,7 +1648,8 @@ def _rtf_strip_dest_groups(s: str) -> str:
                 r"themedata|colorschememapping|passwordhash|datastore|mmathPr|"
                 r"latentstyles|pgdsctbl|fchars|lchars|protusertbl|userdata|"
                 r"oldcprops|oldpprops|wgrffmtfilter|nonshppict|shppict|pnseclvl|"
-                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate)\b",
+                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate|"
+                r"fldinst|datafield)\b",
                 rest,
             ):
                 i = _rtf_end_group(s, i)
@@ -1669,7 +1670,9 @@ def rtf_to_text(src: Path) -> str:
     # \\datastore / \\latentstyles stole dest Word the same way.
     # Unstarred \\nonshppict / \\shppict / \\pnseclvl stole dest Word the same way.
     # Unstarred \\annotation / \\atnauthor / \\atrfstart stole dest Word the same way.
+    # Unstarred \\fldinst / \\datafield stole dest Word the same way.
     # Header / footer stay. Do not strip \\upr (fallback is page copy).
+    # Do not strip \\fldrslt (field result is page copy).
     s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
