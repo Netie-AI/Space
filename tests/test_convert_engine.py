@@ -5182,6 +5182,105 @@ def test_odf_annotation_photo_export() -> None:
         assert res.get("tool") == "pymupdf-story", res
 
 
+def test_ods_annotation_photo_export() -> None:
+    """Share dest PDF/Word/Excel on photo ODS whose leftover is office:annotation in a cell."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Leftover <office:annotation><text:p>Photo in a cell stole" in src
+    assert "def _odf_visible_text" in src
+    if not pymupdf_available():
+        print("SKIP ods annotation -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP ods annotation -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+    png = buf.getvalue()
+    ns = (
+        'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+        'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" '
+        'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"'
+    )
+
+    def write_ods(path: Path, body: str) -> None:
+        content = (
+            '<?xml version="1.0"?>'
+            f"<office:document-content {ns}>"
+            f"<office:body><office:spreadsheet>{body}</office:spreadsheet>"
+            "</office:body></office:document-content>"
+        )
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("mimetype", "application/vnd.oasis.opendocument.spreadsheet")
+            zf.writestr("content.xml", content)
+            zf.writestr("Pictures/image1.png", png)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        ods = d / "photo.ods"
+        write_ods(
+            ods,
+            "<table:table><table:table-row><table:table-cell>"
+            "<office:annotation><text:p>Photo</text:p></office:annotation>"
+            "</table:table-cell></table:table-row></table:table>",
+        )
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(ods), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        import pymupdf
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+            r, g = pix.samples[i], pix.samples[i + 1]
+            assert g >= 160 and r < 40, (r, g)
+        finally:
+            doc.close()
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(ods), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        xlsx = d / "photo.xlsx"
+        res = run_engine(["export-as", str(ods), str(xlsx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "xlsx-zip-images", res
+        with zipfile.ZipFile(xlsx) as zf:
+            media = [n for n in zf.namelist() if n.startswith("xl/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.ods"
+        write_ods(
+            mixed,
+            "<table:table><table:table-row><table:table-cell>"
+            "<text:p>Hello</text:p>"
+            "<office:annotation><text:p>Photo</text:p></office:annotation>"
+            "</table:table-cell></table:table-row></table:table>",
+        )
+        dest2 = d / "mixed.pdf"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story", res
+
+
 def test_html_unclosed_comment_photo_export() -> None:
     """Share dest Word / PDF on photo HTML / MD whose leftover is unclosed <!-- Photo."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -6190,6 +6289,7 @@ if __name__ == "__main__":
     test_html_wdel_photo_export()
     test_docx_del_t_photo_export()
     test_odf_annotation_photo_export()
+    test_ods_annotation_photo_export()
     test_html_unclosed_comment_photo_export()
     test_md_frontmatter_photo_export()
     test_svg_ico_drop_merge_lists()

@@ -1658,6 +1658,19 @@ def _odf_p_in_leftover(el: ET.Element, parent: dict[ET.Element, ET.Element]) -> 
     return False
 
 
+def _odf_visible_text(el: ET.Element) -> str:
+    """Skip office:annotation / text:deletion subtrees (same leftover as ODT)."""
+    parts = [el.text or ""]
+    for child in list(el):
+        local = child.tag.rsplit("}", 1)[-1]
+        if local in {"annotation", "deletion"}:
+            parts.append(child.tail or "")
+            continue
+        parts.append(_odf_visible_text(child))
+        parts.append(child.tail or "")
+    return "".join(parts)
+
+
 def odt_to_text(src: Path) -> str:
     root = _odf_content_root(src)
     parent = {c: p for p in root.iter() for c in list(p)}
@@ -1692,7 +1705,9 @@ def ods_to_rows(src: Path) -> list[list[str]]:
             except ValueError:
                 repeat = 1
             repeat = min(max(repeat, 1), 32)
-            text = "".join(cell.itertext()).strip()
+            # Leftover <office:annotation><text:p>Photo in a cell stole
+            # dest PDF / Word / Excel on photo ODS (Pictures/ already there).
+            text = _odf_visible_text(cell).strip()
             if not text and repeat > 8:
                 continue
             cells.extend([text] * repeat)
