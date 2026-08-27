@@ -1713,8 +1713,13 @@ def _local_href(href: str) -> str:
     href = (href or "").strip()
     if not href or href.lower().startswith(("data:", "http:", "https:", "//")):
         return href
-    # Unescape before '#' split so &#46; / &#x2e; stay a dot, not a fragment.
-    href = html.unescape(href)
+    # Unescape before '#' split so &#46; stays a dot. MD dests html.escape
+    # &#46; to &amp;#46; -- one unescape still leaves a fragment.
+    for _ in range(3):
+        nxt = html.unescape(href)
+        if nxt == href:
+            break
+        href = nxt
     href = href.split("#", 1)[0].split("?", 1)[0].strip()
     return unquote(href)
 
