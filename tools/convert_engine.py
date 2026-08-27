@@ -2351,6 +2351,15 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word track-change / field / comment leftovers are not page copy.
+    # Leftover "Photo" in <w:delText> stole dest Word on photo Word-HTML
+    # and photo Word 2003 XML (binData pictures path). Stop at the next
+    # tag so mixed Hello stays the text path.
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:delText|instrText|commentText))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
