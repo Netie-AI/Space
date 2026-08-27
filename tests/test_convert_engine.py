@@ -3611,6 +3611,67 @@ def test_office_svg_media_export() -> None:
             doc.close()
 
 
+def test_rtf_pict_photo_export() -> None:
+    """Share dest Word/PDF on WordPad photo RTF whose picture is \\pngblip hex."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def rtf_media_pngs" in src
+    if not pymupdf_available():
+        print("SKIP rtf pict photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf pict photo export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        rtf = d / "photo.rtf"
+        rtf.write_text(
+            r"{\rtf1\ansi{\pict\pngblip\picw64\pich48 " + png.hex() + "}}",
+            encoding="ascii",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(rtf), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(rtf), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-rtf-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi Hello{\pict\pngblip " + png.hex() + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4449,6 +4510,7 @@ if __name__ == "__main__":
     test_html_shy_comment_photo_export()
     test_html_amp_nbsp_md_photo_export()
     test_office_svg_media_export()
+    test_rtf_pict_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()

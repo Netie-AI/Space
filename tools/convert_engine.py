@@ -547,7 +547,11 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         return f"![{src.name}]({src.name})\n", "image-stub"
 
     if ext == ".rtf":
-        return rtf_to_text(src), "rtf-text"
+        pngs = rtf_media_pngs(src)
+        text = rtf_to_text(src)
+        if pngs and not text.strip():
+            return pngs_to_markdown(pngs, "Page", "rtf-md-images")
+        return text, "rtf-text"
     if ext == ".odt":
         return odt_to_text(src), "odt-zip"
     if ext == ".ods":
@@ -1229,6 +1233,12 @@ def file_to_docx(src: Path, dest: Path) -> str:
         if pngs and not visible:
             return write_docx_images(dest, pngs)
         return write_docx(dest, visible)
+    if src.suffix.lower() == ".rtf":
+        pngs = rtf_media_pngs(src)
+        text = rtf_to_text(src)
+        if pngs and not text.strip():
+            return write_docx_images(dest, pngs)
+        return write_docx(dest, text)
     if src.suffix.lower() == ".pdf":
         got = via_pymupdf_text(src) or via_pdfmd(src) or via_pymupdf4llm(src) or via_markitdown(src)
         if got:
@@ -1471,9 +1481,36 @@ def write_xlsx_images(dest: Path, pngs: list[bytes]) -> str:
     return "xlsx-zip-images"
 
 
+def rtf_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    """WordPad / Word photo RTF dest Word used hex dump / no pictures."""
+    raw = src.read_bytes().decode("latin-1", errors="replace")
+    pngs: list[bytes] = []
+    for m in re.finditer(r"\\pict\b([^}]+)", raw, re.I | re.S):
+        if len(pngs) >= cap:
+            break
+        body = m.group(1)
+        if not re.search(r"\\(?:pngblip|jpegblip)\b", body, re.I):
+            continue
+        hexes = re.sub(r"\\[a-zA-Z]+\-?\d*\s?", "", body)
+        hexes = re.sub(r"[^0-9a-fA-F]", "", hexes)
+        if len(hexes) < 32:
+            continue
+        if len(hexes) % 2:
+            hexes = hexes[:-1]
+        try:
+            blob = bytes.fromhex(hexes)
+        except ValueError:
+            continue
+        png = _bytes_to_png(blob)
+        if png:
+            pngs.append(png)
+    return pngs
+
+
 def rtf_to_text(src: Path) -> str:
     """Best-effort RTF -> plain text. Share Export as PDF/Word on .rtf used markitdown."""
     s = src.read_bytes().decode("latin-1", errors="replace")
+    s = re.sub(r"\{\\pict\b[^{}]*\}", "", s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
         lambda m: bytes.fromhex(m.group(1)).decode("latin-1"),
@@ -2531,6 +2568,12 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         return pdf_copy(src, dest)
     if ext in IMAGE_EXTS:
         return image_to_pdf(src, dest)
+    if ext == ".rtf":
+        pngs = rtf_media_pngs(src)
+        text = rtf_to_text(src)
+        if pngs and not text.strip():
+            return images_to_pdf(pngs, dest, tool="pymupdf-rtf-images")
+        return markdown_to_pdf(text, dest)
     if ext in MD_EXTS or ext in TEXT_EXTS or ext in HTML_EXTS:
         if ext in HTML_EXTS:
             return html_to_pdf(src, dest)
