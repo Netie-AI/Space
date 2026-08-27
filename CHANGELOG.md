@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest Word / Markdown / PDF on photo-only AMP HTML whose picture is only in `<amp-img src>` / `srcset` embeds that picture. `image-set` landed in #206; amp-img used empty Word / 1-byte MD / 573-byte Story PDF.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML whose picture is only in CSS `image-set('pic.png' 1x)` (no `url()`) embeds that picture. `url()` / `@import` / src strip landed in #198-#205; quoted image-set used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML with padded `src=" pic.png "` or `src="pic.png#hero"` embeds that picture. Unquoted attrs landed in #204; whitespace / fragment / query on sibling paths used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML5 with unquoted `src=pic.png` / `srcset=pic.png` / `<link rel=stylesheet href=page.css>` embeds that picture. Quoted attrs landed in #194-#203; unquoted used empty Word / 1-byte MD / Story without pictures.
