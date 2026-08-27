@@ -1696,6 +1696,35 @@ def _sibling_url_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> lis
     return pngs
 
 
+def _sibling_imageset_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> list[bytes]:
+    """image-set('pic.png' 1x) with no url(). Share dests used empty / 1-byte."""
+    pngs: list[bytes] = []
+    for m in re.finditer(r"(?is)image-set\s*\((.*?)\)", text):
+        body = re.sub(r"(?i)url\s*\([^)]*\)", " ", m.group(1))
+        for q in re.finditer(r"""(['"])([^'"]+)\1""", body):
+            if len(pngs) >= cap:
+                return pngs
+            href = _local_href(q.group(2))
+            if not href or href.startswith(("data:", "http:", "https:", "//", "#")):
+                continue
+            if href.lower() in {"none", "inherit"}:
+                continue
+            suffix = Path(href.replace("\\", "/").split("/")[-1]).suffix.lower()
+            if suffix not in IMAGE_EXTS:
+                continue
+            path = (resolve_dir / href).resolve()
+            try:
+                path.relative_to(root)
+            except ValueError:
+                continue
+            if not path.is_file():
+                continue
+            png = _bytes_to_png(path.read_bytes())
+            if png:
+                pngs.append(png)
+    return pngs
+
+
 def _css_import_hrefs(css: str) -> list[str]:
     """@import url(page.css) / @import "page.css". Not background url()."""
     hrefs: list[str] = []
@@ -1729,6 +1758,7 @@ def _load_css_file_pngs(
     budget[0] -= 1
     pngs = html_string_media_pngs(css, None, cap)
     pngs.extend(_sibling_url_pngs(css, css_path.parent, root, cap - len(pngs)))
+    pngs.extend(_sibling_imageset_pngs(css, css_path.parent, root, cap - len(pngs)))
     pngs.extend(_imported_css_pngs(css, css_path.parent, root, cap - len(pngs), budget, seen))
     return pngs
 
@@ -1849,6 +1879,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
                 pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
     pngs.extend(_sibling_url_pngs(text, base, root, cap - len(pngs)))
+    pngs.extend(_sibling_imageset_pngs(text, base, root, cap - len(pngs)))
     budget = [8]
     seen: set[Path] = set()
     for block in re.finditer(r"(?is)<style\b[^>]*>(.*?)</style>", text):
