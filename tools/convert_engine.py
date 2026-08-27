@@ -919,12 +919,12 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
             r"(?is)<(?:[\w.-]+:)?(?:image|use|rect|path|circle|polygon|ellipse|line|polyline)\b",
             text,
         ):
-            return None
+            return _svg_unused_container_image(text.encode("utf-8"))
         raw = _svg_lower_root(text).encode("utf-8")
         doc = pymupdf.open(stream=raw, filetype="svg")
         try:
             if doc.page_count < 1:
-                return None
+                return _svg_unused_container_image(raw)
             pix = doc[0].get_pixmap()
             # Leftover <use href="#missing"/> / empty <path> still have
             # paint tags so the skip above misses them. MuPDF writes a
@@ -944,12 +944,48 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
                     if not white and not black:
                         break
                 if white or black:
-                    return None
+                    return _svg_unused_container_image(raw)
             return pix.tobytes("png")
         finally:
             doc.close()
     except Exception:
+        return _svg_unused_container_image(raw)
+
+
+def _svg_unused_container_image(raw: bytes) -> bytes | None:
+    """First <image> in unused <defs>/<symbol> when nothing paints.
+
+    `<svg><defs><image href="pic.png"/></defs></svg>` has an <image>
+    so the paint-tag skip misses it, but MuPDF does not paint unused
+    defs -- dest Word stays empty, dest PDF Story is white, and
+    standalone SVG dest PNG raises. Same steal as a sibling <img>
+    the rasterizer never reached. Do not flatten <pattern> /
+    clipPath / mask / marker / filter (parked) -- those have
+    rendered geometry or a named container this must not unwrap.
+    """
+    import base64
+
+    if re.search(
+        rb"<(?:[\w.-]+:)?(?:use|rect|path|circle|polygon|ellipse|"
+        rb"line|polyline|pattern|clipPath|mask|marker|filter|feImage)\b",
+        raw,
+        flags=re.I,
+    ):
         return None
+    m = re.search(
+        rb"<(?:[\w.-]+:)?image\b[^>]*?(?:xlink:)?href=["
+        rb"\"'](data:image/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+)["
+        rb"\"']",
+        raw,
+        flags=re.I,
+    )
+    if not m:
+        return None
+    try:
+        blob = base64.b64decode(m.group(1).split(b",", 1)[-1], validate=False)
+    except Exception:
+        return None
+    return _bytes_to_png(blob)
 
 
 def _path_to_png(path: Path, depth: int = 0) -> bytes | None:
