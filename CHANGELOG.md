@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\filetbl` / `\\listtable` / `\\listoverridetable` / `\\generator` embeds that picture. Those dest groups are the same class as `\\fonttbl`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. Header / footer stay page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `class=MsoAcetate` / `MsoCommentReply` / `MsoCommentList` embeds that picture. Comment balloon chrome is the same class as `msoCommentText`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. `MsoHeader` / `MsoCaption` stay page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `<w:fldData>` embeds that picture. Field private storage is not page copy (same class as `instrText`); leftover "Photo" / base64 stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo Word-HTML / Word 2003 XML whose leftover is `class=MsoCommentSubject` embeds that picture. The comment title line is the same class as `msoCommentText`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white, including on leftover `binData`. `msoIns` stays page copy. Mixed `Hello` stays the text path.
