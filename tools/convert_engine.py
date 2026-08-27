@@ -2507,9 +2507,11 @@ def html_visible_text(text: str) -> str:
     # balloon chrome (Word Save-as-HTML). Leftover "Photo" stole dest
     # Word / dest PDF Story. Do not strip MsoHeader / MsoCaption (page copy)
     # or msoHide (parked CSS visibility).
+    # class=MsoBalloonText / MsoAnnotation is the same balloon chrome.
+    # Leftover "Photo" stole dest Word / dest PDF Story.
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList)\b"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
