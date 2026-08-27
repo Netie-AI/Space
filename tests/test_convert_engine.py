@@ -3296,7 +3296,7 @@ def test_html_svg_desc_title_export() -> None:
 def test_html_nbsp_template_photo_export() -> None:
     """Share dest Word/MD on photo HTML whose leftover is &nbsp; / <template> / <noscript> / Inkscape RDF."""
     src = ENGINE.read_text(encoding="utf-8")
-    assert "Word HTML <p>&nbsp;</p> is not page copy" in src
+    assert "Word HTML <p>&nbsp;</p>" in src
     assert "<template>" in src and "<noscript>" in src
     if not pymupdf_available():
         print("SKIP html nbsp/template photo export -- pymupdf missing")
@@ -3365,6 +3365,71 @@ def test_html_nbsp_template_photo_export() -> None:
         mixed = d / "mixed.html"
         mixed.write_text(
             '<html><body><p>Hello&nbsp;world</p><img src="pic.png"></body></html>',
+            encoding="utf-8",
+        )
+        dest = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_shy_comment_photo_export() -> None:
+    """Share dest Word/MD on photo HTML whose leftover is &shy; or an IE/Word comment."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert r"(?s)<!--.*?-->" in src
+    assert r"\u00ad" in src
+    if not pymupdf_available():
+        print("SKIP html shy/comment photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html shy/comment photo export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(d / "pic.png", format="PNG")
+        for name, markup in (
+            (
+                "shy.html",
+                '<html><body><p>&shy;</p><img src="pic.png"></body></html>',
+            ),
+            (
+                "ie.html",
+                '<!--[if IE]><p>Photo</p><![endif]-->'
+                '<html><body><img src="pic.png"></body></html>',
+            ),
+            (
+                "mso.html",
+                '<!--[if gte mso 9]><xml>Photo</xml><![endif]-->'
+                '<html><body><img src="pic.png"></body></html>',
+            ),
+        ):
+            html = d / name
+            html.write_text(markup, encoding="utf-8")
+            docx = d / (name + ".docx")
+            res = run_engine(["export-as", str(html), str(docx)])
+            assert res.get("success"), (name, res)
+            assert res.get("tool") == "docx-zip-images", (name, res)
+            with zipfile.ZipFile(docx) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (name, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (name, px)
+                finally:
+                    im.close()
+            md = d / (name + ".md")
+            res = run_engine(["export-as", str(html), str(md)])
+            assert res.get("success"), (name, res)
+            assert res.get("tool") == "html-md-images", (name, res)
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><p>Hel&shy;lo</p><img src="pic.png"></body></html>',
             encoding="utf-8",
         )
         dest = d / "mixed.docx"
@@ -4208,6 +4273,7 @@ if __name__ == "__main__":
     test_svg_switch_a_export()
     test_html_svg_desc_title_export()
     test_html_nbsp_template_photo_export()
+    test_html_shy_comment_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
