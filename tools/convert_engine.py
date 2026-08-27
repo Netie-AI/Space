@@ -2506,6 +2506,17 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word o:DocumentProperties / o:OfficeDocumentSettings are leftover
+    # document metadata (same class as CustomDocumentProperties).
+    # Leftover "Photo" in <o:DocumentProperties> stole dest Word / dest PDF Story.
+    # o:Title was already stripped; o:Author / o:Company were not.
+    # TargetScreenSize 800x600 stole dest the same way.
+    # Do not strip xml islands outside head (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:DocumentProperties|OfficeDocumentSettings))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
