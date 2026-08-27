@@ -2370,6 +2370,18 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word Save-as-HTML class leftovers are the same as delText / commentText.
+    # Leftover "Photo" in class=msoDel / msocomtxt stole dest Word on photo
+    # Word-HTML and leftover binData XML. Do not strip msoIns (page copy)
+    # or mso-hide (parked CSS visibility). Stop at the next tag so mixed
+    # Hello stays the text path.
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
