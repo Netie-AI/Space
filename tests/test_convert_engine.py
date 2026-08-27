@@ -1486,6 +1486,80 @@ def test_html_pct_href_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_src_not_data_src_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose real src sits next to data-src."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?<![\\w-])src" in src
+    assert "html.unescape" in src
+    if not pymupdf_available():
+        print("SKIP html src not data-src photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html src not data-src photo export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "pic.png").write_bytes(png)
+        (d / "pic&co.png").write_bytes(png)
+        html = d / "lazy.html"
+        html.write_text(
+            '<html><body><img src="pic.png" data-src="missing.png" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "lazy.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "lazy.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "lazy.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        first = d / "first.html"
+        first.write_text(
+            '<html><body><img data-src="missing.png" src="pic.png" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        fdocx = d / "first.docx"
+        res = run_engine(["export-as", str(first), str(fdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(fdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        ent = d / "amp.html"
+        ent.write_text(
+            '<html><body><img src="pic&amp;co.png" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        edocx = d / "amp.docx"
+        res = run_engine(["export-as", str(ent), str(edocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(edocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2322,6 +2396,7 @@ if __name__ == "__main__":
     test_html_amp_img_photo_export()
     test_md_image_title_ref_export()
     test_html_pct_href_photo_export()
+    test_html_src_not_data_src_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
