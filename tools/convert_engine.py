@@ -2037,6 +2037,9 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
 
 
 def html_visible_text(text: str) -> str:
+    # UTF-8 BOM is not page copy. Notepad / Word HTML used to steal dest
+    # Word / MD (\\ufeff is not whitespace, so strip() left it).
+    text = text.replace("\ufeff", "")
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.

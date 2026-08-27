@@ -1982,6 +1982,61 @@ def test_html_base_href_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_bom_visible_photo_export() -> None:
+    """Share dest Word/MD/PDF on UTF-8 BOM photo HTML still embeds the picture."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '"\\ufeff"' in src or "'\\ufeff'" in src
+    if not pymupdf_available():
+        print("SKIP html bom visible photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html bom visible photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "pic.png", format="PNG")
+        html = d / "bom.html"
+        html.write_text(
+            '\ufeff<html><body><img src="pic.png"></body></html>',
+            encoding="utf-8-sig",
+        )
+        md = d / "bom.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "bom.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "bom.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        text = d / "note.html"
+        text.write_text(
+            "\ufeff<html><body><h1>Hello leftover</h1></body></html>",
+            encoding="utf-8-sig",
+        )
+        tpdf = d / "note.pdf"
+        res = run_engine(["export-as", str(text), str(tpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story-html", res
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2826,6 +2881,7 @@ if __name__ == "__main__":
     test_html_data_uri_charset_photo_export()
     test_html_title_visible_photo_export()
     test_html_base_href_photo_export()
+    test_html_bom_visible_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
