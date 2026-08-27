@@ -740,7 +740,27 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
 
     # Same-quote close so raw SVG data URIs can keep xmlns="..." inside src='...'.
     # Pretty-printed `src = "..."` used empty Word / 1-byte MD.
-    return re.sub(r'src\s*=\s*(["\'])(.*?)\1', repl, markup, flags=re.I | re.S)
+    markup = re.sub(r'src\s*=\s*(["\'])(.*?)\1', repl, markup, flags=re.I | re.S)
+
+    def repl_unquoted(m: re.Match[str]) -> str:
+        nonlocal n
+        href = m.group(1)
+        if n >= cap or href.startswith("data:"):
+            return m.group(0)
+        path = (base / href).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError:
+            return m.group(0)
+        if not path.is_file():
+            return m.group(0)
+        png = _bytes_to_png(path.read_bytes())
+        if not png:
+            return m.group(0)
+        n += 1
+        return f'src="{_png_data_uri(png)}"'
+
+    return re.sub(r'src\s*=\s*(?!["\'])([^\s>]+)', repl_unquoted, markup, flags=re.I)
 
 
 def wrap_html(body: str, title: str = "Preview") -> str:
@@ -1613,22 +1633,33 @@ def require_pymupdf():
         raise RuntimeError(f"pymupdf missing: {e}") from e
 
 
+def _html_attr(attrs: str, name: str) -> str | None:
+    """Quoted or HTML5 unquoted attribute. Share dests used empty Word on href=page.css."""
+    m = re.search(
+        rf"""(?i)\b{re.escape(name)}\s*=\s*(?:(['"])(.*?)\1|([^\s>]+))""",
+        attrs,
+    )
+    if not m:
+        return None
+    val = ((m.group(2) if m.group(1) else m.group(3)) or "").strip()
+    return val or None
+
+
 def _stylesheet_hrefs(html: str) -> list[str]:
     """Sibling <link rel=stylesheet href>. Inline / <style> url() already scanned."""
     hrefs: list[str] = []
     seen: set[str] = set()
     for m in re.finditer(r"(?is)<link\b([^>]*)>", html):
         attrs = m.group(1)
-        rel = re.search(r"""(?i)\brel\s*=\s*(['"])([^'"]*)\1""", attrs)
-        href = re.search(r"""(?i)\bhref\s*=\s*(['"])([^'"]+)\1""", attrs)
+        rel = _html_attr(attrs, "rel")
+        href = _html_attr(attrs, "href")
         if not rel or not href:
             continue
-        if "stylesheet" not in rel.group(2).lower().split():
+        if "stylesheet" not in rel.lower().split():
             continue
-        val = href.group(2).strip()
-        if val and val not in seen:
-            seen.add(val)
-            hrefs.append(val)
+        if href not in seen:
+            seen.add(href)
+            hrefs.append(href)
     return hrefs
 
 
@@ -1762,10 +1793,15 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     if base is None:
         return pngs
     root = base.resolve()
-    for m in re.finditer(r'<img[^>]+src\s*=\s*["\'](?!data:)([^"\']+)["\']', text, re.I):
+    for m in re.finditer(
+        r'<img[^>]+src\s*=\s*(?:["\'](?!data:)([^"\']+)["\']|(?!["\'])(?!data:)([^\s>]+))',
+        text,
+        re.I,
+    ):
         if len(pngs) >= cap:
             break
-        path = (base / m.group(1)).resolve()
+        href = m.group(1) or m.group(2)
+        path = (base / href).resolve()
         try:
             path.relative_to(root)
         except ValueError:
@@ -1776,8 +1812,11 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         if png:
             pngs.append(png)
     # srcset-only <img> / <picture><source>. Share dests used empty / 1-byte / 573-byte.
-    for m in re.finditer(r"""(?is)<(?:img|source)\b[^>]*\bsrcset\s*=\s*(['"])([^'"]+)\1""", text):
-        for href in _srcset_hrefs(m.group(2)):
+    for m in re.finditer(
+        r"""(?is)<(?:img|source)\b[^>]*\bsrcset\s*=\s*(?:(['"])([^'"]+)\1|([^\s>]+))""",
+        text,
+    ):
+        for href in _srcset_hrefs(m.group(2) if m.group(1) else (m.group(3) or "")):
             if len(pngs) >= cap:
                 break
             if href.startswith(("data:", "http:", "https:", "//", "#")):
