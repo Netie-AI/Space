@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word on photo Word-HTML whose leftover is `<xml><o:Author>Photo</o:Author></xml>` inside a closed `<head>` embeds that picture. Unclosed-head `(?=<)` won before `</head>` and left document-property text as page copy (`docx-zip` / no `word/media`). Stop at `</head>` / `body` / `img`. Xml islands outside `<head>` stay parked.
 - Convert: Share dest Word / PDF on photo Markdown whose leftover is Hugo / Zola `+++` TOML frontmatter embeds that picture. Same steal as YAML (`docx-zip` / Story white). Requires a `key =` line so a leading `+++` fence stays. Mixed `Hello` stays the text path. JSON `{` frontmatter stays parked.
 - Convert: Share dest Word / PDF on photo Markdown whose leftover is YAML frontmatter (`title: Photo`) embeds that picture. Stdlib turned the fence into a heading so leftover stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. Requires a `key:` line so a leading `---` rule around an image stays. Mixed `Hello` stays the text path. Obsidian `![[ ]]` stays parked.
 - Convert: Share dest Word / PDF on photo HTML / Markdown whose leftover is an unclosed `<!-- Photo` comment embeds that picture. Closed comments already stripped; truncated leftover stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. Closed `<!--[if IE]>` still strips; mixed `Hello` stays the text path.
