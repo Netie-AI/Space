@@ -1550,19 +1550,52 @@ def rtf_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     return pngs
 
 
+def _rtf_end_group(s: str, start: int) -> int:
+    """Index after the '}' that closes s[start] == '{'."""
+    depth = 0
+    i = start
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if ch == "\\":
+            i += 2 if i + 1 < n else 1
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
+def _rtf_strip_dest_groups(s: str) -> str:
+    """{\\*...} / fonttbl / info are not page copy. Nested braces used to leak."""
+    out: list[str] = []
+    i = 0
+    n = len(s)
+    while i < n:
+        if s[i] == "{" and i + 2 < n and s[i + 1] == "\\":
+            rest = s[i + 2 :]
+            if rest.startswith("*") or re.match(
+                r"(?i)(?:fonttbl|colortbl|stylesheet|info)\b", rest
+            ):
+                i = _rtf_end_group(s, i)
+                continue
+        out.append(s[i])
+        i += 1
+    return "".join(out)
+
+
 def rtf_to_text(src: Path) -> str:
     """Best-effort RTF -> plain text. Share Export as PDF/Word on .rtf used markitdown."""
     s = src.read_bytes().decode("latin-1", errors="replace")
     s = re.sub(r"\{\\pict\b[^{}]*\}", "", s)
-    # WordPad / Word photo RTF always writes fonttbl / info. Leftover
-    # "Calibri" / "Photo" stole dest Word (docx-zip) and dest PDF (Story).
-    for dest_name in ("fonttbl", "colortbl", "stylesheet", "info"):
-        s = re.sub(
-            rf"\{{\\{dest_name}\b(?:[^{{}}]|{{[^{{}}]*}})*\}}",
-            "",
-            s,
-            flags=re.I,
-        )
+    # Word photo RTF always writes nested {\\*listtable} / {\\*latentstyles}
+    # / {\\*fonttbl{\\f0 {\\*panose}Calibri;}}. Leftover "Calibri" / "Photo"
+    # stole dest Word (docx-zip) and dest PDF (Story). Header / footer stay.
+    s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
         lambda m: bytes.fromhex(m.group(1)).decode("latin-1"),
@@ -1571,11 +1604,6 @@ def rtf_to_text(src: Path) -> str:
     s = re.sub(r"\\par[d]?\b", "\n", s)
     s = re.sub(r"\\line\b", "\n", s)
     s = re.sub(r"\\tab\b", "\t", s)
-    for _ in range(8):
-        n = re.sub(r"\{\\\*[^{}]*\}", "", s)
-        if n == s:
-            break
-        s = n
     s = re.sub(r"\\[a-zA-Z]+-?\d* ?", "", s)
     s = re.sub(r"[{}]", "", s)
     s = s.replace("\\", "")

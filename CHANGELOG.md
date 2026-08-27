@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on Word photo RTF whose leftover is a nested `{\\*listtable}` / `{\\*latentstyles}` / `{\\*fonttbl{\\f0 {\\*panose}Calibri;}}` dest group embeds that picture. Flat `{\\*` strip left inner text; leftover "Calibri" / "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. Header / footer stay page copy. WMF pict stays parked.
 - Convert: Share dest Word / PDF on WordPad / Word photo RTF whose leftover is `\\fonttbl` / `\\colortbl` / `\\stylesheet` / `\\info` embeds that picture. Real photo RTF always writes those groups; leftover "Calibri" / "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. Header / footer / footnote stay page copy. WMF pict stays parked.
 - Convert: Share dest Word on photo Word-HTML whose leftover is `<xml><o:Author>Photo</o:Author></xml>` inside a closed `<head>` embeds that picture. Unclosed-head `(?=<)` won before `</head>` and left document-property text as page copy (`docx-zip` / no `word/media`). Stop at `</head>` / `body` / `img`. Xml islands outside `<head>` stay parked.
 - Convert: Share dest Word / PDF on photo Markdown whose leftover is Hugo / Zola `+++` TOML frontmatter embeds that picture. Same steal as YAML (`docx-zip` / Story white). Requires a `key =` line so a leading `+++` fence stays. Mixed `Hello` stays the text path. JSON `{` frontmatter stays parked.

@@ -3675,7 +3675,7 @@ def test_rtf_pict_photo_export() -> None:
 def test_rtf_fonttbl_photo_export() -> None:
     """Share dest Word/PDF on WordPad photo RTF whose leftover is fonttbl / info."""
     src = ENGINE.read_text(encoding="utf-8")
-    assert '"fonttbl", "colortbl", "stylesheet", "info"' in src
+    assert "def _rtf_strip_dest_groups" in src
     if not pymupdf_available():
         print("SKIP rtf fonttbl -- pymupdf missing")
         return
@@ -3727,6 +3727,73 @@ def test_rtf_fonttbl_photo_export() -> None:
         mixed = d / "mixed.rtf"
         mixed.write_text(
             r"{\rtf1\ansi{\fonttbl{\f0 Arial;}} Hello{\pict\pngblip "
+            + png.hex()
+            + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_rtf_dest_group_photo_export() -> None:
+    """Share dest Word/PDF on Word photo RTF whose leftover is nested {\\*listtable}."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _rtf_strip_dest_groups" in src
+    assert "Nested braces used to leak" in src
+    if not pymupdf_available():
+        print("SKIP rtf dest group -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf dest group -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        rtf = d / "photo.rtf"
+        rtf.write_text(
+            r"{\rtf1\ansi{\*\listtable{\list\listid1 Photo}}"
+            r"{\*\latentstyles{\lsdstimax267}}"
+            r"{\*\fonttbl{\f0\fnil{\*\panose 020b0604020202020204}Calibri;}}"
+            r"{\info{\*\userprops{\propname Photo}{\staticval X}}}"
+            r"{\pict\pngblip\picw64\pich48 " + png.hex() + "}}",
+            encoding="ascii",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(rtf), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(rtf), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-rtf-images", res
+        import pymupdf
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\*\listtable{\list Photo}} Hello{\pict\pngblip "
             + png.hex()
             + "}}",
             encoding="ascii",
@@ -5311,6 +5378,7 @@ if __name__ == "__main__":
     test_office_svg_media_export()
     test_rtf_pict_photo_export()
     test_rtf_fonttbl_photo_export()
+    test_rtf_dest_group_photo_export()
     test_odf_object_replacements_export()
     test_md_image_photo_pdf()
     test_html_lrm_wj_photo_export()
