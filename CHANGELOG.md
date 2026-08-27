@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest PNG / Word on SVG whose picture is a prefixed `<svg:image href="pic.png">` / `<svg:use href="icon.svg">` embeds that picture. The scan required a bare `<image>` / `<use>` tag, so dest PNG / dest Word were a white page. Same path-safe rewrite.
 - Convert: Share dest PNG / PDF on SVG whose picture is a sibling `<use href="icon.svg">` / `<use href="sprite.svg#icon">` embeds that picture. MuPDF cannot find a linked symbol, so dests were a white page. Path-safe siblings only. Local `#id`, `../`, pattern / feImage stay parked.
 - Convert: Share dest PNG / JPG / PDF on SVG whose picture is a sibling `<image href="pic.png">` (and photo HTML dest Word with that inline SVG) embeds the sibling. MuPDF ignored the external image, so dests were a white page. Path-safe siblings only. Remote / `../` stay parked.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose declared `<meta charset>` / `<?xml encoding>` / `@charset` is a Python text codec (`windows-1251`, `koi8-r`, `euc-kr`, ...) and whose sibling path is non-ASCII embeds that picture. The allow-list stopped at Latin/CJK, so dest Word had no `word/media`. Declared charset only. No chardet.
