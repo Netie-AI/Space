@@ -5705,6 +5705,93 @@ def test_html_lidtheme_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_charspacing_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is CharacterSpacingControl."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript|CharacterSpacingControl|ValidateAgainstSchemas" in src
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript" in src
+    assert "(?:[\\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize" in src
+    assert "Leftover DontCompress / false in <w:CharacterSpacingControl> / <w:ValidateAgainstSchemas> stole dest Word / dest PDF Story." in src
+    assert "Prefix required. Do not strip <w:p> (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html charspacing -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html charspacing -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<w:CharacterSpacingControl>DontCompress</w:CharacterSpacingControl>",
+            "<w:ValidateAgainstSchemas>false</w:ValidateAgainstSchemas>",
+            "<w:SaveInvalidXML>false</w:SaveInvalidXML>",
+            "<w:RelyOnVML>false</w:RelyOnVML>",
+            "<w:AllowPNG>true</w:AllowPNG>",
+            "<w:CharacterSpacingControl>DontCompress",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:CharacterSpacingControl>DontCompress</w:CharacterSpacingControl>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        page = d / "page.html"
+        page.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:p><w:r><w:t>Hello</w:t></w:r></w:p></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "page.docx"
+        res = run_engine(["export-as", str(page), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_docvar_photo_export() -> None:
     """Share dest Word/PDF on photo Word-HTML whose leftover is w:docVar."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -8661,6 +8748,7 @@ if __name__ == "__main__":
     test_html_word_settings_photo_export()
     test_html_comment_pstyle_photo_export()
     test_html_lidtheme_photo_export()
+    test_html_charspacing_photo_export()
     test_html_docvar_photo_export()
     test_html_mso_deletion_photo_export()
     test_html_msoacetate_photo_export()

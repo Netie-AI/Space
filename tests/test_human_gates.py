@@ -237,6 +237,7 @@ def test_scripts_and_docs():
     assert "#293 leftover Word `LidThemeOther`" in gha
     assert "#294 leftover Word `docVar`" in gha
     assert "#295 leftover Word `mso-deletion`" in gha
+    assert "#296 leftover Word `CharacterSpacingControl`" in gha
     check = (ROOT / "scripts/gha-billing-check.sh").read_text(encoding="utf-8")
     assert "spending limit needs to be increased" in check
     assert "Do not merge" in check

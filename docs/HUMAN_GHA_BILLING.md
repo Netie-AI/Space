@@ -56,6 +56,7 @@ the previous):
 13. #293 leftover Word `LidThemeOther` / `LidThemeAsian`
 14. #294 leftover Word `docVar` / `docVars`
 15. #295 leftover Word `mso-deletion` / `msoChangeDel`
+16. #296 leftover Word `CharacterSpacingControl` / `ValidateAgainstSchemas`
 
 Draft #1 (demo video) stays draft. Parked leftovers stay parked
 (headers / footnotes / smart tags / `w:sdt` / xml islands outside
