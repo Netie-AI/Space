@@ -1992,7 +1992,7 @@ def test_html_title_visible_photo_export() -> None:
     """Share dest Word/MD/PDF on photo HTML with <title> still embeds the picture."""
     src = ENGINE.read_text(encoding="utf-8")
     assert r"<head\b" in src
-    assert r"<title\b" in src
+    assert r"(?:[\w.-]+:)?title\b" in src
     if not pymupdf_available():
         print("SKIP html title visible photo export -- pymupdf missing")
         return
@@ -3233,6 +3233,66 @@ def test_svg_switch_a_export() -> None:
                 im.close()
 
 
+def test_html_svg_desc_title_export() -> None:
+    """Share dest Word/MD/PDF on photo HTML whose inline SVG has <desc> / <metadata> / <svg:title>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "SVG <desc> / <metadata> / <svg:title> are not page copy" in src
+    if not pymupdf_available():
+        print("SKIP html svg desc/title export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html svg desc/title export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(d / "pic.png", format="PNG")
+        for name, markup in (
+            (
+                "desc.html",
+                '<html><body><svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+                "<desc>A photo</desc>"
+                '<image href="pic.png" width="64" height="48"/></svg></body></html>',
+            ),
+            (
+                "meta.html",
+                '<html><body><svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+                "<metadata>Created in Inkscape</metadata>"
+                '<image href="pic.png" width="64" height="48"/></svg></body></html>',
+            ),
+            (
+                "title.html",
+                '<html><body><svg:svg xmlns:svg="http://www.w3.org/2000/svg" width="64" height="48">'
+                "<svg:title>Logo</svg:title>"
+                '<svg:image href="pic.png" width="64" height="48"/></svg:svg></body></html>',
+            ),
+        ):
+            html = d / name
+            html.write_text(markup, encoding="utf-8")
+            docx = d / (name + ".docx")
+            res = run_engine(["export-as", str(html), str(docx)])
+            assert res.get("success"), (name, res)
+            assert res.get("tool") == "docx-zip-images", (name, res)
+            with zipfile.ZipFile(docx) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (name, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (name, px)
+                finally:
+                    im.close()
+            md = d / (name + ".md")
+            res = run_engine(["export-as", str(html), str(md)])
+            assert res.get("success"), (name, res)
+            assert res.get("tool") == "html-md-images", (name, res)
+            assert "data:image" in md.read_text(encoding="utf-8")
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4066,6 +4126,7 @@ if __name__ == "__main__":
     test_svg_upper_tag_export()
     test_svg_preamble_size_utf16_export()
     test_svg_switch_a_export()
+    test_html_svg_desc_title_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()

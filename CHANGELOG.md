@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / Markdown / PDF on photo HTML whose inline SVG has `<desc>` / `<metadata>` / prefixed `<svg:title>` embeds that picture. Those tags are not page copy; leftover "A photo" stole dest Word (`docx-zip` / no `word/media`) and dest MD (`html-strip`). Same strip as HTML `<title>`. SVG `<text>` stays (page content).
 - Convert: Share dest PNG / Word on SVG whose picture is `<switch>` / `<a href>` around sibling `<image href="pic.png">` embeds that picture. MuPDF skips those wrappers, so dest PNG and photo HTML dest Word were a white page. Unwrap path-safe wrappers only. Pattern / marker / `object` / poster stay parked.
 - Convert: Share dest PNG / PDF / Word on SVG with a long comment before `<svg`, unsized sibling `<image href="pic.png">`, or photo HTML whose sibling `.svg` is Notepad Unicode (UTF-16) embeds that picture. The 240-byte `<svg` sniff raised, MuPDF skipped images without width/height (white page), and raw UTF-16 bytes missed `<svg` so dest Word had no `word/media`. Same path-safe rewrite. `object` / `foreignObject` stay parked.
 - Convert: Share dest PNG / Word on Word-style uppercase `<SVG>` / `<IMAGE href="pic.png">` photo markup embeds that picture. MuPDF rejects `<SVG>`, so dest PNG raised and dest Word had no `word/media`. Root tag is lowercased before rasterize.
