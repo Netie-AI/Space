@@ -725,6 +725,9 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
                 return m.group(0)
             n += 1
             return f"src={quote}{_png_data_uri(png)}{quote}"
+        href = _local_href(href)
+        if not href:
+            return m.group(0)
         path = (base / href).resolve()
         try:
             path.relative_to(root)
@@ -744,8 +747,8 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
 
     def repl_unquoted(m: re.Match[str]) -> str:
         nonlocal n
-        href = m.group(1)
-        if n >= cap or href.startswith("data:"):
+        href = _local_href(m.group(1))
+        if n >= cap or not href or href.startswith("data:"):
             return m.group(0)
         path = (base / href).resolve()
         try:
@@ -1633,6 +1636,14 @@ def require_pymupdf():
         raise RuntimeError(f"pymupdf missing: {e}") from e
 
 
+def _local_href(href: str) -> str:
+    """Sibling ` pic.png ` / pic.png#x used empty Word / 1-byte MD."""
+    href = (href or "").strip()
+    if not href or href.lower().startswith(("data:", "http:", "https:", "//")):
+        return href
+    return href.split("#", 1)[0].split("?", 1)[0].strip()
+
+
 def _html_attr(attrs: str, name: str) -> str | None:
     """Quoted or HTML5 unquoted attribute. Share dests used empty Word on href=page.css."""
     m = re.search(
@@ -1669,7 +1680,7 @@ def _sibling_url_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> lis
     for m in re.finditer(r"url\(\s*['\"]?(?!data:)([^'\")\s]+)['\"]?\s*\)", text, re.I):
         if len(pngs) >= cap:
             break
-        href = m.group(1).strip()
+        href = _local_href(m.group(1))
         if not href or href.startswith("#") or href.lower() in {"none", "inherit"}:
             continue
         path = (resolve_dir / href).resolve()
@@ -1730,7 +1741,8 @@ def _imported_css_pngs(
     for href in _css_import_hrefs(css):
         if len(pngs) >= cap or budget[0] <= 0:
             break
-        if href.startswith(("data:", "http:", "https:", "//", "#")):
+        href = _local_href(href)
+        if href.startswith(("data:", "http:", "https:", "//", "#")) or not href:
             continue
         try:
             path = (css_dir / href).resolve()
@@ -1749,7 +1761,9 @@ def _srcset_hrefs(attr: str) -> list[str]:
     for part in attr.split(","):
         tok = part.strip().split()
         if tok:
-            hrefs.append(tok[0])
+            href = _local_href(tok[0])
+            if href:
+                hrefs.append(href)
     return hrefs
 
 
@@ -1800,7 +1814,9 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     ):
         if len(pngs) >= cap:
             break
-        href = m.group(1) or m.group(2)
+        href = _local_href(m.group(1) or m.group(2) or "")
+        if not href:
+            continue
         path = (base / href).resolve()
         try:
             path.relative_to(root)
@@ -1843,7 +1859,8 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     for href in _stylesheet_hrefs(text):
         if len(pngs) >= cap or budget[0] <= 0:
             break
-        if href.startswith(("data:", "http:", "https:", "//", "#")):
+        href = _local_href(href)
+        if href.startswith(("data:", "http:", "https:", "//", "#")) or not href:
             continue
         try:
             css_path = (base / href).resolve()
