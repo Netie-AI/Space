@@ -5633,6 +5633,78 @@ def test_html_comment_pstyle_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_lidtheme_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is w:LidThemeOther."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript" in src
+    assert "Leftover EN-US / JA in <w:LidThemeOther> / <w:LidThemeAsian> stole dest Word / dest PDF Story." in src
+    assert "(?:[\\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize" in src
+    if not pymupdf_available():
+        print("SKIP html lidtheme -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html lidtheme -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<w:LidThemeOther>EN-US</w:LidThemeOther>",
+            "<w:LidThemeAsian>JA</w:LidThemeAsian>",
+            "<w:LidThemeComplexScript>AR-SA</w:LidThemeComplexScript>",
+            "<w:LidThemeOther>EN-US",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:LidThemeOther>EN-US</w:LidThemeOther><p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_msoacetate_photo_export() -> None:
     """Share dest Word/PDF on photo Word-HTML whose leftover is class=MsoAcetate."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -8388,6 +8460,7 @@ if __name__ == "__main__":
     test_html_docprops_photo_export()
     test_html_word_settings_photo_export()
     test_html_comment_pstyle_photo_export()
+    test_html_lidtheme_photo_export()
     test_html_msoacetate_photo_export()
     test_html_msoballoon_photo_export()
     test_html_msocomhide_photo_export()
