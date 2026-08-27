@@ -3672,6 +3672,96 @@ def test_rtf_pict_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_odf_object_replacements_export() -> None:
+    """Share dest PDF/Word on photo ODT whose zip picture is ObjectReplacements/."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '"ObjectReplacements/"' in src
+    if not pymupdf_available():
+        print("SKIP odf object replacements -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP odf object replacements -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+    png = buf.getvalue()
+
+    def write_odf(path: Path, mime: str, extra_xml: str = "") -> None:
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("mimetype", mime)
+            zf.writestr(
+                "content.xml",
+                '<?xml version="1.0"?>'
+                '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+                ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+                f"<office:body><office:text>{extra_xml}</office:text></office:body>"
+                "</office:document-content>",
+            )
+            zf.writestr(
+                "META-INF/manifest.xml",
+                '<?xml version="1.0"?><manifest:manifest '
+                'xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+            )
+            zf.writestr("ObjectReplacements/Object 1", png)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        odt = d / "photo.odt"
+        write_odf(odt, "application/vnd.oasis.opendocument.text")
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(odt), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(odt), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        ods = d / "photo.ods"
+        write_odf(ods, "application/vnd.oasis.opendocument.spreadsheet")
+        pdf2 = d / "sheet.pdf"
+        res = run_engine(["export-as", str(ods), str(pdf2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        odp = d / "photo.odp"
+        write_odf(odp, "application/vnd.oasis.opendocument.presentation")
+        dest3 = d / "photo.pptx"
+        res = run_engine(["export-as", str(odp), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pptx-zip-images", res
+        mixed = d / "mixed.odt"
+        write_odf(
+            mixed,
+            "application/vnd.oasis.opendocument.text",
+            extra_xml="<text:p>Hello</text:p>",
+        )
+        dest4 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest4)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4511,6 +4601,7 @@ if __name__ == "__main__":
     test_html_amp_nbsp_md_photo_export()
     test_office_svg_media_export()
     test_rtf_pict_photo_export()
+    test_odf_object_replacements_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()

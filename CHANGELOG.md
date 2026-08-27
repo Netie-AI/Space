@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest PDF / Word / PPTX on photo ODT / ODS / ODP whose zip picture is only `ObjectReplacements/` (LibreOffice OLE replacement, often no suffix) embeds that picture. Dest PDF raised `no PDF converter` and dest Word was `docx-zip` with no `word/media` because zip walk used `Pictures/` / `media/` only. Mixed text+pict and `Thumbnails/` stay parked.
 - Convert: Share dest Word / PDF on WordPad / Word photo RTF whose picture is `\\pngblip` / `\\jpegblip` hex embeds that picture. Dest Word used `docx-zip` with no `word/media` (hex dump as page copy) and dest PDF used Story without pictures. WMF pict / mixed text+pict stay parked.
 - Convert: Share dest PDF / Word / HTML on photo ODT / DOCX / PPTX / ODP whose zip picture is `icon.svg` (or HEIC) embeds that picture. Pillow cannot open SVG, so dest PDF raised `no PDF converter` and dest Word had no `word/media`. Same `_bytes_to_png` path as sibling HTML. EMF / WMF stay parked.
 - Convert: Share dest Word on photo HTML whose leftover is double-encoded `&amp;nbsp;`, and photo Markdown whose leftover is `&nbsp;` / `&shy;` / an HTML comment, embeds that picture. One unescape left `"&nbsp;"`; MD dest Word used a naive tag strip. Real words still take the text path. Punctuation-only leftovers stay parked.
