@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo Word 2003 XML (`.xml`) whose picture is leftover `<w:binData>` embeds that picture. Text dest used to dump the XML source (`docx-zip` / Story). Same picture scan as HTML. Mixed `Hello` stays the text path. VML `imagedata` / `body` background stay parked.
 - Convert: Share dest Word / PDF on photo Word-HTML whose picture is leftover `<w:binData>` base64 embeds that picture. `wordml://` src is not a sibling file; leftover base64 stole dest Word (`docx-zip`) and dest PDF was Story white. VML `<v:imagedata src>` without binData stays parked.
 - Convert: Share dest Word / PDF on Word photo RTF whose leftover is a nested `{\\*listtable}` / `{\\*latentstyles}` / `{\\*fonttbl{\\f0 {\\*panose}Calibri;}}` dest group embeds that picture. Flat `{\\*` strip left inner text; leftover "Calibri" / "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. Header / footer stay page copy. WMF pict stays parked.
 - Convert: Share dest Word / PDF on WordPad / Word photo RTF whose leftover is `\\fonttbl` / `\\colortbl` / `\\stylesheet` / `\\info` embeds that picture. Real photo RTF always writes those groups; leftover "Calibri" / "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest PDF was Story white. Header / footer / footnote stay page copy. WMF pict stays parked.
