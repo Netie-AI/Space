@@ -521,6 +521,11 @@ def xlsx_to_rows(src: Path) -> list[list[str]]:
 
 def file_to_markdown(src: Path) -> tuple[str, str]:
     ext = src.suffix.lower()
+    if ext == ".xml":
+        pngs = xml_photo_pngs(src)
+        if pngs:
+            return pngs_to_markdown(pngs, "Page", "xml-md-images")
+        return _read_markup(src), "copy"
     if ext in MD_EXTS or ext in TEXT_EXTS:
         return _read_markup(src), "copy"
 
@@ -1306,6 +1311,10 @@ def file_to_docx(src: Path, dest: Path) -> str:
                 return write_docx(dest, visible or text)
             if not text.strip() and src.suffix.lower() in HTML_EXTS:
                 pngs = html_media_pngs(src)
+                if pngs:
+                    return write_docx_images(dest, pngs)
+            if src.suffix.lower() == ".xml":
+                pngs = xml_photo_pngs(src)
                 if pngs:
                     return write_docx_images(dest, pngs)
             return write_docx(dest, text)
@@ -2520,6 +2529,15 @@ def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     return html_string_media_pngs(_read_markup(src), src.parent, cap)
 
 
+def xml_photo_pngs(src: Path, cap: int = 24) -> list[bytes]:
+    """Word 2003 XML dest Word dumped source when the only picture is binData."""
+    raw = _read_markup(src)
+    pngs = html_string_media_pngs(raw, src.parent, cap)
+    if pngs and not html_visible_text(raw):
+        return pngs
+    return []
+
+
 def html_string_to_pdf(story_html: str, dest: Path) -> str:
     pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -2724,6 +2742,10 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         if ext in HTML_EXTS:
             return html_to_pdf(src, dest)
         text = _read_markup(src)
+        if ext == ".xml":
+            pngs = xml_photo_pngs(src)
+            if pngs:
+                return images_to_pdf(pngs, dest, tool="pymupdf-xml-images")
         if ext in MD_EXTS:
             html = markdown_to_html(text)
             visible = html_visible_text(html)
@@ -3308,6 +3330,10 @@ def action_export_as(argv: list[str]) -> dict:
         if src_ext in HTML_EXTS:
             return ok(dest, copy_file(src, dest))
         try:
+            if src_ext == ".xml":
+                pngs = xml_photo_pngs(src)
+                if pngs:
+                    return ok(dest, pngs_to_html(pngs, dest, src.name))
             text, tool = file_to_markdown(src)
             if text.strip() or src_ext not in {".odp", ".odt", ".ods", ".xlsx", ".xlsm", ".pdf"}:
                 body = markdown_to_html(text)
