@@ -2082,6 +2082,26 @@ def html_visible_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+_META_CHARSET = re.compile(
+    r'(?is)<meta\b[^>]*\bcharset\s*=\s*["\']?([a-z0-9_\-]+)',
+)
+_SAFE_CHARSETS = {
+    "windows-1252": "cp1252",
+    "cp1252": "cp1252",
+    "iso-8859-1": "latin-1",
+    "iso8859-1": "latin-1",
+    "latin-1": "latin-1",
+    "latin1": "latin-1",
+}
+
+
+def _meta_charset(text: str) -> str | None:
+    m = _META_CHARSET.search(text)
+    if not m:
+        return None
+    return _SAFE_CHARSETS.get(m.group(1).lower().replace("_", "-"))
+
+
 def _read_markup(src: Path) -> str:
     """Notepad Unicode HTML/MD/txt is UTF-16. utf-8 replace used empty Word."""
     raw = src.read_bytes()
@@ -2089,7 +2109,18 @@ def _read_markup(src: Path) -> str:
         return raw.decode("utf-16")
     if raw.startswith(b"\xef\xbb\xbf"):
         return raw.decode("utf-8-sig")
-    return raw.decode("utf-8", errors="replace")
+    text = raw.decode("utf-8", errors="replace")
+    # ANSI HTML with a declared charset: src="été.png" used empty Word.
+    # No meta / no chardet -- those stay parked.
+    if "\ufffd" not in text:
+        return text
+    enc = _meta_charset(text)
+    if not enc:
+        return text
+    try:
+        return raw.decode(enc)
+    except (LookupError, UnicodeDecodeError):
+        return text
 
 
 def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:

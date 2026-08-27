@@ -2182,6 +2182,69 @@ def test_html_utf16_photo_export() -> None:
         assert res.get("tool") == "pymupdf-story-html", res
 
 
+def test_html_meta_charset_photo_export() -> None:
+    """Share dest Word/MD/PDF on windows-1252 photo HTML with a non-ASCII sibling."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _meta_charset" in src
+    if not pymupdf_available():
+        print("SKIP html meta charset photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html meta charset photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        pic = d / "été.png"
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(pic, format="PNG")
+        html = d / "ansi.html"
+        html.write_bytes(
+            (
+                '<html><head><meta charset="windows-1252"></head>'
+                '<body><img src="été.png"></body></html>'
+            ).encode("windows-1252")
+        )
+        md = d / "ansi.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "ansi.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "ansi.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        iso = d / "iso.html"
+        iso.write_bytes(
+            (
+                '<html><head><meta http-equiv="Content-Type" '
+                'content="text/html; charset=iso-8859-1"></head>'
+                '<body><img src="été.png"></body></html>'
+            ).encode("iso-8859-1")
+        )
+        idocx = d / "iso.docx"
+        res = run_engine(["export-as", str(iso), str(idocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(idocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_html_curly_src_photo_export() -> None:
     """Share dest Word/MD/PDF on photo HTML whose src uses Word smart quotes."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -3206,6 +3269,7 @@ if __name__ == "__main__":
     test_html_base_href_photo_export()
     test_html_bom_visible_photo_export()
     test_html_utf16_photo_export()
+    test_html_meta_charset_photo_export()
     test_html_curly_src_photo_export()
     test_md_curly_dest_export()
     test_md_utf16_photo_export()
