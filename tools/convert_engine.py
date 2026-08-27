@@ -2506,6 +2506,14 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word document variables are not page copy (same class as RTF \docvar).
+    # Leftover "Photo" in <w:docVar> / <w:docVars> stole dest Word / dest PDF Story.
+    # Attribute-only w:val is already empty. Do not strip HTML <del> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:docVars|docVar|DocVar))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word o:DocumentProperties / o:OfficeDocumentSettings are leftover
     # document metadata (same class as CustomDocumentProperties).
     # Leftover "Photo" in <o:DocumentProperties> stole dest Word / dest PDF Story.
