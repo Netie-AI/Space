@@ -1612,6 +1612,47 @@ def require_pymupdf():
         raise RuntimeError(f"pymupdf missing: {e}") from e
 
 
+def _stylesheet_hrefs(html: str) -> list[str]:
+    """Sibling <link rel=stylesheet href>. Inline / <style> url() already scanned."""
+    hrefs: list[str] = []
+    seen: set[str] = set()
+    for m in re.finditer(r"(?is)<link\b([^>]*)>", html):
+        attrs = m.group(1)
+        rel = re.search(r"""(?i)\brel\s*=\s*(['"])([^'"]*)\1""", attrs)
+        href = re.search(r"""(?i)\bhref\s*=\s*(['"])([^'"]+)\1""", attrs)
+        if not rel or not href:
+            continue
+        if "stylesheet" not in rel.group(2).lower().split():
+            continue
+        val = href.group(2).strip()
+        if val and val not in seen:
+            seen.add(val)
+            hrefs.append(val)
+    return hrefs
+
+
+def _sibling_url_pngs(text: str, resolve_dir: Path, root: Path, cap: int) -> list[bytes]:
+    """url() paths resolve against resolve_dir, stay under root (HTML parent)."""
+    pngs: list[bytes] = []
+    for m in re.finditer(r"url\(\s*['\"]?(?!data:)([^'\")\s]+)['\"]?\s*\)", text, re.I):
+        if len(pngs) >= cap:
+            break
+        href = m.group(1).strip()
+        if not href or href.startswith("#") or href.lower() in {"none", "inherit"}:
+            continue
+        path = (resolve_dir / href).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError:
+            continue
+        if not path.is_file():
+            continue
+        png = _bytes_to_png(path.read_bytes())
+        if png:
+            pngs.append(png)
+    return pngs
+
+
 def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -> list[bytes]:
     import base64
 
@@ -1666,22 +1707,26 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         if png:
             pngs.append(png)
     # CSS background-image:url(sib.png). Share dest Word/MD used empty / 1-byte.
-    for m in re.finditer(r"url\(\s*['\"]?(?!data:)([^'\")\s]+)['\"]?\s*\)", text, re.I):
+    pngs.extend(_sibling_url_pngs(text, base, root, cap - len(pngs)))
+    # Linked .css url() is relative to the CSS file. Inline scan never saw it.
+    for href in _stylesheet_hrefs(text)[:8]:
         if len(pngs) >= cap:
             break
-        href = m.group(1).strip()
-        if not href or href.startswith("#") or href.lower() in {"none", "inherit"}:
+        if href.startswith(("data:", "http:", "https:", "//", "#")):
             continue
-        path = (base / href).resolve()
         try:
-            path.relative_to(root)
-        except ValueError:
+            css_path = (base / href).resolve()
+            css_path.relative_to(root)
+        except (OSError, ValueError):
             continue
-        if not path.is_file():
+        if css_path.suffix.lower() != ".css" or not css_path.is_file():
             continue
-        png = _bytes_to_png(path.read_bytes())
-        if png:
-            pngs.append(png)
+        try:
+            css = css_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        pngs.extend(html_string_media_pngs(css, None, cap - len(pngs)))
+        pngs.extend(_sibling_url_pngs(css, css_path.parent, root, cap - len(pngs)))
     return pngs
 
 

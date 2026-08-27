@@ -848,6 +848,78 @@ def test_html_svg_photo_export() -> None:
         assert "data:image/png;base64," in umd.read_text(encoding="utf-8")
 
 
+def test_html_linked_css_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo-only HTML whose picture is only in a sibling .css."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _stylesheet_hrefs" in src
+    assert "def _sibling_url_pngs" in src
+    if not pymupdf_available():
+        print("SKIP html linked css photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html linked css photo export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        pic = d / "pic.png"
+        pic.write_bytes(png)
+        css = d / "page.css"
+        css.write_text(".hero{background-image:url(pic.png)}", encoding="utf-8")
+        html = d / "link.html"
+        html.write_text(
+            '<html><head><link rel="stylesheet" href="page.css"></head>'
+            '<body><div class="hero"></div></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "link.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "link.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "link.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        assert pdf.is_file() and pdf.stat().st_size > 2000
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        nest_dir = d / "css"
+        nest_dir.mkdir()
+        nest_css = nest_dir / "page.css"
+        nest_css.write_text(".hero{background-image:url(../pic.png)}", encoding="utf-8")
+        nest = d / "nest.html"
+        nest.write_text(
+            '<html><head><link href="css/page.css" rel="stylesheet"></head>'
+            '<body><div class="hero"></div></body></html>',
+            encoding="utf-8",
+        )
+        ndocx = d / "nest.docx"
+        res = run_engine(["export-as", str(nest), str(ndocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(ndocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -1674,6 +1746,7 @@ if __name__ == "__main__":
     test_html_export_same_file()
     test_html_photo_export()
     test_html_svg_photo_export()
+    test_html_linked_css_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
