@@ -1169,6 +1169,62 @@ def test_html_unquoted_src_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_src_strip_photo_export() -> None:
+    """Share dest Word/MD/PDF on photo-only HTML with padded / hashed sibling src."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _local_href" in src
+    if not pymupdf_available():
+        print("SKIP html src strip photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html src strip photo export -- Pillow missing")
+        return
+    import io
+    import zipfile
+
+    buf = io.BytesIO()
+    Image.new("RGB", (64, 48), (20, 160, 60)).save(buf, format="PNG")
+    png = buf.getvalue()
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "pic.png").write_bytes(png)
+        html = d / "pad.html"
+        html.write_text(
+            '<html><body><img src=" pic.png " alt=""></body></html>',
+            encoding="utf-8",
+        )
+        md = d / "pad.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "pad.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        frag = d / "frag.html"
+        frag.write_text(
+            '<html><body><img src="pic.png#hero" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        fpdf = d / "frag.pdf"
+        res = run_engine(["export-as", str(frag), str(fpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        assert fpdf.is_file() and fpdf.stat().st_size > 2000
+        import pymupdf
+
+        doc = pymupdf.open(fpdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2000,6 +2056,7 @@ if __name__ == "__main__":
     test_html_srcset_photo_export()
     test_html_src_spaced_eq_photo_export()
     test_html_unquoted_src_photo_export()
+    test_html_src_strip_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()

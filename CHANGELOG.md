@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-26
 
+- Convert: Share dest Word / Markdown / PDF on photo-only HTML with padded `src=" pic.png "` or `src="pic.png#hero"` embeds that picture. Unquoted attrs landed in #204; whitespace / fragment / query on sibling paths used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML5 with unquoted `src=pic.png` / `srcset=pic.png` / `<link rel=stylesheet href=page.css>` embeds that picture. Quoted attrs landed in #194-#203; unquoted used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML with pretty-printed `src = "pic.png"` (spaces around `=`) embeds that picture. `src=` with no spaces / srcset landed in #194-#202; spaced `src` used empty Word / 1-byte MD / Story without pictures.
 - Convert: Share dest Word / Markdown / PDF on photo-only HTML whose picture is only in `srcset` (`<img srcset>` or `<picture><source srcset>`) embeds that picture. `@import` landed in #201; srcset-only used empty Word / 1-byte MD / 573-byte Story PDF.
