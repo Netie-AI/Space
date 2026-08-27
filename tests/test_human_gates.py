@@ -232,6 +232,7 @@ def test_scripts_and_docs():
     assert "Draft leftover dest PRs wait on hosted jobs with real steps + PASS." in gha
     assert "#281 CI path-split + billing playbook" in gha
     assert "#290 leftover `DocumentProperties`" in gha
+    assert "#291 leftover Word HTML settings" in gha
     check = (ROOT / "scripts/gha-billing-check.sh").read_text(encoding="utf-8")
     assert "spending limit needs to be increased" in check
     assert "Do not merge" in check

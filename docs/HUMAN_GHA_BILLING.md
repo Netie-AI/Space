@@ -51,7 +51,7 @@ the previous):
 8. #288 nested `aml:annotation`
 9. #289 leftover `CustomDocumentProperties`
 10. #290 leftover `DocumentProperties` / `OfficeDocumentSettings`
-11. leftover Word HTML settings (`w:View` / `w:BrowserLevel`) after #290
+11. #291 leftover Word HTML settings (`w:View` / `w:BrowserLevel`)
 
 Draft #1 (demo video) stays draft. Parked leftovers stay parked
 (headers / footnotes / smart tags / `w:sdt` / xml islands outside
