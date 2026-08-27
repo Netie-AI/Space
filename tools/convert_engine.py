@@ -2221,13 +2221,32 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Inkscape RDF / inkscape:label sit outside <metadata>. Leftover
+    # "Photo" stole dest Word / MD.
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?RDF\b[^>]*>.*?</(?:[\w.-]+:)?RDF\s*>",
+        "",
+        text,
+    )
+    text = re.sub(r"(?is)<inkscape:label\b[^>]*>.*?</inkscape:label\s*>", "", text)
     text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
     text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
+    # <template> / <noscript> are not page copy. Leftover "Enable JS"
+    # stole dest Word when a sibling <img> was the only picture.
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:template|noscript))\b[^>]*>.*?</\1\s*>",
+        "",
+        text,
+    )
     # Raw SVG data URIs contain '>' inside src='...'. [^>]* used to leave
     # "' alt=''>" and steal the pictures path (empty Word / html-strip).
     text = re.sub(r'(?is)<img\b[^>]*src\s*=\s*(["\'])(?:.*?)\1[^>]*>', "", text)
     text = re.sub(r"(?is)<img[^>]*>", "", text)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
+    # Word HTML <p>&nbsp;</p> is not page copy. Entity text stole dest Word.
+    text = html.unescape(text)
+    for ch in ("\ufeff", "\u200b", "\u200c", "\u200d"):
+        text = text.replace(ch, "")
     return re.sub(r"\s+", " ", text).strip()
 
 
