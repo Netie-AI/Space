@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -2291,16 +2292,16 @@ def html_visible_text(text: str) -> str:
         text = nxt
     # MD dest Word html.escape'd <!-- comment --> back into page copy.
     text = re.sub(r"(?s)<!--.*?-->", "", text)
-    # Word / RTL leftover &lrm; / &rlm; / &wj; are not page copy.
-    # Same class as ZWSP / SHY. Leftover marks stole dest Word.
-    for ch in (
-        "\ufeff", "\u200b", "\u200c", "\u200d", "\u00ad",
-        "\u200e", "\u200f", "\u2060",
-        "\u2066", "\u2067", "\u2068", "\u2069",
-        "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",
-        "\u061c",
-    ):
-        text = text.replace(ch, "")
+    # Format marks are not page copy. Leftover &#xfe0f; (emoji VS16)
+    # stole dest Word and wrote dest PDF white (Story of an empty page).
+    # Cf covers LRM / ZWSP / SHY / WJ. VS16 / CGJ are Mn.
+    text = "".join(
+        ch
+        for ch in text
+        if unicodedata.category(ch) != "Cf"
+        and ch != "\u034f"
+        and not (0xFE00 <= ord(ch) <= 0xFE0F)
+    )
     return re.sub(r"\s+", " ", text).strip()
 
 

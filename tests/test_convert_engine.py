@@ -3377,7 +3377,7 @@ def test_html_shy_comment_photo_export() -> None:
     """Share dest Word/MD on photo HTML whose leftover is &shy; or an IE/Word comment."""
     src = ENGINE.read_text(encoding="utf-8")
     assert r"(?s)<!--.*?-->" in src
-    assert r"\u00ad" in src
+    assert 'unicodedata.category(ch) != "Cf"' in src
     if not pymupdf_available():
         print("SKIP html shy/comment photo export -- pymupdf missing")
         return
@@ -3806,7 +3806,7 @@ def test_md_image_photo_pdf() -> None:
 def test_html_lrm_wj_photo_export() -> None:
     """Share dest Word on photo HTML whose leftover is Word/RTL &lrm; / &NoBreak;."""
     src = ENGINE.read_text(encoding="utf-8")
-    assert "\\u200e" in src and "\\u2060" in src
+    assert 'unicodedata.category(ch) != "Cf"' in src
     if not pymupdf_available():
         print("SKIP html lrm wj photo export -- pymupdf missing")
         return
@@ -3912,6 +3912,67 @@ def test_html_empty_svg_photo_export() -> None:
                 assert px[1] >= 160 and px[0] < 40, px
             finally:
                 im.close()
+
+
+def test_html_vs16_photo_export() -> None:
+    """Share dest Word/PDF on photo HTML whose leftover is emoji &#xfe0f;."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "0xFE00 <= ord(ch) <= 0xFE0F" in src
+    if not pymupdf_available():
+        print("SKIP html vs16 photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html vs16 photo export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        (d / "pic.png").write_bytes(buf.getvalue())
+        html = d / "photo.html"
+        html.write_text(
+            '<html><body><img src="pic.png">&#xfe0f;&#x034f;</body></html>',
+            encoding="utf-8",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(html), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">Hello&#xfe0f;</body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
 
 
 def test_svg_ico_drop_merge_lists() -> None:
@@ -4757,6 +4818,7 @@ if __name__ == "__main__":
     test_md_image_photo_pdf()
     test_html_lrm_wj_photo_export()
     test_html_empty_svg_photo_export()
+    test_html_vs16_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
