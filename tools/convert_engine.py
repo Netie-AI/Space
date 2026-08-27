@@ -2522,8 +2522,9 @@ def html_visible_text(text: str) -> str:
     # Leftover "Photo" stole dest Word / dest PDF Story.
     # class=msocomhide / msocomanch / msocomanchor is Office comment-hide
     # chrome (same family as msocomoff). Leftover "Photo" stole dest Word / dest PDF Story.
+    # <a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML).
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
         r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
@@ -2532,9 +2533,11 @@ def html_visible_text(text: str) -> str:
     # style=mso-element:comment / comment-list is Office comment storage.
     # Leftover "Photo" stole dest Word / dest PDF Story.
     # Do not strip mso-element:header / footnote (page copy).
+    # <a style=mso-comment-reference> / mso-special-character:comment is the
+    # same official comment chrome.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
-        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference)\b"
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference|mso-special-character\s*:\s*comment)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,

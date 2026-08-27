@@ -5658,6 +5658,89 @@ def test_html_mso_element_comment_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_msocom_a_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is <a class=msocomoff>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "<a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML)." in src
+    assert "(?:span|div|p|a)" in src
+    assert "mso-comment-reference|mso-special-character\\s*:\\s*comment" in src
+    if not pymupdf_available():
+        print("SKIP html msocom-a -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html msocom-a -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<a class="msocomoff" href="#_msocom_1">Photo</a>',
+            '<a class="msocomanch" name="_msoanchor_1">Photo</a>',
+            '<a style="mso-comment-reference:A_1">Photo</a>',
+            '<span style="mso-special-character:comment">Photo</span>',
+            '<a class="msocomoff">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<a class="msocomoff">Photo</a><p>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        link = d / "link.html"
+        link.write_text(
+            '<html><body><img src="pic.png">'
+            '<a href="x">Hello</a></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "link.docx"
+        res = run_engine(["export-as", str(link), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_unclosed_style_photo_export() -> None:
     """Share dest Word on photo HTML whose leftover is unclosed <style> / <title>."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -7832,6 +7915,7 @@ if __name__ == "__main__":
     test_html_msoballoon_photo_export()
     test_html_msocomhide_photo_export()
     test_html_mso_element_comment_photo_export()
+    test_html_msocom_a_photo_export()
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
     test_html_noframes_photo_export()
