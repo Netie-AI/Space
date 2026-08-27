@@ -324,8 +324,6 @@ def pptx_slide_texts(src: Path) -> list[str]:
 
 def zip_media_pngs(src: Path, prefixes: tuple[str, ...], cap: int = 24) -> list[bytes]:
     """Office zip pictures as PNG bytes. Share PDF used empty markdown."""
-    import io
-
     pngs: list[bytes] = []
     try:
         with zipfile.ZipFile(src) as zf:
@@ -334,19 +332,11 @@ def zip_media_pngs(src: Path, prefixes: tuple[str, ...], cap: int = 24) -> list[
             )[:cap]
             for name in names:
                 raw = zf.read(name)
-                try:
-                    from PIL import Image
-
-                    im = Image.open(io.BytesIO(raw))
-                    try:
-                        buf = io.BytesIO()
-                        im.convert("RGBA").save(buf, format="PNG")
-                        pngs.append(buf.getvalue())
-                    finally:
-                        im.close()
-                except Exception:
-                    if name.lower().endswith(".png") and raw:
-                        pngs.append(raw)
+                # Pillow cannot open SVG. Photo ODT dest PDF raised
+                # "no PDF converter" when Pictures/ was icon.svg.
+                png = _bytes_to_png(raw)
+                if png:
+                    pngs.append(png)
     except Exception:
         return []
     return pngs

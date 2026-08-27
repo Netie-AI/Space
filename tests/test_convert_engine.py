@@ -3503,6 +3503,114 @@ def test_html_amp_nbsp_md_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_office_svg_media_export() -> None:
+    """Share dest PDF/Word on photo ODT/DOCX whose zip picture is icon.svg."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Pillow cannot open SVG. Photo ODT dest PDF raised" in src
+    if not pymupdf_available():
+        print("SKIP office svg media export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP office svg media export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    svg = (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+        '<rect width="64" height="48" fill="#14b450"/></svg>'
+    ).encode("utf-8")
+
+    def write_odt(path: Path) -> None:
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+            zf.writestr(
+                "content.xml",
+                '<?xml version="1.0"?>'
+                '<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"'
+                ' xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">'
+                "<office:body><office:text></office:text></office:body>"
+                "</office:document-content>",
+            )
+            zf.writestr(
+                "META-INF/manifest.xml",
+                '<?xml version="1.0"?><manifest:manifest '
+                'xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0"/>',
+            )
+            zf.writestr("Pictures/icon.svg", svg)
+
+    def write_docx(path: Path) -> None:
+        with zipfile.ZipFile(path, "w") as zf:
+            zf.writestr(
+                "[Content_Types].xml",
+                '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+                '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+                '<Default Extension="xml" ContentType="application/xml"/>'
+                '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+                "</Types>",
+            )
+            zf.writestr(
+                "_rels/.rels",
+                '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
+                "</Relationships>",
+            )
+            zf.writestr(
+                "word/document.xml",
+                '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                "<w:body><w:p/></w:body></w:document>",
+            )
+            zf.writestr(
+                "word/_rels/document.xml.rels",
+                '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>',
+            )
+            zf.writestr("word/media/icon.svg", svg)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        odt = d / "photo.odt"
+        write_odt(odt)
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(odt), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(odt), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        docx = d / "in.docx"
+        write_docx(docx)
+        pdf2 = d / "in.pdf"
+        res = run_engine(["export-as", str(docx), str(pdf2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-office-images", res
+        doc = pymupdf.open(pdf2)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4340,6 +4448,7 @@ if __name__ == "__main__":
     test_html_nbsp_template_photo_export()
     test_html_shy_comment_photo_export()
     test_html_amp_nbsp_md_photo_export()
+    test_office_svg_media_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
