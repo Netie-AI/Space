@@ -351,7 +351,9 @@ def office_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     if ext in PPTX_EXTS:
         return pptx_media_pngs(src, cap)
     if ext in {".odp", ".odt", ".ods"}:
-        return zip_media_pngs(src, ("Pictures/", "media/"), cap)
+        return zip_media_pngs(
+            src, ("Pictures/", "media/", "ObjectReplacements/"), cap
+        )
     if ext == ".docx":
         return zip_media_pngs(src, ("word/media/",), cap)
     if ext in {".xlsx", ".xlsm"}:
