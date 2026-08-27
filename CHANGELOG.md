@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / HTML / PDF on Markdown images whose dest wraps to the next line embeds that picture. Stdlib parsed one line at a time, so dests dumped `![` source or wrote Word with no `word/media`.
 - Convert: Share dest Word / Markdown / PDF on photo HTML with `<base href="images/">` and `src="pic.png"` embeds that picture. Sibling resolve used the HTML folder, so dest Word / MD / PDF missed `images/pic.png`. Remote `<base href="https://...">` still uses the HTML folder.
 - Convert: Share dest Word / Markdown / PDF on photo HTML with a normal `<title>` / `<head>` embeds that picture. `html_visible_text` counted title text as page copy, so dest Word wrote the word "Photo" with no `word/media` and dest MD used `html-strip`. `<header>` stays (page content).
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose picture is `data:image/png;charset=utf-8;base64,...` embeds that picture. The scan required `;base64,` immediately after the type, so charset / name params used empty Word / 1-byte MD / Story without pictures.
