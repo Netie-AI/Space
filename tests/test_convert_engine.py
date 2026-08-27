@@ -3170,6 +3170,69 @@ def test_svg_preamble_size_utf16_export() -> None:
                 im.close()
 
 
+def test_svg_switch_a_export() -> None:
+    """Share dest PNG/Word on SVG whose picture is <switch>/<a> around <image href>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "MuPDF skips <image> inside <a> / <switch>" in src
+    if not pymupdf_available():
+        print("SKIP svg switch/a export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP svg switch/a export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(d / "pic.png", format="PNG")
+        for name, markup in (
+            (
+                "sw.svg",
+                '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+                '<switch><image href="pic.png" width="64" height="48"/></switch></svg>',
+            ),
+            (
+                "a.svg",
+                '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+                '<a href="#"><image href="pic.png" width="64" height="48"/></a></svg>',
+            ),
+        ):
+            svg = d / name
+            svg.write_text(markup, encoding="utf-8")
+            png = d / (name + ".png")
+            res = run_engine(["export-as", str(svg), str(png)])
+            assert res.get("success"), (name, res)
+            im = Image.open(png)
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, (name, px)
+            finally:
+                im.close()
+        html = d / "mark.html"
+        html.write_text(
+            '<html><body><svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<a href="#"><switch><image href="pic.png" width="64" height="48"/>'
+            "</switch></a></svg></body></html>",
+            encoding="utf-8",
+        )
+        docx = d / "mark.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4002,6 +4065,7 @@ if __name__ == "__main__":
     test_svg_close_tag_export()
     test_svg_upper_tag_export()
     test_svg_preamble_size_utf16_export()
+    test_svg_switch_a_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()

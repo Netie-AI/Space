@@ -759,6 +759,16 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
     if depth > 3 or not text:
         return text
     root = root.resolve()
+    # MuPDF skips <image> inside <a> / <switch>. Dest PNG / Word were white.
+    for _ in range(4):
+        nxt = re.sub(
+            r"(?is)<((?:[\w.-]+:)?(?:a|switch))\b[^>]*>(.*?)</\1\s*>",
+            r"\2",
+            text,
+        )
+        if nxt == text:
+            break
+        text = nxt
 
     def repl(m: re.Match[str]) -> str:
         attrs = m.group(1)
