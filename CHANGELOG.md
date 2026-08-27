@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest PNG on SVG whose `<image href="pic.png"></image>` uses a close tag, and photo HTML dest Word whose inline SVG is `<svg:svg>...</svg:svg>`, embed that picture. The rewrite left `</image>` behind and the HTML scan required `</svg>`, so dest PNG raised / dest Word had no `word/media`.
 - Convert: Share dest PNG / Word on SVG whose picture is a prefixed `<svg:image href="pic.png">` / `<svg:use href="icon.svg">` embeds that picture. The scan required a bare `<image>` / `<use>` tag, so dest PNG / dest Word were a white page. Same path-safe rewrite.
 - Convert: Share dest PNG / PDF on SVG whose picture is a sibling `<use href="icon.svg">` / `<use href="sprite.svg#icon">` embeds that picture. MuPDF cannot find a linked symbol, so dests were a white page. Path-safe siblings only. Local `#id`, `../`, pattern / feImage stay parked.
 - Convert: Share dest PNG / JPG / PDF on SVG whose picture is a sibling `<image href="pic.png">` (and photo HTML dest Word with that inline SVG) embeds the sibling. MuPDF ignored the external image, so dests were a white page. Path-safe siblings only. Remote / `../` stay parked.

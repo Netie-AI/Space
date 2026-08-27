@@ -769,7 +769,11 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
         rest = rest.rstrip().rstrip("/")
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
-    text = re.sub(r"(?is)<(?:[\w.-]+:)?image\b([^>]*)/?>", repl, text)
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?image\b([^>]*)(?:/>|>\s*(?:</(?:[\w.-]+:)?image\s*>)?)",
+        repl,
+        text,
+    )
 
     def repl_use(m: re.Match[str]) -> str:
         attrs = m.group(1)
@@ -821,7 +825,11 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
         rest = rest.rstrip().rstrip("/")
         return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
-    return re.sub(r"(?is)<(?:[\w.-]+:)?use\b([^>]*)/?>", repl_use, text)
+    return re.sub(
+        r"(?is)<(?:[\w.-]+:)?use\b([^>]*)(?:/>|>\s*(?:</(?:[\w.-]+:)?use\s*>)?)",
+        repl_use,
+        text,
+    )
 
 
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
@@ -2081,7 +2089,7 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         if png:
             pngs.append(png)
     # Inline <svg> (no <img>). Share dest Word/MD used empty / 1-byte files.
-    for m in re.finditer(r"(?is)<svg\b[^>]*>.*?</svg>", text):
+    for m in re.finditer(r"(?is)<(?:[\w.-]+:)?svg\b[^>]*>.*?</(?:[\w.-]+:)?svg\s*>", text):
         if len(pngs) >= cap:
             break
         prefix = text[max(0, m.start() - 48):m.start()].lower()
