@@ -2208,6 +2208,9 @@ def html_visible_text(text: str) -> str:
     # UTF-8 BOM is not page copy. Notepad / Word HTML used to steal dest
     # Word / MD (\\ufeff is not whitespace, so strip() left it).
     text = text.replace("\ufeff", "")
+    # IE / Word conditional comments are not page copy. Leftover "Photo"
+    # inside <!--[if IE]> stole dest Word / MD.
+    text = re.sub(r"(?s)<!--.*?-->", "", text)
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
@@ -2243,9 +2246,9 @@ def html_visible_text(text: str) -> str:
     text = re.sub(r'(?is)<img\b[^>]*src\s*=\s*(["\'])(?:.*?)\1[^>]*>', "", text)
     text = re.sub(r"(?is)<img[^>]*>", "", text)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
-    # Word HTML <p>&nbsp;</p> is not page copy. Entity text stole dest Word.
+    # Word HTML <p>&nbsp;</p> / &shy; are not page copy. Entity text stole dest Word.
     text = html.unescape(text)
-    for ch in ("\ufeff", "\u200b", "\u200c", "\u200d"):
+    for ch in ("\ufeff", "\u200b", "\u200c", "\u200d", "\u00ad"):
         text = text.replace(ch, "")
     return re.sub(r"\s+", " ", text).strip()
 
