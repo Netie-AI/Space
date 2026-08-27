@@ -4213,6 +4213,92 @@ def test_html_svg_black_raster_photo_export() -> None:
                 im.close()
 
 
+def test_svg_unused_defs_photo_export() -> None:
+    """Share dest Word/PDF/PNG on unused <defs><image href> (no <use>)."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _svg_unused_container_image" in src
+    assert "MuPDF does not paint unused" in src
+    if not pymupdf_available():
+        print("SKIP svg unused defs -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP svg unused defs -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(d / "pic.png", format="PNG")
+        html = d / "photo.html"
+        html.write_text(
+            '<html><body><svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<defs><image href="pic.png" width="64" height="48"/></defs>'
+            "</svg></body></html>",
+            encoding="utf-8",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(html), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+            r, g = pix.samples[i], pix.samples[i + 1]
+            assert g >= 160 and r < 40, (r, g)
+        finally:
+            doc.close()
+        svg = d / "mark.svg"
+        svg.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<defs><image href="pic.png" width="64" height="48"/></defs>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        png = d / "mark.png"
+        res = run_engine(["export-as", str(svg), str(png)])
+        assert res.get("success"), res
+        im = Image.open(png)
+        try:
+            px = im.convert("RGB").getpixel((8, 8))
+            assert px[1] >= 160 and px[0] < 40, px
+        finally:
+            im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body>Hello<svg xmlns="http://www.w3.org/2000/svg">'
+            '<defs><image href="pic.png"/></defs></svg></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        with zipfile.ZipFile(dest2) as zf:
+            xml = zf.read("word/document.xml").decode("utf-8")
+            assert "Hello" in xml
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert not media, media
+
+
 def test_html_unclosed_style_photo_export() -> None:
     """Share dest Word on photo HTML whose leftover is unclosed <style> / <title>."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -6277,6 +6363,7 @@ if __name__ == "__main__":
     test_html_vs16_photo_export()
     test_html_svg_white_raster_photo_export()
     test_html_svg_black_raster_photo_export()
+    test_svg_unused_defs_photo_export()
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
     test_html_noframes_photo_export()
