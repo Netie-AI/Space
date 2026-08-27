@@ -52,6 +52,7 @@ the previous):
 9. #289 leftover `CustomDocumentProperties`
 10. #290 leftover `DocumentProperties` / `OfficeDocumentSettings`
 11. #291 leftover Word HTML settings (`w:View` / `w:BrowserLevel`)
+12. #292 leftover WordML `pStyle=CommentText`
 
 Draft #1 (demo video) stays draft. Parked leftovers stay parked
 (headers / footnotes / smart tags / `w:sdt` / xml islands outside
