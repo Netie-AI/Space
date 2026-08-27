@@ -2581,9 +2581,15 @@ def file_to_pdf(src: Path, dest: Path) -> str:
             return html_to_pdf(src, dest)
         text = _read_markup(src)
         if ext in MD_EXTS:
-            html = inline_sibling_images(markdown_to_html(text), src.parent)
+            html = markdown_to_html(text)
+            visible = html_visible_text(html)
+            pngs = html_string_media_pngs(html, src.parent)
+            # Story drops data-URI <img>. Photo MD dest PDF was a white page
+            # while dest Word already embeds the sibling picture.
+            if pngs and not visible:
+                return images_to_pdf(pngs, dest, tool="pymupdf-md-images")
             try:
-                return html_string_to_pdf(html, dest)
+                return html_string_to_pdf(inline_sibling_images(html, src.parent), dest)
             except RuntimeError:
                 return markdown_to_pdf(text, dest)
         return markdown_to_pdf(text, dest)
