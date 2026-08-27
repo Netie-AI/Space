@@ -2526,6 +2526,21 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # WordML leftover comment paragraphs are the same class as class=MsoCommentText.
+    # Leftover "Photo" in pStyle=CommentText / BalloonText stole dest Word / dest PDF Story.
+    # pStyle comes first on official leftovers so Hello Normal is not swallowed.
+    # Do not strip pStyle=Normal / Header / EndnoteText (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?p)\b[^>]*>\s*<(?:[\w.-]+:)?pPr\b[^>]*>\s*<(?:[\w.-]+:)?pStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentText|BalloonText|CommentSubject|Balloon Text|annotation text|annotation subject)\2\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # WordML leftover comment-reference runs (same class as MsoCommentReference).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?r)\b[^>]*>\s*<(?:[\w.-]+:)?rPr\b[^>]*>\s*<(?:[\w.-]+:)?rStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentReference|annotation reference)\2\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
