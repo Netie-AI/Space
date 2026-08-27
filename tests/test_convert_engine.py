@@ -4390,6 +4390,72 @@ def test_html_head_xml_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_bindata_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose picture is leftover <w:binData>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Word 2003 HTML / WordML leftover <w:binData>" in src
+    if not pymupdf_available():
+        print("SKIP html bindata -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html bindata -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        html = d / "photo.html"
+        html.write_text(
+            '<html><body><img src="wordml://1.png">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            "</body></html>",
+            encoding="utf-8",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(html), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        pdf = d / "photo.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+            r, g = pix.samples[i], pix.samples[i + 1]
+            assert g >= 160 and r < 40, (r, g)
+        finally:
+            doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            f'<html><body><w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_unclosed_comment_photo_export() -> None:
     """Share dest Word / PDF on photo HTML / MD whose leftover is unclosed <!-- Photo."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -5389,6 +5455,7 @@ if __name__ == "__main__":
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
     test_html_head_xml_photo_export()
+    test_html_bindata_photo_export()
     test_html_unclosed_comment_photo_export()
     test_md_frontmatter_photo_export()
     test_svg_ico_drop_merge_lists()
