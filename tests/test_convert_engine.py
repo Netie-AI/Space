@@ -2790,6 +2790,95 @@ def test_svg_image_href_export() -> None:
             im.close()
 
 
+def test_svg_use_href_export() -> None:
+    """Share dest PNG/PDF on SVG whose picture is a sibling <use href='icon.svg'>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "<use\\b" in src or "repl_use" in src
+    if not pymupdf_available():
+        print("SKIP svg use href export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP svg use href export -- Pillow missing")
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        (d / "icon.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<rect width="64" height="48" fill="#14b450"/>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        svg = d / "mark.svg"
+        svg.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<use href="icon.svg"/>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        png = d / "mark.png"
+        res = run_engine(["export-as", str(svg), str(png)])
+        assert res.get("success"), res
+        im = Image.open(png)
+        try:
+            px = im.convert("RGB").getpixel((8, 8))
+            assert px[1] >= 160 and px[0] < 40, px
+        finally:
+            im.close()
+        (d / "sprite.svg").write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg">'
+            '<g id="icon"><rect width="64" height="48" fill="#14b450"/></g>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        frag = d / "frag.svg"
+        frag.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<use href="sprite.svg#icon"/>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        fpng = d / "frag.png"
+        res = run_engine(["export-as", str(frag), str(fpng)])
+        assert res.get("success"), res
+        im = Image.open(fpng)
+        try:
+            px = im.convert("RGB").getpixel((8, 8))
+            assert px[1] >= 160 and px[0] < 40, px
+        finally:
+            im.close()
+        pdf = d / "mark.pdf"
+        res = run_engine(["export-as", str(svg), str(pdf)])
+        assert res.get("success"), res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            pix = doc[0].get_pixmap()
+            assert pix.samples[1] >= 160 and pix.samples[0] < 40
+        finally:
+            doc.close()
+        local = d / "local.svg"
+        local.write_text(
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<g id="icon"><rect width="64" height="48" fill="#14b450"/></g>'
+            '<use href="#icon"/>'
+            "</svg>",
+            encoding="utf-8",
+        )
+        lpng = d / "local.png"
+        res = run_engine(["export-as", str(local), str(lpng)])
+        assert res.get("success"), res
+        im = Image.open(lpng)
+        try:
+            px = im.convert("RGB").getpixel((8, 8))
+            assert px[1] >= 160 and px[0] < 40, px
+        finally:
+            im.close()
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -3617,6 +3706,7 @@ if __name__ == "__main__":
     test_md_utf16_photo_export()
     test_export_as_svg()
     test_svg_image_href_export()
+    test_svg_use_href_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
