@@ -2376,6 +2376,81 @@ def test_html_xml_encoding_photo_export() -> None:
             assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
 
 
+def test_html_cjk_charset_photo_export() -> None:
+    """Share dest Word/MD/PDF on gbk / shift_jis photo HTML with a non-ASCII sibling."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert '"gbk": "gbk"' in src
+    if not pymupdf_available():
+        print("SKIP html cjk charset photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html cjk charset photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "été.png", format="PNG")
+        Image.new("RGB", (64, 48), (200, 80, 20)).save(d / "写真.png", format="PNG")
+        gbk = d / "gbk.html"
+        gbk.write_bytes(
+            (
+                '<html><head><meta charset="gbk"></head>'
+                '<body><img src="été.png"></body></html>'
+            ).encode("gbk")
+        )
+        md = d / "gbk.md"
+        res = run_engine(["to-md", str(gbk), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "gbk.docx"
+        res = run_engine(["export-as", str(gbk), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "gbk.pdf"
+        res = run_engine(["export-as", str(gbk), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        sjis = d / "sjis.html"
+        sjis.write_bytes(
+            (
+                '<html><head><meta charset="shift_jis"></head>'
+                '<body><img src="写真.png"></body></html>'
+            ).encode("shift_jis")
+        )
+        sdocx = d / "sjis.docx"
+        res = run_engine(["export-as", str(sjis), str(sdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(sdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        mac = d / "mac.html"
+        mac.write_bytes(
+            (
+                '<html><head><meta charset="macintosh"></head>'
+                '<body><img src="été.png"></body></html>'
+            ).encode("mac_roman")
+        )
+        mdocx = d / "mac.docx"
+        res = run_engine(["export-as", str(mac), str(mdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(mdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+
+
 def test_html_curly_src_photo_export() -> None:
     """Share dest Word/MD/PDF on photo HTML whose src uses Word smart quotes."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -3403,6 +3478,7 @@ if __name__ == "__main__":
     test_html_utf16_photo_export()
     test_html_meta_charset_photo_export()
     test_html_xml_encoding_photo_export()
+    test_html_cjk_charset_photo_export()
     test_html_curly_src_photo_export()
     test_md_curly_dest_export()
     test_md_utf16_photo_export()

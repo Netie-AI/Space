@@ -2098,6 +2098,12 @@ _SAFE_CHARSETS = {
     "iso8859-1": "latin-1",
     "latin-1": "latin-1",
     "latin1": "latin-1",
+    "gbk": "gbk",
+    "gb2312": "gb2312",
+    "shift-jis": "shift_jis",
+    "shiftjis": "shift_jis",
+    "big5": "big5",
+    "macintosh": "mac_roman",
 }
 
 
