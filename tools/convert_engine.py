@@ -738,7 +738,7 @@ def markdown_to_html(text: str) -> str:
 
 
 def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
-    """<image href='pic.png'> dest PNG/PDF used a white page. Path-safe siblings only."""
+    """<image href='pic.png'> / <use href='icon.svg'> dest PNG used a white page."""
     if depth > 3 or not text:
         return text
     root = root.resolve()
@@ -766,9 +766,62 @@ def _inline_svg_sibling_images(text: str, root: Path, depth: int = 0) -> str:
             "",
             attrs,
         )
-        return f'<image href="{_png_data_uri(png)}"{rest}{m.group(2)}>'
+        rest = rest.rstrip().rstrip("/")
+        return f'<image href="{_png_data_uri(png)}"{rest}/>'
 
-    return re.sub(r"(?is)<image\b([^>]*)(/?)>", repl, text)
+    text = re.sub(r"(?is)<image\b([^>]*)/?>", repl, text)
+
+    def repl_use(m: re.Match[str]) -> str:
+        attrs = m.group(1)
+        href = _html_attr(attrs, "href") or _html_attr(attrs, "xlink:href")
+        if not href or href.strip().startswith("#"):
+            return m.group(0)
+        file_part, _, frag = href.partition("#")
+        file_part = _local_href(file_part)
+        if not file_part or file_part.startswith(("data:", "http:", "https:", "//")):
+            return m.group(0)
+        try:
+            path = (root / file_part).resolve()
+            path.relative_to(root)
+        except (OSError, ValueError):
+            return m.group(0)
+        if not path.is_file():
+            return m.group(0)
+        png = None
+        if frag and path.suffix.lower() == ".svg":
+            sibling = _read_markup(path)
+            sibling = _inline_svg_sibling_images(sibling, path.parent, depth + 1)
+            sibling = re.sub(r"(?is)<\?xml[^?]*\?>", "", sibling)
+            wrap = (
+                '<svg xmlns="http://www.w3.org/2000/svg">'
+                f"{sibling}<use href=\"#{frag}\"/></svg>"
+            )
+            png = _svg_bytes_to_png(wrap.encode("utf-8"), None, depth + 1)
+        else:
+            png = _path_to_png(path, depth + 1)
+        if not png:
+            return m.group(0)
+        rest = re.sub(
+            r"(?i)\s*(?:xlink:)?href\s*=\s*(?:(['\"]).*?\1|[^\s>]+)",
+            "",
+            attrs,
+        )
+        rest = rest.strip().strip("/")
+        if (
+            (not _html_attr(rest, "width") or not _html_attr(rest, "height"))
+            and png[:8] == b"\x89PNG\r\n\x1a\n"
+            and len(png) >= 24
+        ):
+            w = int.from_bytes(png[16:20], "big")
+            h = int.from_bytes(png[20:24], "big")
+            if not _html_attr(rest, "width"):
+                rest += f' width="{w}"'
+            if not _html_attr(rest, "height"):
+                rest += f' height="{h}"'
+        rest = rest.rstrip().rstrip("/")
+        return f'<image href="{_png_data_uri(png)}"{rest}/>'
+
+    return re.sub(r"(?is)<use\b([^>]*)/?>", repl_use, text)
 
 
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
