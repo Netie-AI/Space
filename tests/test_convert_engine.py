@@ -3438,6 +3438,71 @@ def test_html_shy_comment_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_amp_nbsp_md_photo_export() -> None:
+    """Share dest Word/MD on photo HTML &amp;nbsp; and photo MD leftover &nbsp; / comment."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "One unescape left" in src
+    assert "Naive tag strip left &nbsp;" in src
+    if not pymupdf_available():
+        print("SKIP html amp-nbsp/md photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html amp-nbsp/md photo export -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(d / "pic.png", format="PNG")
+        html = d / "amp.html"
+        html.write_text(
+            '<html><body><p>&amp;nbsp;</p><img src="pic.png"></body></html>',
+            encoding="utf-8",
+        )
+        docx = d / "amp.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        for name, markup in (
+            ("nbsp.md", "&nbsp;\n\n![](pic.png)\n"),
+            ("cmt.md", "<!-- Photo -->\n\n![](pic.png)\n"),
+            ("shy.md", "&shy;\n\n![](pic.png)\n"),
+        ):
+            md = d / name
+            md.write_text(markup, encoding="utf-8")
+            dest = d / (name + ".docx")
+            res = run_engine(["export-as", str(md), str(dest)])
+            assert res.get("success"), (name, res)
+            assert res.get("tool") == "docx-zip-images", (name, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (name, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (name, px)
+                finally:
+                    im.close()
+        mixed = d / "mixed.md"
+        mixed.write_text("Hello\n\n![](pic.png)\n", encoding="utf-8")
+        dest = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4274,6 +4339,7 @@ if __name__ == "__main__":
     test_html_svg_desc_title_export()
     test_html_nbsp_template_photo_export()
     test_html_shy_comment_photo_export()
+    test_html_amp_nbsp_md_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()

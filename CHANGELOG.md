@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word on photo HTML whose leftover is double-encoded `&amp;nbsp;`, and photo Markdown whose leftover is `&nbsp;` / `&shy;` / an HTML comment, embeds that picture. One unescape left `"&nbsp;"`; MD dest Word used a naive tag strip. Real words still take the text path. Punctuation-only leftovers stay parked.
 - Convert: Share dest Word / Markdown on photo HTML whose leftover is Word `&shy;` or an IE / Word conditional comment (`<!--[if IE]>`) embeds that picture. Soft hyphen and comment inner text are not page copy; leftover "&shy;" / "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest MD (`html-strip`). Real words (`Hello`) still take the text path. `hidden` / button / label stay parked.
 - Convert: Share dest Word / Markdown on photo HTML whose leftover is Word `&nbsp;` / `&#160;`, `<template>` / `<noscript>` text, or Inkscape `<inkscape:label>` / `<rdf:RDF>` embeds that picture. Those are not page copy; leftover "&nbsp;" / "Photo" stole dest Word (`docx-zip` / no `word/media`) and dest MD (`html-strip`). Real words (`Hello world`) still take the text path. `hidden` / `display:none` stay parked.
 - Convert: Share dest Word / Markdown / PDF on photo HTML whose inline SVG has `<desc>` / `<metadata>` / prefixed `<svg:title>` embeds that picture. Those tags are not page copy; leftover "A photo" stole dest Word (`docx-zip` / no `word/media`) and dest MD (`html-strip`). Same strip as HTML `<title>`. SVG `<text>` stays (page content).
