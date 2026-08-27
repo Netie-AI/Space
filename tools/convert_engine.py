@@ -2360,6 +2360,15 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word <w:del> / <w:moveFrom> wrappers hold <w:t>Photo when exporters
+    # skip delText. (?=<) would stop at <w:r> and leave Photo. Stop at
+    # </w:del> / img / body / p so nested runs strip and a sibling picture
+    # stays. Do not strip HTML <del> (page copy) or <w:ins> / <w:moveTo>.
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)(?:del|moveFrom))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
