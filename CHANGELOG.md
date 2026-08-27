@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\bkmkstart` / `\\xe` / `\\tc` embeds that picture. Bookmark and index dest groups are not page copy; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. `\\fldrslt` / header / `\\upr` stay page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\xmlopen` / `\\expandedcolortbl` embeds that picture. Those dest groups are the same leftover class as `\\xmlnstbl` / `\\colortbl`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. `\\fldrslt` / header / `\\upr` stay page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\userprops` / `\\docvar` embeds that picture. Those dest groups are the same leftover class as `\\info` document props; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. `\\fldrslt` / header / `\\upr` stay page copy. Mixed `Hello` stays the text path.
 - Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\fldinst` / `\\datafield` embeds that picture. Those dest groups are the same leftover class as HTML `instrText` / `fldData`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. `\\fldrslt` / header / `\\upr` stay page copy. Mixed `Hello` stays the text path.

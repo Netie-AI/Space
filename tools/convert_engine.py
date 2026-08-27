@@ -1650,7 +1650,8 @@ def _rtf_strip_dest_groups(s: str) -> str:
                 r"oldcprops|oldpprops|wgrffmtfilter|nonshppict|shppict|pnseclvl|"
                 r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate|"
                 r"fldinst|datafield|userprops|docvar|"
-                r"xmlopen|expandedcolortbl|nesttableprops|nonesttables|defchp|defpap)\b",
+                r"xmlopen|expandedcolortbl|nesttableprops|nonesttables|defchp|defpap|"
+                r"bkmkstart|bkmkend|xe|tc|rxe)\b",
                 rest,
             ):
                 i = _rtf_end_group(s, i)
@@ -1674,6 +1675,7 @@ def rtf_to_text(src: Path) -> str:
     # Unstarred \\fldinst / \\datafield stole dest Word the same way.
     # Unstarred \\userprops / \\docvar stole dest Word the same way.
     # Unstarred \\xmlopen / \\expandedcolortbl stole dest Word the same way.
+    # Unstarred \\bkmkstart / \\xe / \\tc stole dest Word the same way.
     # Header / footer stay. Do not strip \\upr (fallback is page copy).
     # Do not strip \\fldrslt (field result is page copy).
     s = _rtf_strip_dest_groups(s)
