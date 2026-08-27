@@ -58,6 +58,7 @@ the previous):
 15. #295 leftover Word `mso-deletion` / `msoChangeDel`
 16. #296 leftover Word `CharacterSpacingControl` / `ValidateAgainstSchemas`
 17. #297 leftover Word `mso-comment-continuation`
+18. #298 leftover Word `mso-style-name:"Comment Text"`
 
 Draft #1 (demo video) stays draft. Parked leftovers stay parked
 (headers / footnotes / smart tags / `w:sdt` / xml islands outside

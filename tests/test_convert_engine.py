@@ -5876,6 +5876,103 @@ def test_html_msocom_cont_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_mso_stylename_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is mso-style-name Comment Text."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "msoChangeDel|msoDeleted|msoCommentTextChar|msoCommentSubjectChar|msoBalloonTextChar" in src
+    assert "msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference" in src
+    assert "msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor" in src
+    assert "Comment Text|Comment Subject|Comment Reference|Balloon Text|annotation text" in src
+    assert 'Leftover "Photo" in style=mso-style-name:"Comment Text" stole dest Word / dest PDF Story.' in src
+    assert "Do not strip mso-style-name:Normal / Heading (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html mso-stylename -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html mso-stylename -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<span style='mso-style-name:\"Comment Text\"'>Photo</span>",
+            '<span style="mso-style-name:Comment Text">Photo</span>',
+            "<p style='mso-style-name:\"Balloon Text\"'>Photo</p>",
+            "<span class=MsoCommentTextChar>Photo</span>",
+            "<span style='mso-style-name:\"Comment Text\"'>Photo",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Comment Text\"'>Photo</span>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        normal = d / "normal.html"
+        normal.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Normal\"'>Hello</span></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "normal.docx"
+        res = run_engine(["export-as", str(normal), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        heading = d / "heading.html"
+        heading.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Heading 1\"'>Hello</span></body></html>",
+            encoding="utf-8",
+        )
+        dest4 = d / "heading.docx"
+        res = run_engine(["export-as", str(heading), str(dest4)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_docvar_photo_export() -> None:
     """Share dest Word/PDF on photo Word-HTML whose leftover is w:docVar."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -8834,6 +8931,7 @@ if __name__ == "__main__":
     test_html_lidtheme_photo_export()
     test_html_charspacing_photo_export()
     test_html_msocom_cont_photo_export()
+    test_html_mso_stylename_photo_export()
     test_html_docvar_photo_export()
     test_html_mso_deletion_photo_export()
     test_html_msoacetate_photo_export()

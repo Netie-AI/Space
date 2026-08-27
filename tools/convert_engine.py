@@ -2580,9 +2580,10 @@ def html_visible_text(text: str) -> str:
     # <a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML).
     # class=msoChangeDel / msoDeleted is official Word deletion chrome
     # (same class as msoDel). Leftover "Photo" stole dest Word / dest PDF Story.
+    # class=MsoCommentTextChar is the official comment character style.
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor|msoChangeDel|msoDeleted)\b"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor|msoChangeDel|msoDeleted|msoCommentTextChar|msoCommentSubjectChar|msoBalloonTextChar)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
@@ -2608,6 +2609,17 @@ def html_visible_text(text: str) -> str:
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
         r"(?:mso-deletion|mso-deleted)\s*:\s*yes\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-style-name:"Comment Text" is official Word comment style chrome
+    # (same class as class=MsoCommentText). Leftover "Photo" in style=mso-style-name:"Comment Text" stole dest Word / dest PDF Story.
+    # Nested quotes in style='mso-style-name:"Comment Text"' need [^>]* (not [^'">]).
+    # Do not strip mso-style-name:Normal / Heading (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^>]*"
+        r"mso-style-name\s*:\s*['\"]?(?:Comment Text|Comment Subject|Comment Reference|Balloon Text|annotation text|annotation subject|annotation reference)(?: Char)?\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
