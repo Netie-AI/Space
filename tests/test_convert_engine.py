@@ -2037,6 +2037,64 @@ def test_html_bom_visible_photo_export() -> None:
         assert res.get("tool") == "pymupdf-story-html", res
 
 
+def test_html_utf16_photo_export() -> None:
+    """Share dest Word/MD/PDF on Notepad Unicode (UTF-16) photo HTML embeds the picture."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _read_markup" in src
+    if not pymupdf_available():
+        print("SKIP html utf16 photo export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html utf16 photo export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 80, 200)).save(d / "pic.png", format="PNG")
+        body = '<html><body><img src="pic.png"></body></html>'
+        html = d / "utf16.html"
+        html.write_bytes(body.encode("utf-16"))
+        md = d / "utf16.md"
+        res = run_engine(["to-md", str(html), str(md)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in md.read_text(encoding="utf-8")
+        docx = d / "utf16.docx"
+        res = run_engine(["export-as", str(html), str(docx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(docx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        pdf = d / "utf16.pdf"
+        res = run_engine(["export-as", str(html), str(pdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-html-images", res
+        import pymupdf
+
+        doc = pymupdf.open(pdf)
+        try:
+            assert doc[0].get_images()
+        finally:
+            doc.close()
+        be = d / "be.html"
+        be.write_bytes(b"\xfe\xff" + body.encode("utf-16-be"))
+        bdocx = d / "be.docx"
+        res = run_engine(["export-as", str(be), str(bdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(bdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+        note = d / "note.html"
+        note.write_bytes("<html><body><h1>Hello leftover</h1></body></html>".encode("utf-16"))
+        tpdf = d / "note.pdf"
+        res = run_engine(["export-as", str(note), str(tpdf)])
+        assert res.get("success"), res
+        assert res.get("tool") == "pymupdf-story-html", res
+
+
 def test_export_as_svg() -> None:
     """Share Export as PDF/JPG on a previewed SVG. Engine used to need markitdown / cannot export."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2882,6 +2940,7 @@ if __name__ == "__main__":
     test_html_title_visible_photo_export()
     test_html_base_href_photo_export()
     test_html_bom_visible_photo_export()
+    test_html_utf16_photo_export()
     test_export_as_svg()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()

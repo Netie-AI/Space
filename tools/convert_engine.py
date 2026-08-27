@@ -575,7 +575,7 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
     if got:
         return got
     if ext in {".html", ".htm"}:
-        raw = src.read_text(encoding="utf-8", errors="replace")
+        raw = _read_markup(src)
         visible = html_visible_text(raw)
         pngs = html_string_media_pngs(raw, src.parent)
         if pngs and not visible:
@@ -1080,7 +1080,7 @@ def file_to_docx(src: Path, dest: Path) -> str:
     if src.suffix.lower() == ".docx":
         return copy_file(src, dest)
     if src.suffix.lower() in HTML_EXTS:
-        raw = src.read_text(encoding="utf-8", errors="replace")
+        raw = _read_markup(src)
         pngs = html_media_pngs(src)
         visible = html_visible_text(raw)
         if pngs and not visible:
@@ -2055,10 +2055,19 @@ def html_visible_text(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _read_markup(src: Path) -> str:
+    """Notepad Unicode HTML is UTF-16. utf-8 replace used empty Word / html-strip."""
+    raw = src.read_bytes()
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return raw.decode("utf-16")
+    if raw.startswith(b"\xef\xbb\xbf"):
+        return raw.decode("utf-8-sig")
+    return raw.decode("utf-8", errors="replace")
+
+
 def html_media_pngs(src: Path, cap: int = 24) -> list[bytes]:
     """Photo-only HTML dest Word. html-strip used to write an empty .docx."""
-    text = src.read_text(encoding="utf-8", errors="replace")
-    return html_string_media_pngs(text, src.parent, cap)
+    return html_string_media_pngs(_read_markup(src), src.parent, cap)
 
 
 def html_string_to_pdf(story_html: str, dest: Path) -> str:
@@ -2094,7 +2103,7 @@ def html_string_to_pdf(story_html: str, dest: Path) -> str:
 
 def html_to_pdf(src: Path, dest: Path) -> str:
     """Share dest 2 on HTML. markdown_to_html dumped source tags into the PDF."""
-    text = src.read_text(encoding="utf-8", errors="replace")
+    text = _read_markup(src)
     visible = html_visible_text(text)
     pngs = html_media_pngs(src)
     # CSS background-image only: Story writes a 573-byte blank page.
