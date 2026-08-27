@@ -1,0 +1,62 @@
+name: CI Windows
+
+# windows-latest is 2x minutes. Run only when C# / sln / wipe ps1 change.
+# Hosted runners: docs/HUMAN_GHA_BILLING.md. Do not merge on billing red.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/NetieSpace.Tests/**"
+      - "NetieSpace.sln"
+      - "**/*.csproj"
+      - "scripts/**/*.ps1"
+      - ".github/workflows/ci-windows.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/NetieSpace.Tests/**"
+      - "NetieSpace.sln"
+      - "**/*.csproj"
+      - "scripts/**/*.ps1"
+      - ".github/workflows/ci-windows.yml"
+  workflow_dispatch:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: build (windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+          cache: true
+          cache-dependency-path: |
+            **/*.csproj
+            **/*.sln
+      # Chocolatey community feed 504s (ffmpeg 9.0.1). GyanD GitHub builds instead.
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: ffmpeg version
+        run: ffmpeg -hide_banner -version && ffprobe -hide_banner -version
+      - name: Restore, build, and test
+        run: >
+          dotnet test NetieSpace.sln -c Debug --nologo
+          --blame-hang-timeout 2m
+          --logger "trx;LogFileName=test-results.trx"
+      - name: pillar1 wipe reference encode
+        shell: pwsh
+        run: ./scripts/encode-pillar1-wipe.ps1 -Out "$env:RUNNER_TEMP/pillar1"

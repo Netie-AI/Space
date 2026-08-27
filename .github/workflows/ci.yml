@@ -1,49 +1,37 @@
 name: CI
 
+# Python + Linux wipe. Windows and license-api are sibling workflows with
+# path filters so a leftover dest PR does not start windows-latest (2x minutes).
+# Hosted runners stay billing-locked until org Billing is fixed
+# (docs/HUMAN_GHA_BILLING.md). Do not merge on that red.
+
 on:
   push:
     branches: [main]
+    paths:
+      - "tests/**"
+      - "tools/**"
+      - "scripts/**/*.sh"
+      - "scripts/ci-cursor.sh"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "tests/**"
+      - "tools/**"
+      - "scripts/**/*.sh"
+      - "scripts/ci-cursor.sh"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
   merge_group:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  build-windows:
-    name: build (windows)
-    runs-on: windows-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: "8.0.x"
-          cache: true
-          cache-dependency-path: |
-            **/*.csproj
-            **/*.sln
-      # Chocolatey community feed 504s (ffmpeg 9.0.1). GyanD GitHub builds instead.
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: ffmpeg version
-        run: ffmpeg -hide_banner -version && ffprobe -hide_banner -version
-      - name: Restore, build, and test
-        run: >
-          dotnet test NetieSpace.sln -c Debug --nologo
-          --blame-hang-timeout 2m
-          --logger "trx;LogFileName=test-results.trx"
-      - name: pillar1 wipe reference encode
-        shell: pwsh
-        run: ./scripts/encode-pillar1-wipe.ps1 -Out "$env:RUNNER_TEMP/pillar1"
-
   python-syntax:
     name: python syntax
     runs-on: ubuntu-latest
@@ -66,27 +54,3 @@ jobs:
           done
       - name: pillar1 wipe reference encode
         run: ./scripts/encode-pillar1-wipe.sh "$(mktemp -d)"
-
-  license-api:
-    name: license-api
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: license-api
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: license-api/package-lock.json
-      - name: typecheck
-        run: |
-          npm ci --legacy-peer-deps
-          npm run typecheck
-
-  # No 4th aggregator job. Workflow already fails if any of the three fail.
-  # Hosted runners: "The job was not started because recent account payments
-  # have failed or your spending limit needs to be increased." Do not merge
-  # on that red. Unlock: docs/HUMAN_GHA_BILLING.md

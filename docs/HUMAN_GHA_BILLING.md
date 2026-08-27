@@ -22,7 +22,9 @@ edit cannot assign a runner.
 2. Fix failed payments and/or raise the Actions spending limit above `$0`.
 3. Re-run the latest `CI` workflow on `main` (Actions -> CI -> Re-run jobs).
 4. Confirm `build (windows)`, `python syntax`, and `license-api` have
-   real steps and a `runner_name` (not 2s empty jobs).
+   real steps and a `runner_name` (not 2s empty jobs). Path filters:
+   leftover dest PRs start only the python workflow; Windows is
+   `src/` / xunit / wipe ps1; license-api is `license-api/`.
 
 ## Merge rule
 

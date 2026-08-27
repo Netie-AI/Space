@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 repo="${GITHUB_REPOSITORY:-Netie-AI/Space}"
-run_id="$(gh run list --repo "$repo" --workflow=ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+run_id="$(gh run list --repo "$repo" --limit 1 --json databaseId --jq '.[0].databaseId')"
 if [[ -z "$run_id" || "$run_id" == "null" ]]; then
   echo "gha-billing-check: no CI runs"
   exit 1

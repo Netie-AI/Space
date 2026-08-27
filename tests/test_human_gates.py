@@ -219,12 +219,16 @@ def test_scripts_and_docs():
     assert "check-pillar1-export.ps1" in enc_ps
     cursor_ci = (ROOT / "scripts/ci-cursor.sh").read_text(encoding="utf-8")
     assert "encode-pillar1-wipe.sh" in cursor_ci
-    yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    yml = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in sorted((ROOT / ".github/workflows").glob("*.yml"))
+    )
     assert "encode-pillar1-wipe.ps1" in yml
     assert "encode-pillar1-wipe.sh" in yml
     gha = (ROOT / "docs/HUMAN_GHA_BILLING.md").read_text(encoding="utf-8")
     assert "spending limit needs to be increased" in gha
     assert "Do **not** merge a PR while GitHub Actions `CI` is red" in gha
+    assert "leftover dest PRs start only the python workflow" in gha
     check = (ROOT / "scripts/gha-billing-check.sh").read_text(encoding="utf-8")
     assert "spending limit needs to be increased" in check
     assert "Do not merge" in check

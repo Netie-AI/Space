@@ -1,0 +1,44 @@
+name: CI license-api
+
+# Node typecheck only when license-api changes.
+# Hosted runners: docs/HUMAN_GHA_BILLING.md. Do not merge on billing red.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "license-api/**"
+      - ".github/workflows/ci-license.yml"
+  pull_request:
+    paths:
+      - "license-api/**"
+      - ".github/workflows/ci-license.yml"
+  workflow_dispatch:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  license-api:
+    name: license-api
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: license-api
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: license-api/package-lock.json
+      - name: typecheck
+        run: |
+          npm ci --legacy-peer-deps
+          npm run typecheck
