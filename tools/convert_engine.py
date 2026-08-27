@@ -892,9 +892,22 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
             # Leftover <use href="#missing"/> / empty <path> still have
             # paint tags so the skip above misses them. MuPDF writes a
             # letter-size white page that steals dest Word first.
+            # Leftover <pattern> / feImage is solid black (same steal).
             samples = pix.samples
-            if samples and all(b >= 250 for b in samples):
-                return None
+            n = getattr(pix, "n", 3) or 3
+            if samples and n >= 3:
+                white = True
+                black = True
+                for i in range(0, len(samples), n):
+                    r, g, b = samples[i], samples[i + 1], samples[i + 2]
+                    if r < 250 or g < 250 or b < 250:
+                        white = False
+                    if r > 5 or g > 5 or b > 5:
+                        black = False
+                    if not white and not black:
+                        break
+                if white or black:
+                    return None
             return pix.tobytes("png")
         finally:
             doc.close()

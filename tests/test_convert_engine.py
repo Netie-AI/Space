@@ -4037,6 +4037,50 @@ def test_html_svg_white_raster_photo_export() -> None:
                 im.close()
 
 
+def test_html_svg_black_raster_photo_export() -> None:
+    """Share dest Word on photo HTML whose leftover SVG is <pattern> / feImage."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "solid black (same steal)" in src
+    if not pymupdf_available():
+        print("SKIP html svg black raster -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html svg black raster -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        (d / "pic.png").write_bytes(buf.getvalue())
+        html = d / "photo.html"
+        html.write_text(
+            '<html><body><img src="pic.png">'
+            '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48">'
+            '<defs><pattern id="p" width="64" height="48">'
+            '<image href="pic.png" width="64" height="48"/></pattern></defs>'
+            '<rect width="64" height="48" fill="url(#p)"/></svg></body></html>',
+            encoding="utf-8",
+        )
+        dest = d / "photo.docx"
+        res = run_engine(["export-as", str(html), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert len(media) == 1, media
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+
+
 def test_svg_ico_drop_merge_lists() -> None:
     """Drop SVG/ICO onto a PDF used IsImagePath (raster-only) so the files were ignored."""
     preview = (ROOT / "src/NetieSpace/Views/PreviewWindow.xaml.cs").read_text(encoding="utf-8")
@@ -4882,6 +4926,7 @@ if __name__ == "__main__":
     test_html_empty_svg_photo_export()
     test_html_vs16_photo_export()
     test_html_svg_white_raster_photo_export()
+    test_html_svg_black_raster_photo_export()
     test_svg_ico_drop_merge_lists()
     test_webp_tif_drop_uses_engine()
     test_organize_engine_image_insert()
