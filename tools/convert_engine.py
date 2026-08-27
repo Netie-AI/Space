@@ -2500,10 +2500,11 @@ def html_visible_text(text: str) -> str:
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
-    # Do not strip MathML <annotation> (parked). Stop at the next tag so
-    # mixed Hello stays the text path.
+    # Do not strip MathML <annotation> (parked).
+    # (?=<) would stop at nested <aml:content> / <w:p> and leave Photo.
+    # Stop at </aml:annotation> / body / img so nested comment runs strip.
     text = re.sub(
-        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
         "",
         text,
     )
