@@ -1416,6 +1416,60 @@ def test_md_image_title_ref_export() -> None:
             doc.close()
 
 
+def test_md_wrap_dest_export() -> None:
+    """Share dest Word/HTML/PDF on MD images whose dest wraps to the next line."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "def _md_unwrap_dests" in src
+    if not pymupdf_available():
+        print("SKIP md wrap dest export -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP md wrap dest export -- Pillow missing")
+        return
+    import zipfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        Image.new("RGB", (64, 48), (20, 160, 60)).save(d / "pic.png", format="PNG")
+
+        def assert_dests(md_path: Path, stem: str) -> None:
+            docx = d / f"{stem}.docx"
+            res = run_engine(["export-as", str(md_path), str(docx)])
+            assert res.get("success"), res
+            assert res.get("tool") == "docx-zip-images", res
+            with zipfile.ZipFile(docx) as zf:
+                assert any(n.startswith("word/media/") for n in zf.namelist()), zf.namelist()
+            html = d / f"{stem}.html"
+            res = run_engine(["export-as", str(md_path), str(html)])
+            assert res.get("success"), res
+            body = html.read_text(encoding="utf-8")
+            assert "data:image/png;base64," in body
+            assert "![" not in body
+            pdf = d / f"{stem}.pdf"
+            res = run_engine(["export-as", str(md_path), str(pdf)])
+            assert res.get("success"), res
+            import pymupdf
+
+            doc = pymupdf.open(pdf)
+            try:
+                assert doc[0].get_images(), doc[0].get_text()
+                assert "![" not in doc[0].get_text()
+            finally:
+                doc.close()
+
+        wrapped = d / "wrap.md"
+        wrapped.write_text("![x](\npic.png\n)\n", encoding="utf-8")
+        assert_dests(wrapped, "wrap")
+        titled = d / "wrap-title.md"
+        titled.write_text('![x](\npic.png "t"\n)\n', encoding="utf-8")
+        assert_dests(titled, "wrap-title")
+        ref = d / "wrap-ref.md"
+        ref.write_text("![x][id]\n\n[id]:\n    pic.png\n", encoding="utf-8")
+        assert_dests(ref, "wrap-ref")
+
+
 def test_html_pct_href_photo_export() -> None:
     """Share dest Word/MD/PDF on photo-only HTML whose sibling src is percent-encoded."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -2763,6 +2817,7 @@ if __name__ == "__main__":
     test_html_imageset_photo_export()
     test_html_amp_img_photo_export()
     test_md_image_title_ref_export()
+    test_md_wrap_dest_export()
     test_html_pct_href_photo_export()
     test_html_src_not_data_src_photo_export()
     test_html_num_entity_href_photo_export()

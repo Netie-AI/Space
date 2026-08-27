@@ -597,6 +597,20 @@ _MD_INLINE_IMG = re.compile(
 )
 _MD_REF_IMG = re.compile(r"""!\[([^\]]*)\]\[([^\]]*)\]""")
 _MD_SHORTCUT_IMG = re.compile(r"""!\[([^\]]+)\](?!\(|\[)""")
+_MD_WRAP_IMG = re.compile(
+    r"!\[([^\]]*)\]\(\s*\n[ \t]*(<[^>\n]+>|[^\s)\n]+)"
+    r"(?:[ \t]+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?[ \t]*\n[ \t]*\)"
+)
+_MD_WRAP_DEF = re.compile(
+    r"^([ \t]{0,3}\[[^\]]+\]:)[ \t]*\n[ \t]+(<[^>]+>|\S+)",
+    re.M,
+)
+
+
+def _md_unwrap_dests(text: str) -> str:
+    """CommonMark allows a newline in ![alt](dest) / [id]: dest. Line-split missed it."""
+    text = _MD_WRAP_IMG.sub(r"![\1](\2)", text)
+    return _MD_WRAP_DEF.sub(r"\1 \2", text)
 
 
 def _md_label(label: str) -> str:
@@ -665,6 +679,7 @@ def _md_inline_html(text: str, defs: dict[str, str]) -> str:
 
 def _markdown_to_html_stdlib(text: str) -> str:
     """Share dest 1 PDF on .md. The markdown package is not a Cursor CI dep."""
+    text = _md_unwrap_dests(text)
     defs = _md_link_defs(text)
     lines = text.replace("\r\n", "\n").split("\n")
     parts: list[str] = []
