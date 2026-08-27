@@ -2271,7 +2271,9 @@ def html_visible_text(text: str) -> str:
     # <title> / <head> are not page copy. Almost every real HTML page has
     # them; leftover title text used to steal photo dest Word / MD.
     # Do not strip <header> (page content). <head\b> does not match it.
-    text = re.sub(r"(?is)<head\b[^>]*>.*?</head>", "", text)
+    # Unclosed <head> leftover "Photo" stole dest Word. Stop at the next
+    # tag so a sibling <img> stays the pictures path.
+    text = re.sub(r"(?is)<head\b[^>]*>.*?(?:</head>|(?=<)|$)", "", text)
     # Unclosed <title> leftover "Photo" stole dest Word. Stop at the next
     # tag so mixed Hello after <body> stays the text path.
     text = re.sub(
@@ -2281,20 +2283,29 @@ def html_visible_text(text: str) -> str:
     )
     # SVG <desc> / <metadata> / <svg:title> are not page copy. Leftover
     # "A photo" stole dest Word / MD / Story PDF (no pictures).
-    text = re.sub(r"(?is)<(?:[\w.-]+:)?desc\b[^>]*>.*?</(?:[\w.-]+:)?desc\s*>", "", text)
+    # Unclosed tags stop at the next tag so <desc>A photo<img stays pictures.
     text = re.sub(
-        r"(?is)<(?:[\w.-]+:)?metadata\b[^>]*>.*?</(?:[\w.-]+:)?metadata\s*>",
+        r"(?is)<(?:[\w.-]+:)?desc\b[^>]*>.*?(?:</(?:[\w.-]+:)?desc\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    text = re.sub(
+        r"(?is)<(?:[\w.-]+:)?metadata\b[^>]*>.*?(?:</(?:[\w.-]+:)?metadata\s*>|(?=<)|$)",
         "",
         text,
     )
     # Inkscape RDF / inkscape:label sit outside <metadata>. Leftover
     # "Photo" stole dest Word / MD.
     text = re.sub(
-        r"(?is)<(?:[\w.-]+:)?RDF\b[^>]*>.*?</(?:[\w.-]+:)?RDF\s*>",
+        r"(?is)<(?:[\w.-]+:)?RDF\b[^>]*>.*?(?:</(?:[\w.-]+:)?RDF\s*>|(?=<)|$)",
         "",
         text,
     )
-    text = re.sub(r"(?is)<inkscape:label\b[^>]*>.*?</inkscape:label\s*>", "", text)
+    text = re.sub(
+        r"(?is)<inkscape:label\b[^>]*>.*?(?:</inkscape:label\s*>|(?=<)|$)",
+        "",
+        text,
+    )
     # Unclosed <style> / <script> leftover CSS / JS stole dest Word.
     text = re.sub(
         r"(?is)<script\b[^>]*>.*?(?:</script>|(?=</?(?:body|div|p|img|h[1-6]|table)\b)|$)",
@@ -2308,8 +2319,9 @@ def html_visible_text(text: str) -> str:
     )
     # <template> / <noscript> are not page copy. Leftover "Enable JS"
     # stole dest Word when a sibling <img> was the only picture.
+    # Unclosed tags stop at the next tag so mixed Hello stays the text path.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:template|noscript))\b[^>]*>.*?</\1\s*>",
+        r"(?is)<((?:[\w.-]+:)?(?:template|noscript))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
     )

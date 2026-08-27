@@ -4,6 +4,7 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-08-27
 
+- Convert: Share dest Word on photo HTML whose leftover is unclosed `<desc>` / `<metadata>` / `<rdf:RDF>` / `<inkscape:label>` / `<template>` / `<noscript>` / `<head>` embeds that picture. Those tags already stripped when closed; truncated leftover "Photo" / "Enable JS" stole dest Word (`docx-zip` / no `word/media`). Stop at the next tag so a sibling `<img>` stays the pictures path and mixed `Hello` stays the text path.
 - Convert: Share dest Word on photo HTML whose leftover is unclosed `<style>` / `<script>` / `<title>` embeds that picture. Truncated CSS / JS / title text stole dest Word (`docx-zip` / no `word/media`). Closed tags still strip; mixed `Hello` after a closed title stays the text path. `xml` islands outside `<head>` stay parked.
 - Convert: Share dest Word on photo HTML whose leftover SVG is `<pattern>` / `feImage` / CSS `fill:url` embeds the sibling picture only. MuPDF rasterizes those to a solid black first page. All-black SVG pixmaps are dropped the same way as all-white. Pattern-only dest (no sibling photo) stays parked.
 - Convert: Share dest Word on photo HTML whose leftover SVG is `<use href="#missing"/>` / empty `<path>` embeds the sibling picture only. Those still have paint tags so the empty-SVG skip missed them; MuPDF wrote a letter-size white first page. All-white SVG pixmaps are dropped. Pattern / marker stay parked.
