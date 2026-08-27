@@ -794,6 +794,32 @@ def test_html_svg_photo_export() -> None:
         assert res.get("tool") == "docx-zip-images", res
         with zipfile.ZipFile(idocx) as zf:
             assert any(n.startswith("word/media/") for n in zf.namelist())
+        quoted = d / "sq.svg.html"
+        quoted.write_text(
+            f"<html><body><img src='data:image/svg+xml,{svg}' alt=''></body></html>",
+            encoding="utf-8",
+        )
+        qmd = d / "sq.svg.md"
+        res = run_engine(["to-md", str(quoted), str(qmd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in qmd.read_text(encoding="utf-8")
+        qdocx = d / "sq.svg.docx"
+        res = run_engine(["export-as", str(quoted), str(qdocx)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(qdocx) as zf:
+            assert any(n.startswith("word/media/") for n in zf.namelist())
+        utf8 = d / "utf8.svg.html"
+        utf8.write_text(
+            f'<html><body><img src="data:image/svg+xml;utf8,{quote(svg)}" alt=""></body></html>',
+            encoding="utf-8",
+        )
+        umd = d / "utf8.svg.md"
+        res = run_engine(["to-md", str(utf8), str(umd)])
+        assert res.get("success"), res
+        assert res.get("tool") == "html-md-images", res
+        assert "data:image/png;base64," in umd.read_text(encoding="utf-8")
 
 
 def test_export_as_svg() -> None:

@@ -688,7 +688,7 @@ def _svg_data_uri_to_png(href: str) -> bytes | None:
     from urllib.parse import unquote_to_bytes
 
     m = re.match(
-        r"data:image/svg\+xml(?:;charset=[^;,]+)?;base64,([A-Za-z0-9+/=\s]+)$",
+        r"data:image/svg\+xml(?:;[^,]*)*;base64,([A-Za-z0-9+/=\s]+)$",
         href,
         re.I,
     )
@@ -698,8 +698,8 @@ def _svg_data_uri_to_png(href: str) -> bytes | None:
         except Exception:
             return None
         return _bytes_to_png(raw)
-    # Share dest Word/MD on photo HTML with urlencoded SVG used empty / 1-byte.
-    m = re.match(r"data:image/svg\+xml(?:;charset=[^;,]+)?,(.*)$", href, re.I)
+    # ;utf8 / ;charset=utf-8 / raw SVG inside single-quoted src.
+    m = re.match(r"data:image/svg\+xml(?:;[^,]*)*,(.*)$", href, re.I)
     if not m:
         return None
     try:
@@ -716,7 +716,7 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
 
     def repl(m: re.Match[str]) -> str:
         nonlocal n
-        href = m.group(1)
+        quote, href = m.group(1), m.group(2)
         if n >= cap:
             return m.group(0)
         if href.startswith("data:"):
@@ -724,7 +724,7 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
             if not png:
                 return m.group(0)
             n += 1
-            return f'src="{_png_data_uri(png)}"'
+            return f"src={quote}{_png_data_uri(png)}{quote}"
         path = (base / href).resolve()
         try:
             path.relative_to(root)
@@ -736,9 +736,10 @@ def inline_sibling_images(markup: str, base: Path, cap: int = 24) -> str:
         if not png:
             return m.group(0)
         n += 1
-        return f'src="{_png_data_uri(png)}"'
+        return f"src={quote}{_png_data_uri(png)}{quote}"
 
-    return re.sub(r'src=["\']([^"\']+)["\']', repl, markup)
+    # Same-quote close so raw SVG data URIs can keep xmlns="..." inside src='...'.
+    return re.sub(r'src=(["\'])(.*?)\1', repl, markup, flags=re.I | re.S)
 
 
 def wrap_html(body: str, title: str = "Preview") -> str:
@@ -1629,10 +1630,10 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
         png = _bytes_to_png(raw)
         if png:
             pngs.append(png)
-    for m in re.finditer(r'src=["\'](data:image/svg\+xml[^"\']+)["\']', text, re.I):
+    for m in re.finditer(r'src=(["\'])(data:image/svg\+xml.*?)\1', text, re.I | re.S):
         if len(pngs) >= cap:
             break
-        href = m.group(1)
+        href = m.group(2)
         if ";base64," in href.lower():
             continue
         png = _svg_data_uri_to_png(href)
@@ -1642,6 +1643,9 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
     for m in re.finditer(r"(?is)<svg\b[^>]*>.*?</svg>", text):
         if len(pngs) >= cap:
             break
+        prefix = text[max(0, m.start() - 48):m.start()].lower()
+        if "data:image/svg" in prefix:
+            continue
         png = _svg_bytes_to_png(m.group(0).encode("utf-8"))
         if png:
             pngs.append(png)
@@ -1667,6 +1671,9 @@ def html_string_media_pngs(text: str, base: Path | None = None, cap: int = 24) -
 def html_visible_text(text: str) -> str:
     text = re.sub(r"(?is)<script.*?>.*?</script>", "", text)
     text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
+    # Raw SVG data URIs contain '>' inside src='...'. [^>]* used to leave
+    # "' alt=''>" and steal the pictures path (empty Word / html-strip).
+    text = re.sub(r'(?is)<img\b[^>]*src=(["\'])(?:.*?)\1[^>]*>', "", text)
     text = re.sub(r"(?is)<img[^>]*>", "", text)
     text = re.sub(r"(?s)<[^>]+>", " ", text)
     return re.sub(r"\s+", " ", text).strip()
