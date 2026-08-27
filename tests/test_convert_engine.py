@@ -5792,6 +5792,90 @@ def test_html_charspacing_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_html_msocom_cont_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is mso-comment-continuation."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "mso-comment-reference|mso-special-character\\s*:\\s*comment|mso-comment-continuation" in src
+    assert "mso-element\\s*:\\s*comment(?:-list)?|mso-comment-reference" in src
+    assert 'Leftover "Photo" in style=mso-comment-continuation stole dest Word / dest PDF Story.' in src
+    assert "Do not strip mso-element:header / footnote (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html msocom-cont -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html msocom-cont -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<span style="mso-comment-continuation:yes">Photo</span>',
+            '<div style="mso-comment-continuation:yes">Photo</div>',
+            '<a style="mso-comment-continuation:yes">Photo</a>',
+            '<span style="mso-comment-continuation:yes">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<span style="mso-comment-continuation:yes">Photo</span>'
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        header = d / "header.html"
+        header.write_text(
+            '<html><body><img src="pic.png">'
+            '<span style="mso-element:header">Hello</span></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "header.docx"
+        res = run_engine(["export-as", str(header), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_docvar_photo_export() -> None:
     """Share dest Word/PDF on photo Word-HTML whose leftover is w:docVar."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -8749,6 +8833,7 @@ if __name__ == "__main__":
     test_html_comment_pstyle_photo_export()
     test_html_lidtheme_photo_export()
     test_html_charspacing_photo_export()
+    test_html_msocom_cont_photo_export()
     test_html_docvar_photo_export()
     test_html_mso_deletion_photo_export()
     test_html_msoacetate_photo_export()

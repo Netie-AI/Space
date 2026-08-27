@@ -2592,9 +2592,12 @@ def html_visible_text(text: str) -> str:
     # Do not strip mso-element:header / footnote (page copy).
     # <a style=mso-comment-reference> / mso-special-character:comment is the
     # same official comment chrome.
+    # style=mso-comment-continuation is official Word comment-continuation chrome.
+    # Leftover "Photo" in style=mso-comment-continuation stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
     text = re.sub(
         r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
-        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference|mso-special-character\s*:\s*comment)\b"
+        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference|mso-special-character\s*:\s*comment|mso-comment-continuation)\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
