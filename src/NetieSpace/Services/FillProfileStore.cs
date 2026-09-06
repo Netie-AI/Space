@@ -76,20 +76,9 @@ public static class FillProfileStore
         });
     }
 
-    /// <summary>Keep existing values when harvest fields are empty. Bounded keys only.</summary>
-    public static void MergeHarvest(JsonElement harvest)
-    {
-        var cur = Load();
-        Save(new Profile(
-            Pick(harvest, "name", cur.FullName),
-            Pick(harvest, "email", cur.Email),
-            Pick(harvest, "phone", cur.Phone),
-            Pick(harvest, "address", cur.Address),
-            Pick(harvest, "dob", cur.DateOfBirth),
-            Pick(harvest, "nationality", cur.Nationality),
-            Pick(harvest, "dateFormat", cur.DateFormat),
-            DateTime.Now.ToString("dd/MM/yyyy")));
-    }
+    // No MergeHarvest here on purpose. A save-path merge wrote six PII fields with no
+    // prompt; the harvest now goes through FillProfileHarvest.Propose and reaches Save
+    // only after the user confirms it. Do not re-add an unconfirmed write.
 
     public static bool HasName => !string.IsNullOrWhiteSpace(Load().FullName);
 
@@ -98,12 +87,4 @@ public static class FillProfileStore
 
     private static string Read(JsonElement r, string name) =>
         r.TryGetProperty(name, out var v) ? v.GetString() ?? "" : "";
-
-    private static string Pick(JsonElement harvest, string key, string existing)
-    {
-        if (!harvest.TryGetProperty(key, out var p))
-            return existing;
-        var v = p.ValueKind == JsonValueKind.String ? p.GetString()?.Trim() ?? "" : "";
-        return string.IsNullOrWhiteSpace(v) ? existing : v;
-    }
 }

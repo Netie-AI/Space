@@ -8,6 +8,7 @@ What exists in this repo and where. Update when structure changes, not when stat
 | `src/NetieSpace/` | WPF host (Space preview, PDFSpace Edit-in-app rail, video NLE) |
 | `src/NetieSpace/Assets/pdfjs/netie-viewer.html` | pdf.js Fill & Sign overlays, AcroForm widgets, snap, stamps |
 | `src/NetieSpace/Services/FillProfileStore.cs` | Local DPAPI Autofill profile (never uploaded) |
+| `src/NetieSpace/Services/FillProfileHarvest.cs` | Save-time harvest held as a proposal until the user confirms |
 | `src/NetieSpace/Views/FillProfileWindow.xaml` | My details (Settings + Fill rail) |
 | `src/NetieSpace/Services/PdfEditService.cs` | PdfSharpCore bake (flatten text/stamps/highlights) |
 | `native/netie-embed/` | Optional Rust sparse embeddings |

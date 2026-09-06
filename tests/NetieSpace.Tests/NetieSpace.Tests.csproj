@@ -7,12 +7,15 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>NetieSpace.Tests</RootNamespace>
+    <!-- Linked DPAPI sources are Windows-only; this suite only ever runs on Windows. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="PdfSharpCore" Version="1.3.65" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -38,6 +41,9 @@
     <Compile Include="..\..\src\NetieSpace\Services\PdfCmsSigner.cs" Link="Linked\PdfCmsSigner.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\PdfClassicXref.cs" Link="Linked\PdfClassicXref.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\Licensing\LicenseOffline.cs" Link="Linked\LicenseOffline.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\EnvLoader.cs" Link="Linked\EnvLoader.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\FillProfileStore.cs" Link="Linked\FillProfileStore.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\FillProfileHarvest.cs" Link="Linked\FillProfileHarvest.cs" />
   </ItemGroup>
 
   <ItemGroup>

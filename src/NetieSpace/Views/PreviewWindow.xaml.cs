@@ -70,6 +70,8 @@ public partial class PreviewWindow : Window
     private bool _pdfDirty;
     private bool _pdfAcroDirty;
     private byte[]? _pendingAcroFormBytes;
+    // Staged only. Written to fill-profile.bin after the user confirms, never on the save path.
+    private FillProfileHarvest.Proposal? _pendingProfileHarvest;
     private Task<bool>? _pdfFlushTask;
     private bool _closingInProgress;
     private bool _pdfSpaceMode;
@@ -2358,8 +2360,7 @@ public partial class PreviewWindow : Window
                 if (root.TryGetProperty("profileHarvest", out var harvest) &&
                     harvest.ValueKind == System.Text.Json.JsonValueKind.Object)
                 {
-                    try { FillProfileStore.MergeHarvest(harvest); }
-                    catch (Exception ex) { AppLogger.Warn($"profile harvest: {ex.Message}"); }
+                    StageProfileHarvest(harvest);
                 }
                 _viewerFlushTcs?.TrySetResult(true);
             }
@@ -2565,6 +2566,7 @@ public partial class PreviewWindow : Window
         _pdfDirty = false;
         _pdfAcroDirty = false;
         _pendingAcroFormBytes = null;
+        _pendingProfileHarvest = null;
         _pendingStampImage = null;
         _pendingStampName = null;
         _pendingStampFont = null;
@@ -5620,7 +5622,77 @@ public partial class PreviewWindow : Window
         // Full bake + reload so reopen shows exactly what you see (no ghost overlays)
         var ok = await FlushPendingPdfStampsAsync(keepOverlaysEditable: false);
         if (ok)
+        {
             ConvertStatusText.Text = $"Saved into {IoPath.GetFileName(_currentFilePath)} — reopen to confirm";
+            ConfirmPendingProfileHarvest();
+        }
+    }
+
+    /// <summary>
+    /// Hold what the viewer harvested. Autosave fires on every keystroke pause, so this
+    /// only stages - the ask happens once, on the explicit Save, in
+    /// <see cref="ConfirmPendingProfileHarvest"/>. Nothing is written here.
+    /// </summary>
+    private void StageProfileHarvest(System.Text.Json.JsonElement harvest)
+    {
+        if (UserPrefs.ProfileHarvestOptOut)
+            return;
+        try
+        {
+            _pendingProfileHarvest = FillProfileHarvest.Propose(harvest, FillProfileStore.Load());
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"profile harvest: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Ask before the harvest reaches fill-profile.bin, naming every field it would keep.
+    /// Declining drops the proposal; "Never ask" stops the prompt and the staging for good.
+    /// </summary>
+    private void ConfirmPendingProfileHarvest()
+    {
+        var proposal = _pendingProfileHarvest;
+        _pendingProfileHarvest = null;
+        if (proposal is null)
+            return;
+
+        var choice = GlassChoiceDialog.Show(this,
+            "Keep these details for Autofill?",
+            "Netie can remember what you just typed so Autofill can reuse it. It stays sealed on this PC " +
+            "(DPAPI, per Windows account) and is never uploaded.\n\n" +
+            proposal.Describe() +
+            "\n\nNothing is kept unless you say so. You can edit or clear it any time in My details.",
+            [
+                ("keep", "Keep", true),
+                ("no", "Not now", false),
+                ("never", "Never ask", false)
+            ]);
+
+        if (choice == "never")
+        {
+            UserPrefs.ProfileHarvestOptOut = true;
+            ConvertStatusText.Text = "Autofill will not learn from saves — fill My details by hand instead.";
+            return;
+        }
+
+        if (choice != "keep")
+        {
+            ConvertStatusText.Text = "Nothing kept — My details is unchanged.";
+            return;
+        }
+
+        try
+        {
+            FillProfileStore.Save(proposal.Merged);
+            ConvertStatusText.Text = $"Kept on this PC for Autofill — {proposal.Changes.Count} field(s) in My details.";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"profile harvest save: {ex.Message}");
+            ConvertStatusText.Text = $"Could not save My details: {ex.Message}";
+        }
     }
 
     private void EnsurePdfSignFontsLoaded()

@@ -2,6 +2,10 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-09-06
+
+- Autofill no longer harvests silently. The Save-time `profileHarvest` is staged as a `FillProfileHarvest.Propose` proposal and reaches `fill-profile.bin` only after a confirm dialog that names every field. `FillProfileStore.MergeHarvest` is gone; "Never ask" sets `ProfileHarvestOptOut`.
+
 ## 2026-09-05
 
 - AcroForm widgets follow page zoom (`--scale-factor` = live CSS scale). Autofill is type-aware (name/email/phone/DOB Jun vs June, nationality). My details is one window (Settings, tray, Fill rail). Local DPAPI only.

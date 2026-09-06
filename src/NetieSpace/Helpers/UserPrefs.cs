@@ -59,6 +59,13 @@ public static class UserPrefs
         set => Write("EmbeddingConsentPrompted", value ? "1" : "0");
     }
 
+    /// <summary>User answered "Never ask" to the Save-time Autofill harvest. Default is to ask.</summary>
+    public static bool ProfileHarvestOptOut
+    {
+        get => ReadBool("ProfileHarvestOptOut", defaultValue: false);
+        set => Write("ProfileHarvestOptOut", value ? "1" : "0");
+    }
+
     public static bool ReadBool(string key, bool defaultValue)
     {
         var raw = Read(key);
