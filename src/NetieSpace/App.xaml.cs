@@ -203,11 +203,26 @@ public partial class App : Application
     }
 
     /// <summary>
+    /// Swallow Space/Esc/arrows only when Explorer/Desktop or our preview owns focus.
+    /// Chrome/Word/etc. keep their keys (Peek/QL: float visible, do not steal).
+    /// </summary>
+    private bool ShouldSwallowPreviewKeys()
+    {
+        if (GlobalKeyboardHook.IsExplorerOrDesktopForeground())
+            return true;
+        return Win32Api.IsOurProcessForeground();
+    }
+
+    /// <summary>
     /// Runs on the hook thread. Must not call Shell COM here (RPC_E_CANTCALLOUT_ININPUTSYNCCALL).
     /// Returns true to swallow Space.
     /// </summary>
     private bool HandleSpacePressed()
     {
+        // Explorer F2 rename / in-place label edit — Space must insert a space character.
+        if (Win32Api.IsExplorerLabelEdit())
+            return false;
+
         // Never close / open while typing in chat, signature, API keys, etc.
         if (IsTypingContext())
         {
@@ -221,9 +236,14 @@ public partial class App : Application
 
         if (previewOpen)
         {
+            if (!ShouldSwallowPreviewKeys())
+                return false;
+
             Dispatcher.BeginInvoke(() =>
             {
                 if (IsTypingContext())
+                    return;
+                if (!ShouldSwallowPreviewKeys())
                     return;
                 lock (_previewLock)
                 {
@@ -235,8 +255,8 @@ public partial class App : Application
                             return;
                         }
 
-                        AppLogger.Info("Space toggle — closing preview");
-                        win.Close();
+                        AppLogger.Info("Space toggle — save-then-close preview");
+                        _ = win.RequestCloseAsync();
                     }
                 }
             });
@@ -367,9 +387,14 @@ public partial class App : Application
         if (window is null)
             return false;
 
+        if (!ShouldSwallowPreviewKeys())
+            return false;
+
         Dispatcher.BeginInvoke(() =>
         {
             if (IsTypingContext())
+                return;
+            if (!ShouldSwallowPreviewKeys())
                 return;
             lock (_previewLock)
             {
@@ -381,8 +406,8 @@ public partial class App : Application
                         return;
                     }
 
-                    AppLogger.Info("Esc — closing preview");
-                    win.Close();
+                    AppLogger.Info("Esc — save-then-close preview");
+                    _ = win.RequestCloseAsync();
                 }
             }
         });
@@ -403,6 +428,9 @@ public partial class App : Application
             window = _previewWindow is { IsLoaded: true } ? _previewWindow : null;
 
         if (window is null)
+            return false;
+
+        if (!ShouldSwallowPreviewKeys())
             return false;
 
         var delta = vk is Win32Api.VkDown or Win32Api.VkRight ? 1 : -1;
@@ -436,6 +464,9 @@ public partial class App : Application
             window = _previewWindow is { IsLoaded: true } ? _previewWindow : null;
 
         if (window is null)
+            return false;
+
+        if (!ShouldSwallowPreviewKeys())
             return false;
 
         var toEnd = vk == Win32Api.VkEnd;
@@ -706,6 +737,10 @@ public partial class App : Application
         var apiKeys = new MenuItem { Header = "API Keys…" };
         apiKeys.Click += (_, _) => ShowApiSetup();
         menu.Items.Add(apiKeys);
+
+        var myDetails = new MenuItem { Header = "My details…" };
+        myDetails.Click += (_, _) => FillProfileWindow.ShowStandalone();
+        menu.Items.Add(myDetails);
 
         var memory = new MenuItem
         {

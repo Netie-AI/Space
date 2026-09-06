@@ -446,6 +446,24 @@ public sealed class PdfEditService
     /// XGraphics' top-left space here. Prefers vector text, falls back to a
     /// supersampled transparent PNG when the font cannot be resolved.
     /// </summary>
+    /// <summary>Create an empty Letter-size PDF (Create PDF / blank page).</summary>
+    public string CreateBlankPdf(string path, int pages = 1)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path required.", nameof(path));
+        var n = Math.Clamp(pages, 1, 50);
+        var dir = IoPath.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(dir))
+            Directory.CreateDirectory(dir);
+
+        using var doc = new PdfDocument();
+        for (var i = 0; i < n; i++)
+            doc.AddPage();
+        doc.Save(path);
+        AppLogger.Info($"Created blank PDF ({n} page(s)) → {path}");
+        return path;
+    }
+
     public string DrawFillTexts(string pdfPath, IReadOnlyList<PdfFillTextItem> items)
     {
         var valid = (items ?? []).Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToList();

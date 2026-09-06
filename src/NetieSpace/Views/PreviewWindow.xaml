@@ -114,7 +114,12 @@
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
                                 Click="EditModeButton_Click"
-                                ToolTip="Morph into Netie PDF / Video editor"/>
+                                ToolTip="Light PDF / video tools in this preview"/>
+                        <Button x:Name="EditInAppButton" Content="Edit in app" Visibility="Collapsed"
+                                Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="14,8"
+                                FontWeight="SemiBold" FontSize="13"
+                                Click="EditInAppButton_Click"
+                                ToolTip="PDFSpace workbench — Fill &amp; Sign, Edit PDF, Organize, right-rail tools"/>
                         <Button x:Name="TextEditButton" Content="Edit" Visibility="Collapsed"
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
@@ -168,7 +173,7 @@
                         <Button x:Name="SetupHelpButton" Content="&#xE713;"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
                                 Click="SetupHelpButton_Click"
-                                ToolTip="Settings — Netie plan · BYO keys · vault · FreeRoute tips"/>
+                                ToolTip="Settings — plan · keys · My details · vault"/>
                         <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,8,0">
                             <Button x:Name="ZoomOutButton" Content="−" Style="{StaticResource GhostButton}"
                                     Margin="0,0,4,0" Padding="10,4" Click="ZoomOutButton_Click"/>
@@ -371,9 +376,10 @@
                                 <Button x:Name="RegionSelectButton" Content="Select area" Style="{StaticResource GhostButton}"
                                         Margin="0,0,8,0" Padding="10,4" Click="RegionSelectButton_Click"
                                         ToolTip="Drag a box over text or a figure — it parses first, then stages as an attachment"/>
-                                <Button x:Name="OpenExternallyButton" Content="Open externally" Visibility="Collapsed"
+                                <Button x:Name="OpenExternallyButton" Content="Open in Netie Space" Visibility="Collapsed"
                                         Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,4"
-                                        Click="OpenExternallyButton_Click"/>
+                                        Click="OpenExternallyButton_Click"
+                                        ToolTip="Open this PDF in PDFSpace — not Acrobat"/>
                                 <TextBlock x:Name="StatusText" VerticalAlignment="Center"
                                            Foreground="{StaticResource Accent2Brush}" FontSize="11.5" FontWeight="Medium"/>
                                 <TextBlock x:Name="ConvertStatusText" Margin="14,0,0,0" VerticalAlignment="Center"
@@ -530,6 +536,12 @@
                                             <Button Content="OCR this page" Style="{StaticResource EditorChipPrimary}"
                                                     Click="PdfOcrSeed_Click"
                                                     ToolTip="Read the visible page with local OCR and drop editable text boxes"/>
+                                            <Button Content="Autofill" Style="{StaticResource EditorChipPrimary}"
+                                                    Click="PdfAutofill_Click"
+                                                    ToolTip="Fill empty boxes from your local profile (never uploaded)"/>
+                                            <Button Content="My details…" Style="{StaticResource EditorChip}"
+                                                    Click="PdfFillProfile_Click"
+                                                    ToolTip="Name, email, phone, address, DOB, nationality — this PC only"/>
                                             <Button Content="A−" Style="{StaticResource EditorChip}" Click="PdfSizeDown_Click" MinWidth="40"/>
                                             <Button Content="A+" Style="{StaticResource EditorChip}" Click="PdfSizeUp_Click" MinWidth="40"/>
                                             <Button Content="Exit Fill" Style="{StaticResource EditorChip}" Click="PdfExitFill_Click"/>
@@ -608,6 +620,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="SummaryRailColumn" Width="0"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition x:Name="PdfSpaceRailColumn" Width="0"/>
                     <ColumnDefinition x:Name="ChatColumn" Width="0"/>
                 </Grid.ColumnDefinitions>
 
@@ -977,7 +990,68 @@
                 </Grid>
                 </Border>
 
-                <controls:ChatPanel x:Name="ChatPanel" Grid.Column="2" Visibility="Collapsed"/>
+                <Border x:Name="PdfSpaceRail" Grid.Column="2" Visibility="Collapsed"
+                        Background="#1A000000" BorderBrush="{StaticResource GlassHighlight}"
+                        BorderThickness="1,0,0,0" Padding="10,12,10,12">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Style="{StaticResource GlassScrollViewer}">
+                        <StackPanel>
+                            <TextBlock Text="PDFSPACE" FontFamily="{StaticResource DisplayFont}"
+                                       Foreground="{StaticResource Accent2Brush}" FontSize="11"
+                                       FontWeight="SemiBold" Margin="4,0,0,10"/>
+                            <Button Content="Fill &amp; Sign" Style="{StaticResource EditorChipPrimary}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfFillAndSign_Click"
+                                    ToolTip="Type in a cell and place a signature — one Acrobat-style mode"/>
+                            <Button Content="Edit PDF" Style="{StaticResource EditorChipPrimary}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfEditTextMode_Click"
+                                    ToolTip="Native text only — click a word to replace. Scans need OCR this page (not full Acrobat OCR)"/>
+                            <Button Content="Sign" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfModeSign_Click"/>
+                            <Button Content="Organize" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfModeOrganize_Click"/>
+                            <Button Content="Comment" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfModeComment_Click"/>
+                            <Button Content="Autofill form" Style="{StaticResource EditorChipPrimary}"
+                                    Margin="0,8,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfAutofill_Click"
+                                    ToolTip="Local name / email / phone / DOB / nationality — never uploaded"/>
+                            <Button Content="My details…" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfFillProfile_Click"/>
+                            <Button Content="OCR this page…" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfOcrSeed_Click"
+                                    ToolTip="Seed fill boxes from local OCR — not full Acrobat Scan &amp; OCR"/>
+                            <TextBlock Text="Create" Foreground="#80A0A8B8" FontSize="10"
+                                       Margin="4,12,0,6"/>
+                            <Button Content="Blank PDF" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfCreateBlank_Click"
+                                    ToolTip="Create a blank Letter page next to this file"/>
+                            <Button Content="Combine…" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfMerge_Click"
+                                    ToolTip="Merge PDFs (existing Combine dialog)"/>
+                            <TextBlock Text="More" Foreground="#80A0A8B8" FontSize="10"
+                                       Margin="4,12,0,6"/>
+                            <Button Content="Export…" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfExportAsMenu_Click"/>
+                            <Button Content="Watermark…" Style="{StaticResource EditorChip}"
+                                    Margin="0,0,0,6" HorizontalAlignment="Stretch"
+                                    Click="PdfWatermark_Click"/>
+                            <Button Content="Protect…" Style="{StaticResource EditorChip}"
+                                    HorizontalAlignment="Stretch"
+                                    Click="PdfProtect_Click"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+
+                <controls:ChatPanel x:Name="ChatPanel" Grid.Column="3" Visibility="Collapsed"/>
             </Grid>
         </Grid>
             </Grid>

@@ -83,6 +83,20 @@
                                 </StackPanel>
                             </Border>
 
+                            <Border Background="#18101820" CornerRadius="14" Padding="16" Margin="0,0,0,16"
+                                    BorderBrush="#40FFFFFF" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="My details (PDF Autofill)"
+                                               FontFamily="{StaticResource DisplayFont}"
+                                               Foreground="{StaticResource TextBrush}" FontSize="14" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Name, email, phone, address, date of birth, nationality. This PC only - never uploaded."
+                                               Foreground="{StaticResource MutedBrush}" FontSize="12.5" TextWrapping="Wrap" Margin="0,8,0,12"/>
+                                    <Button Content="View / edit my details…"
+                                            Style="{StaticResource GhostButton}" HorizontalAlignment="Left"
+                                            Click="MyDetails_Click"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- 2. BYO / FreeRoute — masked, no inline edit -->
                             <TextBlock Text="2 · Bring your own key (FreeRoute / BYO)"
                                        FontFamily="{StaticResource DisplayFont}"

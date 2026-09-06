@@ -94,6 +94,30 @@
     .page-wrap { position: relative; margin: 0 auto 16px; display: block; width: fit-content;
       box-shadow: 0 6px 24px #00000066; border-radius: 10px; overflow: hidden; background: #fff; }
     .page-wrap canvas { display: block; }
+    .annotationLayer {
+      position: absolute; left: 0; top: 0; pointer-events: none;
+      transform-origin: 0 0; z-index: 18;
+    }
+    .annotationLayer section {
+      position: absolute; text-align: initial; pointer-events: none;
+      box-sizing: border-box; transform-origin: 0 0;
+    }
+    #viewer.fill-mode .annotationLayer,
+    #viewer.fill-mode .annotationLayer section { pointer-events: auto; }
+    .annotationLayer .textWidgetAnnotation :is(input, textarea),
+    .annotationLayer .choiceWidgetAnnotation select,
+    .annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) input {
+      background: rgba(255,255,255,0.55); border: 1.5px solid rgba(43,108,176,0.7);
+      box-sizing: border-box; color: #10141a; font: calc(10px * var(--scale-factor)) Helvetica, Arial, sans-serif;
+      height: 100%; width: 100%; margin: 0; vertical-align: top;
+    }
+    .annotationLayer .textWidgetAnnotation textarea { resize: none; }
+    .annotationLayer .buttonWidgetAnnotation.radioButton input { border-radius: 50%; }
+    .annotationLayer .textWidgetAnnotation :is(input, textarea):focus,
+    .annotationLayer .choiceWidgetAnnotation select:focus {
+      outline: 2px solid #2b6cb0; background: #fff;
+    }
+    .annotationLayer .linkAnnotation { display: none; }
     #stampGhost { position: absolute; pointer-events: none; display: none; z-index: 40;
       filter: drop-shadow(0 4px 12px #0008); opacity: 0.98; }
     #stampGhost img { max-width: 180px; max-height: 70px; display: block; }
@@ -280,6 +304,39 @@
 
     function uid() { return 's' + Math.random().toString(36).slice(2, 10); }
 
+    const netieLinkService = {
+      eventBus: null,
+      externalLinkEnabled: true,
+      externalLinkTarget: 0,
+      externalLinkRel: 'noopener noreferrer nofollow',
+      get pagesCount() { return pdf ? pdf.numPages : 0; },
+      get page() { return pageNum; },
+      set page(n) { goToPage(n, true); },
+      rotation: 0,
+      addLinkAttributes(el, url) {
+        if (!el || !url) return;
+        el.href = url;
+        el.target = '_blank';
+        el.rel = this.externalLinkRel;
+      },
+      getDestinationHash() { return '#'; },
+      getAnchorUrl(h) { return h || '#'; },
+      executeNamedAction() {},
+      executeSetOCGState() {},
+      goToDestination() { return Promise.resolve(); },
+      goToPage(n) { goToPage(n, true); },
+      isPageVisible() { return true; },
+      isPageCached() { return true; }
+    };
+
+    function u8ToB64(u8) {
+      const chunk = 0x8000;
+      let s = '';
+      for (let i = 0; i < u8.length; i += chunk)
+        s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
+      return btoa(s);
+    }
+
     /** Selection + nearby tokens + page for Netie Look Up (host calls via ExecuteScript). */
     window.netieGetLookupContext = function (radius) {
       const r = Math.max(40, Math.min(200, radius | 0 || 100));
@@ -399,7 +456,14 @@
       // Cancel in-flight page renders before swapping documents
       for (const e of pageMap.values()) { try { e.renderTask?.cancel(); } catch (_) {} }
       const oldPdf = pdf;
-      const newPdf = await pdfjsLib.getDocument(fileUrl).promise;
+      const newPdf = await pdfjsLib.getDocument({
+        url: fileUrl,
+        annotationMode: pdfjsLib.AnnotationMode.ENABLE_FORMS
+      }).promise;
+      newPdf.annotationStorage.onSetModified = () => {
+        if (!fillMode) return;
+        post({ type: 'acroFormDirty' });
+      };
       if (myLoad !== loadGen) { try { newPdf.destroy(); } catch (_) {} return; }
       pdf = newPdf;
       if (oldPdf) { try { oldPdf.destroy(); } catch (_) {} }
@@ -469,7 +533,10 @@
             canvas.style.width = cssW + 'px';
             canvas.style.height = cssH + 'px';
             wrap.appendChild(canvas);
-            return { n, wrap, canvas, widthPt: baseVp.width, heightPt: baseVp.height };
+            const annotDiv = document.createElement('div');
+            annotDiv.className = 'annotationLayer';
+            wrap.appendChild(annotDiv);
+            return { n, wrap, canvas, annotDiv, widthPt: baseVp.width, heightPt: baseVp.height };
           })(i));
         }
         const chunk = await Promise.all(jobs);
@@ -477,7 +544,7 @@
         for (const item of chunk) {
           pagesEl.appendChild(item.wrap);
           pageMap.set(item.n, {
-            wrap: item.wrap, canvas: item.canvas,
+            wrap: item.wrap, canvas: item.canvas, annotDiv: item.annotDiv,
             widthPt: item.widthPt, heightPt: item.heightPt, rendered: false
           });
         }
@@ -518,7 +585,11 @@
       entry.canvas.style.height = Math.floor(cssVp.height) + 'px';
       const ctx = entry.canvas.getContext('2d');
       const finalVp = page.getViewport({ scale: pixelScale * (w / renderVp.width) });
-      const task = page.render({ canvasContext: ctx, viewport: finalVp });
+      const task = page.render({
+        canvasContext: ctx,
+        viewport: finalVp,
+        annotationMode: pdfjsLib.AnnotationMode.ENABLE_FORMS
+      });
       entry.renderTask = task;
       try {
         await task.promise;
@@ -530,11 +601,51 @@
       if (entry.renderTask === task) entry.renderTask = null;
       if (myGen !== entry.gen || myLoad !== loadGen) return;
       entry.rendered = true;
+      await renderAnnotLayer(entry, page, cssVp);
 
       layoutHighlightsForPage(n);
       layoutOverlaysForPage(n);
       layoutFillFieldsForPage(n);
       paintSearchHitsForPage(n);
+    }
+
+    async function renderAnnotLayer(entry, page, cssVp) {
+      if (!entry?.annotDiv || !pdf) return;
+      entry.annotDiv.replaceChildren();
+      let annotations;
+      try { annotations = await page.getAnnotations({ intent: 'display' }); }
+      catch (_) { return; }
+      if (!annotations.length) {
+        entry.annotDiv.hidden = true;
+        return;
+      }
+      entry.annotDiv.hidden = false;
+      // pdf.js sizes the layer as calc(var(--scale-factor) * pageWidth).
+      // Hardcoding 1 left widgets in the top-left of a zoomed canvas.
+      const cssScale = cssVp.scale || 1;
+      entry.wrap.style.setProperty('--scale-factor', String(cssScale));
+      entry.annotDiv.style.setProperty('--scale-factor', String(cssScale));
+      const vp = cssVp.clone({ dontFlip: true });
+      try {
+        const layer = new pdfjsLib.AnnotationLayer({
+          div: entry.annotDiv,
+          page,
+          viewport: vp
+        });
+        await layer.render({
+          annotations,
+          viewport: vp,
+          linkService: netieLinkService,
+          renderForms: true,
+          annotationStorage: pdf.annotationStorage,
+          downloadManager: null,
+          enableScripting: false
+        });
+      } catch (e) {
+        try { console.warn('annot layer', e); } catch (_) {}
+      }
+      entry.annotDiv.style.width = entry.canvas.style.width;
+      entry.annotDiv.style.height = entry.canvas.style.height;
     }
 
     async function renderVisiblePages(forceAllNear) {
@@ -856,6 +967,7 @@
       status.textContent = continuous
         ? 'Fit width — pages centered · scroll for more'
         : 'Fit — full page · sharp · resizes with window';
+      post({ type: 'zoom', scale, fit: true });
     }
 
     function syncPageFromScroll() {
@@ -984,7 +1096,7 @@
       handle.className = 'handle';
       el.appendChild(img);
       el.appendChild(handle);
-      el.addEventListener('mousedown', (ev) => {
+      el.addEventListener('pointerdown', (ev) => {
         selectOverlay(placement.id);
         const mode = ev.target === handle ? 'resize' : 'move';
         boxDrag = {
@@ -998,6 +1110,7 @@
         pendingPlacement = overlays.find(o => o.id === placement.id) || placement;
         stampPending = !committed;
         stampConfirmBtn.style.display = committed ? 'none' : 'inline-block';
+        try { el.setPointerCapture(ev.pointerId); } catch (_) {}
         ev.preventDefault();
         ev.stopPropagation();
       });
@@ -1136,6 +1249,206 @@
     const fillFloatBar = document.getElementById('fillFloatBar');
     const fillBtn = document.getElementById('fillBtn');
 
+    const MON3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const MONF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    function detectDateFormat(s) {
+      s = String(s || '').trim();
+      if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(s)) return 'dd-MMM-yyyy';
+      if (/^\d{1,2}\/[A-Za-z]{3}\/\d{4}$/.test(s)) return 'dd/MMM/yyyy';
+      if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return 'dd/MM/yyyy';
+      if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return 'yyyy-MM-dd';
+      if (/^[A-Za-z]{3,9}\s+\d{1,2},?\s+\d{4}$/.test(s)) return 'MMMM d, yyyy';
+      return '';
+    }
+
+    function parseFlexibleDate(s) {
+      s = String(s || '').trim();
+      if (!s) return null;
+      let m = s.match(/^(\d{1,2})[-/]([A-Za-z]{3})[-/](\d{4})$/);
+      if (m) {
+        const mi = MON3.findIndex(x => x.toLowerCase() === m[2].toLowerCase());
+        if (mi >= 0) return new Date(+m[3], mi, +m[1]);
+      }
+      m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
+      m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+      m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+      if (m) {
+        const mi = MONF.findIndex(x => x.toLowerCase() === m[1].toLowerCase());
+        if (mi >= 0) return new Date(+m[3], mi, +m[2]);
+      }
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatDateValue(d, fmt) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const d1 = String(d.getDate());
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      switch (fmt) {
+        case 'dd/MM/yyyy': return dd + '/' + mm + '/' + yyyy;
+        case 'yyyy-MM-dd': return yyyy + '-' + mm + '-' + dd;
+        case 'dd/MMM/yyyy': return dd + '/' + MON3[d.getMonth()] + '/' + yyyy;
+        case 'MMMM d, yyyy': return MONF[d.getMonth()] + ' ' + d1 + ', ' + yyyy;
+        default: return dd + '-' + MON3[d.getMonth()] + '-' + yyyy;
+      }
+    }
+
+    function sniffDateFormat(profile) {
+      const pref = String(profile?.dateFormat || '').trim();
+      if (pref) return pref;
+      for (const input of document.querySelectorAll('.annotationLayer input')) {
+        const f = detectDateFormat(input.value);
+        if (f) return f;
+      }
+      return detectDateFormat(profile?.dob) || 'dd-MMM-yyyy';
+    }
+
+    function isEmailLabel(n) { return /e-?mail/.test(n) || (n.includes('mail') && !n.includes('male')); }
+    function isPhoneLabel(n) { return /phone|tel\b|mobile|\bhp\b|contact no/.test(n); }
+    function isAddressLabel(n) { return /address|street|jalan|residential/.test(n) && !/email/.test(n); }
+    function isNationalityLabel(n) { return /nationalit|citizenship|citizen/.test(n); }
+    function isBirthLabel(n) { return /date of birth|\bdob\b|birth date|birthdate|tarikh lahir/.test(n); }
+    function isNameLabel(n) {
+      if (!n) return false;
+      if (/company|institution|employer|father|mother|spouse|school|university|agency|vessel/.test(n)) return false;
+      return /full name|applicant.?name|given name|name as in|principal name|^name$/.test(n);
+    }
+    function isNumericLike(input) {
+      if (!input) return false;
+      const t = (input.type || '').toLowerCase();
+      if (t === 'number' || t === 'tel') return true;
+      const mode = (input.inputMode || '').toLowerCase();
+      return mode === 'numeric' || mode === 'decimal' || mode === 'tel';
+    }
+
+    function formatDobFor(profile, sample) {
+      const raw = profile.dob || '';
+      const d = parseFlexibleDate(raw);
+      if (!d) return raw;
+      const fmt = detectDateFormat(sample) || sniffDateFormat(profile);
+      return formatDateValue(d, fmt);
+    }
+
+    function profileValueFor(label, profile, sample, input) {
+      const n = String(label || '').toLowerCase();
+      if (!n) return '';
+      if (isEmailLabel(n)) return profile.email || '';
+      if (isPhoneLabel(n)) {
+        const v = profile.phone || '';
+        if (isNumericLike(input)) return String(v).replace(/[^\d+]/g, '') || v;
+        return v;
+      }
+      if (isAddressLabel(n)) return profile.address || '';
+      if (isNationalityLabel(n)) return profile.nationality || '';
+      if (isBirthLabel(n)) return formatDobFor(profile, sample);
+      if (isNameLabel(n)) return profile.name || '';
+      return '';
+    }
+
+    function setWidgetValue(input, v) {
+      if (input.tagName === 'SELECT') {
+        const want = String(v).trim().toLowerCase();
+        let hit = null;
+        for (const opt of input.options) {
+          const t = String(opt.text || opt.value || '').trim().toLowerCase();
+          if (!t) continue;
+          if (t === want || t.startsWith(want) || want.startsWith(t) || t.includes(want)) {
+            hit = opt.value;
+            break;
+          }
+        }
+        if (hit == null) return false;
+        input.value = hit;
+      } else {
+        const max = Number(input.maxLength);
+        if (max > 0 && max < 500 && v.length > max) return false;
+        input.value = v;
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    }
+
+    function widgetLabel(input) {
+      return (input.getAttribute('aria-label') || input.name || input.title || '').toString();
+    }
+
+    function collectBoundedProfile() {
+      const out = { name: '', email: '', phone: '', address: '', dob: '', nationality: '', dateFormat: '' };
+      const consider = (label, value) => {
+        const n = String(label || '').toLowerCase();
+        const v = String(value || '').trim();
+        if (!n || !v) return;
+        const fmt = detectDateFormat(v);
+        if (fmt) out.dateFormat = out.dateFormat || fmt;
+        if (isEmailLabel(n)) out.email = v;
+        else if (isPhoneLabel(n)) out.phone = v;
+        else if (isNationalityLabel(n)) out.nationality = v;
+        else if (isBirthLabel(n)) out.dob = v;
+        else if (isAddressLabel(n)) out.address = v;
+        else if (isNameLabel(n)) out.name = v;
+      };
+      for (const input of document.querySelectorAll('.annotationLayer input, .annotationLayer textarea, .annotationLayer select')) {
+        if (input.type === 'radio' || input.type === 'checkbox') continue;
+        consider(widgetLabel(input), input.value);
+      }
+      for (const f of fillFields) {
+        if (f.snapped === 'acroform') consider(f.fieldName || '', f.text || '');
+      }
+      return out;
+    }
+
+    function applyAutofillProfile(profile) {
+      enterFillMode();
+      let filled = 0;
+      for (const input of document.querySelectorAll('.annotationLayer input, .annotationLayer textarea, .annotationLayer select')) {
+        if (input.disabled || input.type === 'radio' || input.type === 'checkbox') continue;
+        if ((input.value || '').trim()) continue;
+        const label = widgetLabel(input);
+        const v = profileValueFor(label, profile, input.value, input);
+        if (!v) continue;
+        if (setWidgetValue(input, v)) filled++;
+      }
+      for (const f of fillFields) {
+        if ((f.text || '').trim()) continue;
+        const label = f.snapped === 'acroform' ? (f.fieldName || '') : '';
+        const v = profileValueFor(label, profile, f.text || '', null);
+        if (!v) continue;
+        f.text = v;
+        if (f.el) f.el.textContent = v;
+        filled++;
+      }
+      for (const field of formFields) {
+        const already = fillFields.some(x =>
+          x.page === field.page &&
+          Math.abs(x.xPt - field.x) < 2 &&
+          Math.abs(x.yFromBottom - field.y) < 2);
+        if (already) continue;
+        const v = profileValueFor(field.name, profile, '', null);
+        if (!v) continue;
+        addFillField({
+          page: field.page,
+          xPt: field.x + 1,
+          yFromBottom: field.y + 1,
+          wPt: Math.max(8, field.w - 2),
+          hPt: Math.max(8, field.h - 2),
+          fontPt: Math.min(28, Math.max(7, (field.h - 2) * 0.58)),
+          text: v,
+          snapped: 'acroform',
+          cover: false,
+          focus: false
+        });
+        filled++;
+      }
+      postFillTexts();
+      status.textContent = filled ? ('Autofill · ' + filled + ' typed box(es) from local details')
+        : 'No matching empty boxes — open My details, or type the field then Save';
+    }
+
     function enterFillMode() {
       if (stampMode || stampPending) exitStampMode();
       highlightMode = false;
@@ -1145,8 +1458,8 @@
       fillBtn.classList.add('on');
       viewer.classList.add('fill-mode');
       banner.style.display = 'block';
-      banner.textContent = 'Click a table cell or form line, then type · A / A / 🗑 above the box · autosaves';
-      status.textContent = 'Fill mode — click where you want to type';
+      banner.textContent = 'Click a blue field to type, or a blank line · radios and lists are live · Save writes into this PDF';
+      status.textContent = 'Fill mode — type in the form fields';
     }
 
     function exitFillMode() {
@@ -1366,7 +1679,7 @@
       });
     }
 
-    function flushAllToHost() {
+    async function flushAllToHost() {
       commitActiveFill();
       clearTimeout(fillPostTimer);
       fillPostTimer = null;
@@ -1376,17 +1689,29 @@
       }
       postFillTexts();
       postHighlights();
+      let acroFormPdf = '';
+      if (pdf?.annotationStorage && pdf.annotationStorage.size > 0) {
+        try {
+          const data = await pdf.saveDocument();
+          acroFormPdf = u8ToB64(data);
+        } catch (e) {
+          post({ type: 'acroFormSaveFailed', message: String(e && e.message || e) });
+        }
+      }
       post({
         type: 'flushReady',
         stamps: overlays.filter(x => x.committed).length,
         fills: fillFields.filter(f => (f.text || '').trim()).length,
-        highlights: highlights.length
+        highlights: highlights.length,
+        acroFormPdf,
+        profileHarvest: collectBoundedProfile()
       });
     }
 
     pagesEl.addEventListener('click', (ev) => {
       if (!fillMode || stampMode || stampPending || boxDrag) return;
       if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('.fill-text')) return;
+      if (ev.target.closest?.('.annotationLayer')) return;
       commitActiveFill();
       const p = canvasPoint(ev);
       if (!p.inside || !p.entry) return;
@@ -1963,6 +2288,7 @@
     let rescaleTimer = 0;
     function scheduleRescale() {
       document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+      post({ type: 'zoom', scale, fit: false });
       clearTimeout(rescaleTimer);
       rescaleTimer = setTimeout(() => { rescaleAll(); }, 120);
     }
@@ -2019,8 +2345,10 @@
       if (msg?.type === 'enterTextEditMode') {
         enterFillMode();
         bboxMode = true;
-        banner.textContent = 'Click a word to edit it, or click blank space to type';
+        banner.textContent = 'Native text — click a word to edit. Scans need OCR seed (not full Acrobat OCR).';
+        post({ type: 'requestTextBoxes', page: pageNum });
       }
+      if (msg?.type === 'autofillProfile') applyAutofillProfile(msg);
       if (msg?.type === 'seedFillTexts' || msg?.type === 'addFillTexts')
         seedFillTexts(msg.texts || [], { replace: !!msg.replace });
       if (msg?.type === 'exportPagePng') exportPagePng(msg.page | 0);

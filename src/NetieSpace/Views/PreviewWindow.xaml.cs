@@ -68,6 +68,11 @@ public partial class PreviewWindow : Window
     private string _preferredSignFont = "Segoe Script";
     private bool _pdfSignFontComboReady;
     private bool _pdfDirty;
+    private bool _pdfAcroDirty;
+    private byte[]? _pendingAcroFormBytes;
+    private Task<bool>? _pdfFlushTask;
+    private bool _closingInProgress;
+    private bool _pdfSpaceMode;
     /// <summary>Clean PDF before any stamps — restamp from this so move+save never doubles.</summary>
     private string? _pdfStampBasePath;
     private CancellationTokenSource? _stampAutosaveCts;
@@ -246,7 +251,28 @@ public partial class PreviewWindow : Window
     private void Window_SourceInitialized(object? sender, EventArgs e)
     {
         if (PresentationSource.FromVisual(this) is System.Windows.Interop.HwndSource src)
+        {
             src.AddHook(ImageHorizontalWheelHook);
+            src.AddHook(TopmostGuardHook);
+        }
+        EnsureTopmostNoActivate();
+    }
+
+    private IntPtr TopmostGuardHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == Win32Api.WmWindowposchanged)
+            EnsureTopmostNoActivate();
+        return IntPtr.Zero;
+    }
+
+    public void EnsureTopmostNoActivate()
+    {
+        try
+        {
+            var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
+            Win32Api.EnsureTopmostNoActivate(hwnd);
+        }
+        catch { /* ignore */ }
     }
 
     private IntPtr ImageHorizontalWheelHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -387,11 +413,28 @@ public partial class PreviewWindow : Window
         var isHtmlWord = IsHtmlWordEditable();
         var editing = _editMode && (isVideo || isPdf);
 
-        EditModeButton.Visibility = (isVideo || isPdf) ? Visibility.Visible : Visibility.Collapsed;
-        EditModeButton.Content = _editMode ? "Done" : "Edit";
-        EditModeButton.ToolTip = _editMode
-            ? "Return to light Space preview"
-            : "Morph into full Netie editor (all tools visible)";
+        if (EditModeButton is not null)
+        {
+            if (_pdfSpaceMode)
+                EditModeButton.Visibility = Visibility.Collapsed;
+            else
+            {
+                EditModeButton.Visibility = (isVideo || isPdf) ? Visibility.Visible : Visibility.Collapsed;
+                EditModeButton.Content = _editMode ? "Done" : "Edit";
+                EditModeButton.ToolTip = _editMode
+                    ? "Return to light Space preview"
+                    : "Light tools in this preview";
+            }
+        }
+
+        if (EditInAppButton is not null)
+        {
+            EditInAppButton.Visibility = isPdf ? Visibility.Visible : Visibility.Collapsed;
+            EditInAppButton.Content = _pdfSpaceMode ? "Done" : "Edit in app";
+            EditInAppButton.ToolTip = _pdfSpaceMode
+                ? "Leave PDFSpace workbench"
+                : "Full Fill & Sign / Edit PDF workbench";
+        }
 
         if (TextEditButton is not null)
         {
@@ -404,7 +447,9 @@ public partial class PreviewWindow : Window
 
         if (BrandModeText is not null)
         {
-            BrandModeText.Text = editing
+            BrandModeText.Text = _pdfSpaceMode && isPdf
+                ? "PDFSPACE"
+                : editing
                 ? (isPdf ? "PDF Editor" : "Video Editor")
                 : _textEditMode && isHtmlWord
                     ? HtmlWordBrandLabel()
@@ -417,6 +462,7 @@ public partial class PreviewWindow : Window
         ApplySummaryBarVisibility();
         if (PdfEditorRibbon is not null)
             PdfEditorRibbon.Visibility = isPdf && _editMode ? Visibility.Visible : Visibility.Collapsed;
+        ApplyPdfSpaceRail();
         if (VideoEditorRibbon is not null)
             VideoEditorRibbon.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
 
@@ -532,6 +578,7 @@ public partial class PreviewWindow : Window
             }
             else
             {
+                _pdfSpaceMode = false;
                 ConvertStatusText.Text = "Light preview";
                 // Morph the ribbon back out and the summary back in, wherever the user parked it.
                 ApplySummaryLayout(animate: true);
@@ -540,6 +587,7 @@ public partial class PreviewWindow : Window
             }
 
             EditModeButton.InvalidateVisual();
+            EditInAppButton?.InvalidateVisual();
         }
         catch (Exception ex)
         {
@@ -553,6 +601,55 @@ public partial class PreviewWindow : Window
             }
             catch { /* ignore rollback failure */ }
         }
+    }
+
+    private async void EditInAppButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_pdfSpaceMode)
+            {
+                await RequestViewerFlushAsync();
+                if (HasPendingPdfEdits())
+                    await FlushPendingPdfStampsAsync(keepOverlaysEditable: false);
+                _pdfSpaceMode = false;
+                _editMode = false;
+                ConvertStatusText.Text = "Light preview";
+                ApplySummaryLayout(animate: true);
+            }
+            else
+            {
+                _pdfSpaceMode = true;
+                _editMode = true;
+                if (ActualWidth < 1100)
+                    Width = Math.Min(SystemParameters.WorkArea.Width * 0.92, Math.Max(ActualWidth, 1180));
+                if (ActualHeight < 760)
+                    Height = Math.Max(ActualHeight, Math.Min(920, SystemParameters.WorkArea.Height * 0.88));
+                ConvertStatusText.Text = "PDFSpace — Fill & Sign · Edit PDF · click a box to type";
+                if (PdfEditorRibbon is not null)
+                    AnimationHelper.SlideDownFadeIn(PdfEditorRibbon, -12, _animationMs);
+                PdfFillAndSign_Click(sender, e);
+            }
+
+            if (_content is not null)
+                UpdateActionButtons(_content.Kind);
+            if (BrandModeText is not null)
+                AnimationHelper.AnimateOpen(BrandModeText, _animationMs - 40);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error(ex, "EditInAppButton_Click");
+            ConvertStatusText.Text = $"PDFSpace: {ex.Message}";
+        }
+    }
+
+    private void ApplyPdfSpaceRail()
+    {
+        var on = _pdfSpaceMode && _content?.Kind == PreviewKind.Pdf;
+        if (PdfSpaceRail is not null)
+            PdfSpaceRail.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfSpaceRailColumn is not null)
+            PdfSpaceRailColumn.Width = new GridLength(on ? 188 : 0);
     }
 
     private async Task RenderContentAsync(PreviewContent content)
@@ -1822,16 +1919,29 @@ public partial class PreviewWindow : Window
 
     private void ShowPdfLoadFailure(string detail)
     {
-        StatusText.Text = "PDF preview failed — try Open externally.";
+        StatusText.Text = "PDF preview failed — try Open in Netie Space.";
         ConvertStatusText.Text = string.IsNullOrWhiteSpace(detail) ? "" : detail;
+        OpenExternallyButton.Content = "Open in Netie Space";
         OpenExternallyButton.Visibility = Visibility.Visible;
-        SummaryText.Text = "Could not display this PDF in the preview. Open it in your default PDF app instead.";
+        SummaryText.Text =
+            "Could not display this PDF in the light preview. Open in Netie Space (PDFSpace) to edit, or use the OS default from File Explorer.";
     }
 
     private void OpenExternallyButton_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_currentFilePath) || !IoFile.Exists(_currentFilePath))
             return;
+
+        // PDF -> Netie PDFSpace workbench (not Acrobat / OS default).
+        var ext = IoPath.GetExtension(_currentFilePath);
+        if (string.Equals(ext, ".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!_pdfSpaceMode)
+                EditInAppButton_Click(sender, e);
+            else
+                ConvertStatusText.Text = "Already in PDFSpace — Fill & Sign or Edit PDF from the right rail";
+            return;
+        }
 
         try
         {
@@ -1893,11 +2003,128 @@ public partial class PreviewWindow : Window
                 fields
             });
             core.PostWebMessageAsJson(payload);
+
+            var listed = PdfFormBridge.TryList(pdfPath);
+            if (listed is { Xfa: true })
+                ConvertStatusText.Text = "This PDF uses XFA — print to a static PDF first, then Fill.";
+            else if (listed is { Ok: false, Error: "no_acroform" } && fields.Count == 0)
+                ConvertStatusText.Text = "No AcroForm widgets — click a cell or line to type.";
         }
         catch (Exception ex)
         {
             AppLogger.Warn($"Form field rects: {ex.Message}");
         }
+    }
+
+    private void PostPdfViewerZoomOrFit()
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        try { PreviewWebView.ZoomFactor = 1.0; } catch { /* ignore */ }
+
+        var pct = UserPrefs.PdfZoomPercent;
+        if (pct <= 0)
+        {
+            core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "fitPage" }));
+            return;
+        }
+
+        var scale = Math.Clamp(pct / 100.0, 0.25, 4.0);
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "setZoom", scale }));
+    }
+
+    private async Task HandleViewerSnapCellAsync(System.Text.Json.JsonElement root)
+    {
+        try
+        {
+            var page = root.TryGetProperty("page", out var pg) && pg.TryGetInt32(out var p) ? p : 1;
+            var xPx = root.TryGetProperty("xPx", out var x) && x.TryGetDouble(out var xd) ? xd : 0;
+            var yPx = root.TryGetProperty("yPx", out var y) && y.TryGetDouble(out var yd) ? yd : 0;
+            var canvasW = root.TryGetProperty("canvasW", out var cw) && cw.TryGetDouble(out var cwd) ? cwd : 0;
+            var canvasH = root.TryGetProperty("canvasH", out var ch) && ch.TryGetDouble(out var chd) ? chd : 0;
+            var pageW = root.TryGetProperty("pageWidthPt", out var pw) && pw.TryGetDouble(out var pwd) ? pwd : 0;
+            var pageH = root.TryGetProperty("pageHeightPt", out var ph) && ph.TryGetDouble(out var phd) ? phd : 0;
+            var req = root.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
+            var cap = await RequestViewerPagePngAsync(page);
+            var core = PreviewWebView.CoreWebView2;
+            if (core is null)
+                return;
+            var tmp = IoPath.Combine(IoPath.GetTempPath(), $"netie_snap_{Guid.NewGuid():N}.png");
+            if (cap is null || string.IsNullOrWhiteSpace(cap.DataUrl) || !TryWriteDataUrlPng(cap.DataUrl, tmp) || canvasW < 8 || canvasH < 8)
+            {
+                core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "snapCellResult", id = req, kind = "none" }));
+                return;
+            }
+            try
+            {
+                var pngW = cap.WidthPx > 0 ? cap.WidthPx : canvasW;
+                var pngH = cap.HeightPx > 0 ? cap.HeightPx : canvasH;
+                var sx = pngW / canvasW;
+                var sy = pngH / canvasH;
+                var hit = PdfDetectBridge.TrySnapCell(tmp, xPx * sx, yPx * sy, pageW, pageH);
+                if (hit is null || hit.Kind is "none")
+                {
+                    core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "snapCellResult", id = req, kind = "none" }));
+                    return;
+                }
+                core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    type = "snapCellResult",
+                    id = req,
+                    kind = hit.Kind,
+                    xPt = hit.XPt,
+                    yFromBottom = hit.YFromBottom,
+                    wPt = hit.WPt,
+                    hPt = hit.HPt
+                }));
+            }
+            finally
+            {
+                try { IoFile.Delete(tmp); } catch { /* temp */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"snap-cell: {ex.Message}");
+        }
+    }
+
+    private void PdfFillProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (FillProfileWindow.ShowDialogFor(this))
+            ConvertStatusText.Text = "Details saved on this PC — Autofill uses them, nothing leaves the machine.";
+    }
+
+    private void PdfAutofill_Click(object sender, RoutedEventArgs e)
+    {
+        if (!FillProfileStore.HasName)
+        {
+            PdfFillProfile_Click(sender, e);
+            if (!FillProfileStore.HasName)
+                return;
+        }
+
+        var profile = FillProfileStore.Load();
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null) return;
+        if (_pdfToolMode != "fill")
+        {
+            SetPdfToolMode("fill");
+            PdfFillForm_Click(sender, e);
+        }
+        core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "autofillProfile",
+            name = profile.FullName,
+            email = profile.Email,
+            phone = profile.Phone,
+            address = profile.Address,
+            date = profile.DateToday,
+            dob = profile.DateOfBirth,
+            nationality = profile.Nationality,
+            dateFormat = profile.DateFormat
+        }));
+        ConvertStatusText.Text = "Autofill — empty boxes matched by type from your local details";
     }
 
     private void PreviewWebView_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
@@ -2097,8 +2324,43 @@ public partial class PreviewWindow : Window
             {
                 AcceptViewerHighlights(root, replaceAll: type == "highlights");
             }
+            else if (type == "acroFormDirty")
+            {
+                _pdfAcroDirty = true;
+                _pdfDirty = true;
+                ConvertStatusText.Text = "Form fields changed — Save writes into this PDF";
+            }
+            else if (type == "acroFormSaveFailed")
+            {
+                var err = root.TryGetProperty("message", out var em) ? em.GetString() : "saveDocument failed";
+                ConvertStatusText.Text = $"Form save failed: {err}";
+            }
             else if (type == "flushReady")
             {
+                _pendingAcroFormBytes = null;
+                if (root.TryGetProperty("acroFormPdf", out var b64El))
+                {
+                    var b64 = b64El.GetString();
+                    if (!string.IsNullOrWhiteSpace(b64))
+                    {
+                        try
+                        {
+                            _pendingAcroFormBytes = Convert.FromBase64String(b64);
+                            _pdfAcroDirty = true;
+                            _pdfDirty = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            AppLogger.Warn($"acroFormPdf decode: {ex.Message}");
+                        }
+                    }
+                }
+                if (root.TryGetProperty("profileHarvest", out var harvest) &&
+                    harvest.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    try { FillProfileStore.MergeHarvest(harvest); }
+                    catch (Exception ex) { AppLogger.Warn($"profile harvest: {ex.Message}"); }
+                }
                 _viewerFlushTcs?.TrySetResult(true);
             }
             else if (type == "pagePng")
@@ -2147,6 +2409,26 @@ public partial class PreviewWindow : Window
                     : "";
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
                     PostFormFieldsToViewer(_currentFilePath);
+                PostPdfViewerZoomOrFit();
+            }
+            else if (type == "zoom")
+            {
+                var fit = root.TryGetProperty("fit", out var fitEl) &&
+                          fitEl.ValueKind == System.Text.Json.JsonValueKind.True;
+                if (fit)
+                    UserPrefs.PdfZoomPercent = 0;
+                else if (root.TryGetProperty("scale", out var scEl) && scEl.TryGetDouble(out var sc))
+                    UserPrefs.PdfZoomPercent = (int)Math.Round(Math.Clamp(sc, 0.25, 4.0) * 100);
+            }
+            else if (type == "needTextBoxes")
+            {
+                var page = root.TryGetProperty("page", out var pg) && pg.TryGetInt32(out var p) ? p : 1;
+                if (!string.IsNullOrWhiteSpace(_currentFilePath))
+                    PostTextBoxesToViewer(_currentFilePath!, page);
+            }
+            else if (type == "snapCell")
+            {
+                _ = HandleViewerSnapCellAsync(root);
             }
         }
         catch (Exception ex)
@@ -2207,11 +2489,13 @@ public partial class PreviewWindow : Window
     private int PendingPdfEditCount() =>
         _pendingStamps.Count + _pendingFillTexts.Count + _pendingHighlights.Count;
 
-    private bool HasPendingPdfEdits() => PendingPdfEditCount() > 0;
+    private bool HasPendingPdfEdits() =>
+        _pdfAcroDirty || _pendingAcroFormBytes is { Length: > 0 } || PendingPdfEditCount() > 0;
 
     private string PendingPdfEditsLabel()
     {
         var parts = new List<string>();
+        if (_pdfAcroDirty || _pendingAcroFormBytes is { Length: > 0 }) parts.Add("form fields");
         if (_pendingStamps.Count > 0) parts.Add($"{_pendingStamps.Count} stamp(s)");
         if (_pendingFillTexts.Count > 0) parts.Add($"{_pendingFillTexts.Count} text box(es)");
         if (_pendingHighlights.Count > 0) parts.Add($"{_pendingHighlights.Count} highlight(s)");
@@ -2279,6 +2563,8 @@ public partial class PreviewWindow : Window
         _pendingFillTexts.Clear();
         _pendingHighlights.Clear();
         _pdfDirty = false;
+        _pdfAcroDirty = false;
+        _pendingAcroFormBytes = null;
         _pendingStampImage = null;
         _pendingStampName = null;
         _pendingStampFont = null;
@@ -2317,6 +2603,28 @@ public partial class PreviewWindow : Window
     }
 
     private async Task<bool> FlushPendingPdfStampsAsync(bool keepOverlaysEditable = false)
+    {
+        // Serialize: never two bakes (close + autosave race).
+        while (_pdfFlushTask is { IsCompleted: false } inflight)
+        {
+            try { await inflight; }
+            catch { /* prior failure reported in status */ }
+        }
+
+        var run = FlushPendingPdfStampsCoreAsync(keepOverlaysEditable);
+        _pdfFlushTask = run;
+        try
+        {
+            return await run;
+        }
+        finally
+        {
+            if (ReferenceEquals(_pdfFlushTask, run))
+                _pdfFlushTask = null;
+        }
+    }
+
+    private async Task<bool> FlushPendingPdfStampsCoreAsync(bool keepOverlaysEditable)
     {
         if (string.IsNullOrWhiteSpace(_currentFilePath))
         {
@@ -2370,9 +2678,12 @@ public partial class PreviewWindow : Window
                 ? _pdfStampBasePath!
                 : originalPath;
 
-            // Work from clean base so move+resave never doubles stamps
+            // Work from filled AcroForm bytes when pdf.js saveDocument ran; else clean base.
             var work = IoPath.Combine(IoPath.GetTempPath(), $"netie_work_{Guid.NewGuid():N}.pdf");
-            IoFile.Copy(basePath, work, overwrite: true);
+            if (_pendingAcroFormBytes is { Length: > 0 })
+                IoFile.WriteAllBytes(work, _pendingAcroFormBytes);
+            else
+                IoFile.Copy(basePath, work, overwrite: true);
             var path = work;
 
             // Release WebView lock only when we must fully reload
@@ -2453,6 +2764,8 @@ public partial class PreviewWindow : Window
             }
 
             _pdfDirty = false;
+            _pdfAcroDirty = false;
+            _pendingAcroFormBytes = null;
             path = originalPath;
             _currentFilePath = path;
 
@@ -2490,6 +2803,32 @@ public partial class PreviewWindow : Window
         }
     }
 
+    private async Task<bool> EnsurePdfSavedForCloseAsync()
+    {
+        try
+        {
+            await RequestViewerFlushAsync();
+            _stampAutosaveCts?.Cancel();
+
+            if (_pdfFlushTask is { IsCompleted: false } inflight)
+            {
+                var okInflight = await inflight;
+                if (!okInflight)
+                    return false;
+            }
+
+            if (!_pdfDirty && !HasPendingPdfEdits())
+                return true;
+
+            return await FlushPendingPdfStampsAsync(keepOverlaysEditable: true);
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"Save before close failed: {ex.Message}";
+            return false;
+        }
+    }
+
     private async Task RequestViewerFlushAsync()
     {
         var core = PreviewWebView.CoreWebView2;
@@ -2497,7 +2836,7 @@ public partial class PreviewWindow : Window
 
         _viewerFlushTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "requestFlush" }));
-        var completed = await Task.WhenAny(_viewerFlushTcs.Task, Task.Delay(1500));
+        var completed = await Task.WhenAny(_viewerFlushTcs.Task, Task.Delay(12000));
         if (completed != _viewerFlushTcs.Task)
             AppLogger.Warn("Viewer flush timed out — saving whatever the host already has");
         // Let fillTexts / stampMoved messages land on the UI thread
@@ -5274,7 +5613,7 @@ public partial class PreviewWindow : Window
 
         if (!HasPendingPdfEdits())
         {
-            ConvertStatusText.Text = "Nothing to save — place a signature, type in Fill, or add a highlight first.";
+            ConvertStatusText.Text = "Nothing to save — type in a form field, place a signature, or add a highlight.";
             return;
         }
 
@@ -5321,15 +5660,23 @@ public partial class PreviewWindow : Window
                 b.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         }
 
+        var fillOn = _pdfToolMode is "fill" or "fillsign";
+        var signOn = _pdfToolMode is "sign" or "fillsign";
         show(PdfOrganizePanel, _pdfToolMode == "organize");
-        show(PdfSignPanel, _pdfToolMode == "sign");
-        show(PdfFillPanel, _pdfToolMode == "fill");
+        show(PdfSignPanel, signOn);
+        show(PdfFillPanel, fillOn);
         show(PdfCommentPanel, _pdfToolMode == "comment");
 
         void styleMode(System.Windows.Controls.Button? btn, string id)
         {
             if (btn is null) return;
-            btn.Style = (Style)FindResource(_pdfToolMode == id ? "EditorChipPrimary" : "EditorChip");
+            var on = id switch
+            {
+                "fill" => fillOn,
+                "sign" => signOn && _pdfToolMode != "fillsign",
+                _ => _pdfToolMode == id
+            };
+            btn.Style = (Style)FindResource(on ? "EditorChipPrimary" : "EditorChip");
         }
         styleMode(PdfModeOrganizeBtn, "organize");
         styleMode(PdfModeSignBtn, "sign");
@@ -5343,6 +5690,7 @@ public partial class PreviewWindow : Window
                 "organize" => "Page tools below",
                 "sign" => "New signature · then click the page to place",
                 "fill" => "Click a cell · type · OCR seeds scans · Save",
+                "fillsign" => "Fill & Sign — type in a cell, or place a signature · Save",
                 "comment" => "Drag to highlight",
                 _ => "Pick a mode · tweaks appear below"
             };
@@ -5351,9 +5699,9 @@ public partial class PreviewWindow : Window
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
 
-        if (_pdfToolMode != "fill")
+        if (!fillOn)
             core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "exitFillMode" }));
-        if (_pdfToolMode != "sign")
+        if (!signOn)
             core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "exitStampMode" }));
         if (_pdfToolMode != "comment")
             core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "setHighlightMode", on = false }));
@@ -5361,16 +5709,54 @@ public partial class PreviewWindow : Window
 
     private void PdfModeOrganize_Click(object sender, RoutedEventArgs e) => SetPdfToolMode("organize");
 
-    private void PdfModeSign_Click(object sender, RoutedEventArgs e)
+    private async void PdfModeSign_Click(object sender, RoutedEventArgs e)
     {
         SetPdfToolMode("sign");
-        ConvertStatusText.Text = "Sign — New signature, library, or stamp image · then click the page";
+        ConvertStatusText.Text = "Sign — click the page to place";
+        await ArmSignPlacementAsync();
+    }
+
+    /// <summary>Arm ghost stamp: reuse pending PNG, else library, else open SignatureDialog.</summary>
+    private async Task ArmSignPlacementAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_pendingStampImage) && IoFile.Exists(_pendingStampImage))
+        {
+            await PushStampToViewerAsync(_pendingStampImage);
+            ConvertStatusText.Text = "Click the white page to place your signature";
+            EnsureTopmostNoActivate();
+            return;
+        }
+
+        var entries = _sigLibrary.List();
+        var first = entries.FirstOrDefault(x =>
+            !string.IsNullOrWhiteSpace(x.ImagePath) && IoFile.Exists(x.ImagePath));
+        if (first is not null)
+        {
+            _pendingStampImage = first.ImagePath;
+            _pendingStampName = first.Label;
+            _pendingStampFont = first.Font;
+            await PushStampToViewerAsync(first.ImagePath!);
+            ConvertStatusText.Text = $"Using “{first.Label}” — click the white page to place";
+            EnsureTopmostNoActivate();
+            return;
+        }
+
+        PdfSignType_Click(this, new RoutedEventArgs());
     }
 
     private void PdfModeFill_Click(object sender, RoutedEventArgs e)
     {
         SetPdfToolMode("fill");
         PdfFillForm_Click(sender, e);
+    }
+
+    /// <summary>Acrobat-style Fill & Sign: type + signature panels together.</summary>
+    private void PdfFillAndSign_Click(object sender, RoutedEventArgs e)
+    {
+        SetPdfToolMode("fillsign");
+        PdfFillForm_Click(sender, e);
+        ConvertStatusText.Text =
+            "Fill & Sign — click a cell to type, or use Sign below to place a signature · Save writes into this file";
     }
 
     private void PdfModeComment_Click(object sender, RoutedEventArgs e)
@@ -5855,15 +6241,36 @@ public partial class PreviewWindow : Window
     private void PdfEditTextMode_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_currentFilePath)) return;
-        if (!string.Equals(_pdfToolMode, "fill", StringComparison.OrdinalIgnoreCase))
+        if (_pdfToolMode is not ("fill" or "fillsign"))
             SetPdfToolMode("fill");
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
         PostFormFieldsToViewer(_currentFilePath!);
         core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterTextEditMode" }));
-        PostTextBoxesToViewer(_currentFilePath!, 1);
         ConvertStatusText.Text =
-            "Edit text — click a word to change it, or OCR this page for scans. Save writes into the file.";
+            "Edit PDF — native text boxes only. Click a word to replace (whiteout + type). Scans: use OCR this page (seeds boxes; not full Acrobat OCR). Save writes into the file.";
+    }
+
+    private async void PdfCreateBlank_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = !string.IsNullOrWhiteSpace(_currentFilePath)
+                ? IoPath.GetDirectoryName(_currentFilePath)!
+                : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var name = $"Blank_{DateTime.Now:yyyyMMdd_HHmmss}.pdf";
+            var path = IoPath.Combine(dir, name);
+            await Task.Run(() => _pdfEdit.CreateBlankPdf(path, 1));
+            ConvertStatusText.Text = $"Created {name}";
+            await LoadFileAsync(path);
+            if (!_pdfSpaceMode)
+                EditInAppButton_Click(sender, e);
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"Create blank failed: {ex.Message}";
+            AppLogger.Error(ex, "PdfCreateBlank_Click");
+        }
     }
 
     private void PdfFillForm_Click(object sender, RoutedEventArgs e)
@@ -5874,7 +6281,7 @@ public partial class PreviewWindow : Window
         PostFormFieldsToViewer(_currentFilePath!);
         core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterFillMode" }));
         ConvertStatusText.Text =
-            "Fill — click a table cell or blank line, type, then press Save";
+            "Fill — type in the blue fields, or click a blank line, then press Save";
     }
 
     private async void PdfOcrSeed_Click(object sender, RoutedEventArgs e)
@@ -7306,25 +7713,48 @@ public partial class PreviewWindow : Window
         // Re-center after DPI/layout is final (first Position may run pre-Show)
         PositionOnOwnerMonitor(_ownerHwnd);
         UpdateCornerMasks();
+        EnsureTopmostNoActivate();
         AnimationHelper.AnimateOpen(RootBorder, _animationMs);
     }
 
-    private async void CloseButton_Click(object sender, RoutedEventArgs e)
+    public async Task RequestCloseAsync()
     {
-        await FlushHtmlEditIfNeededAsync();
-
-        if (!await PromptSavePendingPdfAsync())
+        if (_closingInProgress)
             return;
+        _closingInProgress = true;
+        try
+        {
+            await FlushHtmlEditIfNeededAsync();
+            if (_content?.Kind == PreviewKind.Pdf)
+            {
+                ConvertStatusText.Text = "Saving before close…";
+                var ok = await EnsurePdfSavedForCloseAsync();
+                if (!ok)
+                {
+                    _closingInProgress = false;
+                    return;
+                }
+            }
 
-        _textEditMode = false;
-
-        _allowClose = true;
-        _cts?.Cancel();
-        StopVideo();
-        HidePreviewHandler();
-        await AnimationHelper.AnimateCloseAsync(RootBorder, _animationMs - 40);
-        Close();
+            _textEditMode = false;
+            _pdfSpaceMode = false;
+            _allowClose = true;
+            _cts?.Cancel();
+            StopVideo();
+            HidePreviewHandler();
+            await AnimationHelper.AnimateCloseAsync(RootBorder, _animationMs - 40);
+            Close();
+        }
+        catch (Exception ex)
+        {
+            _closingInProgress = false;
+            ConvertStatusText.Text = $"Close failed: {ex.Message}";
+            AppLogger.Warn($"RequestCloseAsync: {ex.Message}");
+        }
     }
+
+    private async void CloseButton_Click(object sender, RoutedEventArgs e) =>
+        await RequestCloseAsync();
 
     private async void Window_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -7340,10 +7770,8 @@ public partial class PreviewWindow : Window
         if (!_allowClose && _content?.Kind == PreviewKind.Pdf)
         {
             e.Cancel = true;
-            if (!await PromptSavePendingPdfAsync())
-                return;
-            _allowClose = true;
-            Close();
+            if (!_closingInProgress)
+                _ = RequestCloseAsync();
             return;
         }
 
@@ -7456,6 +7884,8 @@ public partial class PreviewWindow : Window
             if (_webViewTyping)
                 return true;
             if (ChatPanel.IsKeyboardFocusWithin)
+                return true;
+            if (FileNameEditBox?.Visibility == Visibility.Visible)
                 return true;
             var focused = Keyboard.FocusedElement;
             return focused is System.Windows.Controls.Primitives.TextBoxBase

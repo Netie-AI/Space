@@ -32,6 +32,19 @@ public static class UserPrefs
         set => Write("StartupHudSeen", value ? "1" : "0");
     }
 
+    /// <summary>Last PDF viewer zoom percent. 0 = Fit mode.</summary>
+    public static int PdfZoomPercent
+    {
+        get
+        {
+            var raw = Read("PdfZoomPercent");
+            if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw, out var n))
+                return 0;
+            return Math.Clamp(n, 0, 400);
+        }
+        set => Write("PdfZoomPercent", Math.Clamp(value, 0, 400).ToString());
+    }
+
     /// <summary>User opted in to proprietary local dual-brain embeddings (never uploaded).</summary>
     public static bool EmbeddingConsentAccepted
     {
