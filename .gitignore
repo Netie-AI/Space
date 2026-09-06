@@ -22,6 +22,7 @@ scripts/sfpro-extract/
 tools/
 !tools/
 !tools/convert_engine.py
+native/**/target/
 video-assets/
 installer/
 optional/
