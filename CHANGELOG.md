@@ -2,6 +2,20 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-09-05
+
+- AcroForm widgets follow page zoom (`--scale-factor` = live CSS scale). Autofill is type-aware (name/email/phone/DOB Jun vs June, nationality). My details is one window (Settings, tray, Fill rail). Local DPAPI only.
+- Additive Explorer **Open with Netie Space** (HKCU `*\shell`, Start Menu). Does not steal Word/Excel/PDF defaults.
+- EP FORM / AcroForm: pdf.js AnnotationLayer `ENABLE_FORMS` so radios, lists, and text widgets are typeable. Save uses `saveDocument` then existing stamp bake.
+- Rebuild: `scripts/publish.ps1` registers Open with. Rust/Go PDF sidecars still optional under `tools/`.
+
+## 2026-09-04
+
+- Canonical tree is D:\Space. Fast-forward origin/main (PRs #4-#280).
+- PDFSpace workbench: header **Edit in app** (Fill & Sign / Edit PDF rail). Light **Edit** stays.
+- Sept patches migrated: Space focus gate, F2 label-edit, serialized PDF flush, Sign arm, topmost, zoom memory, local Autofill profile.
+- Native sidecars (not a rewrite): Rust `netie-pdf-detect` snap-cell; Go `netie-pdf-form` AcroForm list/fill. P7 rewrite stays parked.
+
 ## 2026-08-27
 
 - Convert: Share dest Word / PDF on photo RTF whose leftover is unstarred `\\annotation` / `\\atnauthor` / `\\atrfstart` embeds that picture. Those dest groups are the same leftover class as HTML comment chrome / `\\nonshppict`; leftover "Photo" stole dest Word (`docx-zip`) and dest PDF was Story white. Header / footer / `\\upr` stay page copy. Mixed `Hello` stays the text path.

@@ -52,11 +52,13 @@ Press **Space** in File Explorer or on the **Desktop** to preview any file — P
 ## Quick Start (this PC)
 
 ```powershell
-cd "D:\Netie Space"
+cd "D:\Space"
 .\install.bat
 ```
 
 Or run without reinstall: `.\run.bat`
+
+**Repo root = `D:\Space` only.** Do not edit `C:\Users\...\Netie Space` for Netie work.
 
 Keys load from `.env` and from **tray → API Keys…** (`%LOCALAPPDATA%\NetieSpace\user.env`).
 

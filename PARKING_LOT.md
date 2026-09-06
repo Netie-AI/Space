@@ -123,7 +123,13 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 ## P7 — Deferred architecture (do not start)
 
-- [ ] Rust/Go rewrite
+- [ ] Rust/Go **rewrite of NetieSpace.exe** — unlock: never, unless PRD press release is rewritten. Targeted sidecars are allowed: `native/netie-pdf-detect` (Rust snap-cell) and `native/netie-pdf-form` (Go AcroForm list/fill).
+- [ ] Unbounded "AI remembers me" / harvest every form field / Cortex `/api/memory` — unlock: founder signs PRD amendment + Space#3 SEC-01 (leave-machine). Local FillProfileStore (name/email/phone/address/DOB/nationality/date format) is the live cap.
+- [ ] Named objects / save-from-utterance / AI fill of the open PDF -- unlock: Space PRD amendment (ledger 19-20, 25-26) + Space#3. Consume Cortex `/api/memory`; double-confirm when uncertain or memory empty (abstain, never silent fill). Do not grow a second KB in Space. OS/web clicks are Pointer, not ChatPanel.
+- [ ] Space as Cortex `/api/memory` consumer (AI-detect objects; no typed extra cards) -- unlock: Space#3 gate-or-disclose + Cortex object-schema PRD sign (ledger 22-23). FillProfileStore stays the row-16 cap. Do not grow fill-profile.bin. Do not silent-upsert facts.
+- [ ] Google Forms / shared fill across surfaces -- unlock: not Space. Pointer/Crew/browser after Cortex `/api/memory` retrieve. Space PDF fill from shared memory is a later consumer after Space#3.
+- [ ] Personal knowledge graph / user digital clone inside Space -- unlock: founder rewrites the Space press release. Default refuse. WP-004 is company clone (Crew+Cortex+Control), not law. Palantir P1 stays parked. TAS lanes 6/7/12/17/18.
+- [ ] Code view/edit/Run (npm/python stack, no commands) — unlock: FreeIDE product, not Space. TAS lane 19 SKIP.
 - [ ] Google AI Overview scrape
 - [ ] Higgsfield / Comfy generative video
 
