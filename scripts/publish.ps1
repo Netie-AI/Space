@@ -201,3 +201,6 @@ if (Test-Path $pluginSrc) {
 if ($RegisterStartup) {
     & (Join-Path $PSScriptRoot 'register-startup.ps1') -ExePath $exe
 }
+
+# Additive Explorer Open with + Start Menu. Does not steal Word/Excel/PDF defaults.
+& (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
