@@ -2,6 +2,10 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-09-17
+
+- JSON peek is a collapsible tree (types, search, copy path, pretty/raw) for `.json` / `.jsonl` / `.ndjson`. Same exe. Invalid JSON stays the highlighted dump plus the parse error. Not a fourth app.
+
 ## 2026-09-09
 
 - Edit-in-app restores docked Acrobat-like chrome (file tab, page/zoom bar, Fill & Sign / Edit PDF / Organize / Comment, left thumbs, right Tools). Floating overlay superceded. Chrome glue `8522` is a light centered doc-app. Same exe. FILL_ONLY.

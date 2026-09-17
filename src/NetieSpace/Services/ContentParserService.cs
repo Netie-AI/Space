@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using System.Text.Json;
 using System.Windows.Media.Imaging;
 using Markdig;
 using NetieSpace.Helpers;
@@ -10,7 +11,7 @@ public sealed class ContentParserService
 {
     private static readonly HashSet<string> TextExtensions =
     [
-        ".txt", ".text", ".log", ".json", ".xml", ".csv", ".cs", ".js", ".ts", ".tsx", ".jsx",
+        ".txt", ".text", ".log", ".json", ".jsonl", ".ndjson", ".xml", ".csv", ".cs", ".js", ".ts", ".tsx", ".jsx",
         ".py", ".java", ".cpp", ".c", ".h", ".hpp", ".rs", ".go", ".rb", ".php",
         ".yaml", ".yml", ".toml", ".ini", ".cfg", ".sql", ".sh", ".ps1", ".bat",
         ".html", ".htm", ".css", ".scss", ".vue", ".swift", ".kt", ".md"
@@ -489,7 +490,22 @@ public sealed class ContentParserService
             truncated = true;
         }
 
-        var lang = GetHighlightLanguage(System.IO.Path.GetExtension(filePath));
+        var ext = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+        if (ext is ".json" or ".jsonl" or ".ndjson")
+        {
+            var jsonHtml = WrapJsonHtml(text, fileName, truncated, ext);
+            return new PreviewContent
+            {
+                FilePath = filePath,
+                FileName = fileName,
+                Kind = PreviewKind.Text,
+                FileSizeBytes = size,
+                RawText = truncated ? text + "\n\n/* … truncated for preview … */" : text,
+                RenderedHtml = jsonHtml
+            };
+        }
+
+        var lang = GetHighlightLanguage(ext);
         var html = WrapCodeHtml(text, lang, fileName, truncated);
         return new PreviewContent
         {
@@ -517,7 +533,7 @@ public sealed class ContentParserService
         ".rb" => "ruby",
         ".php" => "php",
         ".sql" => "sql",
-        ".json" => "json",
+        ".json" or ".jsonl" or ".ndjson" => "json",
         ".xml" => "xml",
         ".yaml" or ".yml" => "yaml",
         ".toml" => "ini",
@@ -543,6 +559,48 @@ public sealed class ContentParserService
             IoPath.Combine(EnvLoader.FindProjectRoot(), "Assets", "code-viewer", fileName),
         };
         return candidates.FirstOrDefault(IoFile.Exists);
+    }
+
+    private static string WrapJsonHtml(string text, string fileName, bool truncated, string extension)
+    {
+        var kind = extension is ".jsonl" or ".ndjson" ? "jsonl" : "json";
+        if (kind == "json")
+        {
+            try
+            {
+                using (JsonDocument.Parse(text)) { }
+            }
+            catch (JsonException ex)
+            {
+                var dump = WrapCodeHtml(text, "json", fileName, truncated);
+                var note = $"<div class='truncate-note'>{Escape(ex.Message)}</div>";
+                return dump.Replace("<body>", "<body>" + note, StringComparison.Ordinal);
+            }
+        }
+
+        var templatePath = FindCodeViewerAsset("json-viewer.html");
+        if (templatePath is null)
+            return WrapCodeHtml(text, "json", fileName, truncated);
+
+        var cssPath = FindCodeViewerAsset("github-dark.min.css");
+        var jsPath = FindCodeViewerAsset("highlight.min.js");
+        var cssHref = cssPath is not null ? new Uri(cssPath).AbsoluteUri : "";
+        var jsSrc = jsPath is not null ? new Uri(jsPath).AbsoluteUri : "";
+        var trunc = truncated
+            ? "<div class=\"result\">Showing first 400000 characters</div>"
+            : "";
+        var hlCss = string.IsNullOrEmpty(cssHref) ? "" : $"<link rel=\"stylesheet\" href=\"{cssHref}\"/>";
+        var hlJs = string.IsNullOrEmpty(jsSrc) ? "" : $"<script src=\"{jsSrc}\"></script>";
+
+        var html = IoFile.ReadAllText(templatePath)
+            .Replace("__NETIE_KIND__", kind, StringComparison.Ordinal)
+            .Replace("__NETIE_TITLE__", Escape(fileName), StringComparison.Ordinal)
+            .Replace("__NETIE_NAME__", Escape(fileName), StringComparison.Ordinal)
+            .Replace("__NETIE_TRUNC__", trunc, StringComparison.Ordinal)
+            .Replace("__NETIE_SCROLL__", GlassScrollbarCss.StyleBlock, StringComparison.Ordinal)
+            .Replace("__NETIE_HL_CSS__", hlCss, StringComparison.Ordinal)
+            .Replace("__NETIE_HL_JS__", hlJs, StringComparison.Ordinal);
+        return html.Replace("__NETIE_SOURCE__", Escape(text), StringComparison.Ordinal);
     }
 
     private static string WrapCodeHtml(string text, string language, string fileName, bool truncated)

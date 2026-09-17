@@ -9,7 +9,7 @@ What exists in this repo and where. Update when structure changes, not when stat
 | `src/NetieSpace/Views/PreviewWindow.xaml` | Peek glass vs light Edit chips vs `_pdfSpaceMode` docked document chrome (header/nav/ribbon/rail) |
 | `src/NetieSpace/Assets/pdfjs/netie-viewer.html` | pdf.js page canvas + Fill overlays (HTML toolbar hidden in workbench) |
 | `src/NetieSpace/Assets/markdown/md-editor.html` | Local markdown workbench (marked+KaTeX, outline, annotate). Edit click until auto-open (MD-1) |
-| `src/NetieSpace/Assets/markdown/md-editor.html` | Markdown workbench canvas (own product PRD; dual-pane hide-chrome) |
+| `src/NetieSpace/Assets/code-viewer/json-viewer.html` | JSON / jsonl peek tree (row 51). Default peek from ContentParserService; Edit stays pre code |
 | `src/NetieSpace/Services/FillProfileStore.cs` | Local DPAPI Autofill profile (never uploaded) |
 | `src/NetieSpace/Services/FillProfileHarvest.cs` | Save-time harvest held as a proposal until the user confirms |
 | `src/NetieSpace/Views/FillProfileWindow.xaml` | My details (Settings + Fill rail) |

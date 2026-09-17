@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en" data-kind="__NETIE_KIND__">
+<head>
+  <meta charset="utf-8"/>
+  <title>__NETIE_TITLE__</title>
+  __NETIE_HL_CSS__
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #10141c;
+      --fg: #f2f4f8;
+      --muted: #99a3b8;
+      --accent: #8b9dff;
+      --accent2: #5eebd8;
+      --border: rgba(255,255,255,0.12);
+      --glass: rgba(22,28,38,0.92);
+      --str: #5eebd8;
+      --num: #8b9dff;
+      --bool: #f0c674;
+      --nil: #99a3b8;
+      --key: #e8ecff;
+    }
+    * { box-sizing: border-box; }
+    __NETIE_SCROLL__
+    html, body {
+      margin: 0; height: 100%;
+      background: var(--bg); color: var(--fg);
+      font: 13px/1.5 "Segoe UI Variable", "Segoe UI", sans-serif;
+    }
+    #bar {
+      position: sticky; top: 0; z-index: 3;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      padding: 8px 12px;
+      background: var(--glass);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(10px);
+    }
+    #bar button, #bar input {
+      background: rgba(42,49,64,0.85); color: var(--fg);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 8px; padding: 5px 10px; font: inherit;
+    }
+    #bar button { cursor: pointer; font-weight: 600; }
+    #bar button.on { outline: 1px solid var(--accent2); }
+    #q { min-width: 160px; flex: 1; max-width: 280px; font-weight: 500; }
+    #name { color: var(--muted); font-size: 12px; margin-left: auto; }
+    .result {
+      margin: 8px 12px 0; padding: 8px 12px; border-radius: 8px;
+      background: rgba(139,157,255,0.12); color: #c5ceff;
+      font: 12px/1.4 "Segoe UI", system-ui, sans-serif;
+    }
+    .result.err { background: rgba(240,120,120,0.14); color: #ffc4c4; }
+    #tree { padding: 10px 12px 40px; font: 13px/1.45 "Cascadia Code", Consolas, monospace; }
+    .row { display: flex; align-items: flex-start; gap: 6px; padding: 1px 4px; border-radius: 6px; cursor: default; }
+    .row:hover { background: rgba(255,255,255,0.04); }
+    .row.sel { background: rgba(94,235,216,0.14); }
+    .row.hit { outline: 1px solid rgba(139,157,255,0.45); }
+    .tw { width: 16px; flex: 0 0 16px; color: var(--muted); cursor: pointer; user-select: none; text-align: center; }
+    .tw.empty { cursor: default; }
+    .k { color: var(--key); }
+    .colon { color: var(--muted); margin: 0 4px; }
+    .t { color: var(--muted); font-size: 11px; margin-left: 8px; }
+    .v.str { color: var(--str); }
+    .v.num { color: var(--num); }
+    .v.bool { color: var(--bool); }
+    .v.nil { color: var(--nil); }
+    .kids { margin-left: 18px; border-left: 1px solid rgba(255,255,255,0.08); padding-left: 2px; }
+    .more { color: var(--accent); cursor: pointer; padding: 2px 22px; font-size: 12px; }
+    .line-err { color: #ffc4c4; padding: 4px 22px; font-size: 12px; }
+    pre.source {
+      display: none; margin: 0; padding: 18px 16px 40px;
+      white-space: pre-wrap; overflow-wrap: anywhere;
+      background: transparent !important;
+      font: 13px/1.55 "Cascadia Code", Consolas, monospace;
+    }
+    code.hljs { background: transparent !important; padding: 0; }
+    body.raw #tree { display: none; }
+    body.raw pre.source { display: block; }
+    pre.source[contenteditable],
+    pre.source:has([contenteditable]) { display: block !important; }
+    body:has(pre.source[contenteditable]) #tree,
+    body:has(pre.source [contenteditable]) #tree { display: none; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <input id="q" type="search" placeholder="Search" title="Search" aria-label="Search" autocomplete="off"/>
+    <button type="button" id="btnCopy" title="Copy path">Copy path</button>
+    <button type="button" id="btnExpand" title="Expand">Expand</button>
+    <button type="button" id="btnCollapse" title="Collapse">Collapse</button>
+    <button type="button" id="btnPretty" class="on" title="Pretty">Pretty</button>
+    <button type="button" id="btnRaw" title="Raw">Raw</button>
+    <span id="name">__NETIE_NAME__</span>
+  </div>
+  <div id="result" class="result" hidden></div>
+  __NETIE_TRUNC__
+  <div id="tree"></div>
+  <pre id="src" class="source"><code class="language-json">__NETIE_SOURCE__</code></pre>
+  __NETIE_HL_JS__
+  <script>
+    (function () {
+      const PAGE = 200;
+      const EXPAND_CAP = 2000;
+      const kind = document.documentElement.getAttribute("data-kind") || "json";
+      const srcEl = document.querySelector("#src code") || document.querySelector("#src");
+      const tree = document.getElementById("tree");
+      const result = document.getElementById("result");
+      const q = document.getElementById("q");
+      let selected = null;
+      let selPath = "$";
+      let painted = 0;
+
+      function showResult(text, isErr) {
+        result.hidden = !text;
+        result.textContent = text || "";
+        result.classList.toggle("err", !!isErr);
+      }
+
+      function typeOf(v) {
+        if (v === null) return "null";
+        if (Array.isArray(v)) return "array";
+        return typeof v;
+      }
+
+      function joinPath(base, key, isIndex) {
+        if (isIndex) return base + "[" + key + "]";
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(key))
+          return (base === "$" ? "$." : base + ".") + key;
+        return base + "[" + JSON.stringify(key) + "]";
+      }
+
+      function parseRoot(text) {
+        const s = String(text || "").replace(/^\uFEFF/, "");
+        if (kind === "jsonl") {
+          const items = [];
+          const lines = s.split(/\r?\n/);
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) continue;
+            try { items.push({ line: i + 1, ok: true, value: JSON.parse(line) }); }
+            catch (e) { items.push({ line: i + 1, ok: false, error: e.message || String(e), raw: line }); }
+          }
+          return { jsonl: true, items: items };
+        }
+        return { jsonl: false, value: JSON.parse(s) };
+      }
+
+      function entriesOf(value) {
+        const t = typeOf(value);
+        if (t === "array") return value.map(function (v, i) { return { key: String(i), value: v, index: true }; });
+        if (t === "object") return Object.keys(value).map(function (k) { return { key: k, value: value[k], index: false }; });
+        return [];
+      }
+
+      function queryHit(key, value, query) {
+        if (!query) return true;
+        if (String(key).toLowerCase().indexOf(query) >= 0) return true;
+        const t = typeOf(value);
+        if (t === "string" || t === "number" || t === "boolean" || t === "null")
+          return String(value).toLowerCase().indexOf(query) >= 0;
+        return false;
+      }
+
+      function branchHit(key, value, query) {
+        if (!query) return true;
+        if (queryHit(key, value, query)) return true;
+        const kids = entriesOf(value);
+        for (let i = 0; i < kids.length; i++) {
+          if (branchHit(kids[i].key, kids[i].value, query)) return true;
+        }
+        return false;
+      }
+
+      function copyText(text) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); } catch (_) {}
+        ta.remove();
+      }
+
+      function selectRow(row, path) {
+        if (selected) selected.classList.remove("sel");
+        selected = row;
+        selPath = path;
+        if (row) row.classList.add("sel");
+      }
+
+      function valueSpan(value) {
+        const t = typeOf(value);
+        const el = document.createElement("span");
+        el.className = "v " + (t === "string" ? "str" : t === "number" ? "num" : t === "boolean" ? "bool" : t === "null" ? "nil" : "");
+        if (t === "string") el.textContent = JSON.stringify(value);
+        else if (t === "null") el.textContent = "null";
+        else if (t === "boolean" || t === "number") el.textContent = String(value);
+        else el.textContent = "";
+        return el;
+      }
+
+      function typeMark(value) {
+        const t = typeOf(value);
+        const el = document.createElement("span");
+        el.className = "t";
+        if (t === "array") el.textContent = "array[" + value.length + "]";
+        else if (t === "object") el.textContent = "object{" + Object.keys(value).length + "}";
+        else el.textContent = t;
+        return el;
+      }
+
+      function paintKids(holder, value, path, query, expandAll) {
+        const kids = entriesOf(value).filter(function (e) { return branchHit(e.key, e.value, query); });
+        let shown = 0;
+        function addPage() {
+          const slice = kids.slice(shown, shown + PAGE);
+          slice.forEach(function (e) {
+            holder.appendChild(paintNode(e.key, e.value, joinPath(path, e.key, e.index), query, expandAll, e.index));
+          });
+          shown += slice.length;
+          const old = holder.querySelector(":scope > .more");
+          if (old) old.remove();
+          if (shown < kids.length) {
+            const more = document.createElement("div");
+            more.className = "more";
+            more.textContent = (kids.length - shown) + " more";
+            more.addEventListener("click", function (ev) { ev.stopPropagation(); addPage(); });
+            holder.appendChild(more);
+          }
+        }
+        addPage();
+      }
+
+      function paintNode(key, value, path, query, expandAll, isIndex) {
+        painted += 1;
+        const t = typeOf(value);
+        const wrap = document.createElement("div");
+        const row = document.createElement("div");
+        row.className = "row";
+        row.title = path;
+        if (query && queryHit(key, value, query)) row.classList.add("hit");
+        const tw = document.createElement("span");
+        tw.className = "tw";
+        const compound = t === "object" || t === "array";
+        const open = compound && (expandAll || path.split(/\.|\[/).length <= 2);
+        tw.textContent = compound ? (open ? "-" : "+") : "";
+        if (!compound) tw.classList.add("empty");
+        const k = document.createElement("span");
+        k.className = "k";
+        k.textContent = isIndex ? key : JSON.stringify(key);
+        row.appendChild(tw);
+        row.appendChild(k);
+        const colon = document.createElement("span");
+        colon.className = "colon";
+        colon.textContent = ":";
+        row.appendChild(colon);
+        if (!compound) row.appendChild(valueSpan(value));
+        row.appendChild(typeMark(value));
+        wrap.appendChild(row);
+        const kids = document.createElement("div");
+        kids.className = "kids";
+        kids.hidden = !open;
+        wrap.appendChild(kids);
+        if (open && compound) paintKids(kids, value, path, query, expandAll && painted < EXPAND_CAP);
+        row.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          selectRow(row, path);
+        });
+        tw.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          if (!compound) return;
+          if (kids.hidden) {
+            if (!kids.childElementCount) paintKids(kids, value, path, query, false);
+            kids.hidden = false;
+            tw.textContent = "-";
+          } else {
+            kids.hidden = true;
+            tw.textContent = "+";
+          }
+          selectRow(row, path);
+        });
+        return wrap;
+      }
+
+      function paintJsonl(items, query, expandAll) {
+        items.forEach(function (item) {
+          const path = "$[" + (item.line - 1) + "]";
+          if (item.ok) {
+            if (query && !branchHit(String(item.line), item.value, query)) return;
+            tree.appendChild(paintNode(String(item.line), item.value, path, query, expandAll, true));
+          } else {
+            const err = document.createElement("div");
+            err.className = "line-err";
+            err.textContent = "Line " + item.line + ": " + item.error;
+            tree.appendChild(err);
+          }
+        });
+      }
+
+      function render(expandAll) {
+        painted = 0;
+        tree.textContent = "";
+        const query = (q.value || "").trim().toLowerCase();
+        const text = srcEl ? srcEl.textContent : "";
+        try {
+          const root = parseRoot(text);
+          if (root.jsonl) {
+            if (!root.items.length) showResult("No lines", false);
+            else showResult("", false);
+            paintJsonl(root.items, query, expandAll);
+          } else {
+            showResult("", false);
+            const t = typeOf(root.value);
+            if (t === "object" || t === "array")
+              paintKids(tree, root.value, "$", query, expandAll);
+            else {
+              const wrap = paintNode("$", root.value, "$", query, expandAll, false);
+              const keyEl = wrap.querySelector(".k");
+              if (keyEl) keyEl.textContent = "$";
+              tree.appendChild(wrap);
+            }
+          }
+        } catch (e) {
+          showResult(e.message || String(e), true);
+          document.body.classList.add("raw");
+          document.getElementById("btnPretty").classList.remove("on");
+          document.getElementById("btnRaw").classList.add("on");
+          try { if (window.hljs) hljs.highlightAll(); } catch (_) {}
+        }
+      }
+
+      function setMode(raw) {
+        document.body.classList.toggle("raw", raw);
+        document.getElementById("btnPretty").classList.toggle("on", !raw);
+        document.getElementById("btnRaw").classList.toggle("on", raw);
+        if (raw) {
+          try { if (window.hljs) hljs.highlightAll(); } catch (_) {}
+        }
+      }
+
+      document.getElementById("btnPretty").addEventListener("click", function () { setMode(false); });
+      document.getElementById("btnRaw").addEventListener("click", function () { setMode(true); });
+      document.getElementById("btnExpand").addEventListener("click", function () { render(true); });
+      document.getElementById("btnCollapse").addEventListener("click", function () { render(false); });
+      document.getElementById("btnCopy").addEventListener("click", function () {
+        copyText(selPath);
+        showResult(selPath, false);
+      });
+      let t = 0;
+      q.addEventListener("input", function () {
+        clearTimeout(t);
+        t = setTimeout(function () { render(false); }, 120);
+      });
+
+      window.NETIE_JSON_VIEW = { typeOf: typeOf, joinPath: joinPath, parseRoot: parseRoot };
+      render(false);
+    })();
+  </script>
+</body>
+</html>
