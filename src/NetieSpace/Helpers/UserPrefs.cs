@@ -66,6 +66,20 @@ public static class UserPrefs
         set => Write("ProfileHarvestOptOut", value ? "1" : "0");
     }
 
+    /// <summary>User allowed chat/summary text to leave this PC (SEC-01 disclose).</summary>
+    public static bool CloudPathAcknowledged
+    {
+        get => ReadBool("CloudPathAcknowledged", defaultValue: false);
+        set => Write("CloudPathAcknowledged", value ? "1" : "0");
+    }
+
+    /// <summary>Cloud-path dialog already shown once (allow or keep-local).</summary>
+    public static bool CloudPathPrompted
+    {
+        get => ReadBool("CloudPathPrompted", defaultValue: false);
+        set => Write("CloudPathPrompted", value ? "1" : "0");
+    }
+
     public static bool ReadBool(string key, bool defaultValue)
     {
         var raw = Read(key);

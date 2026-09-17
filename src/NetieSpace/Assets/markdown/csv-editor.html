@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Netie CSV</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #10141c; color: #f2f4f8;
+      font: 13px/1.4 "Segoe UI Variable", "Segoe UI", sans-serif; overflow: hidden; }
+    #bar {
+      display: flex; gap: 8px; align-items: center; padding: 8px 12px;
+      background: rgba(22,28,38,0.9); border-bottom: 1px solid rgba(255,255,255,0.12);
+    }
+    #bar button {
+      background: rgba(42,49,64,0.85); color: #f2f4f8; border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 8px; padding: 4px 10px; cursor: pointer; font-weight: 600;
+    }
+    #wrap { height: calc(100% - 42px); overflow: auto; }
+    table { border-collapse: collapse; min-width: 100%; }
+    th, td {
+      border: 1px solid rgba(255,255,255,0.12); padding: 4px 8px; min-width: 72px;
+      background: #141a24; vertical-align: top;
+    }
+    th { background: #1c2430; position: sticky; top: 0; z-index: 1; font-weight: 700; }
+    td[contenteditable="true"]:focus { outline: 1px solid #5ec4b8; background: #182030; }
+  </style>
+</head>
+<body>
+  <div id="bar">
+    <span>CSV editor</span>
+    <button type="button" id="btnAddRow">+ row</button>
+    <button type="button" id="btnAddCol">+ col</button>
+    <button type="button" id="btnDelRow">- row</button>
+    <button type="button" id="btnDelCol">- col</button>
+    <span class="hint">Offline · Tab between cells · autosaves</span>
+  </div>
+  <div id="wrap"><table id="grid"><thead></thead><tbody></tbody></table></div>
+  <script>
+    const thead = document.querySelector('#grid thead');
+    const tbody = document.querySelector('#grid tbody');
+    let rows = [];
+    let saveTimer = 0;
+
+    function post(obj) {
+      try { chrome.webview.postMessage(JSON.stringify(obj)); } catch (_) {}
+    }
+
+    function parseCsv(text) {
+      const out = [];
+      let row = [], cell = '', i = 0, q = false;
+      const s = text.replace(/^\uFEFF/, '');
+      while (i < s.length) {
+        const c = s[i];
+        if (q) {
+          if (c === '"') {
+            if (s[i + 1] === '"') { cell += '"'; i += 2; continue; }
+            q = false; i++; continue;
+          }
+          cell += c; i++; continue;
+        }
+        if (c === '"') { q = true; i++; continue; }
+        if (c === ',') { row.push(cell); cell = ''; i++; continue; }
+        if (c === '\n' || c === '\r') {
+          if (c === '\r' && s[i + 1] === '\n') i++;
+          row.push(cell); out.push(row); row = []; cell = ''; i++; continue;
+        }
+        cell += c; i++;
+      }
+      if (cell.length || row.length) { row.push(cell); out.push(row); }
+      return out.length ? out : [['']];
+    }
+
+    function escapeCsv(cell) {
+      const t = String(cell ?? '');
+      if (/[",\n\r]/.test(t)) return '"' + t.replace(/"/g, '""') + '"';
+      return t;
+    }
+
+    function toCsv() {
+      return rows.map(r => r.map(escapeCsv).join(',')).join('\n');
+    }
+
+    function scheduleSave() {
+      post({ type: 'netieTyping', typing: true });
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        post({ type: 'textEdit', text: toCsv() });
+        post({ type: 'netieTyping', typing: false });
+      }, 400);
+    }
+
+    function render() {
+      const maxCols = Math.max(1, ...rows.map(r => r.length));
+      rows.forEach(r => { while (r.length < maxCols) r.push(''); });
+      thead.innerHTML = '<tr>' + Array.from({ length: maxCols }, (_, i) =>
+        '<th>' + (i < 26 ? String.fromCharCode(65 + i) : ('C' + (i + 1))) + '</th>').join('') + '</tr>';
+      tbody.innerHTML = '';
+      rows.forEach((r, ri) => {
+        const tr = document.createElement('tr');
+        r.forEach((cell, ci) => {
+          const td = document.createElement('td');
+          td.contentEditable = 'true';
+          td.spellcheck = false;
+          td.textContent = cell;
+          td.addEventListener('input', () => {
+            rows[ri][ci] = td.textContent || '';
+            scheduleSave();
+          });
+          td.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Tab') {
+              ev.preventDefault();
+              const cells = [...tbody.querySelectorAll('td')];
+              const idx = cells.indexOf(td);
+              const next = cells[idx + (ev.shiftKey ? -1 : 1)];
+              next?.focus();
+            }
+          });
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function addRow() {
+      const cols = Math.max(1, ...(rows.length ? rows.map(r => r.length) : [1]));
+      rows.push(Array.from({ length: cols }, () => ''));
+      render();
+      scheduleSave();
+    }
+    function addCol() {
+      rows.forEach(r => r.push(''));
+      if (!rows.length) rows.push(['']);
+      render();
+      scheduleSave();
+    }
+    function delRow() {
+      if (rows.length <= 1) { rows[0] = rows[0].map(() => ''); }
+      else rows.pop();
+      render();
+      scheduleSave();
+    }
+    function delCol() {
+      const cols = Math.max(1, ...(rows.length ? rows.map(r => r.length) : [1]));
+      if (cols <= 1) rows.forEach(r => { r[0] = ''; });
+      else rows.forEach(r => { if (r.length) r.pop(); });
+      render();
+      scheduleSave();
+    }
+    document.getElementById('btnAddRow').onclick = addRow;
+    document.getElementById('btnAddCol').onclick = addCol;
+    document.getElementById('btnDelRow').onclick = delRow;
+    document.getElementById('btnDelCol').onclick = delCol;
+
+    function setCsv(text) {
+      rows = parseCsv(text || '');
+      render();
+    }
+
+    window.__netieSave = () => post({ type: 'textEdit', text: toCsv() });
+
+    try {
+      chrome.webview.addEventListener('message', (ev) => {
+        try {
+          const msg = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+          if (msg?.type === 'setCsv' && typeof msg.text === 'string') setCsv(msg.text);
+        } catch (_) {}
+      });
+    } catch (_) {}
+
+    setCsv('');
+  </script>
+</body>
+</html>

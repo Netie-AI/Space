@@ -85,6 +85,46 @@ public static class ImageEditService
         return dest;
     }
 
+    /// <summary>Write a 90-degree clockwise copy beside the source (does not overwrite).</summary>
+    public static string Rotate90Cw(string sourcePath)
+    {
+        if (!IoFile.Exists(sourcePath))
+            throw new FileNotFoundException("Image not found", sourcePath);
+        if (IsAnimatedGif(sourcePath))
+            throw new InvalidOperationException("Animated GIFs cannot be rotated here — frames would flatten.");
+
+        var source = LoadBitmap(sourcePath);
+        var rotated = new TransformedBitmap(source, new RotateTransform(90));
+        rotated.Freeze();
+        var ext = IoPath.GetExtension(sourcePath).ToLowerInvariant();
+        BitmapEncoder encoder = ext switch
+        {
+            ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = 92 },
+            ".png" => new PngBitmapEncoder(),
+            ".bmp" => new BmpBitmapEncoder(),
+            ".tif" or ".tiff" => new TiffBitmapEncoder { Compression = TiffCompressOption.Zip },
+            ".gif" => new GifBitmapEncoder(),
+            _ => new PngBitmapEncoder()
+        };
+        var outExt = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".tif" or ".tiff" or ".gif"
+            ? ext
+            : ".png";
+        encoder.Frames.Add(BitmapFrame.Create(rotated));
+
+        var dir = IoPath.GetDirectoryName(sourcePath) ?? ".";
+        var name = IoPath.GetFileNameWithoutExtension(sourcePath);
+        var dest = IoPath.Combine(dir, name + "_r90" + outExt);
+        var i = 1;
+        while (IoFile.Exists(dest))
+        {
+            dest = IoPath.Combine(dir, $"{name}_r90_{i}{outExt}");
+            i++;
+        }
+        using (var fs = IoFile.Create(dest))
+            encoder.Save(fs);
+        return dest;
+    }
+
     /// <summary>Back-compat shim — old callers asked for JPEG explicitly.</summary>
     public static string CompressJpeg(string sourcePath, int quality, bool overwrite = false)
     {

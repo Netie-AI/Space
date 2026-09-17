@@ -1,7 +1,10 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -75,6 +78,22 @@ public partial class PreviewWindow : Window
     private Task<bool>? _pdfFlushTask;
     private bool _closingInProgress;
     private bool _pdfSpaceMode;
+    private bool _wantPdfWorkbench;
+    private DateTime _peekShownUtc = DateTime.UtcNow;
+    private bool _pdfThumbsOn;
+    private readonly ObservableCollection<PdfThumbItem> _pdfThumbs = new();
+    private double _restMinW = 640;
+    private double _restMinH = 420;
+    private double _pdfViewScale = 1.0;
+    private int _pdfViewPage = 1;
+    private int _pdfViewPages = 1;
+    private Brush? _workbenchGlassRest;
+    private Brush? _workbenchTitleRest;
+    private Brush? _workbenchRibbonRest;
+    private Brush? _workbenchWellRest;
+    private Grid? _ribbonHome;
+    private int _ribbonHomeIndex;
+    private Brush? _ribbonEditorBgRest;
     /// <summary>Clean PDF before any stamps — restamp from this so move+save never doubles.</summary>
     private string? _pdfStampBasePath;
     private CancellationTokenSource? _stampAutosaveCts;
@@ -198,7 +217,10 @@ public partial class PreviewWindow : Window
         _videoTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _videoTimer.Tick += (_, _) => UpdateVideoUi();
 
-        ProviderButton.Content = $"AI: {_ai.ActiveProvider}";
+        if (DocThumbsList is not null)
+            DocThumbsList.ItemsSource = _pdfThumbs;
+
+        PaintCloudPathChip();
         _summaryBarEnabled = UserPrefs.SummaryBarEnabled;
         _summaryCollapsed = UserPrefs.SummaryCollapsed;
         _summaryDocked = UserPrefs.SummaryDocked;
@@ -267,8 +289,16 @@ public partial class PreviewWindow : Window
         return IntPtr.Zero;
     }
 
+    public bool IsPdfWorkbench => _pdfSpaceMode;
+    public bool HasPreviewContent => _content is not null;
+    public DateTime PeekShownUtc => _peekShownUtc;
+
+    public void MarkPeekShown() => _peekShownUtc = DateTime.UtcNow;
+
     public void EnsureTopmostNoActivate()
     {
+        if (_pdfSpaceMode)
+            return;
         try
         {
             var hwnd = new System.Windows.Interop.WindowInteropHelper(this).Handle;
@@ -312,6 +342,8 @@ public partial class PreviewWindow : Window
         var ct = _cts.Token;
 
         FileNameText.Text = IoPath.GetFileName(filePath);
+        if (DocFileTabText is not null)
+            DocFileTabText.Text = FileNameText.Text;
         _textAutosaveCts?.Cancel();
         _textEditMode = false;
         // Fresh viewer load resets region mode on the JS side — mirror it on the button.
@@ -343,6 +375,8 @@ public partial class PreviewWindow : Window
             await RenderContentAsync(_content);
             UpdateActionButtons(_content.Kind);
             ApplySummaryBarVisibility();
+            if (_wantPdfWorkbench && _content.Kind == PreviewKind.Pdf)
+                await SetPdfWorkbenchAsync(true);
 
             // Sidecar captions for video
             if (_content.Kind == PreviewKind.Video)
@@ -359,7 +393,7 @@ public partial class PreviewWindow : Window
 
             var aiLabel = _ai.IsConfigured ? _ai.ActiveProvider : "no AI key";
             StatusText.Text = $"{_content.Kind} · {FormatSize(_content.FileSizeBytes)} · {aiLabel}";
-            ProviderButton.Content = $"AI: {aiLabel}";
+            PaintCloudPathChip();
             if (_summaryBarEnabled)
             {
                 // First-run consent is modal — showing it inside the load path pinned the loading
@@ -413,6 +447,8 @@ public partial class PreviewWindow : Window
         var isImage = kind == PreviewKind.Image;
         var isTextCode = kind is PreviewKind.Text or PreviewKind.Markdown;
         var isHtmlWord = IsHtmlWordEditable();
+        var isPptxLo = PptxSlideImageService.IsPptxPath(_currentFilePath)
+                       && LibreOfficePreviewService.FindSoffice() is not null;
         var editing = _editMode && (isVideo || isPdf);
 
         if (EditModeButton is not null)
@@ -440,9 +476,11 @@ public partial class PreviewWindow : Window
 
         if (TextEditButton is not null)
         {
-            TextEditButton.Visibility = isTextCode || isHtmlWord ? Visibility.Visible : Visibility.Collapsed;
+            TextEditButton.Visibility = isTextCode || isHtmlWord || isPptxLo ? Visibility.Visible : Visibility.Collapsed;
             TextEditButton.Content = _textEditMode ? "Done" : "Edit";
-            TextEditButton.ToolTip = isHtmlWord
+            TextEditButton.ToolTip = isPptxLo
+                ? "Edit slides in installed LibreOffice (not OnlyOffice)"
+                : isHtmlWord
                 ? "Edit Word/HTML in the preview — autosaves as you type"
                 : "Edit text — autosaves as you type";
         }
@@ -470,7 +508,10 @@ public partial class PreviewWindow : Window
 
         // Tools live on the ribbon; keep named buttons visible while editing
         if (PdfMoreButton is not null)
-            PdfMoreButton.Visibility = isPdf && _editMode ? Visibility.Visible : Visibility.Collapsed;
+            PdfMoreButton.Visibility = isPdf && _pdfSpaceMode
+                ? Visibility.Visible : Visibility.Collapsed;
+        if (DocFloatDoneBtn is not null)
+            DocFloatDoneBtn.Visibility = Visibility.Collapsed;
         if (isPdf && _editMode)
             EnsurePdfSignFontsLoaded();
         if (!isPdf || !_editMode)
@@ -496,6 +537,8 @@ public partial class PreviewWindow : Window
             CopyImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (CompressImageButton is not null)
             CompressImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
+        if (RotateImageButton is not null)
+            RotateImageButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (SendToComfyButton is not null)
             SendToComfyButton.Visibility = isImage ? Visibility.Visible : Visibility.Collapsed;
         if (WindowsAiButton is not null)
@@ -541,6 +584,8 @@ public partial class PreviewWindow : Window
             _regionMode = false;
             RegionSelectButton.Content = "Select area";
         }
+
+        ApplyWorkbenchShell();
     }
 
     private void EditModeButton_Click(object sender, RoutedEventArgs e)
@@ -559,7 +604,7 @@ public partial class PreviewWindow : Window
 
                 ConvertStatusText.Text = _content?.Kind == PreviewKind.Video
                     ? "Video editor — all tools ready from the first frame."
-                    : "PDF editor — Organize · Sign · Fill · Comment";
+                    : "";
 
                 FrameworkElement? ribbon = _content?.Kind switch
                 {
@@ -607,30 +652,66 @@ public partial class PreviewWindow : Window
 
     private async void EditInAppButton_Click(object sender, RoutedEventArgs e)
     {
+        await SetPdfWorkbenchAsync(!_pdfSpaceMode);
+    }
+
+    public async Task SetPdfWorkbenchAsync(bool on)
+    {
         try
         {
-            if (_pdfSpaceMode)
+            if (on)
             {
+                var isPdf = _content?.Kind == PreviewKind.Pdf
+                    || string.Equals(IoPath.GetExtension(_currentFilePath ?? ""), ".pdf",
+                        StringComparison.OrdinalIgnoreCase);
+                if (!isPdf)
+                {
+                    _wantPdfWorkbench = false;
+                    return;
+                }
+
+                _wantPdfWorkbench = true;
+                if (_content?.Kind != PreviewKind.Pdf)
+                    return;
+
+                if (!_pdfSpaceMode)
+                {
+                    _pdfSpaceMode = true;
+                    _editMode = true;
+                    _pdfThumbsOn = true;
+                    _restMinW = MinWidth;
+                    _restMinH = MinHeight;
+                    MinWidth = 1100;
+                    MinHeight = 720;
+                    if (ActualWidth < 1100)
+                        Width = Math.Min(SystemParameters.WorkArea.Width * 0.92, Math.Max(ActualWidth, 1180));
+                    if (ActualHeight < 760)
+                        Height = Math.Max(ActualHeight, Math.Min(920, SystemParameters.WorkArea.Height * 0.88));
+                    ConvertStatusText.Text = "PDFSpace";
+                    if (PdfEditorRibbon is not null)
+                        AnimationHelper.SlideDownFadeIn(PdfEditorRibbon, -12, _animationMs);
+                    PdfFillAndSign_Click(this, new RoutedEventArgs());
+                }
+            }
+            else
+            {
+                _wantPdfWorkbench = false;
+                if (!_pdfSpaceMode)
+                {
+                    MarkPeekShown();
+                    return;
+                }
+
                 await RequestViewerFlushAsync();
                 if (HasPendingPdfEdits())
                     await FlushPendingPdfStampsAsync(keepOverlaysEditable: false);
                 _pdfSpaceMode = false;
                 _editMode = false;
+                MinWidth = _restMinW > 0 ? _restMinW : 640;
+                MinHeight = _restMinH > 0 ? _restMinH : 420;
                 ConvertStatusText.Text = "Light preview";
                 ApplySummaryLayout(animate: true);
-            }
-            else
-            {
-                _pdfSpaceMode = true;
-                _editMode = true;
-                if (ActualWidth < 1100)
-                    Width = Math.Min(SystemParameters.WorkArea.Width * 0.92, Math.Max(ActualWidth, 1180));
-                if (ActualHeight < 760)
-                    Height = Math.Max(ActualHeight, Math.Min(920, SystemParameters.WorkArea.Height * 0.88));
-                ConvertStatusText.Text = "PDFSpace — Fill & Sign · Edit PDF · click a box to type";
-                if (PdfEditorRibbon is not null)
-                    AnimationHelper.SlideDownFadeIn(PdfEditorRibbon, -12, _animationMs);
-                PdfFillAndSign_Click(sender, e);
+                MarkPeekShown();
             }
 
             if (_content is not null)
@@ -640,7 +721,7 @@ public partial class PreviewWindow : Window
         }
         catch (Exception ex)
         {
-            AppLogger.Error(ex, "EditInAppButton_Click");
+            AppLogger.Error(ex, "SetPdfWorkbenchAsync");
             ConvertStatusText.Text = $"PDFSpace: {ex.Message}";
         }
     }
@@ -652,6 +733,363 @@ public partial class PreviewWindow : Window
             PdfSpaceRail.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         if (PdfSpaceRailColumn is not null)
             PdfSpaceRailColumn.Width = new GridLength(on ? 188 : 0);
+        try
+        {
+            PreviewWebView.DefaultBackgroundColor = (_content?.Kind == PreviewKind.Pdf)
+                ? System.Drawing.Color.FromArgb(255, 0xE8, 0xE8, 0xE8)
+                : System.Drawing.Color.FromArgb(255, 0x10, 0x14, 0x1C);
+        }
+        catch { /* ignore */ }
+        PostDocChrome();
+        ApplyWorkbenchShell();
+    }
+
+    private void ApplyWorkbenchShell()
+    {
+        var pdf = _content?.Kind == PreviewKind.Pdf;
+        var on = _pdfSpaceMode && pdf;
+        var lightEdit = _editMode && pdf && !on;
+        CaptureWorkbenchRests();
+
+        if (DocNavBar is not null)
+            DocNavBar.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (DocAppHeader is not null)
+            DocAppHeader.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (TitleBarHost is not null)
+            TitleBarHost.Visibility = Visibility.Visible;
+        if (PeekTitleCluster is not null)
+            PeekTitleCluster.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        if (RibbonBand is not null)
+            RibbonBand.Visibility = Visibility.Visible;
+        if (DocShareBtn is not null)
+            DocShareBtn.Visibility = Visibility.Collapsed;
+        if (DocLeftNav is not null)
+            DocLeftNav.Visibility = ((on || lightEdit) && _pdfThumbsOn) ? Visibility.Visible : Visibility.Collapsed;
+        if (DocLeftNavColumn is not null)
+            DocLeftNavColumn.Width = new GridLength(((on || lightEdit) && _pdfThumbsOn) ? 120 : 0);
+        if (DocCloseModeBtn is not null)
+            DocCloseModeBtn.Visibility = Visibility.Collapsed;
+        if (PeekActionStrip is not null)
+            PeekActionStrip.Visibility = Visibility.Collapsed;
+        if (SummaryFloatChip is not null)
+            SummaryFloatChip.Visibility = Visibility.Collapsed;
+        if (CornerMaskLayer is not null)
+            CornerMaskLayer.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        if (SpecularWash is not null)
+            SpecularWash.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        if (FileNameText is not null)
+            FileNameText.Visibility = on ? Visibility.Collapsed : Visibility.Visible;
+        if (PdfRibbonTitle is not null)
+            PdfRibbonTitle.Visibility = Visibility.Collapsed;
+        if (PdfLightSaveBtn is not null)
+            PdfLightSaveBtn.Visibility = (_editMode && pdf) ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfFillSignBtn is not null)
+            PdfFillSignBtn.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfEditPdfBtn is not null)
+            PdfEditPdfBtn.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfModeSignBtn is not null)
+            PdfModeSignBtn.Visibility = lightEdit ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfModeFillBtn is not null)
+            PdfModeFillBtn.Visibility = lightEdit ? Visibility.Visible : Visibility.Collapsed;
+        if (PdfMoreButton is not null)
+            PdfMoreButton.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (DocFloatDoneBtn is not null)
+            DocFloatDoneBtn.Visibility = Visibility.Collapsed;
+
+        SetRibbonFloated(false);
+        if (DocToolFloat is not null)
+            DocToolFloat.IsOpen = false;
+        SyncDocZoomFloat(lightEdit);
+
+        if (on)
+        {
+            if (DocFileTabText is not null && FileNameText is not null)
+                DocFileTabText.Text = FileNameText.Text;
+            Topmost = false;
+            Opacity = 1.0;
+            if (GlassShell is not null)
+            {
+                GlassShell.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5));
+                GlassShell.BorderBrush = new SolidColorBrush(Color.FromRgb(0xD6, 0xD6, 0xD6));
+                GlassShell.CornerRadius = new CornerRadius(8);
+            }
+            if (TitleBarHost is not null)
+            {
+                TitleBarHost.Background = Brushes.White;
+                TitleBarHost.CornerRadius = new CornerRadius(8, 8, 0, 0);
+            }
+            if (RibbonBand is not null)
+            {
+                RibbonBand.Background = new SolidColorBrush(Color.FromRgb(0xF5, 0xF5, 0xF5));
+                RibbonBand.BorderBrush = new SolidColorBrush(Color.FromRgb(0xD6, 0xD6, 0xD6));
+            }
+            if (DocLeftNav is not null)
+            {
+                DocLeftNav.Background = new SolidColorBrush(Color.FromRgb(0xF3, 0xF3, 0xF3));
+                DocLeftNav.BorderBrush = new SolidColorBrush(Color.FromRgb(0xD6, 0xD6, 0xD6));
+            }
+            if (ContentWellBorder is not null)
+            {
+                ContentWellBorder.Background = new SolidColorBrush(Color.FromRgb(0xE8, 0xE8, 0xE8));
+                ContentWellBorder.CornerRadius = new CornerRadius(0, 0, 8, 8);
+            }
+            if (ContentWellInner is not null)
+                ContentWellInner.CornerRadius = new CornerRadius(0, 0, 8, 8);
+            HidePeekChrome(true);
+            SyncThumbsBtn();
+        }
+        else
+        {
+            Topmost = true;
+            if (GlassShell is not null)
+            {
+                if (_workbenchGlassRest is not null)
+                    GlassShell.Background = _workbenchGlassRest;
+                GlassShell.CornerRadius = new CornerRadius(24);
+            }
+            if (TitleBarHost is not null)
+            {
+                if (_workbenchTitleRest is not null)
+                    TitleBarHost.Background = _workbenchTitleRest;
+                TitleBarHost.CornerRadius = new CornerRadius(24, 24, 0, 0);
+            }
+            if (RibbonBand is not null && _workbenchRibbonRest is not null)
+                RibbonBand.Background = _workbenchRibbonRest;
+            if (ContentWellBorder is not null)
+            {
+                if (_workbenchWellRest is not null)
+                    ContentWellBorder.Background = _workbenchWellRest;
+                ContentWellBorder.CornerRadius = new CornerRadius(0, 0, 22, 22);
+            }
+            if (ContentWellInner is not null)
+                ContentWellInner.CornerRadius = new CornerRadius(0, 0, 21, 21);
+            if (BrandModeText is not null)
+                BrandModeText.Foreground = (Brush)FindResource("TextBrush");
+            if (ConvertStatusText is not null)
+                ConvertStatusText.Foreground = new SolidColorBrush(Color.FromRgb(0xE8, 0xEC, 0xF4));
+            HidePeekChrome(false);
+            if (EditInAppButton is not null)
+                EditInAppButton.Style = (Style)FindResource("GhostButton");
+            if (CloseChromeButton is not null)
+                CloseChromeButton.Foreground = (Brush)FindResource("TextBrush");
+            EnsureTopmostNoActivate();
+        }
+        SyncDocNavLabels();
+    }
+
+    private void CaptureWorkbenchRests()
+    {
+        if (_workbenchGlassRest is null && GlassShell?.Background is not null)
+            _workbenchGlassRest = GlassShell.Background;
+        if (_workbenchTitleRest is null && TitleBarHost?.Background is not null)
+            _workbenchTitleRest = TitleBarHost.Background;
+        if (_workbenchRibbonRest is null && RibbonBand?.Background is not null)
+            _workbenchRibbonRest = RibbonBand.Background;
+        if (_workbenchWellRest is null && ContentWellBorder?.Background is not null)
+            _workbenchWellRest = ContentWellBorder.Background;
+    }
+
+    private void HidePeekChrome(bool workbench)
+    {
+        void set(FrameworkElement? el, Visibility v)
+        {
+            if (el is not null) el.Visibility = v;
+        }
+        var peek = workbench ? Visibility.Collapsed : Visibility.Visible;
+        set(SummaryToggleButton, peek);
+        set(ProviderButton, peek);
+        set(ContinueChatButton, peek);
+        set(LookupClipButton, peek);
+        set(ShareButton, peek);
+        set(SetupHelpButton, peek);
+    }
+
+    private void SyncDocNavLabels()
+    {
+        if (DocPageBox is not null)
+            DocPageBox.Text = _pdfViewPage.ToString();
+        if (DocPageTotal is not null)
+            DocPageTotal.Text = "/ " + Math.Max(1, _pdfViewPages);
+        var zoom = Math.Round(_pdfViewScale * 100) + "%";
+        if (DocZoomLabel is not null)
+            DocZoomLabel.Text = zoom;
+        if (DocZoomHudText is not null)
+            DocZoomHudText.Text = zoom;
+    }
+
+    private void PostViewer(object payload)
+    {
+        try
+        {
+            PreviewWebView.CoreWebView2?.PostWebMessageAsJson(
+                System.Text.Json.JsonSerializer.Serialize(payload));
+        }
+        catch { /* viewer not ready */ }
+    }
+
+    private void PostDocChrome()
+    {
+        var pdf = _content?.Kind == PreviewKind.Pdf;
+        var workbench = _pdfSpaceMode && pdf;
+        var edit = _editMode && pdf;
+        var thumbs = !(workbench || edit);
+        PostViewer(new
+        {
+            type = "setDocChrome",
+            on = true,
+            canvasOnly = workbench || edit,
+            slim = pdf && !workbench,
+            thumbs
+        });
+    }
+
+    private void SetRibbonFloated(bool on)
+    {
+        if (PdfEditorRibbon is null || DocToolFloat is null || DocFloatHost is null)
+            return;
+
+        if (on)
+        {
+            if (!ReferenceEquals(DocFloatHost.Child, PdfEditorRibbon))
+            {
+                if (PdfEditorRibbon.Parent is Grid home)
+                {
+                    _ribbonHome = home;
+                    _ribbonHomeIndex = home.Children.IndexOf(PdfEditorRibbon);
+                    home.Children.Remove(PdfEditorRibbon);
+                }
+                _ribbonEditorBgRest ??= PdfEditorRibbon.Background;
+                PdfEditorRibbon.Background = Brushes.Transparent;
+                PdfEditorRibbon.BorderThickness = new Thickness(0);
+                PdfEditorRibbon.CornerRadius = new CornerRadius(12);
+                DocFloatHost.Child = PdfEditorRibbon;
+            }
+            DocToolFloat.IsOpen = true;
+            Dispatcher.BeginInvoke(PositionDocFloats, DispatcherPriority.Loaded);
+        }
+        else
+        {
+            DocToolFloat.IsOpen = false;
+            if (ReferenceEquals(DocFloatHost.Child, PdfEditorRibbon))
+                DocFloatHost.Child = null;
+            if (_ribbonHome is not null && PdfEditorRibbon.Parent is null)
+            {
+                var idx = Math.Clamp(_ribbonHomeIndex, 0, _ribbonHome.Children.Count);
+                _ribbonHome.Children.Insert(idx, PdfEditorRibbon);
+            }
+            if (_ribbonEditorBgRest is not null)
+                PdfEditorRibbon.Background = _ribbonEditorBgRest;
+            PdfEditorRibbon.BorderThickness = new Thickness(0, 0, 0, 1);
+            PdfEditorRibbon.CornerRadius = new CornerRadius(0);
+            _ribbonHome = null;
+        }
+    }
+
+    private void SyncDocZoomFloat(bool pdf)
+    {
+        if (DocZoomFloat is null) return;
+        DocZoomFloat.IsOpen = pdf;
+        if (pdf)
+            Dispatcher.BeginInvoke(PositionDocFloats, DispatcherPriority.Loaded);
+    }
+
+    private void ContentWellBorder_SizeChanged(object sender, SizeChangedEventArgs e) => PositionDocFloats();
+
+    private void PositionDocFloats()
+    {
+        if (ContentWellBorder is null) return;
+        var w = ContentWellBorder.ActualWidth;
+        var h = ContentWellBorder.ActualHeight;
+        if (w < 8 || h < 8) return;
+
+        if (DocZoomFloat is { IsOpen: true })
+        {
+            DocZoomFloat.HorizontalOffset = 16;
+            DocZoomFloat.VerticalOffset = Math.Max(8, h - 56);
+        }
+        if (DocToolFloat is { IsOpen: true } && DocFloatHost is not null)
+        {
+            DocFloatHost.Measure(new Size(Math.Max(320, w - 24), double.PositiveInfinity));
+            var fw = DocFloatHost.DesiredSize.Width;
+            if (fw < 1) fw = 560;
+            DocToolFloat.HorizontalOffset = Math.Max(12, (w - fw) / 2);
+            DocToolFloat.VerticalOffset = 18;
+        }
+    }
+
+    private void SyncThumbsBtn()
+    {
+        if (DocThumbsBtn is null) return;
+        DocThumbsBtn.Background = _pdfThumbsOn
+            ? new SolidColorBrush(Color.FromRgb(0xE8, 0xF2, 0xFF))
+            : Brushes.Transparent;
+    }
+
+    private void DocThumbsToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _pdfThumbsOn = !_pdfThumbsOn;
+        ApplyWorkbenchShell();
+        PostDocChrome();
+        SyncThumbsBtn();
+    }
+
+    private void DocThumbsMore_Click(object sender, RoutedEventArgs e)
+    {
+        PostViewer(new { type = "loadThumbs" });
+    }
+
+    private void DocThumb_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { DataContext: PdfThumbItem item })
+            PostViewer(new { type = "gotoPage", page = item.Page });
+    }
+
+    private void DocToolsTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pdfSpaceMode)
+            ApplyPdfSpaceRail();
+    }
+
+    private void DocMenuFind_Click(object sender, RoutedEventArgs e)
+    {
+        if (DocSearchBox is null) return;
+        DocSearchBox.Focus();
+        DocSearchBox.SelectAll();
+        if (!string.IsNullOrWhiteSpace(DocSearchBox.Text))
+            DocFind_Click(sender, e);
+    }
+
+    private void DocPrev_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "gotoPage", page = Math.Max(1, _pdfViewPage - 1) });
+
+    private void DocNext_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "gotoPage", page = _pdfViewPage + 1 });
+
+    private void DocZoomIn_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "setZoom", scale = Math.Min(4.0, _pdfViewScale + 0.15) });
+
+    private void DocZoomOut_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "setZoom", scale = Math.Max(0.25, _pdfViewScale - 0.15) });
+
+    private void DocFit_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "fitPage" });
+
+    private void DocFind_Click(object sender, RoutedEventArgs e) =>
+        PostViewer(new { type = "find", query = DocSearchBox?.Text ?? "" });
+
+    private void DocPageBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        if (int.TryParse(DocPageBox?.Text, out var n))
+            PostViewer(new { type = "gotoPage", page = n });
+        e.Handled = true;
+    }
+
+    private void DocSearchBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter) return;
+        PostViewer(new { type = "find", query = DocSearchBox?.Text ?? "" });
+        e.Handled = true;
     }
 
     private async Task RenderContentAsync(PreviewContent content)
@@ -749,7 +1187,8 @@ public partial class PreviewWindow : Window
 
         if (content.Kind == PreviewKind.Pdf)
         {
-            _editMode = false;
+            if (!_pdfSpaceMode && !_wantPdfWorkbench)
+                _editMode = false;
             try
             {
                 await NavigatePdfJsAsync(content.FilePath);
@@ -900,10 +1339,45 @@ public partial class PreviewWindow : Window
 
         // Switch + paint UI on the same click — no await, no delay
         var next = _ai.SwitchToNextProvider();
-        ProviderButton.Content = $"AI: {next}";
+        PaintCloudPathChip();
         ConvertStatusText.Text = $"AI → {next}";
         ProviderButton.InvalidateVisual();
         StatusText.Text = $"Provider: {next}";
+    }
+
+    private void PaintCloudPathChip()
+    {
+        if (!_ai.IsConfigured)
+        {
+            ProviderButton.Content = "AI: setup";
+            return;
+        }
+
+        var name = _ai.ActiveProvider;
+        if (UserPrefs.CloudPathAcknowledged)
+        {
+            ProviderButton.Content = $"Cloud: {name}";
+            ProviderButton.ToolTip = $"Cloud AI on — chat/summary send file text to {name}";
+        }
+        else
+        {
+            ProviderButton.Content = $"AI: {name}";
+            ProviderButton.ToolTip = "Local label. Chat/summary stay off until you Allow cloud AI.";
+        }
+    }
+
+    /// <summary>SEC-01: first cloud send needs an explicit ack. Autofill stays local.</summary>
+    private bool EnsureCloudPathAcked()
+    {
+        if (UserPrefs.CloudPathAcknowledged)
+        {
+            PaintCloudPathChip();
+            return true;
+        }
+
+        var ok = CloudPathDisclosureWindow.EnsureAcked();
+        PaintCloudPathChip();
+        return ok;
     }
 
     private async Task EnsureWebViewAsync()
@@ -954,6 +1428,22 @@ public partial class PreviewWindow : Window
         catch (Exception ex)
         {
             AppLogger.Warn($"pdf.js host map failed: {ex.Message}");
+        }
+
+        try
+        {
+            var mdDir = IoPath.Combine(AppContext.BaseDirectory, "Assets", "markdown");
+            if (IoDirectory.Exists(mdDir))
+            {
+                core.SetVirtualHostNameToFolderMapping(
+                    "netie.markdown",
+                    mdDir,
+                    CoreWebView2HostResourceAccessKind.Allow);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"markdown host map failed: {ex.Message}");
         }
 
         core.ContextMenuRequested += async (_, args) =>
@@ -2109,7 +2599,7 @@ public partial class PreviewWindow : Window
         var profile = FillProfileStore.Load();
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
-        if (_pdfToolMode != "fill")
+        if (_pdfToolMode is not ("fill" or "fillsign" or "editpdf"))
         {
             SetPdfToolMode("fill");
             PdfFillForm_Click(sender, e);
@@ -2411,6 +2901,37 @@ public partial class PreviewWindow : Window
                 if (!string.IsNullOrWhiteSpace(_currentFilePath))
                     PostFormFieldsToViewer(_currentFilePath);
                 PostPdfViewerZoomOrFit();
+                if (root.TryGetProperty("pages", out var pgsEl) && pgsEl.TryGetInt32(out var pgs))
+                    _pdfViewPages = Math.Max(1, pgs);
+                _pdfViewPage = 1;
+                _pdfThumbs.Clear();
+                if (DocThumbsMoreBtn is not null)
+                    DocThumbsMoreBtn.Visibility = Visibility.Collapsed;
+                SyncDocNavLabels();
+                if (_content?.Kind == PreviewKind.Pdf)
+                    PostDocChrome();
+            }
+            else if (type == "page")
+            {
+                if (root.TryGetProperty("page", out var pgEl) && pgEl.TryGetInt32(out var pg))
+                    _pdfViewPage = Math.Max(1, pg);
+                if (root.TryGetProperty("pages", out var npEl) && npEl.TryGetInt32(out var np))
+                    _pdfViewPages = Math.Max(1, np);
+                if (root.TryGetProperty("scale", out var scPg) && scPg.TryGetDouble(out var scP))
+                    _pdfViewScale = Math.Clamp(scP, 0.25, 4.0);
+                SyncDocNavLabels();
+                SyncPdfThumbActive();
+            }
+            else if (type == "thumb")
+            {
+                AcceptViewerThumb(root);
+            }
+            else if (type == "thumbMore")
+            {
+                var remaining = root.TryGetProperty("remaining", out var remEl) && remEl.TryGetInt32(out var rem)
+                    ? rem : 0;
+                if (DocThumbsMoreBtn is not null)
+                    DocThumbsMoreBtn.Visibility = remaining > 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             else if (type == "zoom")
             {
@@ -2418,8 +2939,13 @@ public partial class PreviewWindow : Window
                           fitEl.ValueKind == System.Text.Json.JsonValueKind.True;
                 if (fit)
                     UserPrefs.PdfZoomPercent = 0;
-                else if (root.TryGetProperty("scale", out var scEl) && scEl.TryGetDouble(out var sc))
-                    UserPrefs.PdfZoomPercent = (int)Math.Round(Math.Clamp(sc, 0.25, 4.0) * 100);
+                if (root.TryGetProperty("scale", out var scEl) && scEl.TryGetDouble(out var sc))
+                {
+                    _pdfViewScale = Math.Clamp(sc, 0.25, 4.0);
+                    if (!fit)
+                        UserPrefs.PdfZoomPercent = (int)Math.Round(_pdfViewScale * 100);
+                }
+                SyncDocNavLabels();
             }
             else if (type == "needTextBoxes")
             {
@@ -2435,6 +2961,55 @@ public partial class PreviewWindow : Window
         catch (Exception ex)
         {
             AppLogger.Warn($"pdf.js message: {ex.Message}");
+        }
+    }
+
+    private void AcceptViewerThumb(System.Text.Json.JsonElement root)
+    {
+        if (!root.TryGetProperty("page", out var pgEl) || !pgEl.TryGetInt32(out var page) || page < 1)
+            return;
+        var dataUrl = root.TryGetProperty("dataUrl", out var duEl) ? duEl.GetString() : null;
+        var img = BitmapFromDataUrl(dataUrl);
+        if (img is null) return;
+        var existing = _pdfThumbs.FirstOrDefault(t => t.Page == page);
+        if (existing is null)
+        {
+            var item = new PdfThumbItem { Page = page, Image = img, Active = page == _pdfViewPage };
+            var idx = 0;
+            while (idx < _pdfThumbs.Count && _pdfThumbs[idx].Page < page) idx++;
+            _pdfThumbs.Insert(idx, item);
+        }
+        if (root.TryGetProperty("remaining", out var remEl) && remEl.TryGetInt32(out var rem) && DocThumbsMoreBtn is not null)
+            DocThumbsMoreBtn.Visibility = rem > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SyncPdfThumbActive()
+    {
+        foreach (var t in _pdfThumbs)
+            t.Active = t.Page == _pdfViewPage;
+    }
+
+    private static BitmapImage? BitmapFromDataUrl(string? dataUrl)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl) || !dataUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
+            return null;
+        try
+        {
+            var comma = dataUrl.IndexOf(',');
+            if (comma < 0) return null;
+            var bytes = Convert.FromBase64String(dataUrl[(comma + 1)..]);
+            var img = new BitmapImage();
+            using var ms = new MemoryStream(bytes);
+            img.BeginInit();
+            img.CacheOption = BitmapCacheOption.OnLoad;
+            img.StreamSource = ms;
+            img.EndInit();
+            img.Freeze();
+            return img;
+        }
+        catch
+        {
+            return null;
         }
     }
 
@@ -5236,6 +5811,8 @@ public partial class PreviewWindow : Window
                 IoFile.Move(_currentFilePath, dest);
             _currentFilePath = dest;
             FileNameText.Text = IoPath.GetFileName(dest.TrimEnd('\\', '/'));
+            if (DocFileTabText is not null)
+                DocFileTabText.Text = FileNameText.Text;
             ConvertStatusText.Text = $"Renamed → {FileNameText.Text}";
             _ = LoadFileAsync(dest);
         }
@@ -5344,24 +5921,10 @@ public partial class PreviewWindow : Window
 
     private void UpdateSummaryHandles(bool allowed)
     {
-        if (SummaryFloatChip is null) return;
-
-        // The handle only makes sense while the summary is a thing this file can have.
-        SummaryFloatChip.Visibility = allowed ? Visibility.Visible : Visibility.Collapsed;
-        SummaryFloatChip.Content = _summaryCollapsed
-            ? "⌄ Summary"
-            : _summaryDocked ? "⌃ Summary · left" : "⌃ Summary";
-        SummaryFloatChip.ToolTip = _summaryCollapsed
-            ? "Show the summary panel"
-            : "Hide the summary panel";
-
+        if (SummaryFloatChip is not null)
+            SummaryFloatChip.Visibility = Visibility.Collapsed;
         if (SummaryDockButton is not null)
-        {
-            SummaryDockButton.Content = _summaryDocked ? "⇥" : "⇤";
-            SummaryDockButton.ToolTip = _summaryDocked
-                ? "Put the summary back on top"
-                : "Pull the summary to a rail on the left";
-        }
+            SummaryDockButton.Visibility = Visibility.Collapsed;
     }
 
     private void SummaryCollapseButton_Click(object sender, RoutedEventArgs e) => ToggleSummaryCollapsed();
@@ -5410,6 +5973,15 @@ public partial class PreviewWindow : Window
 
     private async void TextEditButton_Click(object sender, RoutedEventArgs e)
     {
+        if (PptxSlideImageService.IsPptxPath(_currentFilePath))
+        {
+            if (LibreOfficePreviewService.TryOpenForEdit(_currentFilePath!))
+                ConvertStatusText.Text = "Opened in LibreOffice — save there, then reopen here.";
+            else
+                ConvertStatusText.Text = "Install LibreOffice to edit PPTX (OnlyOffice is not used).";
+            return;
+        }
+
         if (IsHtmlWordEditable())
         {
             await ToggleHtmlEditModeAsync();
@@ -5427,8 +5999,57 @@ public partial class PreviewWindow : Window
 
         if (_textEditMode)
         {
-            // Prefer source <pre> for text/code; for markdown use a source pane from RawText
+            // Markdown dual-pane, or CSV grid, else contenteditable code.
             var isMd = _content.Kind == PreviewKind.Markdown;
+            var isCsv = string.Equals(IoPath.GetExtension(_currentFilePath), ".csv", StringComparison.OrdinalIgnoreCase);
+            if (isMd || isCsv)
+            {
+                var mdDir = IoPath.Combine(AppContext.BaseDirectory, "Assets", "markdown");
+                var editorHtml = IoPath.Combine(mdDir, isCsv ? "csv-editor.html" : "md-editor.html");
+                if (IoFile.Exists(editorHtml))
+                {
+                    try
+                    {
+                        core.SetVirtualHostNameToFolderMapping(
+                            "netie.markdown",
+                            mdDir,
+                            CoreWebView2HostResourceAccessKind.Allow);
+                    }
+                    catch { /* already mapped */ }
+
+                    var page = isCsv ? "csv-editor.html" : "md-editor.html";
+                    PreviewWebView.Source = new Uri($"https://netie.markdown/{page}?boot=1");
+                    async Task PushEditorAsync()
+                    {
+                        var waitId = isCsv ? "grid" : "src";
+                        for (var i = 0; i < 40; i++)
+                        {
+                            await Task.Delay(50);
+                            try
+                            {
+                                var ready = UnquoteJsString(await core.ExecuteScriptAsync(
+                                    $"(function(){{return !!document.getElementById('{waitId}')}})()"));
+                                if (ready is "true" or "True")
+                                    break;
+                            }
+                            catch { /* ignore */ }
+                        }
+                        var payload = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            type = isCsv ? "setCsv" : "setMarkdown",
+                            text = _content.RawText ?? ""
+                        });
+                        core.PostWebMessageAsJson(payload);
+                    }
+                    _ = PushEditorAsync();
+                    ConvertStatusText.Text = isCsv
+                        ? "CSV edit — Tab between cells · autosaves"
+                        : "Markdown edit — Split / Source / Preview · autosaves";
+                    _webViewTyping = true;
+                    return;
+                }
+            }
+
             if (isMd && !string.IsNullOrEmpty(_content.RawText))
             {
                 var escaped = System.Text.Json.JsonSerializer.Serialize(_content.RawText);
@@ -5732,7 +6353,7 @@ public partial class PreviewWindow : Window
                 b.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        var fillOn = _pdfToolMode is "fill" or "fillsign";
+        var fillOn = _pdfToolMode is "fill" or "fillsign" or "editpdf";
         var signOn = _pdfToolMode is "sign" or "fillsign";
         show(PdfOrganizePanel, _pdfToolMode == "organize");
         show(PdfSignPanel, signOn);
@@ -5745,28 +6366,26 @@ public partial class PreviewWindow : Window
             var on = id switch
             {
                 "fill" => fillOn,
+                "fillsign" => _pdfToolMode is "fillsign" or "fill",
+                "editpdf" => _pdfToolMode == "editpdf",
                 "sign" => signOn && _pdfToolMode != "fillsign",
                 _ => _pdfToolMode == id
             };
-            btn.Style = (Style)FindResource(on ? "EditorChipPrimary" : "EditorChip");
+            var styleKey = btn == PdfFillSignBtn || btn == PdfEditPdfBtn
+                ? (on ? "DocModeOn" : "DocModeBtn")
+                : (on ? "DocChipPrimary" : "DocChip");
+            if (FindResource(styleKey) is Style st)
+                btn.Style = st;
         }
         styleMode(PdfModeOrganizeBtn, "organize");
         styleMode(PdfModeSignBtn, "sign");
         styleMode(PdfModeFillBtn, "fill");
         styleMode(PdfModeCommentBtn, "comment");
+        styleMode(PdfFillSignBtn, "fillsign");
+        styleMode(PdfEditPdfBtn, "editpdf");
 
         if (PdfRibbonHint is not null)
-        {
-            PdfRibbonHint.Text = _pdfToolMode switch
-            {
-                "organize" => "Page tools below",
-                "sign" => "New signature · then click the page to place",
-                "fill" => "Click a cell · type · OCR seeds scans · Save",
-                "fillsign" => "Fill & Sign — type in a cell, or place a signature · Save",
-                "comment" => "Drag to highlight",
-                _ => "Pick a mode · tweaks appear below"
-            };
-        }
+            PdfRibbonHint.Text = "";
 
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
@@ -5784,6 +6403,13 @@ public partial class PreviewWindow : Window
     private async void PdfModeSign_Click(object sender, RoutedEventArgs e)
     {
         SetPdfToolMode("sign");
+        // Force viewer out of fill-draw so stamp clicks place (fillsign left both armed).
+        try
+        {
+            PreviewWebView.CoreWebView2?.PostWebMessageAsJson(
+                System.Text.Json.JsonSerializer.Serialize(new { type = "exitFillMode" }));
+        }
+        catch { /* ignore */ }
         ConvertStatusText.Text = "Sign — click the page to place";
         await ArmSignPlacementAsync();
     }
@@ -6313,8 +6939,7 @@ public partial class PreviewWindow : Window
     private void PdfEditTextMode_Click(object sender, RoutedEventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_currentFilePath)) return;
-        if (_pdfToolMode is not ("fill" or "fillsign"))
-            SetPdfToolMode("fill");
+        SetPdfToolMode("editpdf");
         var core = PreviewWebView.CoreWebView2;
         if (core is null) return;
         PostFormFieldsToViewer(_currentFilePath!);
@@ -6441,7 +7066,7 @@ public partial class PreviewWindow : Window
         string? tmpPng = null;
         try
         {
-            if (!string.Equals(_pdfToolMode, "fill", StringComparison.OrdinalIgnoreCase))
+            if (_pdfToolMode is not ("fill" or "fillsign" or "editpdf"))
                 SetPdfToolMode("fill");
             core.PostWebMessageAsJson(System.Text.Json.JsonSerializer.Serialize(new { type = "enterFillMode" }));
 
@@ -7118,6 +7743,9 @@ public partial class PreviewWindow : Window
             return;
         }
 
+        if (sender is System.Windows.Controls.Button host)
+            SharePopup.PlacementTarget = host;
+
         ShareSubjectText.Text = string.IsNullOrWhiteSpace(_currentFilePath)
             ? "Nothing open"
             : IoPath.GetFileName(_currentFilePath);
@@ -7558,12 +8186,18 @@ public partial class PreviewWindow : Window
         var local = LocalSummaryService.Build(content);
         SummaryText.Text = local;
 
+        if (!EnsureCloudPathAcked())
+        {
+            ConvertStatusText.Text = "Summary is local-only until you Allow cloud AI (tray).";
+            return;
+        }
+
         try
         {
             var summary = await _ai.SummarizeAsync(content, ct);
             // SummarizeAsync already falls back to local on provider failure — never dump JSON here
             SummaryText.Text = string.IsNullOrWhiteSpace(summary) ? local : summary;
-            ProviderButton.Content = $"AI: {_ai.ActiveProvider}";
+            PaintCloudPathChip();
         }
         catch (Exception ex)
         {
@@ -7575,10 +8209,26 @@ public partial class PreviewWindow : Window
     private async void OnChatSendRequested(string message)
     {
         if (_content is null) return;
+
+        // Local commands — do not burn Gemini quota on PRD / Sign intent.
+        var cmd = (message ?? "").Trim();
+        if (IsLocalChatCommand(cmd, out var localReply))
+        {
+            ChatPanel.AddAssistantMessage(localReply);
+            return;
+        }
+
         if (!_ai.IsConfigured)
         {
             ChatPanel.AddAssistantMessage(
-                "No AI key yet — use Pin note for ideas (saved on this file), or open Setup for Netie plan / BYO keys.");
+                "No AI key yet — unseal OpenVault (keys sync into Space), or Setup → API Keys. Pin note still works offline.");
+            return;
+        }
+
+        if (!EnsureCloudPathAcked())
+        {
+            ChatPanel.AddAssistantMessage(
+                "Cloud chat is off until you Allow cloud AI (tray → Cloud AI notice). Local Fill & Sign still works.");
             return;
         }
 
@@ -7588,19 +8238,59 @@ public partial class PreviewWindow : Window
             var response = await _ai.ChatAsync(_content, ChatPanel.GetHistory(), message);
             ChatPanel.AddAssistantMessage(
                 LocalSummaryService.LooksLikeProviderFailure(response)
-                    ? LocalSummaryService.FriendlyChatFailure(response)
+                    ? AppendVaultHint(LocalSummaryService.FriendlyChatFailure(response))
                     : response);
-            ProviderButton.Content = $"AI: {_ai.ActiveProvider}";
+            PaintCloudPathChip();
         }
         catch (Exception ex)
         {
-            ChatPanel.AddAssistantMessage(LocalSummaryService.FriendlyChatFailure(ex.Message));
+            ChatPanel.AddAssistantMessage(AppendVaultHint(LocalSummaryService.FriendlyChatFailure(ex.Message)));
         }
         finally
         {
             ChatPanel.SetBusy(false);
         }
     }
+
+    private static bool IsLocalChatCommand(string cmd, out string reply)
+    {
+        reply = "";
+        if (string.IsNullOrWhiteSpace(cmd)) return false;
+        var n = cmd.Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
+        while (n.Contains("--", StringComparison.Ordinal))
+            n = n.Replace("--", "-", StringComparison.Ordinal);
+
+        if (n is "sign-space-25" or "sign-space25" or "signed-space-25")
+        {
+            reply =
+                "Space-25 is already signed in Cursor (propose-then-confirm). " +
+                "This chat cannot sign the PRD ledger. Widget fill from chat still waits on Space#3; empty Cortex memory abstains. " +
+                "To put a signature on this PDF: Edit in app → Sign (or Fill & Sign) → click the page. " +
+                "I will not silent-fill EP FORM.";
+            return true;
+        }
+
+        if (n.Contains("fill-ep") || n.Contains("fill-the-form") || n is "fill-ep-form" or "autofill-ep")
+        {
+            reply =
+                "Will not silent-fill EP FORM from chat. Use Edit in app → Fill & Sign / Autofill from My details, " +
+                "or wait for Space#3 + Cortex memory + confirm UI.";
+            return true;
+        }
+
+        if (n is "sign" or "sign-pdf" or "place-signature" or "how-to-sign")
+        {
+            reply =
+                "PDF Sign is not a chat command. Click Edit in app → Sign (or Fill & Sign) → place on the page → Save. " +
+                "If placement fails, leave Fill mode first (Sign clears fill-draw).";
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string AppendVaultHint(string failure) =>
+        failure + " Tip: unseal OpenVault, restart Space (keys sync), then Switch AI if Gemini is out of quota.";
 
     private async void OnLookupRequested(string word) => await RunLookupAsync(word);
 
@@ -7611,6 +8301,14 @@ public partial class PreviewWindow : Window
         if (!_ai.IsConfigured)
         {
             _openApiSetup?.Invoke();
+            return;
+        }
+
+        if (!EnsureCloudPathAcked())
+        {
+            if (!_chatOpen) OpenChatPanel();
+            ChatPanel.AddAssistantMessage(
+                "Look up needs cloud AI. Tray → Cloud AI notice, or keep using local Fill.");
             return;
         }
 
@@ -7638,8 +8336,8 @@ public partial class PreviewWindow : Window
                 : definition;
             ChatPanel.AddAssistantMessage(clean);
             if (!LocalSummaryService.LooksLikeProviderFailure(definition))
-                ChatPanel.AddNote($"📌 Look up: {word}\n\n{clean}");
-            ProviderButton.Content = $"AI: {_ai.ActiveProvider}";
+                ChatPanel.AddNote($"Look up: {word}\n\n{clean}");
+            PaintCloudPathChip();
         }
         catch (Exception ex)
         {
@@ -7732,9 +8430,7 @@ public partial class PreviewWindow : Window
         {
             var win = new ApiSetupWindow(_ai, () =>
             {
-                ProviderButton.Content = _ai.IsConfigured
-                    ? $"AI: {_ai.ActiveProvider}"
-                    : "AI: —";
+                PaintCloudPathChip();
             });
             win.Owner = this;
             win.ShowDialog();
@@ -7780,6 +8476,22 @@ public partial class PreviewWindow : Window
         }
     }
 
+    private async void RotateImageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_currentFilePath) || !IoFile.Exists(_currentFilePath))
+            return;
+        try
+        {
+            var dest = ImageEditService.Rotate90Cw(_currentFilePath!);
+            ConvertStatusText.Text = $"Rotated 90 CW → {IoPath.GetFileName(dest)}";
+            await LoadFileAsync(dest);
+        }
+        catch (Exception ex)
+        {
+            ConvertStatusText.Text = $"Rotate failed: {ex.Message}";
+        }
+    }
+
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
         // Re-center after DPI/layout is final (first Position may run pre-Show)
@@ -7796,6 +8508,9 @@ public partial class PreviewWindow : Window
         _closingInProgress = true;
         try
         {
+            SetRibbonFloated(false);
+            if (DocZoomFloat is not null)
+                DocZoomFloat.IsOpen = false;
             await FlushHtmlEditIfNeededAsync();
             if (_content?.Kind == PreviewKind.Pdf)
             {
@@ -7926,6 +8641,16 @@ public partial class PreviewWindow : Window
             e.Handled = true;
             if (_content?.Kind == PreviewKind.Video && _editMode)
                 UndoVideoEdit();
+        }
+        else if (ctrl && e.Key == Key.F && _pdfSpaceMode)
+        {
+            e.Handled = true;
+            DocMenuFind_Click(sender, e);
+        }
+        else if (ctrl && e.Key == Key.S && _pdfSpaceMode)
+        {
+            e.Handled = true;
+            PdfSaveStamps_Click(sender, e);
         }
         else if (e.Key == Key.Delete && !IsTypingOrEditCapture)
         {
@@ -8443,4 +9168,22 @@ public partial class PreviewWindow : Window
         t.TotalHours >= 1
             ? $"{(int)t.TotalHours:00}:{t.Minutes:00}:{t.Seconds:00}"
             : $"{t.Minutes:00}:{t.Seconds:00}";
+
+    private sealed class PdfThumbItem : INotifyPropertyChanged
+    {
+        public int Page { get; init; }
+        public ImageSource? Image { get; init; }
+        private bool _active;
+        public bool Active
+        {
+            get => _active;
+            set
+            {
+                if (_active == value) return;
+                _active = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Active)));
+            }
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+    }
 }

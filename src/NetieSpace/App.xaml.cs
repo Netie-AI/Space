@@ -40,6 +40,10 @@ public partial class App : Application
     private PreviewWindow? _previewWindow;
     private ApiSetupWindow? _apiSetupWindow;
     private readonly object _previewLock = new();
+    private DateTime _lastSpaceUtc = DateTime.MinValue;
+    private int _spaceTaps;
+    private bool _pendingPdfWorkbench;
+    private bool _openInFlight;
     private DateTime _lastUiErrorPopupUtc = DateTime.MinValue;
     private string? _lastUiErrorMessage;
 
@@ -58,7 +62,8 @@ public partial class App : Application
                 if (!string.IsNullOrWhiteSpace(previewPath))
                 {
                     IoDirectory.CreateDirectory(IoPath.GetDirectoryName(PendingPreviewPath)!);
-                    IoFile.WriteAllText(PendingPreviewPath, previewPath);
+                    var payload = ArgsWantEdit(e.Args) ? "edit|" + previewPath : previewPath;
+                    IoFile.WriteAllText(PendingPreviewPath, payload);
                 }
 
                 using var ping = EventWaitHandle.OpenExisting(ShowTrayEventName);
@@ -239,26 +244,45 @@ public partial class App : Application
             if (!ShouldSwallowPreviewKeys())
                 return false;
 
-            Dispatcher.BeginInvoke(() =>
+            var doubleTap = NoteSpaceTap();
+
+            Dispatcher.BeginInvoke(async () =>
             {
                 if (IsTypingContext())
                     return;
                 if (!ShouldSwallowPreviewKeys())
                     return;
+                PreviewWindow? win;
                 lock (_previewLock)
-                {
-                    if (_previewWindow is { IsLoaded: true } win)
-                    {
-                        if (win.TryPopPreviewStack())
-                        {
-                            AppLogger.Info("Space toggle — popped nested preview");
-                            return;
-                        }
+                    win = _previewWindow is { IsLoaded: true } ? _previewWindow : null;
+                if (win is null)
+                    return;
 
-                        AppLogger.Info("Space toggle — save-then-close preview");
-                        _ = win.RequestCloseAsync();
-                    }
+                if (win.TryPopPreviewStack())
+                {
+                    AppLogger.Info("Space toggle -- popped nested preview");
+                    return;
                 }
+
+                if (win.IsPdfWorkbench)
+                {
+                    AppLogger.Info("Space swallowed -- PDF workbench is an app");
+                    return;
+                }
+
+                var dt = DoubleClickMs();
+                var young = !win.HasPreviewContent
+                    || (DateTime.UtcNow - win.PeekShownUtc).TotalMilliseconds <= dt;
+                if (_pendingPdfWorkbench || (doubleTap && young))
+                {
+                    AppLogger.Info("Space double-tap -- PDF workbench");
+                    await win.SetPdfWorkbenchAsync(true);
+                    _pendingPdfWorkbench = false;
+                    return;
+                }
+
+                AppLogger.Info("Space toggle -- save-then-close preview");
+                _ = win.RequestCloseAsync();
             });
             return true;
         }
@@ -274,7 +298,18 @@ public partial class App : Application
             return false;
         }
 
-        // Capture context HWND now (focus control, not delayed GetForegroundWindow — that often becomes Progman).
+        if (_openInFlight)
+        {
+            if (NoteSpaceTap())
+                _pendingPdfWorkbench = true;
+            return true;
+        }
+
+        var armedDouble = NoteSpaceTap();
+        if (armedDouble)
+            _pendingPdfWorkbench = true;
+
+        // Capture context HWND now (focus control, not delayed GetForegroundWindow -- that often becomes Progman).
         var contextHwnd = Win32Api.GetExplorerContextHwnd();
         if (contextHwnd == IntPtr.Zero)
             contextHwnd = Win32Api.GetForegroundWindow();
@@ -285,6 +320,7 @@ public partial class App : Application
             $"cursor=0x{cursorHwnd.ToInt64():X} class={Win32Api.GetWindowClass(cursorHwnd)} " +
             $"fg=0x{Win32Api.GetForegroundWindow().ToInt64():X}");
 
+        _openInFlight = true;
         _ = Task.Run(async () =>
         {
             await Task.Delay(40);
@@ -304,16 +340,39 @@ public partial class App : Application
                     }
 
                     var ownerHwnd = PreferOwnerHwnd(cursorHwnd, contextHwnd);
-                    await OpenPreviewAsync(path, ownerHwnd);
+                    await OpenPreviewAsync(path, ownerHwnd, enterPdfWorkbench: _pendingPdfWorkbench);
                 }
                 catch (Exception ex)
                 {
                     AppLogger.Error(ex, "Space handler failed");
                     ShowBalloon("Preview failed", ex.GetBaseException().Message);
                 }
+                finally
+                {
+                    _openInFlight = false;
+                }
             });
         });
         return true;
+    }
+
+    private static int DoubleClickMs()
+    {
+        var t = (int)Win32Api.GetDoubleClickTime();
+        return t < 200 ? 500 : t;
+    }
+
+    /// <summary>Hook-thread tap counter. True when this Space is the second tap inside the Windows double-click window.</summary>
+    private bool NoteSpaceTap()
+    {
+        var now = DateTime.UtcNow;
+        var dt = DoubleClickMs();
+        if ((now - _lastSpaceUtc).TotalMilliseconds <= dt)
+            _spaceTaps++;
+        else
+            _spaceTaps = 1;
+        _lastSpaceUtc = now;
+        return _spaceTaps >= 2;
     }
 
     /// <summary>True when focus is in a text field or a modal editor dialog — Space must type a space.</summary>
@@ -571,15 +630,20 @@ public partial class App : Application
         }
     }
 
+    private static bool ArgsWantEdit(string[] args) =>
+        args.Any(a => string.Equals(a, "--edit", StringComparison.OrdinalIgnoreCase));
+
     private static string? TryExtractPreviewPath(string[] args)
     {
         for (var i = 0; i < args.Length; i++)
         {
-            if (string.Equals(args[i], "--preview", StringComparison.OrdinalIgnoreCase) &&
+            if ((string.Equals(args[i], "--preview", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(args[i], "--edit", StringComparison.OrdinalIgnoreCase)) &&
                 i + 1 < args.Length)
             {
                 var p = args[i + 1].Trim('"');
-                return IoFile.Exists(p) ? p : null;
+                if (IoFile.Exists(p))
+                    return p;
             }
 
             if (i == 0 && !args[i].StartsWith('-') && IoFile.Exists(args[i]))
@@ -611,14 +675,15 @@ public partial class App : Application
             return;
 
         var file = path!;
+        var edit = ArgsWantEdit(args);
         Dispatcher.BeginInvoke(async () =>
         {
-            AppLogger.Info($"CLI preview: {file}");
-            await OpenPreviewAsync(file);
+            AppLogger.Info(edit ? $"CLI edit: {file}" : $"CLI preview: {file}");
+            await OpenPreviewAsync(file, enterPdfWorkbench: edit);
         });
     }
 
-    private async Task OpenPreviewAsync(string path, IntPtr ownerHwnd = default)
+    private async Task OpenPreviewAsync(string path, IntPtr ownerHwnd = default, bool enterPdfWorkbench = false)
     {
         try
         {
@@ -629,7 +694,9 @@ public partial class App : Application
                     existing = _previewWindow;
             }
 
-            // Already open → reload path (CLI / second Space path) instead of close-and-bail
+            var wantEdit = enterPdfWorkbench || _pendingPdfWorkbench;
+
+            // Already open -> reload path (CLI / second Space path) instead of close-and-bail
             if (existing is not null)
             {
                 AppLogger.Info($"Preview reload: {path}");
@@ -641,7 +708,11 @@ public partial class App : Application
                 }
                 catch { /* ignore */ }
                 CrashRecovery.RememberPreview(path);
+                existing.MarkPeekShown();
                 await existing.LoadFileAsync(path);
+                if (wantEdit || _pendingPdfWorkbench)
+                    await existing.SetPdfWorkbenchAsync(true);
+                _pendingPdfWorkbench = false;
                 return;
             }
 
@@ -675,9 +746,13 @@ public partial class App : Application
                 _previewWindow = window;
                 window.PositionOnOwnerMonitor(ownerHwnd);
                 window.Show();
+                window.MarkPeekShown();
             }
 
             await window.LoadFileAsync(path);
+            if (wantEdit || _pendingPdfWorkbench)
+                await window.SetPdfWorkbenchAsync(true);
+            _pendingPdfWorkbench = false;
         }
         catch (Exception ex)
         {
@@ -778,6 +853,40 @@ public partial class App : Application
                 _trayIcon.ContextMenu = BuildTrayMenu();
         };
         menu.Items.Add(memory);
+
+        var cloudAi = new MenuItem
+        {
+            Header = UserPrefs.CloudPathAcknowledged
+                ? "Cloud AI ✓ (chat/summary leave this PC)"
+                : "Cloud AI notice…"
+        };
+        cloudAi.Click += (_, _) =>
+        {
+            if (UserPrefs.CloudPathAcknowledged)
+            {
+                var revoke = MessageBox.Show(
+                    "Cloud AI is ON. Chat and summary send file text to Groq/Gemini/OpenRouter/SEA-LION.\n\n" +
+                    "Yes = turn off (local Autofill still works)\n" +
+                    "No = keep cloud on",
+                    "Netie Space — Cloud AI",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+                if (revoke == MessageBoxResult.Yes)
+                {
+                    UserPrefs.CloudPathAcknowledged = false;
+                    UserPrefs.CloudPathPrompted = true;
+                }
+            }
+            else
+            {
+                UserPrefs.CloudPathPrompted = false;
+                CloudPathDisclosureWindow.EnsureAcked();
+            }
+
+            if (_trayIcon?.ContextMenu is not null)
+                _trayIcon.ContextMenu = BuildTrayMenu();
+        };
+        menu.Items.Add(cloudAi);
 
         var vault = new MenuItem { Header = "Password Vault…" };
         vault.Click += (_, _) => PasswordVaultWindow.ShowVault();
@@ -1036,10 +1145,13 @@ public partial class App : Application
                             {
                                 var pending = IoFile.ReadAllText(PendingPreviewPath).Trim().Trim('"');
                                 try { IoFile.Delete(PendingPreviewPath); } catch { /* ignore */ }
+                                var edit = pending.StartsWith("edit|", StringComparison.OrdinalIgnoreCase);
+                                if (edit)
+                                    pending = pending[5..];
                                 if (!string.IsNullOrWhiteSpace(pending) && IoFile.Exists(pending))
                                 {
                                     AppLogger.Info($"Pending preview from second instance: {pending}");
-                                    await OpenPreviewAsync(pending);
+                                    await OpenPreviewAsync(pending, enterPdfWorkbench: edit);
                                     return;
                                 }
                             }

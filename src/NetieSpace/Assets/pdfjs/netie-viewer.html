@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="doc-app">
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -15,10 +15,34 @@
       --muted: #a8b0c0;
       --chip: rgba(42, 49, 64, 0.72);
     }
-    html, body { margin: 0; height: 100%; background: #10141c; color: var(--text);
+    html.doc-app {
+      color-scheme: light;
+      --doc-canvas: #E8E8E8;
+      --doc-toolbar: #F5F5F5;
+      --doc-rail: #F3F3F3;
+      --doc-page: #FFFFFF;
+      --doc-line: #D6D6D6;
+      --doc-text: #2C2C2C;
+      --doc-muted: #6E6E6E;
+      --doc-accent: #0B5CAB;
+      --doc-hover: #E8F2FF;
+      --doc-on: #D6E8F8;
+      --doc-save: #0B5CAB;
+      --accent: #0B5CAB;
+      --text: #2C2C2C;
+      --muted: #6E6E6E;
+      --chip: #FFFFFF;
+      --glass: #F5F5F5;
+      --glass-border: #D6D6D6;
+      --glass-hi: #FFFFFF;
+    }
+    html, body { margin: 0; height: 100%; background: var(--doc-canvas, #E8E8E8); color: var(--text);
       font: 600 13px "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif;
-      overflow: hidden; user-select: none; }
-    /* Liquid-glass scrollbars — thumb only */
+      overflow: hidden; user-select: none;
+      display: flex; flex-direction: column; }
+    html:not(.doc-app), html:not(.doc-app) body { background: #10141c; color: var(--text); }
+    html.doc-app, html.doc-app body { background: var(--doc-canvas); color: var(--doc-text);
+      font-weight: 600; }
     *::-webkit-scrollbar { width: 8px; height: 8px; }
     *::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
     *::-webkit-scrollbar-corner { background: transparent; }
@@ -28,104 +52,150 @@
       border: 2px solid transparent; background-clip: content-box; }
     *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.36); background-clip: content-box; }
     * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.28) transparent; }
+    html.doc-app *::-webkit-scrollbar-thumb { background: #C4C4C4; background-clip: content-box; }
+    html.doc-app *::-webkit-scrollbar-thumb:hover { background: #A8A8A8; background-clip: content-box; }
+    html.doc-app * { scrollbar-color: #C4C4C4 transparent; }
     @media (prefers-reduced-motion: reduce) {
       #toolbar button:active { transform: none !important; }
       #viewer { scroll-behavior: auto !important; }
     }
-    @media (prefers-reduced-transparency: reduce) {
-      #toolbar {
-        background: #161c26 !important;
-        backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
-      }
-    }
-    /* Liquid-glass toolbar — crisp chips, no glow halos */
     #toolbar {
-      display: flex; gap: 6px; align-items: center; padding: 7px 12px; flex-wrap: wrap;
-      background: linear-gradient(180deg, var(--glass-hi), transparent 60%), var(--glass);
-      backdrop-filter: blur(18px) saturate(1.35); -webkit-backdrop-filter: blur(18px) saturate(1.35);
-      border-bottom: 1px solid var(--glass-border); box-shadow: none; }
+      flex: 0 0 auto; display: flex; gap: 8px; align-items: center; padding: 6px 10px; flex-wrap: wrap;
+      background: var(--glass); border-bottom: 1px solid var(--glass-border); box-shadow: none; }
+    html.doc-app #toolbar { background: var(--doc-toolbar); }
     #toolbar button, #toolbar input[type="number"], #toolbar input[type="search"] {
       background: var(--chip); color: var(--text); border: 1px solid var(--glass-border);
-      border-radius: 12px; padding: 7px 11px; cursor: pointer;
-      font: 700 12.5px "Segoe UI Variable Display", "Segoe UI", sans-serif;
-      letter-spacing: 0.01em; box-shadow: none;
-      transition: transform 90ms ease-out, background 120ms ease-out, border-color 120ms ease-out;
+      border-radius: 4px; padding: 6px 8px; cursor: pointer;
+      font: 600 12px "Segoe UI", sans-serif;
+      letter-spacing: 0; box-shadow: none;
+      transition: background 120ms ease-out, border-color 120ms ease-out;
       touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-    #toolbar button:active { transform: scale(0.97); }
-    #toolbar button:hover { background: rgba(94, 196, 184, 0.22); border-color: rgba(94, 196, 184, 0.45); }
+    #toolbar button { display: inline-flex; align-items: center; gap: 5px; }
+    #toolbar button svg { width: 18px; height: 18px; flex: 0 0 18px; }
+    #toolbar button .lbl { font-weight: 600; }
+    #toolbar button:active { transform: none; }
+    #toolbar button:hover { background: var(--doc-hover, rgba(94, 196, 184, 0.22));
+      border-color: var(--doc-accent, rgba(94, 196, 184, 0.45)); }
+    #toolbar .sep { width: 1px; height: 20px; background: var(--doc-line, var(--glass-border));
+      margin: 0 4px; flex: 0 0 1px; align-self: center; }
     #toolbar input[type="number"] {
       width: 52px; text-align: center; cursor: text; -moz-appearance: textfield;
-      padding: 6px 4px; font-weight: 700; }
+      padding: 6px 4px; font-weight: 700; display: inline-block; }
     #toolbar input[type="number"]::-webkit-outer-spin-button,
     #toolbar input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     #toolbar input[type="search"] {
-      width: 168px; cursor: text; font-weight: 700; font-size: 13px;
-      border-radius: 12px; }
+      width: 168px; cursor: text; font-weight: 600; font-size: 13px;
+      border-radius: 4px; }
     #pageTotal { opacity: 0.75; font-size: 12px; min-width: 36px; font-weight: 600; }
-    #toolbar button.accent { background: rgba(94, 196, 184, 0.28); border-color: rgba(94, 196, 184, 0.55); }
-    #stampBtn { display: none; }
-    #stampBtn.active { display: inline-block; }
-    #toolbar button.hot { background: var(--accent); color: #0e1218; border-color: var(--accent); }
-    #toolbar button.on { background: var(--accent); color: #0e1218; border-color: var(--accent); }
-    #searchWrap { display: flex; align-items: center; gap: 4px; margin-left: 4px; }
+    #toolbar button.accent { background: var(--doc-on, rgba(94, 196, 184, 0.28));
+      border-color: var(--doc-accent, rgba(94, 196, 184, 0.55)); }
+    #toolbar #stampBtn { display: none; }
+    #toolbar #stampBtn.active { display: inline-flex; }
+    #toolbar button.hot { background: var(--doc-accent, var(--accent)); color: #fff;
+      border-color: var(--doc-accent, var(--accent)); }
+    #toolbar button.on { background: var(--doc-on, var(--accent));
+      color: var(--doc-text, #0e1218); border-color: var(--doc-accent, var(--accent)); }
+    #searchWrap { display: flex; align-items: center; gap: 4px; }
     #searchPanel { display: none; align-items: center; gap: 4px; }
     #searchPanel.open { display: flex; }
-    #searchToggle { font-weight: 800 !important; }
-    #searchToggle.on { background: var(--accent); color: #0e1218; border-color: var(--accent); }
-    #main { display: flex; height: calc(100% - 44px); min-height: 0; }
-    /* Single-column page thumbnails */
-    #thumbs { width: 112px; overflow: auto; background: rgba(10, 14, 22, 0.88);
+    #searchToggle.on { background: var(--doc-on, var(--accent));
+      color: var(--doc-text, #0e1218); border-color: var(--doc-accent, var(--accent)); }
+    #main { display: flex; flex: 1; min-height: 0; height: auto; position: relative; width: 100%; }
+    #thumbs { width: 120px; overflow: auto; background: var(--doc-rail, #F3F3F3);
       border-right: 1px solid var(--glass-border); padding: 8px; box-sizing: border-box;
-      display: grid; grid-template-columns: 1fr; gap: 8px; align-content: start; }
-    #thumbs canvas { width: 100%; display: block; border-radius: 3px; aspect-ratio: 3/4; object-fit: cover;
-      border: 2px solid transparent; cursor: pointer; background: #1a1e28; }
-    #thumbs canvas.active { border-color: var(--accent); }
-    #thumbs .thumb-more { opacity: .7; font-size: 11px; text-align: center; padding: 6px 2px;
+      display: grid; grid-template-columns: 1fr; gap: 8px; align-content: start; flex: 0 0 120px; }
+    html.doc-app #thumbs { background: var(--doc-rail); }
+    #thumbs canvas { width: 100%; display: block; border-radius: 2px; aspect-ratio: 3/4; object-fit: cover;
+      border: 2px solid transparent; cursor: pointer; background: #fff; box-sizing: border-box; }
+    #thumbs .thumb-item { display: grid; gap: 4px; justify-items: center; }
+    #thumbs .thumb-item canvas { border-color: transparent; }
+    #thumbs canvas.active, #thumbs .thumb-item.active canvas { border-color: var(--doc-accent, var(--accent)); }
+    #thumbs .thumb-num { font-size: 11px; font-weight: 600; color: var(--doc-muted, var(--muted)); }
+    #thumbs .thumb-more { opacity: .9; font-size: 11px; text-align: center; padding: 6px 2px;
       font-weight: 700; background: var(--chip); border: 1px solid var(--glass-border);
-      border-radius: 10px; color: var(--text); cursor: pointer; }
+      border-radius: 4px; color: var(--text); cursor: pointer; }
     #viewer { flex: 1; overflow: auto; text-align: center; padding: 14px 12px; position: relative;
-      cursor: default; scroll-behavior: auto; min-height: 0; background: #10141c; }
+      cursor: default; scroll-behavior: auto; min-height: 0; min-width: 0; background: var(--doc-canvas, #E8E8E8);
+      display: flex; flex-direction: column; align-items: center; }
+    html:not(.doc-app) #viewer { background: #10141c; }
+    html.doc-app #viewer { background: var(--doc-canvas); }
     #viewer.fit-mode { padding: 14px 12px; }
     #viewer.single .page-wrap { display: none; }
     #viewer.single .page-wrap.active-page { display: block; margin: 0 auto; }
     #viewer.stamp-mode { cursor: grabbing; }
     #pages { position: relative; display: inline-block; text-align: center; margin: 0 auto;
-      max-width: 100%; }
+      max-width: 100%; align-self: center; }
     .page-wrap { position: relative; margin: 0 auto 16px; display: block; width: fit-content;
-      box-shadow: 0 6px 24px #00000066; border-radius: 10px; overflow: hidden; background: #fff; }
+      box-shadow: 0 1px 4px #0002; border-radius: 2px; overflow: hidden; background: #fff; }
+    #pageHud {
+      position: absolute; right: 16px; bottom: 16px; z-index: 45;
+      display: none; flex-direction: column; gap: 4px;
+      background: #F5F5F5; border: 1px solid #D6D6D6; border-radius: 4px; padding: 4px;
+      box-shadow: 0 2px 8px #0002; }
+    #pageHud button {
+      width: 32px; height: 28px; border: 0; background: transparent; color: #2C2C2C;
+      cursor: pointer; border-radius: 3px; font: 700 13px "Segoe UI", sans-serif; }
+    #pageHud button:hover { background: #E8F2FF; }
+    html.canvas-only #toolbar,
+    html.canvas-only #pageHud { display: none !important; }
+    html.slim-chrome #toolbar,
+    html.slim-chrome #banner,
+    html.slim-chrome #pageHud { display: none !important; }
+    html.canvas-only.no-thumbs #thumbs { display: none !important; }
+    html.canvas-only #main { flex: 1; height: 100%; min-height: 0; }
+    html.canvas-only, html.canvas-only body { background: #E8E8E8; }
     .page-wrap canvas { display: block; }
     .annotationLayer {
-      position: absolute; left: 0; top: 0; pointer-events: none;
-      transform-origin: 0 0; z-index: 18;
+      position: absolute; left: 0; top: 0; right: auto; bottom: auto;
+      pointer-events: none; transform-origin: 0 0; z-index: 18;
+      --annotation-unfocused-field-background: rgba(0, 54, 255, 0.13);
+      --input-focus-border-color: #2b6cb0;
+      --input-focus-outline: 1px solid #fff;
+      --input-unfocused-border-color: transparent;
+      --input-disabled-border-color: transparent;
+      --input-hover-border-color: #10141a;
     }
     .annotationLayer section {
       position: absolute; text-align: initial; pointer-events: none;
       box-sizing: border-box; transform-origin: 0 0;
     }
-    #viewer.fill-mode .annotationLayer,
+    /* pdf.js AnnotationLayer positions sections in % of pageWidth * --scale-factor.
+       Missing these rules made AcroForm widgets drift / fly on zoom+scroll. */
+    .annotationLayer :is(.linkAnnotation, .buttonWidgetAnnotation.pushButton) > a {
+      position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    }
+    /* Layer stays none so empty page still receives drag-draw. Only the widget
+       sections capture clicks (type native fields). Auto-on-layer ate every
+       Fill bounding-box drag on AcroForm PDFs (EP FORM, 158 widgets). */
+    #viewer.fill-mode .annotationLayer { pointer-events: none; }
     #viewer.fill-mode .annotationLayer section { pointer-events: auto; }
     .annotationLayer .textWidgetAnnotation :is(input, textarea),
     .annotationLayer .choiceWidgetAnnotation select,
     .annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) input {
-      background: rgba(255,255,255,0.55); border: 1.5px solid rgba(43,108,176,0.7);
-      box-sizing: border-box; color: #10141a; font: calc(10px * var(--scale-factor)) Helvetica, Arial, sans-serif;
+      background-image: var(--annotation-unfocused-field-background);
+      background-color: rgba(255,255,255,0.55);
+      border: 1.5px solid rgba(43,108,176,0.7);
+      box-sizing: border-box; color: #10141a;
+      font: calc(10px * var(--scale-factor, 1)) Helvetica, Arial, sans-serif;
       height: 100%; width: 100%; margin: 0; vertical-align: top;
+      padding-inline: calc(2px * var(--scale-factor, 1));
     }
     .annotationLayer .textWidgetAnnotation textarea { resize: none; }
     .annotationLayer .buttonWidgetAnnotation.radioButton input { border-radius: 50%; }
     .annotationLayer .textWidgetAnnotation :is(input, textarea):focus,
     .annotationLayer .choiceWidgetAnnotation select:focus {
-      outline: 2px solid #2b6cb0; background: #fff;
+      outline: var(--input-focus-outline); outline-offset: -1px;
+      border: 2px solid var(--input-focus-border-color); background: #fff;
     }
     .annotationLayer .linkAnnotation { display: none; }
     #stampGhost { position: absolute; pointer-events: none; display: none; z-index: 40;
       filter: drop-shadow(0 4px 12px #0008); opacity: 0.98; }
     #stampGhost img { max-width: 180px; max-height: 70px; display: block; }
     .stamp-overlay { position: absolute; z-index: 30; box-sizing: border-box;
-      border: 2px solid #5ec4b8; background: #fffffff0; cursor: move;
-      border-radius: 8px; box-shadow: 0 0 0 1px #0e121866, 0 6px 18px #0005; }
+      border: 2px solid #0B5CAB; background: #fffffff0; cursor: move;
+      border-radius: 2px; box-shadow: 0 0 0 1px #0e121866, 0 2px 8px #0003; }
     .stamp-overlay img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; display: block; opacity: 1; }
-    .stamp-overlay .handle { position: absolute; width: 10px; height: 10px; background: #5ec4b8;
+    .stamp-overlay .handle { position: absolute; width: 10px; height: 10px; background: #0B5CAB;
       border: 1px solid #0e1218; border-radius: 2px; right: -5px; bottom: -5px; cursor: nwse-resize; }
     .stamp-overlay.committed { border-color: #2a9a8e; background: #fffffff5; }
     .stamp-overlay.selected { border-color: #ffd64a; z-index: 35; background: #fffffff8; }
@@ -147,10 +217,18 @@
     .fill-text { position: absolute; z-index: 32; box-sizing: border-box;
       border: 1.5px solid #2b6cb0; background: rgba(219, 234, 254, 0.30);
       color: #10141a; font-family: Helvetica, Arial, "Segoe UI", sans-serif;
-      padding: 0 3px; outline: none; cursor: text; white-space: pre;
+      padding: 0; outline: none; cursor: text; white-space: pre;
       overflow: visible; border-radius: 2px; user-select: text; }
+    .fill-text .fill-inner {
+      display: block; width: 100%; height: 100%; box-sizing: border-box;
+      padding: 0 3px; outline: none; overflow: hidden; }
     .fill-text.active { border-color: #1a56a8; background: rgba(219, 234, 254, 0.45);
       box-shadow: 0 0 0 1px #2b6cb055, 0 4px 14px #0004; }
+    .fill-text .handle { position: absolute; width: 10px; height: 10px; background: #2b6cb0;
+      border: 1px solid #0e1218; border-radius: 2px; right: -5px; bottom: -5px; cursor: nwse-resize;
+      z-index: 2; }
+    #fillDrawGhost { position: absolute; z-index: 34; pointer-events: none; display: none;
+      border: 1.5px dashed #2b6cb0; background: rgba(43, 108, 176, 0.12); border-radius: 2px; }
     .fill-cell-flash { position: absolute; z-index: 28; pointer-events: none;
       background: rgba(43, 108, 176, 0.18); border: 1.5px solid #2b6cb0;
       border-radius: 2px; transition: opacity 0.45s ease; }
@@ -169,49 +247,86 @@
     .hl-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 12; }
     .hl-box { position: absolute; background: rgba(255, 214, 74, 0.42); border: 1.5px solid rgba(255, 196, 40, 0.9);
       border-radius: 3px; mix-blend-mode: multiply; }
-    .hl-box.mark { background: rgba(94, 196, 184, 0.38); border-color: rgba(94, 196, 184, 0.95); }
+    .hl-box.mark { background: rgba(11, 92, 171, 0.28); border-color: rgba(11, 92, 171, 0.95); }
     /* Region marquee — Word-style "select area", crops + parses before AI */
     .region-layer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; pointer-events: none; z-index: 13; }
-    .region-box { position: absolute; background: rgba(94, 196, 184, 0.16);
-      border: 1.6px dashed rgba(94, 196, 184, 0.95); border-radius: 5px; box-sizing: border-box;
-      box-shadow: 0 2px 10px rgba(8, 12, 18, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
-    .search-hit { position: absolute; background: rgba(94, 196, 184, 0.38);
-      border: 1.5px solid rgba(94, 196, 184, 0.95); border-radius: 3px; box-sizing: border-box;
+    .region-box { position: absolute; background: rgba(11, 92, 171, 0.12);
+      border: 1.6px dashed rgba(11, 92, 171, 0.95); border-radius: 2px; box-sizing: border-box;
+      box-shadow: 0 2px 8px rgba(8, 12, 18, 0.2); }
+    .search-hit { position: absolute; background: rgba(11, 92, 171, 0.28);
+      border: 1.5px solid rgba(11, 92, 171, 0.95); border-radius: 2px; box-sizing: border-box;
       pointer-events: none; z-index: 14; }
     .search-hit.current { background: rgba(255, 214, 74, 0.55); border-color: #ffd64a; }
     /* Overlay, never in-flow: toggling the banner must not shift the pages
        under the cursor (Acrobat's hint bar overlays the document too). */
     #banner { display: none; position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
-      background: #5ec4b8; color: #0e1218; padding: 10px 16px; border-radius: 12px;
-      font-weight: 800; z-index: 50; box-shadow: 0 4px 16px #0006; white-space: nowrap;
-      width: fit-content; }
-    #status { margin-left: auto; opacity: 1; font-size: 12.5px; font-weight: 700; color: #e8ecf4;
-      max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      text-shadow: 0 1px 0 #0006; }
-    .bbox { position: absolute; border: 1px solid #5ec4b888; background: #5ec4b822;
+      background: #E8F2FF; color: #2C2C2C; padding: 8px 14px; border-radius: 4px;
+      font-weight: 700; z-index: 50; box-shadow: 0 2px 8px #0002; white-space: nowrap;
+      width: fit-content; border: 1px solid #D6E8F8; }
+    #status { margin-left: auto; opacity: 1; font-size: 12px; font-weight: 600; color: var(--doc-muted, #a8b0c0);
+      max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bbox { position: absolute; border: 1px solid #0B5CAB88; background: #0B5CAB22;
       border-radius: 1px; pointer-events: auto; cursor: pointer; z-index: 15; }
     .bbox.selected { border-color: #ffd64a; background: #ffd64a33; }
   </style>
 </head>
 <body>
   <div id="toolbar">
-    <button id="prev" title="Previous page">‹</button>
+    <button id="prev" title="Previous page">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M11.2 4.2 L6.4 9 l4.8 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">Prev</span>
+    </button>
     <input id="pageInput" type="number" min="1" value="1" title="Type page number, Enter to go"/>
     <span id="pageTotal">/ 1</span>
-    <button id="next" title="Next page">›</button>
-    <button id="modeBtn" title="Toggle one page / continuous scroll">Continuous</button>
-    <button id="zoomOut" title="Zoom out">−</button>
+    <button id="next" title="Next page">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M6.8 4.2 L11.6 9 l-4.8 4.8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">Next</span>
+    </button>
+    <button id="modeBtn" title="Toggle one page / continuous scroll">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="4" y="3" width="10" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 7 h4 M7 11 h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="lbl">Continuous</span>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button id="zoomOut" title="Zoom out">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 9 h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="lbl">-</span>
+    </button>
     <span id="zoomLabel">100%</span>
-    <button id="zoomIn" title="Zoom in">+</button>
-    <button id="fit" title="Fit page to window (sharp, no stretch)">Fit</button>
-    <button id="stampBtn" class="accent" title="Cancel signature placement">Cancel placement</button>
+    <button id="zoomIn" title="Zoom in">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 4 v10 M4 9 h10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <span class="lbl">+</span>
+    </button>
+    <button id="fit" title="Fit page to window (sharp, no stretch)">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 7 V4 h3 M14 7 V4 h-3 M4 11 v3 h3 M14 11 v3 h-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">Fit</span>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
+    <button id="stampBtn" class="accent" title="Cancel signature placement">
+      <span class="lbl">Cancel placement</span>
+    </button>
     <button id="stampConfirmBtn" class="accent hot" style="display:none" title="Legacy — auto-kept on drop">Keep stamp</button>
-    <button id="fillBtn" title="Fill &amp; type — click a table cell or line, then type">Fill text</button>
-    <button id="hlBtn" title="Drag across text to highlight — Save writes it into the PDF">Highlight</button>
-    <button id="markBtn" title="Drag to draw a mark — Save writes it into the PDF">Mark</button>
-    <button id="regionBtn" title="Select area — drag a box over a table or figure to send it to chat">Select area</button>
+    <button id="fillBtn" title="Fill &amp; type — click a table cell or line, then type">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 14.5 h10 M6 12.5 L12.2 6.3 l1.5 1.5 L7.5 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="lbl">Fill</span>
+    </button>
+    <button id="hlBtn" title="Drag across text to highlight — Save writes it into the PDF">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 13 h10 M5.5 13 L8 5 h2 l2.5 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.2 10 h3.6" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      <span class="lbl">Highlight</span>
+    </button>
+    <button id="markBtn" title="Drag to draw a mark — Save writes it into the PDF">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><path d="M4 13.5 l7-9 3 2.4-7 9 H4 z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <span class="lbl">Mark</span>
+    </button>
+    <button id="regionBtn" title="Select area — drag a box over a table or figure to send it to chat">
+      <svg viewBox="0 0 18 18" aria-hidden="true"><rect x="4" y="4" width="10" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/></svg>
+      <span class="lbl">Area</span>
+    </button>
+    <span class="sep" aria-hidden="true"></span>
     <div id="searchWrap">
-      <button id="searchToggle" title="Search text in document">Search</button>
+      <button id="searchToggle" title="Search text in document">
+        <svg viewBox="0 0 18 18" aria-hidden="true"><circle cx="8" cy="8" r="4.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M11.2 11.2 L14.5 14.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="lbl">Search</span>
+      </button>
       <div id="searchPanel">
         <input id="searchBox" type="search" placeholder="Find in PDF…" title="Search all text · Enter"/>
         <button id="searchPrev" title="Previous match">↑</button>
@@ -227,6 +342,12 @@
       <div id="pages"></div>
       <div id="stampGhost"><img id="stampImg" alt="signature"/></div>
     </div>
+    <div id="pageHud" aria-label="Page controls">
+      <button type="button" id="hudPrev" title="Previous page">▲</button>
+      <button type="button" id="hudNext" title="Next page">▼</button>
+      <button type="button" id="hudZoomOut" title="Zoom out">-</button>
+      <button type="button" id="hudZoomIn" title="Zoom in">+</button>
+    </div>
   </div>
   <div id="stampFloatBar" title="Resize or delete signature">
     <button type="button" class="sm" id="stampSizeDown" title="Smaller">A</button>
@@ -238,6 +359,7 @@
     <button type="button" class="lg" id="fillSizeUp" title="Larger text">A</button>
     <button type="button" class="trash" id="fillDeleteBtn" title="Delete text box">🗑</button>
   </div>
+  <div id="fillDrawGhost" aria-hidden="true"></div>
   <script type="module">
     import * as pdfjsLib from './build/pdf.mjs';
     pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./build/pdf.worker.mjs', import.meta.url).href;
@@ -264,10 +386,16 @@
     let loadGen = 0;
     let formFields = [];
     let fillMode = false;
+    let regionMode = false;
     /** @type {{id:string,page:number,xPt:number,yFromBottom:number,wPt:number,hPt:number,fontPt:number,text:string,snapped:string,el:HTMLElement|null}[]} */
     let fillFields = [];
     let activeFillId = null;
     let fillPostTimer = 0;
+    /** @type {{page:number,entry:any,x0:number,y0:number,x1:number,y1:number}|null} */
+    let fillDraw = null;
+    /** @type {{id:string,ox:number,oy:number,wPt:number,hPt:number,xPt:number,yFromBottom:number}|null} */
+    let fillResize = null;
+    let fillDrawSuppressClick = false;
     /** @type {{id:string,page:number,xPt:number,yFromBottom:number,stampW:number,stampH:number,dataUrl:string,el:HTMLElement}[]} */
     let overlays = [];
     /** @type {Map<number,{wrap:HTMLElement,canvas:HTMLCanvasElement,widthPt:number,heightPt:number,rendered:boolean}>} */
@@ -278,9 +406,9 @@
     let searchHits = []; // {page, x, y, w, h} in PDF points
     let searchIdx = -1;
     let searchQuery = '';
-    const THUMB_BATCH = 48;
+    const THUMB_BATCH = 12; // was 48 — 4x fewer thumb rasters on open (low-RAM PCs)
     let thumbCursor = 0;
-    const dpr = () => Math.min(3, window.devicePixelRatio || 1);
+    const dpr = () => Math.min(1.5, window.devicePixelRatio || 1); // cap for lag on low-RAM PCs
 
     const thumbs = document.getElementById('thumbs');
     const viewer = document.getElementById('viewer');
@@ -494,7 +622,10 @@
       viewer.classList.toggle('single', !continuous);
       const modeBtn = document.getElementById('modeBtn');
       if (modeBtn) {
-        modeBtn.textContent = continuous ? 'Continuous' : 'One page';
+        const lbl = modeBtn.querySelector('.lbl');
+        const text = continuous ? 'Continuous' : 'One page';
+        if (lbl) lbl.textContent = text;
+        else modeBtn.textContent = text;
         modeBtn.classList.toggle('on', continuous);
       }
       for (const [n, entry] of pageMap) {
@@ -646,6 +777,8 @@
       }
       entry.annotDiv.style.width = entry.canvas.style.width;
       entry.annotDiv.style.height = entry.canvas.style.height;
+      entry.annotDiv.style.left = '0';
+      entry.annotDiv.style.top = '0';
     }
 
     async function renderVisiblePages(forceAllNear) {
@@ -654,7 +787,7 @@
       const tasks = [];
       for (const [n, entry] of pageMap) {
         const r = entry.wrap.getBoundingClientRect();
-        const near = r.bottom >= vr.top - 800 && r.top <= vr.bottom + 800;
+        const near = r.bottom >= vr.top - 400 && r.top <= vr.bottom + 400;
         if (near || (forceAllNear && Math.abs(n - pageNum) <= 1))
           tasks.push(renderPageAt(n, false));
       }
@@ -665,6 +798,7 @@
 
     async function renderThumbBatch() {
       if (!pdf) return;
+      const hide = document.documentElement.classList.contains('no-thumbs');
       const end = Math.min(pdf.numPages, thumbCursor + THUMB_BATCH);
       for (let i = thumbCursor + 1; i <= end; i++) {
         const page = await pdf.getPage(i);
@@ -675,16 +809,40 @@
         if (i === pageNum) c.classList.add('active');
         await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
         c.onclick = () => goToPage(i, true);
-        thumbs.appendChild(c);
+        if (hide) {
+          try { post({ type: 'thumb', page: i, dataUrl: c.toDataURL('image/jpeg', 0.72) }); } catch (_) {}
+        } else {
+          const item = document.createElement('div');
+          item.className = 'thumb-item' + (i === pageNum ? ' active' : '');
+          const num = document.createElement('span');
+          num.className = 'thumb-num';
+          num.textContent = String(i);
+          item.appendChild(c);
+          item.appendChild(num);
+          thumbs.appendChild(item);
+        }
       }
       thumbCursor = end;
-      if (thumbCursor < pdf.numPages) {
+      const remaining = Math.max(0, pdf.numPages - thumbCursor);
+      if (hide) {
+        post({ type: 'thumbMore', remaining });
+      } else if (remaining) {
         const more = document.createElement('button');
         more.className = 'thumb-more';
-        more.textContent = 'Load more… (+' + (pdf.numPages - thumbCursor) + ')';
+        more.textContent = 'Load more… (+' + remaining + ')';
         more.onclick = async () => { more.remove(); await renderThumbBatch(); };
         thumbs.appendChild(more);
       }
+    }
+
+    function dumpThumbsToHost() {
+      if (!pdf) return;
+      thumbs.querySelectorAll('canvas[data-page]').forEach(c => {
+        try {
+          post({ type: 'thumb', page: +c.dataset.page, dataUrl: c.toDataURL('image/jpeg', 0.72) });
+        } catch (_) {}
+      });
+      post({ type: 'thumbMore', remaining: Math.max(0, pdf.numPages - thumbCursor) });
     }
 
     function levenshtein(a, b) {
@@ -725,20 +883,26 @@
         entry.wrap.querySelectorAll('.search-hit').forEach(n => n.remove());
     }
 
+    /** Stable page CSS box — never use getBoundingClientRect for overlay glue (scroll drift). */
+    function pageCssBox(entry) {
+      const cssW = entry.canvas.clientWidth || entry.canvas.width || 1;
+      const cssH = entry.canvas.clientHeight || entry.canvas.height || 1;
+      const ox = entry.canvas.offsetLeft || 0;
+      const oy = entry.canvas.offsetTop || 0;
+      return { cssW, cssH, ox, oy };
+    }
+
     function paintSearchHitsForPage(n) {
       const entry = pageMap.get(n);
       if (!entry) return;
       entry.wrap.querySelectorAll('.search-hit').forEach(el => el.remove());
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const cssW = cr.width || entry.canvas.clientWidth;
-      const cssH = cr.height || entry.canvas.clientHeight;
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
       searchHits.forEach((hit, i) => {
         if (hit.page !== n) return;
         const el = document.createElement('div');
         el.className = 'search-hit' + (i === searchIdx ? ' current' : '');
-        el.style.left = ((cr.left - wrapR.left) + (hit.x / entry.widthPt) * cssW) + 'px';
-        el.style.top = ((cr.top - wrapR.top) + ((entry.heightPt - hit.y - hit.h) / entry.heightPt) * cssH) + 'px';
+        el.style.left = (ox + (hit.x / entry.widthPt) * cssW) + 'px';
+        el.style.top = (oy + ((entry.heightPt - hit.y - hit.h) / entry.heightPt) * cssH) + 'px';
         el.style.width = Math.max(2, (hit.w / entry.widthPt) * cssW) + 'px';
         el.style.height = Math.max(2, (hit.h / entry.heightPt) * cssH) + 'px';
         entry.wrap.appendChild(el);
@@ -770,12 +934,9 @@
         hl.el.className = 'hl-box' + (hl.kind === 'mark' ? ' mark' : '');
       }
       if (hl.el.parentNode !== layer) layer.appendChild(hl.el);
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const cssW = cr.width || entry.canvas.clientWidth;
-      const cssH = cr.height || entry.canvas.clientHeight;
-      hl.el.style.left = ((cr.left - wrapR.left) + (hl.xPt / entry.widthPt) * cssW) + 'px';
-      hl.el.style.top = ((cr.top - wrapR.top) + ((entry.heightPt - hl.yFromBottom - hl.hPt) / entry.heightPt) * cssH) + 'px';
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
+      hl.el.style.left = (ox + (hl.xPt / entry.widthPt) * cssW) + 'px';
+      hl.el.style.top = (oy + ((entry.heightPt - hl.yFromBottom - hl.hPt) / entry.heightPt) * cssH) + 'px';
       hl.el.style.width = Math.max(2, (hl.wPt / entry.widthPt) * cssW) + 'px';
       hl.el.style.height = Math.max(2, (hl.hPt / entry.heightPt) * cssH) + 'px';
     }
@@ -970,6 +1131,14 @@
       post({ type: 'zoom', scale, fit: true });
     }
 
+    function syncThumbActive() {
+      thumbs.querySelectorAll('canvas').forEach(c => {
+        const on = Number(c.dataset.page) === pageNum;
+        c.classList.toggle('active', on);
+        c.closest('.thumb-item')?.classList.toggle('active', on);
+      });
+    }
+
     function syncPageFromScroll() {
       if (!pdf || pageMap.size === 0 || !continuous) return;
       const mid = viewer.getBoundingClientRect().top + viewer.clientHeight * 0.35;
@@ -982,9 +1151,7 @@
       if (best !== pageNum) {
         pageNum = best;
         pageInput.value = String(pageNum);
-        thumbs.querySelectorAll('canvas').forEach(c => {
-          c.classList.toggle('active', Number(c.dataset.page) === pageNum);
-        });
+        syncThumbActive();
         post({ type: 'page', page: pageNum, pages: pdf.numPages, scale });
       }
     }
@@ -996,9 +1163,7 @@
       pageInput.value = String(n);
       entry.wrap.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
       renderPageAt(n, false).then(() => layoutOverlaysForPage(n));
-      thumbs.querySelectorAll('canvas').forEach(c => {
-        c.classList.toggle('active', Number(c.dataset.page) === n);
-      });
+      syncThumbActive();
       post({ type: 'page', page: n, pages: pdf.numPages, scale });
     }
 
@@ -1040,10 +1205,10 @@
     }
 
     function stampDisplaySize(entry, stampWPt, stampHPt) {
-      const cr = entry.canvas.getBoundingClientRect();
+      const { cssW, cssH } = pageCssBox(entry);
       return {
-        w: (stampWPt / entry.widthPt) * cr.width,
-        h: (stampHPt / entry.heightPt) * cr.height
+        w: (stampWPt / entry.widthPt) * cssW,
+        h: (stampHPt / entry.heightPt) * cssH
       };
     }
 
@@ -1120,19 +1285,15 @@
     function layoutOverlay(o) {
       const entry = pageMap.get(o.page);
       if (!entry || !o.el) return;
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const sx = cr.width / entry.canvas.width;
-      const sy = cr.height / entry.canvas.height;
-      const drawX = (o.xPt / entry.widthPt) * entry.canvas.width;
-      const drawY = entry.canvas.height - ((o.yFromBottom + o.stampH) / entry.heightPt) * entry.canvas.height;
-      const imgW = (o.stampW / entry.widthPt) * entry.canvas.width;
-      const imgH = (o.stampH / entry.heightPt) * entry.canvas.height;
-      // Position relative to page-wrap (absolute inside wrap)
-      o.el.style.left = ((cr.left - wrapR.left) + drawX * sx) + 'px';
-      o.el.style.top = ((cr.top - wrapR.top) + drawY * sy) + 'px';
-      o.el.style.width = (imgW * sx) + 'px';
-      o.el.style.height = (imgH * sy) + 'px';
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
+      const drawX = (o.xPt / entry.widthPt) * cssW;
+      const drawY = cssH - ((o.yFromBottom + o.stampH) / entry.heightPt) * cssH;
+      const imgW = (o.stampW / entry.widthPt) * cssW;
+      const imgH = (o.stampH / entry.heightPt) * cssH;
+      o.el.style.left = (ox + drawX) + 'px';
+      o.el.style.top = (oy + drawY) + 'px';
+      o.el.style.width = imgW + 'px';
+      o.el.style.height = imgH + 'px';
       if (o.el.parentElement !== entry.wrap)
         entry.wrap.appendChild(o.el);
     }
@@ -1235,12 +1396,26 @@
       deleteSelectedStamp();
     });
     window.addEventListener('keydown', (ev) => {
+      const tag = (ev.target && ev.target.tagName) || '';
+      const typing = tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable;
       if (ev.key === 'Delete' || ev.key === 'Backspace') {
         if (!selectedOverlayId) return;
-        const tag = (ev.target && ev.target.tagName) || '';
-        if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable) return;
+        if (typing) return;
         deleteSelectedStamp();
         ev.preventDefault();
+        return;
+      }
+      if (!typing && !ev.altKey && !ev.metaKey && (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight')) {
+        ev.preventDefault();
+        document.getElementById(ev.key === 'ArrowLeft' ? 'prev' : 'next')?.click();
+        return;
+      }
+      if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && (ev.key === 'f' || ev.key === 'F')) {
+        ev.preventDefault();
+        const panel = document.getElementById('searchPanel');
+        if (!panel?.classList.contains('open'))
+          document.getElementById('searchToggle')?.click();
+        document.getElementById('searchBox')?.focus();
       }
     });
 
@@ -1458,13 +1633,20 @@
       fillBtn.classList.add('on');
       viewer.classList.add('fill-mode');
       banner.style.display = 'block';
-      banner.textContent = 'Click a blue field to type, or a blank line · radios and lists are live · Save writes into this PDF';
-      status.textContent = 'Fill mode — type in the form fields';
+      banner.textContent = 'Click a field, or drag to draw a fill box · A / A / 🗑 · Save writes into this PDF';
+      status.textContent = 'Fill mode — type, or drag a box to add';
     }
 
     function exitFillMode() {
-      if (!fillMode) return;
+      if (!fillMode && !fillDraw && !fillResize) {
+        hideFillDrawGhost();
+        return;
+      }
       fillMode = false;
+      fillDraw = null;
+      fillResize = null;
+      fillDrawSuppressClick = false;
+      hideFillDrawGhost();
       fillBtn.classList.remove('on');
       viewer.classList.remove('fill-mode');
       commitActiveFill();
@@ -1539,13 +1721,12 @@
     }
 
     function flashCell(entry, cellPx) {
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const sx = cr.width / entry.canvas.width, sy = cr.height / entry.canvas.height;
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
+      const sx = cssW / (entry.canvas.width || 1), sy = cssH / (entry.canvas.height || 1);
       const el = document.createElement('div');
       el.className = 'fill-cell-flash';
-      el.style.left = ((cr.left - wrapR.left) + cellPx.x * sx) + 'px';
-      el.style.top = ((cr.top - wrapR.top) + cellPx.y * sy) + 'px';
+      el.style.left = (ox + cellPx.x * sx) + 'px';
+      el.style.top = (oy + cellPx.y * sy) + 'px';
       el.style.width = (cellPx.w * sx) + 'px';
       el.style.height = (cellPx.h * sy) + 'px';
       entry.wrap.appendChild(el);
@@ -1556,58 +1737,91 @@
     function createFillEl(f) {
       const el = document.createElement('div');
       el.className = 'fill-text';
-      el.contentEditable = 'true';
-      el.spellcheck = false;
       el.dataset.id = f.id;
-      el.addEventListener('input', () => {
-        f.text = el.textContent || '';
+      const inner = document.createElement('div');
+      inner.className = 'fill-inner';
+      inner.contentEditable = 'true';
+      inner.spellcheck = false;
+      inner.textContent = f.text || '';
+      const handle = document.createElement('div');
+      handle.className = 'handle';
+      handle.title = 'Drag to resize box';
+      el.appendChild(inner);
+      el.appendChild(handle);
+      handle.addEventListener('mousedown', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        fillResize = {
+          id: f.id,
+          ox: ev.clientX,
+          oy: ev.clientY,
+          wPt: f.wPt,
+          hPt: f.hPt,
+          xPt: f.xPt,
+          yFromBottom: f.yFromBottom
+        };
+        activeFillId = f.id;
+        el.classList.add('active');
+        positionFillFloatBar();
+      });
+      inner.addEventListener('input', () => {
+        f.text = inner.textContent || '';
         scheduleFillPost();
       });
-      el.addEventListener('focus', () => {
+      inner.addEventListener('focus', () => {
         activeFillId = f.id;
         el.classList.add('active');
         post({ type: 'netieTyping', typing: true });
         positionFillFloatBar();
       });
-      el.addEventListener('blur', () => {
+      inner.addEventListener('blur', () => {
         el.classList.remove('active');
         post({ type: 'netieTyping', typing: false });
-        f.text = el.textContent || '';
-        postFillTexts(); // flush immediately — do not rely on debounce before Save/close
+        f.text = inner.textContent || '';
+        postFillTexts();
         setTimeout(() => {
           const still = fillFields.find(x => x.id === f.id);
           if (!still) return;
           const focusInBar = document.activeElement?.closest?.('#fillFloatBar');
-          if (document.activeElement !== el && !focusInBar) {
+          if (document.activeElement !== inner && !focusInBar) {
             if (!(f.text || '').trim()) removeFillField(f.id);
             else if (activeFillId === f.id) { activeFillId = null; positionFillFloatBar(); }
           }
         }, 120);
       });
-      el.addEventListener('keydown', (ev) => {
-        ev.stopPropagation();               // typing must never hit stamp shortcuts
-        if (ev.key === 'Enter') { ev.preventDefault(); el.blur(); }
-        else if (ev.key === 'Escape') { ev.preventDefault(); el.blur(); }
+      inner.addEventListener('keydown', (ev) => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') { ev.preventDefault(); inner.blur(); }
+        else if (ev.key === 'Escape') { ev.preventDefault(); inner.blur(); }
       });
-      el.addEventListener('mousedown', (ev) => ev.stopPropagation());
+      el.addEventListener('mousedown', (ev) => {
+        if (ev.target === handle) return;
+        ev.stopPropagation();
+      });
       return el;
+    }
+
+    function fillInner(el) {
+      return el?.querySelector?.('.fill-inner') || null;
     }
 
     function layoutFillField(f) {
       const entry = pageMap.get(f.page);
       if (!entry || !f.el) return;
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const kx = cr.width / entry.widthPt;
-      const ky = cr.height / entry.heightPt;
-      f.el.style.left = ((cr.left - wrapR.left) + f.xPt * kx) + 'px';
-      f.el.style.top = ((cr.top - wrapR.top) + (entry.heightPt - f.yFromBottom - f.hPt) * ky) + 'px';
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
+      const kx = cssW / entry.widthPt;
+      const ky = cssH / entry.heightPt;
+      f.el.style.left = (ox + f.xPt * kx) + 'px';
+      f.el.style.top = (oy + (entry.heightPt - f.yFromBottom - f.hPt) * ky) + 'px';
       f.el.style.width = Math.max(10, f.wPt * kx) + 'px';
       f.el.style.height = Math.max(8, f.hPt * ky) + 'px';
-      f.el.style.fontSize = Math.max(6, f.fontPt * ky) + 'px';
-      f.el.style.lineHeight = Math.max(8, f.hPt * ky) + 'px';
+      const inner = fillInner(f.el);
+      if (inner) {
+        inner.style.fontSize = Math.max(6, f.fontPt * ky) + 'px';
+        inner.style.lineHeight = Math.max(8, f.hPt * ky) + 'px';
+        if (inner.textContent !== (f.text || '')) inner.textContent = f.text || '';
+      }
       if (f.el.parentElement !== entry.wrap) entry.wrap.appendChild(f.el);
-      if (f.el.textContent !== f.text) f.el.textContent = f.text;
     }
 
     function layoutFillFieldsForPage(n) {
@@ -1658,8 +1872,113 @@
 
     function commitActiveFill() {
       const f = fillFields.find(x => x.id === activeFillId);
-      if (f?.el && document.activeElement === f.el) f.el.blur();
+      const inner = fillInner(f?.el);
+      if (inner && document.activeElement === inner) inner.blur();
     }
+
+    function placeFillAtClick(p) {
+      const xPt = (p.x / p.entry.canvas.width) * p.entry.widthPt;
+      const yBotPt = p.entry.heightPt - (p.y / p.entry.canvas.height) * p.entry.heightPt;
+      let rect = fillFieldRectAt(p.page, xPt, yBotPt);
+      let snapped = rect ? 'acroform' : '';
+      if (!rect) {
+        const cell = detectCellAt(p.entry, p.x, p.y);
+        if (cell) {
+          rect = {
+            xPt: (cell.x / p.entry.canvas.width) * p.entry.widthPt,
+            yFromBottom: p.entry.heightPt - ((cell.y + cell.h) / p.entry.canvas.height) * p.entry.heightPt,
+            wPt: (cell.w / p.entry.canvas.width) * p.entry.widthPt,
+            hPt: (cell.h / p.entry.canvas.height) * p.entry.heightPt
+          };
+          snapped = cell.kind;
+          flashCell(p.entry, cell);
+        }
+      }
+      if (!rect) {
+        const wPt = 150, hPt = 20;
+        rect = { xPt: Math.max(0, Math.min(xPt - 4, p.entry.widthPt - wPt)), yFromBottom: Math.max(0, yBotPt - hPt / 2), wPt, hPt };
+      }
+      addFillField({
+        page: p.page,
+        xPt: rect.xPt, yFromBottom: rect.yFromBottom, wPt: rect.wPt, hPt: rect.hPt,
+        fontPt: Math.min(28, Math.max(7, rect.hPt * 0.58)),
+        text: '', snapped, cover: false, focus: true
+      });
+      status.textContent = snapped === 'cell' ? 'Snapped to table cell — type'
+        : snapped === 'acroform' ? 'Snapped to form field — type'
+        : snapped === 'line' ? 'On the line — type'
+        : 'Type here · drag corner to resize · A / A / 🗑 above';
+    }
+
+    function placeFillFromDrag(d) {
+      const entry = d.entry;
+      const x0 = Math.min(d.x0, d.x1), y0 = Math.min(d.y0, d.y1);
+      const x1 = Math.max(d.x0, d.x1), y1 = Math.max(d.y0, d.y1);
+      const wPx = Math.max(12, x1 - x0), hPx = Math.max(10, y1 - y0);
+      const xPt = (x0 / entry.canvas.width) * entry.widthPt;
+      const hPt = (hPx / entry.canvas.height) * entry.heightPt;
+      const wPt = (wPx / entry.canvas.width) * entry.widthPt;
+      const yFromBottom = entry.heightPt - ((y1) / entry.canvas.height) * entry.heightPt;
+      addFillField({
+        page: d.page,
+        xPt, yFromBottom, wPt, hPt,
+        fontPt: Math.min(28, Math.max(7, hPt * 0.58)),
+        text: '', snapped: 'drawn', cover: false, focus: true
+      });
+      status.textContent = 'Drawn fill box — type · drag corner to resize';
+    }
+
+    function syncFillDrawGhost(d) {
+      const ghost = document.getElementById('fillDrawGhost');
+      if (!ghost || !d?.entry) return;
+      const wrap = d.entry.wrap;
+      if (ghost.parentElement !== wrap) wrap.appendChild(ghost);
+      const { cssW, cssH, ox, oy } = pageCssBox(d.entry);
+      // fillDraw coords are canvas bitmap pixels
+      const sx = cssW / (d.entry.canvas.width || 1);
+      const sy = cssH / (d.entry.canvas.height || 1);
+      const x0 = Math.min(d.x0, d.x1), y0 = Math.min(d.y0, d.y1);
+      const x1 = Math.max(d.x0, d.x1), y1 = Math.max(d.y0, d.y1);
+      ghost.style.display = 'block';
+      ghost.style.left = (ox + x0 * sx) + 'px';
+      ghost.style.top = (oy + y0 * sy) + 'px';
+      ghost.style.width = Math.max(2, (x1 - x0) * sx) + 'px';
+      ghost.style.height = Math.max(2, (y1 - y0) * sy) + 'px';
+    }
+
+    function hideFillDrawGhost() {
+      const ghost = document.getElementById('fillDrawGhost');
+      if (ghost) ghost.style.display = 'none';
+    }
+
+    pagesEl.addEventListener('mousedown', (ev) => {
+      if (!fillMode || stampMode || stampPending || highlightMode || regionMode) return;
+      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('.fill-text')) return;
+      if (ev.target.closest?.('.annotationLayer section, .annotationLayer :is(input, textarea, select)')) return;
+      if (ev.button !== 0) return;
+      commitActiveFill();
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) return;
+      fillDraw = { page: p.page, entry: p.entry, x0: p.x, y0: p.y, x1: p.x, y1: p.y };
+      syncFillDrawGhost(fillDraw);
+      ev.preventDefault();
+    });
+
+    pagesEl.addEventListener('click', (ev) => {
+      if (!fillMode || stampMode || stampPending || boxDrag || fillResize) return;
+      if (fillDrawSuppressClick) {
+        fillDrawSuppressClick = false;
+        return;
+      }
+      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('.fill-text')) return;
+      if (ev.target.closest?.('.annotationLayer section, .annotationLayer :is(input, textarea, select)')) return;
+      // Click path only when no drag draw (drag finishes on mouseup)
+      if (fillDraw) return;
+      commitActiveFill();
+      const p = canvasPoint(ev);
+      if (!p.inside || !p.entry) return;
+      placeFillAtClick(p);
+    });
 
     function scheduleFillPost() {
       clearTimeout(fillPostTimer);
@@ -1708,46 +2027,6 @@
       });
     }
 
-    pagesEl.addEventListener('click', (ev) => {
-      if (!fillMode || stampMode || stampPending || boxDrag) return;
-      if (ev.target.closest?.('.stamp-overlay') || ev.target.closest?.('.fill-text')) return;
-      if (ev.target.closest?.('.annotationLayer')) return;
-      commitActiveFill();
-      const p = canvasPoint(ev);
-      if (!p.inside || !p.entry) return;
-      const xPt = (p.x / p.entry.canvas.width) * p.entry.widthPt;
-      const yBotPt = p.entry.heightPt - (p.y / p.entry.canvas.height) * p.entry.heightPt;
-      let rect = fillFieldRectAt(p.page, xPt, yBotPt);
-      let snapped = rect ? 'acroform' : '';
-      if (!rect) {
-        const cell = detectCellAt(p.entry, p.x, p.y);
-        if (cell) {
-          rect = {
-            xPt: (cell.x / p.entry.canvas.width) * p.entry.widthPt,
-            yFromBottom: p.entry.heightPt - ((cell.y + cell.h) / p.entry.canvas.height) * p.entry.heightPt,
-            wPt: (cell.w / p.entry.canvas.width) * p.entry.widthPt,
-            hPt: (cell.h / p.entry.canvas.height) * p.entry.heightPt
-          };
-          snapped = cell.kind;
-          flashCell(p.entry, cell);
-        }
-      }
-      if (!rect) {
-        const wPt = 150, hPt = 20;    // free text box right where you clicked
-        rect = { xPt: Math.max(0, Math.min(xPt - 4, p.entry.widthPt - wPt)), yFromBottom: Math.max(0, yBotPt - hPt / 2), wPt, hPt };
-      }
-      addFillField({
-        page: p.page,
-        xPt: rect.xPt, yFromBottom: rect.yFromBottom, wPt: rect.wPt, hPt: rect.hPt,
-        fontPt: Math.min(28, Math.max(7, rect.hPt * 0.58)),
-        text: '', snapped, cover: false, focus: true
-      });
-      status.textContent = snapped === 'cell' ? 'Snapped to table cell — type'
-        : snapped === 'acroform' ? 'Snapped to form field — type'
-        : snapped === 'line' ? 'On the line — type'
-        : 'Type here · A / A / 🗑 above the box';
-    });
-
     function addFillField(t) {
       const f = {
         id: t.id || uid(),
@@ -1766,7 +2045,8 @@
       fillFields.push(f);
       layoutFillField(f);
       if (t.focus) {
-        f.el.focus();
+        const inner = fillInner(f.el);
+        (inner || f.el).focus();
         activeFillId = f.id;
         positionFillFloatBar();
       }
@@ -1836,23 +2116,17 @@
     function placementFromOverlayCss(o) {
       const entry = pageMap.get(o.page);
       if (!entry || !o.el) return o;
-      const cr = entry.canvas.getBoundingClientRect();
-      const wrapR = entry.wrap.getBoundingClientRect();
-      const sx = cr.width / entry.canvas.width;
-      const sy = cr.height / entry.canvas.height;
+      const { cssW, cssH, ox, oy } = pageCssBox(entry);
       const leftCss = parseFloat(o.el.style.left) || 0;
       const topCss = parseFloat(o.el.style.top) || 0;
       const wCss = parseFloat(o.el.style.width) || 1;
       const hCss = parseFloat(o.el.style.height) || 1;
-      const canvasLeft = cr.left - wrapR.left;
-      const canvasTop = cr.top - wrapR.top;
-      const drawX = (leftCss - canvasLeft) / sx;
-      const drawY = (topCss - canvasTop) / sy;
-      const imgW = wCss / sx, imgH = hCss / sy;
-      o.stampW = (imgW / entry.canvas.width) * entry.widthPt;
-      o.stampH = (imgH / entry.canvas.height) * entry.heightPt;
-      o.xPt = Math.max(0, (drawX / entry.canvas.width) * entry.widthPt);
-      o.yFromBottom = Math.max(0, entry.heightPt - ((drawY + imgH) / entry.canvas.height) * entry.heightPt);
+      const drawX = leftCss - ox;
+      const drawY = topCss - oy;
+      o.stampW = (wCss / cssW) * entry.widthPt;
+      o.stampH = (hCss / cssH) * entry.heightPt;
+      o.xPt = Math.max(0, (drawX / cssW) * entry.widthPt);
+      o.yFromBottom = Math.max(0, entry.heightPt - ((drawY + hCss) / cssH) * entry.heightPt);
       return o;
     }
 
@@ -1934,8 +2208,13 @@
     }
 
     function enterStampMode(dataUrl) {
+      // Sign must win over Fill draw handlers — otherwise click/drag never places a stamp.
       exitFillMode();
       clearUncommitted();
+      fillDraw = null;
+      fillResize = null;
+      fillDrawSuppressClick = false;
+      hideFillDrawGhost();
       if (dataUrl) {
         stampDataUrl = dataUrl;
         stampImg.src = dataUrl;
@@ -1986,6 +2265,35 @@
 
     viewer.addEventListener('mousemove', (ev) => {
       if (stampMode && !stampPending) moveGhost(ev);
+      if (fillDraw) {
+        const p = canvasPoint(ev);
+        if (p.inside && p.entry && p.page === fillDraw.page) {
+          fillDraw.x1 = p.x;
+          fillDraw.y1 = p.y;
+        } else {
+          // clamp in canvas bitmap pixels (same space as canvasPoint)
+          const cr = fillDraw.entry.canvas.getBoundingClientRect();
+          const sx = fillDraw.entry.canvas.width / (cr.width || 1);
+          const sy = fillDraw.entry.canvas.height / (cr.height || 1);
+          fillDraw.x1 = Math.max(0, Math.min(fillDraw.entry.canvas.width, (ev.clientX - cr.left) * sx));
+          fillDraw.y1 = Math.max(0, Math.min(fillDraw.entry.canvas.height, (ev.clientY - cr.top) * sy));
+        }
+        syncFillDrawGhost(fillDraw);
+      }
+      if (fillResize) {
+        const f = fillFields.find(x => x.id === fillResize.id);
+        const entry = f ? pageMap.get(f.page) : null;
+        if (f && entry) {
+          const { cssW, cssH } = pageCssBox(entry);
+          const dxPt = ((ev.clientX - fillResize.ox) / cssW) * entry.widthPt;
+          const dyPt = ((ev.clientY - fillResize.oy) / cssH) * entry.heightPt;
+          f.wPt = Math.max(12, fillResize.wPt + dxPt);
+          f.hPt = Math.max(10, fillResize.hPt + dyPt);
+          f.yFromBottom = Math.max(0, fillResize.yFromBottom - dyPt);
+          layoutFillField(f);
+          positionFillFloatBar();
+        }
+      }
       if (boxDrag && pendingOverlay) {
         const dx = ev.clientX - boxDrag.ox;
         const dy = ev.clientY - boxDrag.oy;
@@ -1999,24 +2307,20 @@
       }
     });
 
-    // Scroll fires faster than frames on precision touchpads — coalesce the relayout into one rAF.
+    // Scroll: overlays are absolute inside page-wrap — they move with the page.
+    // Do NOT re-layout fills/stamps/highlights here (was a source of flying boxes + lag).
     let scrollRafPending = false;
     viewer.addEventListener('scroll', () => {
-      // Banner is a single cheap write; keep it immediate so it never lags the page.
       banner.style.top = (viewer.scrollTop + 12) + 'px';
       if (scrollRafPending) return;
       scrollRafPending = true;
       requestAnimationFrame(() => {
         scrollRafPending = false;
         if (stampMode && !stampPending && lastPointer) moveGhost(lastPointer);
-        layoutAllOverlays();
-        layoutAllFillFields();
-        layoutAllHighlights();
         positionStampFloatBar();
         positionFillFloatBar();
         syncPageFromScroll();
       });
-      // Lazy render as you scroll to the end — no mid-doc cap
       clearTimeout(viewer._scrollTimer);
       viewer._scrollTimer = setTimeout(() => renderVisiblePages(false), 40);
     }, { passive: true });
@@ -2040,6 +2344,33 @@
     });
 
     window.addEventListener('mouseup', (ev) => {
+      if (fillResize) {
+        const f = fillFields.find(x => x.id === fillResize.id);
+        if (f) {
+          scheduleFillPost();
+          positionFillFloatBar();
+        }
+        fillResize = null;
+        fillDrawSuppressClick = true;
+        ev.preventDefault();
+        return;
+      }
+      if (fillDraw) {
+        const d = fillDraw;
+        fillDraw = null;
+        hideFillDrawGhost();
+        const dx = Math.abs(d.x1 - d.x0), dy = Math.abs(d.y1 - d.y0);
+        if (dx >= 10 || dy >= 10) {
+          placeFillFromDrag(d);
+          fillDrawSuppressClick = true;
+        } else {
+          // Tiny drag = click-to-snap / free box
+          placeFillAtClick({ page: d.page, entry: d.entry, x: d.x0, y: d.y0, inside: true });
+          fillDrawSuppressClick = true;
+        }
+        ev.preventDefault();
+        return;
+      }
       if (boxDrag) {
         const o = overlays.find(x => x.id === boxDrag.id);
         if (o) {
@@ -2233,6 +2564,8 @@
     }
 
     document.getElementById('prev').onclick = () => goToPage(pageNum - 1, true);
+    document.getElementById('hudPrev').onclick = () => document.getElementById('prev').click();
+    document.getElementById('hudNext').onclick = () => document.getElementById('next').click();
     document.getElementById('next').onclick = () => goToPage(pageNum + 1, true);
     document.getElementById('modeBtn').onclick = () => {
       continuous = !continuous;
@@ -2296,6 +2629,8 @@
       scale = Math.min(4, scale + 0.15);
       scheduleRescale();
     };
+    document.getElementById('hudZoomIn').onclick = () => document.getElementById('zoomIn').click();
+    document.getElementById('hudZoomOut').onclick = () => document.getElementById('zoomOut').click();
     document.getElementById('zoomOut').onclick = () => {
       scale = Math.max(0.25, scale - 0.15);
       scheduleRescale();
@@ -2309,7 +2644,11 @@
     const ro = new ResizeObserver(() => {
       if (!fitMode || !pdf) return;
       clearTimeout(fitResizeTimer);
-      fitResizeTimer = setTimeout(() => applyFit(false), 80);
+      fitResizeTimer = setTimeout(() => {
+        const next = computeFitScale();
+        if (Math.abs(next - scale) < 0.015) return; // skip full raster on noise / low RAM
+        applyFit(false);
+      }, 200);
     });
     ro.observe(viewer);
 
@@ -2330,6 +2669,25 @@
     document.getElementById('regionBtn').onclick = () => setRegionMode(!regionMode);
 
     function onHostMessage(msg) {
+      if (msg?.type === 'setDocChrome') {
+        document.documentElement.classList.add('doc-app');
+        document.documentElement.classList.toggle('canvas-only', !!msg.canvasOnly);
+        document.documentElement.classList.toggle('slim-chrome', !!msg.slim);
+        document.documentElement.classList.toggle('no-thumbs', msg.thumbs === false);
+        if (msg.thumbs === false) dumpThumbsToHost();
+      }
+      if (msg?.type === 'loadThumbs') renderThumbBatch();
+      if (msg?.type === 'find') {
+        const q = String(msg.query || '');
+        searchBox.value = q;
+        if (q.trim()) runSearch(q);
+        else {
+          clearSearchHitEls();
+          searchHits = [];
+          searchIdx = -1;
+        }
+      }
+      if (msg?.type === 'findNext') jumpSearch(msg.dir < 0 ? -1 : 1);
       if (msg?.type === 'gotoPage' && pdf) goToPage(msg.page | 0, true);
       if (msg?.type === 'setZoom' && msg.scale) {
         fitMode = false;
@@ -2398,10 +2756,12 @@
           const el = document.createElement('div');
           el.className = 'bbox';
           el.title = b.text || '';
-          const crW = entry.canvas.getBoundingClientRect().width || entry.canvas.width;
-          const crH = entry.canvas.getBoundingClientRect().height || entry.canvas.height;
-          el.style.left = ((b.x / entry.widthPt) * crW) + 'px';
-          el.style.top = (((entry.heightPt - b.y - b.h) / entry.heightPt) * crH) + 'px';
+          const crW = entry.canvas.clientWidth || entry.canvas.width;
+          const crH = entry.canvas.clientHeight || entry.canvas.height;
+          const ox = entry.canvas.offsetLeft || 0;
+          const oy = entry.canvas.offsetTop || 0;
+          el.style.left = (ox + (b.x / entry.widthPt) * crW) + 'px';
+          el.style.top = (oy + ((entry.heightPt - b.y - b.h) / entry.heightPt) * crH) + 'px';
           el.style.width = ((b.w / entry.widthPt) * crW) + 'px';
           el.style.height = ((b.h / entry.heightPt) * crH) + 'px';
           el.onclick = (e) => {
@@ -2525,7 +2885,31 @@
             wPt: +h.wPt.toFixed(2), hPt: +h.hPt.toFixed(2), kind: h.kind,
             connected: !!h.el?.isConnected
           })),
-          domHighlights: document.querySelectorAll('.hl-box').length
+          domHighlights: document.querySelectorAll('.hl-box').length,
+          glue: (() => {
+            const wrap = document.querySelector('.page-wrap');
+            if (!wrap) return null;
+            const wr = wrap.getBoundingClientRect();
+            const rel = (el) => {
+              if (!el || wr.width < 1 || wr.height < 1) return null;
+              const r = el.getBoundingClientRect();
+              return {
+                x: (r.left - wr.left) / wr.width,
+                y: (r.top - wr.top) / wr.height,
+                w: r.width / wr.width,
+                h: r.height / wr.height
+              };
+            };
+            const annot = wrap.querySelector('.annotationLayer');
+            const section = annot?.querySelector('section');
+            return {
+              annotPe: annot ? getComputedStyle(annot).pointerEvents : null,
+              sectionPe: section ? getComputedStyle(section).pointerEvents : null,
+              widget: rel(section),
+              fill: rel(wrap.querySelector('.fill-text')),
+              scale
+            };
+          })()
         })
       };
     }

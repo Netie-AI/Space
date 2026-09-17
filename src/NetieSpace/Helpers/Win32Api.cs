@@ -513,6 +513,9 @@ internal static class Win32Api
         }
     }
 
+    [DllImport("user32.dll")]
+    public static extern uint GetDoubleClickTime();
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern int RegisterApplicationRestart(string? pwzCommandLine, int dwFlags);
 

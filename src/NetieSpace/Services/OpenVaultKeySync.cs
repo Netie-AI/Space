@@ -69,6 +69,25 @@ public static class OpenVaultKeySync
 
         try
         {
+            using var vaultRes = await Http.GetAsync($"{OpenVaultBaseUrl}/api/vault/status", ct).ConfigureAwait(false);
+            if (vaultRes.IsSuccessStatusCode)
+            {
+                using var vaultDoc = JsonDocument.Parse(await vaultRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+                if (vaultDoc.RootElement.TryGetProperty("sealed", out var sealedEl) &&
+                    sealedEl.ValueKind == System.Text.Json.JsonValueKind.True)
+                {
+                    return new SyncResult
+                    {
+                        Reachable = true,
+                        Message = "OpenVault is sealed — unseal to sync AI keys into Space."
+                    };
+                }
+            }
+        }
+        catch { /* status optional; continue to sync attempt */ }
+
+        try
+        {
             using var listRes = await Http.GetAsync($"{OpenVaultBaseUrl}/api/keys", ct).ConfigureAwait(false);
             listRes.EnsureSuccessStatusCode();
             using var listDoc = JsonDocument.Parse(await listRes.Content.ReadAsStringAsync(ct).ConfigureAwait(false));

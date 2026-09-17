@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>overlay-glue-harness</title>
+  <style>
+    body { margin: 0; background: #333; }
+    #viewer { height: 100vh; overflow: auto; }
+    .page-wrap { position: relative; margin: 40px auto; background: #fff; }
+    .label, .box { position: absolute; box-sizing: border-box; }
+    .label { color: #111; font: 14px sans-serif; }
+    .box { border: 2px solid #2b6cb0; background: rgba(43,108,176,0.25); }
+  </style>
+</head>
+<body>
+  <div id="viewer"><div id="wrap" class="page-wrap">
+    <div id="page"></div>
+    <div id="label" class="label">Name</div>
+    <div id="box" class="box"></div>
+  </div></div>
+  <script>
+    // Same formula as netie-viewer.html pageCssBox + layoutFillField (PDF origin bottom-left).
+    const pageW = 612, pageH = 792, xPt = 72, yBot = 700, wPt = 140, hPt = 18;
+    const page = document.getElementById('page');
+    const wrap = document.getElementById('wrap');
+    const label = document.getElementById('label');
+    const box = document.getElementById('box');
+    const viewer = document.getElementById('viewer');
+
+    function layout(cssW) {
+      const cssH = cssW * (pageH / pageW);
+      page.style.width = cssW + 'px';
+      page.style.height = cssH + 'px';
+      wrap.style.width = cssW + 'px';
+      wrap.style.height = cssH + 'px';
+      const kx = cssW / pageW, ky = cssH / pageH;
+      const left = xPt * kx, top = (pageH - yBot - hPt) * ky;
+      label.style.left = left + 'px';
+      label.style.top = (top - 16) + 'px';
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+      box.style.width = Math.max(10, wPt * kx) + 'px';
+      box.style.height = Math.max(8, hPt * ky) + 'px';
+    }
+
+    function rel(el) {
+      const w = wrap.getBoundingClientRect();
+      const r = el.getBoundingClientRect();
+      return { x: (r.left - w.left) / w.width, y: (r.top - w.top) / w.height };
+    }
+
+    function near(a, b) { return Math.abs(a - b) < 0.004; }
+
+    layout(480);
+    const a = rel(box);
+    viewer.scrollTop = 120;
+    const as = rel(box);
+    layout(960);
+    viewer.scrollTop = 240;
+    const b = rel(box);
+    const ok = near(a.x, as.x) && near(a.y, as.y) && near(a.x, b.x) && near(a.y, b.y);
+    document.title = ok ? 'PASS overlay glue' : 'FAIL overlay glue';
+    document.body.dataset.result = ok ? 'pass' : 'fail';
+    document.body.dataset.detail = JSON.stringify({ a, as, b });
+  </script>
+</body>
+</html>
