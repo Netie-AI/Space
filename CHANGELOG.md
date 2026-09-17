@@ -2,6 +2,23 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-09-09
+
+- Edit-in-app restores docked Acrobat-like chrome (file tab, page/zoom bar, Fill & Sign / Edit PDF / Organize / Comment, left thumbs, right Tools). Floating overlay superceded. Chrome glue `8522` is a light centered doc-app. Same exe. FILL_ONLY.
+- Workbench scale: 120px WPF page thumbs (pdf.js `thumb` glue, HTML `#thumbs` hidden), min window 1100x720, inner well radius matches the shell.
+
+## 2026-09-08
+
+- Chrome density: peek hides Look Up / Add to Chat (Look Up icon beside Chat; Add to Chat is highlight right-click). Light Edit is Organize / Sign / Fill / Comment only. Edit in app drops the stacked header; tools float over the page; Space does not leave. Zoom HUD bottom-left. Draw-app PARK.
+
+## 2026-09-07
+
+- Space once = peek. Double-tap Space on a PDF (or `NetieSpace.exe --edit PATH`) opens the WPF PDF workbench. Space in the editor returns to peek. Open with stays `--preview`. Does not steal PDF defaults.
+- Markdown editor DISTILL (same exe): outline sidebar, in-file annotate (`==` / `<mark>`), system theme, `mdSelection`/`mdAsk` hooks. Auto-open and ChatPanel consume wait Acrobat PreviewWindow. Not a macOS clone.
+- Edit-in-app is a WPF document window: native page/zoom/find bar, file tab, light shell. WebView2 shows the page (and thumbs) only -- HTML toolbar and page HUD hide when hosted. Same exe. Not P7.
+- PRD-001 row 45: Edit-in-app is a signed replace-surface. WPF owns the document window; WebView2 is the page canvas only. Supercedes the HTML-in-WebView chrome polish (row 44). Same exe, not P7.
+- Edit-in-app PDF chrome is a light document app (icon toolbar, page HUD, numbered thumbs, WPF Tools rail). Save stays on the ribbon. Not an Adobe clone and not a P7 rewrite.
+
 ## 2026-09-06
 
 - Autofill no longer harvests silently. The Save-time `profileHarvest` is staged as a `FillProfileHarvest.Propose` proposal and reaches `fill-profile.bin` only after a confirm dialog that names every field. `FillProfileStore.MergeHarvest` is gone; "Never ask" sets `ProfileHarvestOptOut`.

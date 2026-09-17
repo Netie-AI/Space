@@ -1,6 +1,6 @@
 # Netie Space — Parking Lot
 
-Undone / deferred work. Check items off when shipped. **Last updated: 2026-08-26** (Cursor-origin CI; ignore GHA billing).
+Undone / deferred work. Check items off when shipped. **Last updated: 2026-09-07** (Space-25 SIGNED; ledger 33 multi-editor intake).
 
 Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STATE.md). Cortex handoff: [`docs/CORTEX_RUNTIME_BEST_FINAL.md`](docs/CORTEX_RUNTIME_BEST_FINAL.md). Editing: [`docs/EDITING_ROADMAP.md`](docs/EDITING_ROADMAP.md).
 
@@ -123,11 +123,16 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 
 ## P7 — Deferred architecture (do not start)
 
-- [ ] Rust/Go **rewrite of NetieSpace.exe** — unlock: never, unless PRD press release is rewritten. Targeted sidecars are allowed: `native/netie-pdf-detect` (Rust snap-cell) and `native/netie-pdf-form` (Go AcroForm list/fill).
+- [ ] PDF draw-app / stroke smoothing / add-image -- unlock: founder unparks after FILL_ONLY (ledger 41/48). Mark/highlight already exist. Do not steal UserChoice.
+- [ ] Rust/Go **rewrite of NetieSpace.exe** -- unlock: never, unless PRD press release is rewritten. Targeted sidecars are allowed: `native/netie-pdf-detect` (Rust snap-cell) and `native/netie-pdf-form` (Go AcroForm list/fill).
 - [ ] Unbounded "AI remembers me" / harvest every form field / Cortex `/api/memory` — unlock: founder signs PRD amendment + Space#3 SEC-01 (leave-machine). Local FillProfileStore (name/email/phone/address/DOB/nationality/date format) is the live cap.
-- [ ] Named objects / save-from-utterance / AI fill of the open PDF -- unlock: Space PRD amendment (ledger 19-20, 25-26) + Space#3. Consume Cortex `/api/memory`; double-confirm when uncertain or memory empty (abstain, never silent fill). Do not grow a second KB in Space. OS/web clicks are Pointer, not ChatPanel.
+- [ ] Named objects / save-from-utterance / AI fill of the open PDF -- unlock: `Netie-AI/Space#3` (ledger 25/31/34/38 SIGNED propose-then-confirm + enquire-then-remember). Consume Cortex `/api/memory`; ASK then upsert after human answer; empty memory abstain, never silent fill. HITL type-in of founder-supplied facts on the live Fill rail is allowed now (no tickets, no ChatPanel writes). Do not grow a second KB in Space. OS/web clicks are Pointer, not ChatPanel.
 - [ ] Space as Cortex `/api/memory` consumer (AI-detect objects; no typed extra cards) -- unlock: Space#3 gate-or-disclose + Cortex object-schema PRD sign (ledger 22-23). FillProfileStore stays the row-16 cap. Do not grow fill-profile.bin. Do not silent-upsert facts.
 - [ ] Google Forms / shared fill across surfaces -- unlock: not Space. Pointer/Crew/browser after Cortex `/api/memory` retrieve. Space PDF fill from shared memory is a later consumer after Space#3.
+- [ ] AcroForm widget authoring (insert `/FT` fields) -- unlock: founder names overlay fill boxes vs PDF form widgets. Overlay click-add is live; drag/resize is signed row 8 execute-now. Go sidecar stays list/fill of existing widgets.
+- [ ] Full iLovePDF / iLoveIMG cloud parity -- unlock: founder names which remaining *local* PDF tools unpark (ledger 36; compress / page-numbers / crop vs repair/compare/redact). Cloud upload stays refused. Distill research is parent findings, not a product epic.
+- [ ] Full image / PPTX / Word / Excel clone editors (OnlyOffice-class) -- unlock: separate product PRD, not Space (ledger 35 SIGNED stop packing). P8 preview + light HTML/text edit may remain until press-release rewrite. Light CSV grid + MD dual-pane shipped under Assets/markdown. P5 video NLE already shipped. OnlyOffice AGPL stays BAN. LibreOffice stays installed soffice fallback, not a vendored tree.
+- [ ] themarkdowneditor.app clone / GitHub-sync / Codex-in-editor -- unlock: never for clone. DISTILL UX lives in Markdown PRD-001 (`D:\Netie\Software Blueprint\Markdown\PRD-001-local-markdown-editor.md`; Space ledger 46). Engine default keep Markdig+marked. GitHub-sync + AI-in-editor stay PARK / FreeIDE. Auto-open `.md` waits Acrobat row 45 (`PreviewWindow`). Insights/ontology = Cortex `/api/memory` after Space#3, not Space.
 - [ ] Personal knowledge graph / user digital clone inside Space -- unlock: founder rewrites the Space press release. Default refuse. WP-004 is company clone (Crew+Cortex+Control), not law. Palantir P1 stays parked. TAS lanes 6/7/12/17/18.
 - [ ] Code view/edit/Run (npm/python stack, no commands) — unlock: FreeIDE product, not Space. TAS lane 19 SKIP.
 - [ ] Google AI Overview scrape
