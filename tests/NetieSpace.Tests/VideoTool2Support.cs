@@ -87,7 +87,7 @@ internal static class VideoTool2Support
     /// </summary>
     private static string PixFmtFor(string sizeOrGraph)
     {
-        var m = System.Text.RegularExpressions.Regex.Match(sizeOrGraph, @"(\d+)x(\d+)");
+        var m = System.Text.RegularExpressions.Regex.Match(sizeOrGraph, @"\b(\d{2,5})x(\d{2,5})\b"); // not the 0x of a hex colour
         var odd = m.Success && (int.Parse(m.Groups[1].Value) % 2 == 1 || int.Parse(m.Groups[2].Value) % 2 == 1);
         return odd ? "yuv444p" : "yuv420p";
     }
