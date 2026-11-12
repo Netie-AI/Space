@@ -25,6 +25,9 @@
    green (xunit + WinExe compile + Windows-shape test compile). **Not verified on Windows**:
    the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
    Windows run by a different session before #306 closes. Window is a skeleton until #310.
+7. **Tool registry + headless tool CLI (S50-E2-a #308)** -- 91 catalog rows, 1 runner built
+   (`pdf-extract-text`), 90 honestly unavailable. xunit drives `ToolCli.RunWith`. **Not
+   verified on Windows**: exe-level `--list-tools` / `--tool`, real engine probes.
 
 ## Next
 

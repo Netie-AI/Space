@@ -92,7 +92,13 @@ public static class AppEntry
 
         try
         {
-            return (int)run.Invoke(null, new object[] { args })!;
+            // A WinExe has no console of its own: borrow the caller's so the output is
+            // visible in a terminal. Redirected stdout / stderr already work without it.
+            try { Win32Api.AttachConsole(Win32Api.AttachParentProcess); } catch { /* no parent console */ }
+
+            // Off the dispatcher thread: a runner that awaits must never be able to
+            // deadlock on the WPF synchronization context while we block for its exit code.
+            return Task.Run(() => (int)run.Invoke(null, new object[] { args })!).GetAwaiter().GetResult();
         }
         catch (TargetInvocationException ex)
         {
