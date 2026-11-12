@@ -220,27 +220,61 @@ public static class ImageText
         if (ib < w) cov[rowOffset + ib] += (xb - ib) * weight;
     }
 
+    /// <summary>
+    /// Grows the ink by a disc of the given radius (max filter). Done row by row: a disc is a stack
+    /// of horizontal runs, so each output row is the max of sliding-window maxima of the rows near
+    /// it. Cost is width x height x radius, not radius squared, and empty rows are skipped; a
+    /// large caption on a very large picture has to stay a matter of seconds.
+    /// </summary>
     private static float[] Dilate(float[] cov, int w, int h, float radius)
     {
         var r = (int)Math.Ceiling(radius);
-        var offsets = new List<(int X, int Y)>();
+        var limit = radius * radius + 0.25f;
+        var half = new int[2 * r + 1]; // half-width of the disc at each vertical offset, -1 = outside
         for (var oy = -r; oy <= r; oy++)
-            for (var ox = -r; ox <= r; ox++)
-                if (ox * ox + oy * oy <= radius * radius + 0.25f) offsets.Add((ox, oy));
-        var res = new float[cov.Length];
+        {
+            var hw = -1;
+            for (var ox = 0; ox <= r; ox++)
+                if (ox * ox + oy * oy <= limit) hw = ox;
+            half[oy + r] = hw;
+        }
+
+        var hasInk = new bool[h];
         for (var y = 0; y < h; y++)
+        {
+            var o = y * w;
             for (var x = 0; x < w; x++)
+                if (cov[o + x] > 0f) { hasInk[y] = true; break; }
+        }
+
+        var res = new float[cov.Length];
+        System.Threading.Tasks.Parallel.For(0, h, () => new int[w], (y, _, queue) =>
+        {
+            var dst = y * w;
+            for (var oy = -r; oy <= r; oy++)
             {
-                var best = 0f;
-                foreach (var (ox, oy) in offsets)
+                var sy = y + oy;
+                var hw = half[oy + r];
+                if (hw < 0 || sy < 0 || sy >= h || !hasInk[sy]) continue;
+                var src = sy * w;
+                // Monotonic queue of column indices: front is the max of the current window.
+                int head = 0, tail = 0, next = 0;
+                for (var x = 0; x < w; x++)
                 {
-                    var xx = x + ox; var yy = y + oy;
-                    if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-                    var c = cov[yy * w + xx];
-                    if (c > best) { best = c; if (best >= 1f) break; }
+                    var right = Math.Min(w - 1, x + hw);
+                    while (next <= right)
+                    {
+                        var v = cov[src + next];
+                        while (tail > head && cov[src + queue[tail - 1]] <= v) tail--;
+                        queue[tail++] = next++;
+                    }
+                    while (queue[head] < x - hw) head++;
+                    var m = cov[src + queue[head]];
+                    if (m > res[dst + x]) res[dst + x] = m;
                 }
-                res[y * w + x] = best;
             }
+            return queue;
+        }, _ => { });
         return res;
     }
 

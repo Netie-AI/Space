@@ -600,7 +600,9 @@ public sealed partial class VideoToolProvider
 
     private static bool W2HasFilter(string name) =>
         FilterProbeOverride?.Invoke(name) ??
-        Regex.IsMatch(W2Filters(), @"^\s*[A-Z.]{3}\s+" + Regex.Escape(name) + @"\s", RegexOptions.Multiline);
+        // The flags column differs between FFmpeg versions (three characters in 6.x, other widths
+        // later), so match "flags name inputs->outputs" without assuming its shape.
+        Regex.IsMatch(W2Filters(), @"^\s*\S+\s+" + Regex.Escape(name) + @"\s+\S+->\S+", RegexOptions.Multiline);
 
     internal static async Task<IReadOnlyList<string>> StabilizeAsync(ToolRequest r, IProgress<ToolProgress>? progress, CancellationToken ct)
     {

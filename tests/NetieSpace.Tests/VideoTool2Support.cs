@@ -81,6 +81,17 @@ internal sealed class Frame
 
 internal static class VideoTool2Support
 {
+    /// <summary>
+    /// yuv420p cannot hold an odd width or height: FFmpeg 6 quietly rounded, newer builds refuse.
+    /// An odd-sized fixture is therefore written as yuv444p, which is what a real odd-sized clip is.
+    /// </summary>
+    private static string PixFmtFor(string sizeOrGraph)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(sizeOrGraph, @"(\d+)x(\d+)");
+        var odd = m.Success && (int.Parse(m.Groups[1].Value) % 2 == 1 || int.Parse(m.Groups[2].Value) % 2 == 1);
+        return odd ? "yuv444p" : "yuv420p";
+    }
+
     /// <summary>A flat colour clip (so any drawn pixel stands out) with an optional sine soundtrack.</summary>
     public static string MakeFlat(string dir, string name, double seconds = 3, string color = "gray",
         string size = "320x180", int rate = 15, bool audio = true)
@@ -89,7 +100,7 @@ internal static class VideoTool2Support
         var path = IoPath.Combine(dir, name);
         var args = new List<string> { "-y", "-v", "error", "-f", "lavfi", "-i", $"color=c={color}:s={size}:r={rate}" };
         if (audio) args.AddRange(new[] { "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100" });
-        args.AddRange(new[] { "-t", seconds.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p" });
+        args.AddRange(new[] { "-t", seconds.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-crf", "10", "-pix_fmt", PixFmtFor(size) });
         if (audio) args.AddRange(new[] { "-c:a", "aac" });
         args.Add(path);
         Must("ffmpeg", args.ToArray());
@@ -102,7 +113,7 @@ internal static class VideoTool2Support
         IoDirectory.CreateDirectory(dir);
         var path = IoPath.Combine(dir, name);
         Must("ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", lavfi, "-t", seconds.ToString(CultureInfo.InvariantCulture),
-            "-r", rate.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p", path);
+            "-r", rate.ToString(CultureInfo.InvariantCulture), "-c:v", "libx264", "-crf", "10", "-pix_fmt", PixFmtFor(lavfi), path);
         return path;
     }
 

@@ -252,7 +252,9 @@ public class VideoTool2OverlayTests
     {
         var dir = NewDir();
         // a folder name with an apostrophe, a colon and a space: the classic trouble for the filter graph
-        var tricky = IoPath.Combine(dir, "Mom's: clips");
+        // A colon is legal in a Linux folder name and illegal on Windows, where the drive colon
+        // of the full path already exercises the same filter-graph escaping.
+        var tricky = IoPath.Combine(dir, OperatingSystem.IsWindows() ? "Mom's clips" : "Mom's: clips");
         var input = MakeFlat(tricky, "clip.mp4", seconds: 3, audio: false);
         var srt = IoPath.Combine(tricky, "talk.srt");
         WriteSrt(srt, (1.0, 2.0, "Hello there"));
