@@ -103,8 +103,8 @@ $deadOut = Join-Path $Out "pdfa"
 $r = Invoke-App @("--tool", "pdf-to-pdfa", "--in", $pdfIn, "--out", $deadOut)
 Check "tool unavailable" (($r.Code -eq 2) -and -not (Test-Path $deadOut)) "exit=$($r.Code) $($r.Err)"
 
-# 8. Built tools are reported available (14 pdf, 9 image, 17 video, plus extract-text).
-Check "built tools available" ($avail -ge 41) "available=$avail (expect at least 41; fewer means an engine probe failed on this PC)"
+# 8. Built tools are reported available (15 pdf, 10 image, 27 video).
+Check "built tools available" ($avail -ge 52) "available=$avail (expect at least 52; fewer means an engine probe failed on this PC)"
 
 function Invoke-Tool([string]$Id, [string[]]$Inputs, [string[]]$Extra = @()) {
     $dir = Join-Path $Out ("run-" + $Id)
@@ -128,6 +128,15 @@ Invoke-Tool "pdf-merge" @($pdfIn, $pdfB)
 Invoke-Tool "pdf-rotate" @($pdfIn)
 Invoke-Tool "img-to-jpg" @((Join-Path $root "src\NetieSpace\Assets\netie-icon.png"))
 
+# Tools that draw text need a real Windows font.
+$icon = Join-Path $root "src\NetieSpace\Assets\netie-icon.png"
+Invoke-Tool "pdf-page-numbers" @($pdfIn)
+Invoke-Tool "pdf-watermark" @($pdfIn) @("--opt", "text=DRAFT")
+Invoke-Tool "pdf-protect" @($pdfIn) @("--opt", "password=check-only")
+Invoke-Tool "img-resize" @($icon) @("--opt", "width=32")
+Invoke-Tool "img-watermark" @($icon) @("--opt", "text=Netie")
+Invoke-Tool "img-meme" @($icon) @("--opt", "top=Top line", "--opt", "bottom=Bottom line")
+
 $ffmpeg = $null
 $cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
 if ($cmd) { $ffmpeg = $cmd.Source }
@@ -140,6 +149,12 @@ if (-not $ffmpeg) {
     Check "video fixture" ((Test-Path $clip) -and ((Get-Item $clip).Length -gt 0)) $clip
     Invoke-Tool "vid-mute" @($clip)
     Invoke-Tool "vid-trim" @($clip) @("--opt", "start=0.5", "--opt", "end=2")
+    Invoke-Tool "vid-add-text" @($clip) @("--opt", "text=Netie Video")
+    Invoke-Tool "vid-filters" @($clip)
+    Invoke-Tool "vid-to-gif" @($clip)
+    $srt = Join-Path $Out "it's subs.srt"
+    Set-Content -Path $srt -Encoding ASCII -Value "1`r`n00:00:00,500 --> 00:00:02,000`r`nSubtitle check`r`n"
+    Invoke-Tool "vid-subtitles" @($clip, $srt)
 }
 
 if ($script:failed -gt 0) { Write-Host "FAILED $($script:failed) check(s)"; exit 1 }

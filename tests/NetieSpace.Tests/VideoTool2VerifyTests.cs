@@ -19,8 +19,8 @@ public class VideoTool2VerifyTests
     public void Text_hostile_content_odd_size_hostile_names()
     {
         var root = NewDir();
-        var d = Dir(root, "it's a dïr %x");
-        var clip = MakeFlat(d, "cl'ip ü; [1].mp4", seconds: 2, size: "321x181", audio: false);
+        var d = Dir(root, "it's a d\u00EFr %x");
+        var clip = MakeFlat(d, "cl'ip \u00FC; [1].mp4", seconds: 2, size: "321x181", audio: false);
         var o = RunOk1("vid-add-text", Out(root), new[] { clip },
             ("text", "a'b:c%{pts}\\n,;[x]\"q\" \\ drawbox=w=999:h=999:color=red:t=fill"), ("position", "middle-center"), ("size", "30"));
         var p = Probe(o);
@@ -48,7 +48,7 @@ public class VideoTool2VerifyTests
     {
         var root = NewDir();
         var clip = MakeFlat(root, "c.mp4", seconds: 1, audio: true);
-        var o = RunOk1("vid-add-text", Out(root), new[] { clip }, ("text", "Line one\n\nLine three éè"), ("size", "20"), ("position", "top-center"));
+        var o = RunOk1("vid-add-text", Out(root), new[] { clip }, ("text", "Line one\n\nLine three \u00E9\u00E8"), ("size", "20"), ("position", "top-center"));
         Assert.NotNull(Probe(o).AudioCodec);
         Assert.True(FrameAt(o, 3).Diff(FrameAt(clip, 3), 60, 0, 200, 70) > 1);
     }
@@ -145,7 +145,7 @@ public class VideoTool2VerifyTests
         var root = NewDir();
         var clip = MakeFlat(root, "v.mp4", seconds: 3, size: "321x181", audio: true, color: "black");
         var srt = IoPath.Combine(root, "s.srt");
-        IoFile.WriteAllBytes(srt, new byte[] { 0xEF, 0xBB, 0xBF }.Concat(System.Text.Encoding.UTF8.GetBytes("1\r\n00:00:00,500 --> 00:00:02,000\r\nCafé it's\r\n\r\n")).ToArray());
+        IoFile.WriteAllBytes(srt, new byte[] { 0xEF, 0xBB, 0xBF }.Concat(System.Text.Encoding.UTF8.GetBytes("1\r\n00:00:00,500 --> 00:00:02,000\r\nCaf\u00E9 it's\r\n\r\n")).ToArray());
         var o = RunOk1("vid-subtitles", Out(root), new[] { clip, srt });
         Assert.True(FrameAt(o, 10).MeanLuma(0, 120, 320, 60) > 0.5);
         Assert.True(FrameAt(o, 40).MeanLuma(0, 0, 320, 180) < 0.5);
