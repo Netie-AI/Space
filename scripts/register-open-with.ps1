@@ -79,8 +79,16 @@ $lnk = $wsh.CreateShortcut($lnkPath)
 $lnk.TargetPath = $ExePath
 $lnk.WorkingDirectory = Split-Path $ExePath -Parent
 $lnk.IconLocation = $icon
-$lnk.Description = 'Netie Space — preview and edit files'
+$lnk.Description = 'Netie Space - preview and edit files'
 $lnk.Save()
+
+# Netie PDF / Image / Video Start Menu shortcuts (AppUserModel.ID + pin relaunch). The exe does the
+# COM work because WScript.Shell cannot write the AUMID. HKCU / Start Menu only, never UserChoice.
+# A WinExe does not block the call operator, so wait on a started process to get its exit code.
+$reg = Start-Process -FilePath $ExePath -ArgumentList '--register-apps' -WindowStyle Hidden -Wait -PassThru
+if ($reg.ExitCode -ne 0) {
+    throw "NetieSpace.exe --register-apps failed with exit code $($reg.ExitCode)"
+}
 
 Write-Host "[OK] Open with Netie Space (additive, HKCU). Defaults for Word/Excel/PDF were not changed." -ForegroundColor Green
 Write-Host "     $ExePath" -ForegroundColor Gray

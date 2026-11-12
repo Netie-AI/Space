@@ -73,6 +73,7 @@
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolState.cs" Link="Linked\Apps\Shell\ToolState.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\OutputFolder.cs" Link="Linked\Apps\Shell\OutputFolder.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\RunQueue.cs" Link="Linked\Apps\Shell\RunQueue.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppRegistration.cs" Link="Linked\Apps\Shell\AppRegistration.cs" />
     <!-- Tool providers (S50-E3 / E4 / E5). Code that needs WPF, WIC or WinRT lives under a
          Windows\ subfolder: it is linked only in the Windows shape, never on the Linux gate. -->
     <Compile Include="..\..\src\NetieSpace\Apps\Pdf\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Pdf\Windows\**" Link="Linked\Apps\Pdf\%(RecursiveDir)%(Filename)%(Extension)" />

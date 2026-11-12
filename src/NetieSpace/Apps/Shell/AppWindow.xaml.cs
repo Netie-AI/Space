@@ -19,6 +19,9 @@ public partial class AppWindow : Window
         InitializeComponent();
         Title = identity.DisplayName;
         ApplyIcon();
+        // Before the window is shown, so a taskbar pin relaunches this app and not Netie Space.
+        SourceInitialized += (_, _) =>
+            AppRelaunch.Apply(new System.Windows.Interop.WindowInteropHelper(this).Handle, _identity);
         Shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), openPath);
         Loaded += async (_, _) => await LoadToolsAsync();
     }

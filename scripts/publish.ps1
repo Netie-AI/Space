@@ -149,6 +149,15 @@ if (Test-Path $icoSrc) {
     Write-Host "[OK] Copied Assets/netie.ico" -ForegroundColor Green
 }
 
+# Third-party licence notice (FFmpeg GPLv3 and the managed packages). The engine gate below
+# fails the package when ffmpeg.exe ships without it.
+$noticeSrc = Join-Path $root 'THIRD-PARTY-NOTICES.txt'
+if (-not (Test-Path $noticeSrc)) {
+    throw "THIRD-PARTY-NOTICES.txt is missing from the repo root; a package must not ship without it."
+}
+Copy-Item $noticeSrc (Join-Path $dist 'THIRD-PARTY-NOTICES.txt') -Force
+Write-Host "[OK] Copied THIRD-PARTY-NOTICES.txt" -ForegroundColor Green
+
 $envSrc = Join-Path $root '.env'
 # Dev-only: customer releases must NOT ship API keys. Use -IncludeEnv for local portable testing.
 if ($IncludeEnv -and (Test-Path $envSrc)) {
@@ -171,6 +180,12 @@ if ($IncludeVenv -and (Test-Path $venvSrc)) {
     }
     Write-Host "[OK] Copied .venv" -ForegroundColor Green
 }
+
+# Shipping gate: no AGPL engine (PyMuPDF, pymupdf4llm, Ghostscript, OnlyOffice) in the package.
+# Runs on the final dist, after everything is copied and before the package is finished.
+# There is no override: a dev build that needs PyMuPDF runs from the repo and is not a package.
+& (Join-Path $PSScriptRoot 'check-tool-engines.ps1') -Dist $dist
+if ($LASTEXITCODE -ne 0) { throw "Shipping gate failed - see check-tool-engines output" }
 
 # Launcher
 Invoke-WithRetry -Description 'Writing launcher' -Operation {

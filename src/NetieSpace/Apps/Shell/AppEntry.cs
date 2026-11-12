@@ -21,6 +21,14 @@ public static class AppEntry
     /// </summary>
     public static bool TryHandle(string[] args, App app)
     {
+        // Start Menu registration: HKCU / Start Menu only, headless, no mutex and no window.
+        var registration = AppRegistration.Parse(args);
+        if (registration != RegistrationSwitch.None)
+        {
+            app.Shutdown(AppShortcuts.Run(registration));
+            return true;
+        }
+
         var launch = AppLaunch.Parse(args);
         switch (launch.Kind)
         {
