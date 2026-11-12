@@ -76,6 +76,9 @@ public static class ImageText
         };
         var rec = new Collector();
         TextRenderer.RenderTextTo(rec, text, opts);
+        if (rec.Missing)
+            throw new InvalidOperationException(
+                "the text has characters the system font '" + family.Name + "' has no glyph for; use characters it can draw");
         var ink = rec.Result;
         if (ink.IsEmpty)
             throw new InvalidOperationException("the chosen font has no outlines for that text; use other characters");
@@ -90,7 +93,15 @@ public static class ImageText
 
         public void BeginText(FontRectangle bounds) { }
         public void EndText() { Finish(); }
-        public bool BeginGlyph(FontRectangle bounds, GlyphRendererParameters parameters) => true;
+        public bool Missing { get; private set; }
+
+        public bool BeginGlyph(FontRectangle bounds, GlyphRendererParameters parameters)
+        {
+            // Glyph index 0 is the font's .notdef box: a character the font cannot draw.
+            if (parameters.GlyphIndex == 0 && !char.IsWhiteSpace((char)Math.Min(parameters.CodePoint.Value, 0xFFFF)))
+                Missing = true;
+            return true;
+        }
         public void EndGlyph() { }
         public void BeginFigure() { _cur.Clear(); }
         public void MoveTo(Vector2 point) { _cur.Add(point); _pos = point; }
