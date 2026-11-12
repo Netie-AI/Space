@@ -22,6 +22,21 @@ public static class ImageIo
         ".tif", ".tiff", ".webp", ".heic", ".heif", ".psd", ".svg", ".jp2", ".ppm",
     };
 
+    /// <summary>
+    /// The one pixel budget for every image these tools open or create: 64 megapixels (8000 x 8000).
+    /// A decoded frame costs 4 bytes a pixel and some tools hold two copies, so this caps a single
+    /// decode near 256 MB. Images whose header declares more are refused before any pixel memory is allocated.
+    /// </summary>
+    public const long MaxPixels = 64L * 1000 * 1000;
+
+    /// <summary>Throws a clear message when width x height is above <see cref="MaxPixels"/>.</summary>
+    public static void CheckPixelBudget(long width, long height, string what)
+    {
+        if (width <= 0 || height <= 0 || width * height > MaxPixels)
+            throw new InvalidOperationException(
+                $"{what} is {width} x {height} pixels, above the limit of {MaxPixels / 1000000} megapixels this tool will open or create");
+    }
+
     public static string Extension(ImageKind k) => k switch
     {
         ImageKind.Jpeg => ".jpg",
@@ -53,6 +68,20 @@ public static class ImageIo
         RequireBuiltFormat(path);
         try
         {
+            // Header-only read: nothing is allocated for pixels until the declared size passes the budget.
+            IImageInfo info;
+            try
+            {
+                info = SixLabors.ImageSharp.Image.Identify(path)
+                    ?? throw new UnknownImageFormatException("unknown");
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("max allowed size", StringComparison.OrdinalIgnoreCase))
+            {
+                // The bmp decoder has its own size guard; report it in our terms.
+                throw new InvalidOperationException(
+                    $"image is too large to open (limit {MaxPixels / 1000000} megapixels): {path}");
+            }
+            CheckPixelBudget(info.Width, info.Height, "image " + path);
             var img = SixLabors.ImageSharp.Image.Load<Rgba32>(path, out var fmt);
             ImageKind kind;
             if (fmt is JpegFormat) kind = ImageKind.Jpeg;
@@ -65,6 +94,12 @@ public static class ImageIo
                 throw new NotSupportedException($"{fmt.Name} images are not built in this version: {path}");
             }
             return (img, kind);
+        }
+        catch (SixLabors.ImageSharp.Memory.InvalidMemoryOperationException)
+        {
+            // The decoder's own size guard fired (for example a bmp declaring an absurd canvas).
+            throw new InvalidOperationException(
+                $"image is too large to open (limit {MaxPixels / 1000000} megapixels): {path}");
         }
         catch (UnknownImageFormatException)
         {

@@ -193,7 +193,7 @@ public class ImageToolAdversarialTests
     }
 
     [Fact]
-    public async Task Watermark_lands_in_the_chosen_corner_and_not_elsewhere_and_text_is_refused()
+    public async Task Watermark_lands_in_the_chosen_corner_and_not_elsewhere()
     {
         var d = Dir();
         var baseImg = SolidImage(d, "b.png", 200, 100, new Rgba32(255, 255, 255, 255));
@@ -207,8 +207,6 @@ public class ImageToolAdversarialTests
             Assert.Equal(new Rgba32(255, 255, 255, 255), o[5, 5]);
             Assert.Equal(new Rgba32(255, 255, 255, 255), o[100, 50]);
         }
-        var t = await Run("img-watermark", new[] { baseImg }, IoPath.Combine(d, "o"), ("text", "a'b:c%d\\e/f,\"g"));
-        Assert.False(t.Ok);
         var oversize = SolidImage(d, "huge.png", 900, 900, new Rgba32(0, 0, 0, 255));
         var r2 = await Run("img-watermark", new[] { baseImg }, IoPath.Combine(d, "o"), ("image", oversize), ("scale", "100"), ("opacity", "100"));
         Assert.True(r2.Ok, r2.Error);

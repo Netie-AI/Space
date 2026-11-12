@@ -77,6 +77,7 @@ public sealed class ImageToolProvider : IToolProvider
                 ImageIo.IntOpt(o, "width"), ImageIo.IntOpt(o, "height"),
                 ImageIo.IntOpt(o, "percent", 50),
                 ImageIo.BoolOpt(o, "keep_ratio", true));
+            ImageIo.CheckPixelBudget(w, h, "the resized image");
             img.Mutate(x => x.Resize(w, h, KnownResamplers.Lanczos3));
             return Save(img, kind, namer.Reserve(input, "-resized", ImageIo.Extension(kind)));
         }
@@ -239,10 +240,13 @@ public sealed class ImageToolProvider : IToolProvider
     private static string WatermarkOne(string input, ToolRequest rq, ImageIo.OutputNamer namer)
     {
         var o = rq.Options;
-        if (o.TryGetValue("text", out var text) && !string.IsNullOrEmpty(text))
-            throw new NotSupportedException("text watermarks are not built in this version; give option 'image' instead");
-        if (!o.TryGetValue("image", out var markPath) || string.IsNullOrEmpty(markPath))
-            throw new ArgumentException("option 'image' is required (a png, jpg, gif or bmp to stamp)");
+        var hasText = o.TryGetValue("text", out var text) && !string.IsNullOrEmpty(text);
+        var hasImage = o.TryGetValue("image", out var markPath) && !string.IsNullOrEmpty(markPath);
+        if (hasText && hasImage)
+            throw new ArgumentException("give option 'text' or option 'image', not both");
+        if (!hasText && !hasImage)
+            throw new ArgumentException("option 'text' or option 'image' is required (text to stamp, or a png, jpg, gif or bmp)");
+        if (hasText) return WatermarkTextOne(input, text!, rq, namer);
 
         var opacity = ImageIo.IntOpt(o, "opacity", 50) / 100f;
         var scale = ImageIo.IntOpt(o, "scale", 25);
@@ -251,7 +255,7 @@ public sealed class ImageToolProvider : IToolProvider
         var (img, kind) = ImageIo.Load(input);
         using (img)
         {
-            var (mark, _) = ImageIo.Load(markPath);
+            var (mark, _) = ImageIo.Load(markPath!);
             using (mark)
             {
                 img.Mutate(x => x.AutoOrient());
@@ -261,6 +265,36 @@ public sealed class ImageToolProvider : IToolProvider
                 img.Mutate(x => x.DrawImage(mark, new Point(px, py), opacity));
                 return Save(img, kind, namer.Reserve(input, "-watermarked", ImageIo.Extension(kind)));
             }
+        }
+    }
+
+    private static string WatermarkTextOne(string input, string rawText, ToolRequest rq, ImageIo.OutputNamer namer)
+    {
+        var o = rq.Options;
+        var text = ImageText.CleanText("text", rawText);
+        var opacity = ImageIo.IntOpt(o, "opacity", 50) / 100f;
+        var scale = ImageIo.IntOpt(o, "scale", 25);
+        var position = ImageIo.StrOpt(o, "position", "center");
+        var color = ImageIo.ParseOpaqueHex("color", ImageIo.StrOpt(o, "color", "#808080"));
+        var family = ImageText.ResolveFamily();
+        var (img, kind) = ImageIo.Load(input);
+        using (img)
+        {
+            img.Mutate(x => x.AutoOrient());
+            // Pick the size so the widest line spans scale% of the image width, then shrink to fit the height.
+            var target = Math.Max(1.0, img.Width * scale / 100.0);
+            var probe = ImageText.Layout(text, family, 100f, true, 0);
+            var size = (float)Math.Max(4.0, 100.0 * target / Math.Max(1f, probe.Width));
+            var ink = ImageText.Layout(text, family, size, true, 0);
+            if (ink.Height > img.Height * 0.9f)
+            {
+                size = Math.Max(4f, size * img.Height * 0.9f / ink.Height);
+                ink = ImageText.Layout(text, family, size, true, 0);
+            }
+            var (px, py) = ImageGeometry.OverlayOrigin(img.Width, img.Height,
+                Math.Min(img.Width, (int)Math.Ceiling(ink.Width)), Math.Min(img.Height, (int)Math.Ceiling(ink.Height)), position);
+            ImageText.Draw(img, ink, px, py, color.ToPixel<Rgba32>(), opacity);
+            return Save(img, kind, namer.Reserve(input, "-watermarked", ImageIo.Extension(kind)));
         }
     }
 

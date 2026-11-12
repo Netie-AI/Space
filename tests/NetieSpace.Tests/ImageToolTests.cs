@@ -485,12 +485,9 @@ public class ImageToolTests
     }
 
     [Fact]
-    public async Task Watermark_text_is_honestly_not_built_and_image_is_required()
+    public async Task Watermark_needs_text_or_image()
     {
         var src = CornerImage(Dir(), "pic.png");
-        var text = await Run("img-watermark", new[] { src }, Dir(), ("text", "DRAFT"));
-        Assert.False(text.Ok);
-        Assert.Contains("not built in this version", text.Error);
         var none = await Run("img-watermark", new[] { src }, Dir());
         Assert.False(none.Ok);
         Assert.Contains("'image'", none.Error);
