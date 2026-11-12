@@ -204,3 +204,27 @@ public class ToolRegistryTests
         }
     }
 }
+
+/// <summary>Names and verbs are product copy: shown on tiles and on the action button.</summary>
+public class ToolCatalogCopyTests
+{
+    private static readonly string[] SourceSites = { "123apps", "clideo", "ilovepdf", "iloveimg", "iloveapi", "api-only", "(both)" };
+
+    [Fact]
+    public void Names_verbs_and_categories_carry_no_source_site_and_no_sentence()
+    {
+        var entries = NetieSpace.Apps.Tools.ToolRegistry.Default.All().Select(t => t.Entry).ToList();
+        Assert.Equal(91, entries.Count);
+        foreach (var e in entries)
+        {
+            foreach (var shown in new[] { e.Name, e.Verb, e.Category })
+            {
+                Assert.False(string.IsNullOrWhiteSpace(shown), e.Id);
+                Assert.DoesNotContain("(", shown);
+                Assert.All(SourceSites, s => Assert.DoesNotContain(s, shown, StringComparison.OrdinalIgnoreCase));
+            }
+            Assert.True(e.Name.Length <= 24, $"{e.Id}: name too long for a tile: {e.Name}");
+            Assert.Matches("^[A-Z][a-z]+$", e.Verb); // one word: it is the action button text
+        }
+    }
+}

@@ -28,6 +28,9 @@
 7. **Tool registry + headless tool CLI (S50-E2-a #308)** -- 91 catalog rows, 1 runner built
    (`pdf-extract-text`), 90 honestly unavailable. xunit drives `ToolCli.RunWith`. **Not
    verified on Windows**: exe-level `--list-tools` / `--tool`, real engine probes.
+8. **App shell (S50-E1-b #310)** -- home, tool grid, tool page, `--snapshot`. Models under
+   xunit; **no window has been seen by a person**. `scripts/check-app-shell.ps1` in the
+   Windows CI job is the first exe-level evidence; the PNGs are its artifact.
 
 ## Next
 

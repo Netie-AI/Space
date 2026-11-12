@@ -40,6 +40,17 @@ jobs:
           dotnet test NetieSpace.sln -c Debug --nologo
           --blame-hang-timeout 2m
           --logger "trx;LogFileName=test-results.trx"
+      # Runs the built exe headless: app snapshots, tool list, one real tool run.
+      - name: app shell and tool cli (exe level)
+        shell: pwsh
+        run: ./scripts/check-app-shell.ps1 -Out "$env:RUNNER_TEMP/s50"
+      - name: upload app snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s50-app-snapshots
+          path: ${{ runner.temp }}/s50
+          if-no-files-found: warn
       - name: pillar1 wipe reference encode
         shell: pwsh
         run: ./scripts/encode-pillar1-wipe.ps1 -Out "$env:RUNNER_TEMP/pillar1"

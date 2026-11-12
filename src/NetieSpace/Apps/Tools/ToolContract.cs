@@ -70,6 +70,10 @@ public sealed record InstallOffer
     }
 }
 
+/// <summary>
+/// One catalog row. <paramref name="Name"/> and <paramref name="Verb"/> are shown in the product:
+/// Netie's own wording, a short name and a one-word action. Never a source site's name or a sentence.
+/// </summary>
 public sealed record ToolEntry(
     string Id,
     ToolApp App,
