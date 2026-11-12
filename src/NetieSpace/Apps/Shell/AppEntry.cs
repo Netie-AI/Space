@@ -40,6 +40,24 @@ public static class AppEntry
         var identity = launch.Identity!;
         var pid = Environment.ProcessId;
 
+        // --snapshot renders headless and exits: no single-instance mutex (a running app must not
+        // block it), no AUMID, no window, no dialog.
+        var snapshot = SnapshotArgs.Parse(args);
+        if (snapshot.Error is not null || snapshot.Requested)
+        {
+            try { Win32Api.AttachConsole(Win32Api.AttachParentProcess); } catch { /* no parent console */ }
+            if (snapshot.Error is not null)
+            {
+                Console.Error.WriteLine(snapshot.Error);
+                app.Shutdown(SnapshotArgs.ExitInvalid);
+            }
+            else
+            {
+                app.Shutdown(AppSnapshot.Run(identity, snapshot));
+            }
+            return true;
+        }
+
         // Must run before any window handle exists or the taskbar ignores it.
         var aumid = ApplyAumid(identity);
         AppLogger.Info($"[app:{identity.Key} pid={pid}] AUMID={aumid}");

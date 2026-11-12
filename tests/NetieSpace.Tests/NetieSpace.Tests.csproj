@@ -62,6 +62,10 @@
     <Compile Include="..\..\src\NetieSpace\Services\FillProfileHarvest.cs" Link="Linked\FillProfileHarvest.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppIdentity.cs" Link="Linked\Apps\Shell\AppIdentity.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppLaunch.cs" Link="Linked\Apps\Shell\AppLaunch.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\RecentFiles.cs" Link="Linked\Apps\Shell\RecentFiles.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolPageModel.cs" Link="Linked\Apps\Shell\ToolPageModel.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\HomeModel.cs" Link="Linked\Apps\Shell\HomeModel.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\SnapshotArgs.cs" Link="Linked\Apps\Shell\SnapshotArgs.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Pdf\PdfToolProvider.cs" Link="Linked\Apps\Pdf\PdfToolProvider.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

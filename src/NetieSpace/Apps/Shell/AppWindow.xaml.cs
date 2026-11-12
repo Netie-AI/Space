@@ -1,12 +1,13 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
+using NetieSpace.Apps.Tools;
 using NetieSpace.Helpers;
 
 namespace NetieSpace.Apps.Shell;
 
 /// <summary>
 /// The window of one Netie app process (Netie PDF / Image / Video).
-/// Skeleton for S50-E1-a: title, icon, the selected file. No Space-key hook, no tray.
+/// Hosts the app shell (sidebar, home, tool page). No Space-key hook, no tray.
 /// </summary>
 public partial class AppWindow : Window
 {
@@ -18,16 +19,26 @@ public partial class AppWindow : Window
         InitializeComponent();
         Title = identity.DisplayName;
         ApplyIcon();
-        SelectFile(openPath);
+        Shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), openPath);
+        Loaded += async (_, _) => await LoadToolsAsync();
     }
 
-    public string? SelectedFile { get; private set; }
+    public string? SelectedFile => Shell.SelectedFile;
 
-    public void SelectFile(string? path)
+    public void SelectFile(string? path) => Shell.SelectFile(path);
+
+    /// <summary>Availability probes can be slow: build the registry view off the UI thread.</summary>
+    private async Task LoadToolsAsync()
     {
-        SelectedFile = string.IsNullOrWhiteSpace(path) ? null : path;
-        SelectedFileLabel.Text = SelectedFile ?? "";
-        SelectedFileLabel.ToolTip = SelectedFile;
+        try
+        {
+            var tools = await Task.Run(() => ToolRegistry.Default.All());
+            Shell.SetTools(tools);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error(ex, $"[app:{_identity.Key}] tool registry");
+        }
     }
 
     /// <summary>A second launch of the same app lands here: come forward, show its file.</summary>
