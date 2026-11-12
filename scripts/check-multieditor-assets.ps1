@@ -2,7 +2,7 @@
 $ErrorActionPreference = "Stop"
 $root = "D:\Space"
 $md = Join-Path $root "src\NetieSpace\Assets\markdown"
-$bin = Join-Path $root "src\NetieSpace\bin\Debug\net8.0-windows\Assets\markdown"
+$bin = Join-Path $root "src\NetieSpace\bin\Debug\net8.0-windows10.0.19041.0\Assets\markdown"
 $cs = Join-Path $root "src\NetieSpace\Views\PreviewWindow.xaml.cs"
 $proj = Join-Path $root "src\NetieSpace\NetieSpace.csproj"
 $fail = @()

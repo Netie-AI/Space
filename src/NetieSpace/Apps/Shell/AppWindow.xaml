@@ -1,0 +1,31 @@
+<Window x:Class="NetieSpace.Apps.Shell.AppWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="1100" Height="720" MinWidth="720" MinHeight="480"
+        WindowStartupLocation="CenterScreen"
+        Background="White">
+    <Window.Resources>
+        <!-- Light chrome: override the App.xaml dark-glass implicit styles for this window only. -->
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>
+            <Setter Property="Foreground" Value="#1C2330"/>
+            <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>
+            <Setter Property="Foreground" Value="#1C2330"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource BodyFont}"/>
+            <Setter Property="Foreground" Value="#1C2330"/>
+            <Setter Property="CaretBrush" Value="#1C2330"/>
+        </Style>
+    </Window.Resources>
+    <!-- Skeleton only. S50-E1-b builds the sidebar, home and tool page inside this window. -->
+    <Grid Margin="24">
+        <TextBlock x:Name="SelectedFileLabel"
+                   FontSize="14"
+                   TextTrimming="CharacterEllipsis"
+                   VerticalAlignment="Top"/>
+    </Grid>
+</Window>

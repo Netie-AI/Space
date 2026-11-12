@@ -1,7 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      Windows: the WinRT TFM plus WPF, so engine code under Apps/Tools is tested against
+      the same surface the WinExe ships (WinRtSmokeTests proves the TFM move is real).
+      Linux (scripts/ci-cursor.sh): plain net8.0, WinRT tests compile out under #if WINDOWS.
+    -->
+    <!-- -p:NetieWindowsTests=true compile-checks the Windows shape from Linux (no run). -->
+    <NetieWindowsTests Condition="'$(NetieWindowsTests)' == ''">$([MSBuild]::IsOSPlatform('Windows'))</NetieWindowsTests>
+    <TargetFramework Condition="'$(NetieWindowsTests)' == 'true'">net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(NetieWindowsTests)' != 'true'">net8.0</TargetFramework>
+    <UseWPF Condition="'$(NetieWindowsTests)' == 'true'">true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
@@ -21,6 +30,12 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <!-- UseWPF drops these two from the implicit usings; the suite is written against them. -->
+  <ItemGroup Condition="'$(NetieWindowsTests)' == 'true'">
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
   </ItemGroup>
 
   <!--
@@ -44,6 +59,9 @@
     <Compile Include="..\..\src\NetieSpace\Helpers\EnvLoader.cs" Link="Linked\EnvLoader.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FillProfileStore.cs" Link="Linked\FillProfileStore.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FillProfileHarvest.cs" Link="Linked\FillProfileHarvest.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppIdentity.cs" Link="Linked\Apps\Shell\AppIdentity.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppLaunch.cs" Link="Linked\Apps\Shell\AppLaunch.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

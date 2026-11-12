@@ -21,6 +21,14 @@ internal static class Win32Api
 
     public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+    // Taskbar identity for the Netie app processes (Apps/Shell). HRESULT: 0 = S_OK.
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetCurrentProcessExplicitAppUserModelID(
+        [MarshalAs(UnmanagedType.LPWStr)] out string appId);
+
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 

@@ -21,6 +21,10 @@
    put secrets.
 5. **Cert sign** -- xunit `PdfClassicXref`. UI `LoadPfx` EphemeralKeySet then
    PersistKeySet. Adobe Reader check still human.
+6. **Netie PDF / Image / Video app processes (S50-E1-a #306)** -- code landed, Linux gate
+   green (xunit + WinExe compile + Windows-shape test compile). **Not verified on Windows**:
+   the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
+   Windows run by a different session before #306 closes. Window is a skeleton until #310.
 
 ## Next
 

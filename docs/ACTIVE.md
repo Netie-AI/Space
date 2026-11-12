@@ -6,6 +6,7 @@ What exists in this repo and where. Update when structure changes, not when stat
 | Path | Role |
 |---|---|
 | `src/NetieSpace/` | WPF host (Space Quick Look + Edit-in-app document chrome, video NLE) |
+| `src/NetieSpace/Apps/Shell/` | Netie PDF / Image / Video app processes: pre-mutex `AppEntry`, `AppIdentity` (AUMID table), `AppInstance` (per-app mutex + activation), `AppWindow` skeleton (S50-E1) |
 | `src/NetieSpace/Views/PreviewWindow.xaml` | Peek glass vs light Edit chips vs `_pdfSpaceMode` docked document chrome (header/nav/ribbon/rail) |
 | `src/NetieSpace/Assets/pdfjs/netie-viewer.html` | pdf.js page canvas + Fill overlays (HTML toolbar hidden in workbench) |
 | `src/NetieSpace/Assets/markdown/md-editor.html` | Local markdown workbench (marked+KaTeX, outline, annotate). Edit click until auto-open (MD-1) |

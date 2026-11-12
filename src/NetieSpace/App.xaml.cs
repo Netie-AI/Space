@@ -47,8 +47,19 @@ public partial class App : Application
     private DateTime _lastUiErrorPopupUtc = DateTime.MinValue;
     private string? _lastUiErrorMessage;
 
+    /// <summary>Set by AppEntry when this process is a Netie app (PDF / Image / Video), not Space.</summary>
+    internal Apps.Shell.AppSession? AppSession { get; set; }
+
     protected override void OnStartup(StartupEventArgs e)
     {
+        // Before the Space mutex: an app process or the tool CLI must never become Space.
+        if (Apps.Shell.AppEntry.TryHandle(e.Args, this))
+        {
+            if (AppSession is not null)
+                StartAppProcess(e, AppSession);
+            return;
+        }
+
         _mutex = new Mutex(true, MutexName, out var isNew);
         _ownsMutex = isNew;
         var headlessStamp = e.Args.Any(a => string.Equals(a, "--stamp-test", StringComparison.OrdinalIgnoreCase));
@@ -89,50 +100,7 @@ public partial class App : Application
         if (TryHandleCliStampTest(e.Args))
             return;
 
-        DispatcherUnhandledException += (_, args) =>
-        {
-            AppLogger.Error(args.Exception, "UI unhandled");
-            args.Handled = true; // keep process alive; layout may recover after resource fix
-
-            // Never MessageBox-storm on layout retries (was: unlimited popups on Video Edit)
-            var msg = args.Exception.GetBaseException().Message;
-            var now = DateTime.UtcNow;
-            if (msg == _lastUiErrorMessage && (now - _lastUiErrorPopupUtc).TotalSeconds < 12)
-                return;
-            _lastUiErrorPopupUtc = now;
-            _lastUiErrorMessage = msg;
-
-            // Resource/layout errors are logged only — MessageBox during Measure causes more layout
-            if (msg.Contains("StaticResource", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("GlassScrollViewer", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("TypeConverter", StringComparison.OrdinalIgnoreCase) ||
-                msg.Contains("stack", StringComparison.OrdinalIgnoreCase) ||
-                args.Exception is System.Windows.Markup.XamlParseException ||
-                args.Exception is OutOfMemoryException)
-                return;
-
-            try
-            {
-                MessageBox.Show(
-                    $"Something went wrong:\n\n{msg}\n\nDetails: {AppLogger.LogPath}",
-                    "Netie Space",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-            }
-            catch { /* ignore */ }
-        };
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-        {
-            if (args.ExceptionObject is Exception ex)
-                AppLogger.Error(ex, "AppDomain unhandled");
-            else
-                AppLogger.Error($"AppDomain unhandled: {args.ExceptionObject}");
-        };
-        TaskScheduler.UnobservedTaskException += (_, args) =>
-        {
-            AppLogger.Error(args.Exception, "Unobserved task");
-            args.SetObserved();
-        };
+        RegisterExceptionGuards("Netie Space");
 
         try
         {
@@ -204,6 +172,98 @@ public partial class App : Application
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown();
+        }
+    }
+
+    /// <summary>Process-wide exception guards, shared by the Space path and the app path.</summary>
+    private void RegisterExceptionGuards(string title)
+    {
+        DispatcherUnhandledException += (_, args) =>
+        {
+            AppLogger.Error(args.Exception, "UI unhandled");
+            args.Handled = true; // keep process alive; layout may recover after resource fix
+
+            // Never MessageBox-storm on layout retries (was: unlimited popups on Video Edit)
+            var msg = args.Exception.GetBaseException().Message;
+            var now = DateTime.UtcNow;
+            if (msg == _lastUiErrorMessage && (now - _lastUiErrorPopupUtc).TotalSeconds < 12)
+                return;
+            _lastUiErrorPopupUtc = now;
+            _lastUiErrorMessage = msg;
+
+            // Resource/layout errors are logged only — MessageBox during Measure causes more layout
+            if (msg.Contains("StaticResource", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("GlassScrollViewer", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("TypeConverter", StringComparison.OrdinalIgnoreCase) ||
+                msg.Contains("stack", StringComparison.OrdinalIgnoreCase) ||
+                args.Exception is System.Windows.Markup.XamlParseException ||
+                args.Exception is OutOfMemoryException)
+                return;
+
+            try
+            {
+                MessageBox.Show(
+                    $"Something went wrong:\n\n{msg}\n\nDetails: {AppLogger.LogPath}",
+                    title,
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+            catch { /* ignore */ }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                AppLogger.Error(ex, "AppDomain unhandled");
+            else
+                AppLogger.Error($"AppDomain unhandled: {args.ExceptionObject}");
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            AppLogger.Error(args.Exception, "Unobserved task");
+            args.SetObserved();
+        };
+    }
+
+    /// <summary>
+    /// App path (Netie PDF / Image / Video): its own process and window. No Space mutex,
+    /// OpenVault sync, keyboard hook, tray, startup HUD, license gate or CLI preview.
+    /// </summary>
+    private void StartAppProcess(StartupEventArgs e, Apps.Shell.AppSession session)
+    {
+        var id = session.Identity;
+        base.OnStartup(e);
+        AppLogger.Info($"Starting {id.DisplayName} [app:{id.Key} pid={Environment.ProcessId}] from {AppContext.BaseDirectory}");
+        AppLogger.Info($"Log file: {AppLogger.LogPath}");
+        RegisterExceptionGuards(id.DisplayName);
+
+        try
+        {
+            CrashRecovery.Register();
+            AppResourceBudget.Initialize();
+            _settings = LoadSettings();
+
+            var window = new Apps.Shell.AppWindow(id, session.OpenPath);
+            window.Closed += (_, _) => Shutdown();
+            MainWindow = window;
+            window.Show();
+
+            session.Instance.StartActivationWatcher(path =>
+                Dispatcher.BeginInvoke(() => window.ActivateFromSecondLaunch(path)));
+
+            // A second launch that raced our startup left its file before the event existed.
+            var raced = session.Instance.TakePendingOpen();
+            if (raced is not null)
+                window.ActivateFromSecondLaunch(raced);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error(ex, $"{id.DisplayName} startup failed");
+            MessageBox.Show(
+                $"{id.DisplayName} failed to start:\n\n{ex.Message}\n\nLog: {AppLogger.LogPath}",
+                id.DisplayName,
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
         }
     }
 
@@ -1191,6 +1251,7 @@ public partial class App : Application
         _showTrayEvent = null;
         _keyboardHook?.Dispose();
         _trayIcon?.Dispose();
+        AppSession?.Instance.Dispose(); // app path: per-app mutex, never the Space one
         if (_ownsMutex)
         {
             try { _mutex?.ReleaseMutex(); } catch { /* ignore */ }

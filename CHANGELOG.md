@@ -2,6 +2,10 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-11-12
+
+- S50-E1-a (#306): `NetieSpace.exe --app pdf|image|video [--open FILE]` is dispatched before the Space single-instance mutex (`Apps/Shell/AppEntry.cs`). An app process sets AUMID `Netie.Pdf` / `Netie.Image` / `Netie.Video`, holds its own `Local\Netie.<App>.Instance.v1` mutex, opens a skeleton `AppWindow`, and starts no hook, tray, OpenVault sync or license gate. A second launch forwards its file and exits. `--tool` / `--list-tools` reach `Apps.Tools.ToolCli.Run` by reflection (`TOOL_CLI_UNAVAILABLE`, exit 3, when absent). TFM is `net8.0-windows10.0.19041.0` (WinRT reachable). Tests: Windows runs the WinRT TFM + `WinRtSmokeTests`; the Linux gate stays plain net8.0 and compile-checks the Windows shape. Not yet run on Windows.
+
 ## 2026-09-17
 
 - JSON peek is a collapsible tree (types, search, copy path, pretty/raw) for `.json` / `.jsonl` / `.ndjson`. Same exe. Invalid JSON stays the highlighted dump plus the parse error. Not a fourth app.
