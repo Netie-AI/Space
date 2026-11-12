@@ -4,7 +4,12 @@ namespace NetieSpace.Apps.Shell;
 
 /// <summary>A tile on the home grid. <see cref="ReasonLine"/> is the registry's text when unavailable.</summary>
 public sealed record HomeTile(
-    string ToolId, string Glyph, string Name, string Verb, bool Available, string? ReasonLine, string Category);
+    string ToolId, string Glyph, string Name, string Verb, bool Available, string? ReasonLine, string Category,
+    IReadOnlyList<string>? Types = null)
+{
+    /// <summary>Line-icon geometry for the tile, by category (see <see cref="TileGlyphs"/>).</summary>
+    public string PathData => TileGlyphs.ForCategory(Category);
+}
 
 public sealed record HomeCategory(string Name, IReadOnlyList<HomeTile> Tiles);
 
@@ -50,9 +55,11 @@ public static class HomeModel
         t.Entry.Verb,
         t.Availability.Available,
         t.Availability.Available ? null : t.Availability.Text,
-        t.Entry.Category);
+        t.Entry.Category,
+        t.Entry.AcceptedTypes);
 
-    /// <summary>The catalog glyph is a slug, so the tile draws the first letter of the name.</summary>
+    /// <summary>First letter of a name; kept for the app header badge. Tiles draw <see cref="HomeTile.PathData"/>.
+    /// The catalog glyph is a slug, so the tile draws the first letter of the name.</summary>
     public static string Monogram(string name)
     {
         foreach (var ch in name)

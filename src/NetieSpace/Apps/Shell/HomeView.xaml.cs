@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Shapes;
 
 namespace NetieSpace.Apps.Shell;
 
@@ -12,6 +13,32 @@ public partial class HomeView : UserControl
     {
         InitializeComponent();
         ClearPendingButton.Click += (_, _) => PendingCleared?.Invoke();
+        SearchBox.TextChanged += (_, _) => SearchChanged?.Invoke(SearchBox.Text);
+        AllowDrop = true;
+        DragOver += OnDragOver;
+        Drop += OnDrop;
+    }
+
+    public event Action<string>? SearchChanged;
+    public event Action<string>? FileDropped;
+
+    public string Query => SearchBox.Text;
+
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+    }
+
+    private void OnDrop(object sender, DragEventArgs e)
+    {
+        if (e.Data.GetData(DataFormats.FileDrop) is string[] dropped)
+        {
+            var first = dropped.FirstOrDefault(f => IoFile.Exists(f));
+            if (first is not null)
+                FileDropped?.Invoke(first);
+        }
+        e.Handled = true;
     }
 
     public event Action<string>? ToolPicked;
@@ -36,33 +63,42 @@ public partial class HomeView : UserControl
     /// <param name="category">Null shows every category and the recent files.</param>
     public void Bind(
         string title,
-        IReadOnlyList<HomeCategory> categories,
+        HomeGrid grid,
         string? category,
         IReadOnlyList<RecentEntry> recent,
         string? pending)
     {
-        HomeTitle.Text = category ?? title;
+        var searching = ToolSearch.Tokens(SearchBox.Text).Length > 0;
+        HomeTitle.Text = category is not null && !searching ? category : title;
         LoadingText.Visibility = Visibility.Collapsed;
         SetPending(pending);
 
-        RecentSection.Visibility = category is null ? Visibility.Visible : Visibility.Collapsed;
+        RecentSection.Visibility = category is null && !searching ? Visibility.Visible : Visibility.Collapsed;
         RecentRows.Children.Clear();
         RecentEmpty.Visibility = recent.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var r in recent)
             RecentRows.Children.Add(RecentRow(r));
 
         ToolsHost.Children.Clear();
-        foreach (var cat in categories.Where(c => category is null || c.Name == category))
-        {
-            var header = new TextBlock { Text = cat.Name, Margin = new Thickness(0, 20, 0, 10) };
-            header.Style = (Style)FindResource("ShellSection");
-            ToolsHost.Children.Add(header);
+        NoToolsText.Text = grid.EmptyLine ?? "";
+        NoToolsText.Visibility = grid.EmptyLine is null ? Visibility.Collapsed : Visibility.Visible;
 
-            var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
-            foreach (var tile in cat.Tiles)
-                wrap.Children.Add(TileButton(tile));
-            ToolsHost.Children.Add(wrap);
-        }
+        if (grid.OpenWithTitle is not null)
+            AddGroup(grid.OpenWithTitle, grid.OpenWith);
+        foreach (var cat in grid.Categories)
+            AddGroup(cat.Name, cat.Tiles);
+    }
+
+    private void AddGroup(string name, IReadOnlyList<HomeTile> tiles)
+    {
+        var header = new TextBlock { Text = name, Margin = new Thickness(0, 20, 0, 10) };
+        header.Style = (Style)FindResource("ShellSection");
+        ToolsHost.Children.Add(header);
+
+        var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
+        foreach (var tile in tiles)
+            wrap.Children.Add(TileButton(tile));
+        ToolsHost.Children.Add(wrap);
     }
 
     private Button RecentRow(RecentEntry r)
@@ -105,6 +141,34 @@ public partial class HomeView : UserControl
         return button;
     }
 
+    /// <summary>A stroked line icon from the category table; the box fallback if a string ever fails to parse.</summary>
+    private Path GlyphPath(HomeTile tile)
+    {
+        Geometry geometry;
+        try
+        {
+            geometry = Geometry.Parse(tile.PathData);
+        }
+        catch (FormatException)
+        {
+            geometry = Geometry.Parse(TileGlyphs.Fallback);
+        }
+        return new Path
+        {
+            Data = geometry,
+            Stroke = (Brush)FindResource("ShellInk"),
+            StrokeThickness = 1.6,
+            StrokeLineJoin = PenLineJoin.Round,
+            StrokeStartLineCap = PenLineCap.Round,
+            StrokeEndLineCap = PenLineCap.Round,
+            Stretch = Stretch.Uniform,
+            Width = 20,
+            Height = 20,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+    }
+
     private Button TileButton(HomeTile tile)
     {
         var badge = new Border
@@ -114,14 +178,7 @@ public partial class HomeView : UserControl
             CornerRadius = new CornerRadius(6),
             Background = (Brush)FindResource(tile.Available ? "ShellAccentTint" : "ShellHover"),
             VerticalAlignment = VerticalAlignment.Top,
-            Child = new TextBlock
-            {
-                Text = tile.Glyph,
-                FontWeight = FontWeights.Bold,
-                FontSize = 16,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-            },
+            Child = GlyphPath(tile),
         };
 
         var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };

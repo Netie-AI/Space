@@ -24,6 +24,10 @@
                 </DockPanel>
             </Border>
 
+            <TextBlock Text="Search" Style="{StaticResource ShellMutedText}" Margin="0,18,0,4"/>
+            <TextBox x:Name="SearchBox" MaxWidth="420" HorizontalAlignment="Left" MinHeight="32"
+                     Padding="8,4" VerticalContentAlignment="Center" ToolTip="Search"/>
+
             <StackPanel x:Name="RecentSection" Margin="0,28,0,0">
                 <TextBlock Text="Recent" Style="{StaticResource ShellSection}"/>
                 <StackPanel x:Name="RecentRows" Margin="0,8,0,0"/>
@@ -32,6 +36,8 @@
             </StackPanel>
 
             <StackPanel x:Name="ToolsHost" Margin="0,8,0,0"/>
+            <TextBlock x:Name="NoToolsText" Text="No tools" Style="{StaticResource ShellMutedText}"
+                       Margin="0,20,0,0" Visibility="Collapsed"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

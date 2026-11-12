@@ -16,7 +16,9 @@ public partial class AppShell : UserControl
     private RecentFiles? _recent;
     private IReadOnlyList<RegisteredTool> _tools = Array.Empty<RegisteredTool>();
     private IReadOnlyList<HomeCategory> _categories = Array.Empty<HomeCategory>();
+    private ToolStateStore? _state;
     private string? _activeCategoryForNav;
+    private string? _homeCategory;
 
     public AppShell()
     {
@@ -24,14 +26,17 @@ public partial class AppShell : UserControl
         Home.ToolPicked += ShowTool;
         Home.RecentPicked += path => SelectFile(path);
         Home.PendingCleared += () => SelectFile(null);
+        Home.SearchChanged += _ => RefreshHome();
+        Home.FileDropped += path => SelectFile(path);
     }
 
     public string? SelectedFile { get; private set; }
 
-    public void Initialize(AppIdentity identity, RecentFiles recent, string? openPath)
+    public void Initialize(AppIdentity identity, RecentFiles recent, string? openPath, ToolStateStore? state = null)
     {
         _identity = identity;
         _recent = recent;
+        _state = state ?? new ToolStateStore(ToolStateStore.DefaultPath(identity));
         SelectedFile = string.IsNullOrWhiteSpace(openPath) ? null : openPath;
         AppName.Text = identity.DisplayName;
         AppGlyph.Text = HomeModel.Monogram(identity.DisplayName.Replace("Netie ", "", StringComparison.Ordinal));
@@ -50,15 +55,25 @@ public partial class AppShell : UserControl
     {
         SelectedFile = string.IsNullOrWhiteSpace(path) ? null : path;
         Home.SetPending(SelectedFile);
+        // The grid leads with the tools that take this file, so it is rebuilt when it is on screen.
+        if (_identity is not null && Home.Visibility == Visibility.Visible)
+            RefreshHome();
     }
 
     public void ShowHome(string? category)
     {
         _activeCategoryForNav = category;
+        _homeCategory = category;
         BuildNav();
-        Home.Bind(_identity!.DisplayName, _categories, category, _recent!.Load(), SelectedFile);
+        RefreshHome();
         Home.Visibility = Visibility.Visible;
         ToolPage.Visibility = Visibility.Collapsed;
+    }
+
+    private void RefreshHome()
+    {
+        var grid = HomeGrid.Build(_categories, _homeCategory, Home.Query, SelectedFile);
+        Home.Bind(_identity!.DisplayName, grid, _homeCategory, _recent!.Load(), SelectedFile);
     }
 
     public void ShowTool(string toolId)
@@ -68,7 +83,7 @@ public partial class AppShell : UserControl
             return;
         _activeCategoryForNav = tool.Entry.Category;
         BuildNav();
-        ToolPage.Load(tool, _recent!, SelectedFile);
+        ToolPage.Load(tool, _recent!, SelectedFile, _identity!, _state!);
         Home.Visibility = Visibility.Collapsed;
         ToolPage.Visibility = Visibility.Visible;
     }

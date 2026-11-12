@@ -17,7 +17,11 @@ public partial class ToolPageView : UserControl
     private ToolPageModel? _model;
     private RecentFiles? _recent;
     private IReadOnlyList<string> _files = Array.Empty<string>();
-    private CancellationTokenSource? _cts;
+    private RunQueue? _queue;
+    private AppIdentity? _app;
+    private ToolStateStore? _state;
+    private ToolMemory _memory = ToolMemory.Empty;
+    private string? _chosenOut;
     private string? _output;
     private bool _running;
 
@@ -30,13 +34,20 @@ public partial class ToolPageView : UserControl
         ShowButton.Click += (_, _) => ShowOutput();
         DropZone.DragOver += OnDragOver;
         DropZone.Drop += OnDrop;
+        ChangeFolderButton.Click += (_, _) => ChangeFolder();
+        CancelButton.Click += (_, _) => _queue?.Cancel();
     }
 
-    public void Load(RegisteredTool tool, RecentFiles recent, string? pendingFile)
+    public void Load(RegisteredTool tool, RecentFiles recent, string? pendingFile, AppIdentity app, ToolStateStore state)
     {
-        _cts?.Cancel();
+        _queue?.Cancel();
+        _queue = null;
         _model = new ToolPageModel(tool);
         _recent = recent;
+        _app = app;
+        _state = state;
+        _memory = state.Load(tool.Entry);
+        _chosenOut = _memory.OutDir;
         _output = null;
         _running = false;
         _values.Clear();
@@ -66,8 +77,10 @@ public partial class ToolPageView : UserControl
     private void BuildOptions()
     {
         OptionsHost.Children.Clear();
-        foreach (var d in _model!.Options)
+        foreach (var d0 in _model!.Options)
         {
+            // The last used value, when the store still holds a valid one, replaces the entry default.
+            var d = _memory.Options.TryGetValue(d0.Key, out var remembered) ? d0 with { Default = remembered } : d0;
             var block = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
             FrameworkElement control;
             switch (d.Control)
@@ -170,7 +183,22 @@ public partial class ToolPageView : UserControl
         var check = _model.ValidateFiles(_files);
         FilesMessage.Text = check.Message ?? "";
         FilesMessage.Visibility = !check.Ok && _files.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        OutFolderText.Text = OutputFolder.Resolve(_app!, _files, _chosenOut);
+        OutFolderText.ToolTip = OutFolderText.Text;
         ActionButton.IsEnabled = _model.ActionEnabled(_files) && !_running;
+    }
+
+    private void ChangeFolder()
+    {
+        var dlg = new OpenFolderDialog();
+        var current = OutFolderText.Text;
+        if (!string.IsNullOrWhiteSpace(current) && IoDirectory.Exists(current))
+            dlg.InitialDirectory = current;
+        if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.FolderName))
+        {
+            _chosenOut = dlg.FolderName;
+            RefreshAction();
+        }
     }
 
     private void Browse()
@@ -209,6 +237,14 @@ public partial class ToolPageView : UserControl
         var model = _model;
         var files = _files;
 
+        var folder = OutputFolder.Prepare(OutputFolder.Resolve(_app!, files, _chosenOut));
+        if (!folder.Ok)
+        {
+            ShowResult(new ToolResult(false, ToolOutcome.Invalid, model.ToolId, model.Tool.Entry.Engine.Name,
+                Array.Empty<string>(), folder.Message, null, 0));
+            return;
+        }
+
         _running = true;
         _output = null;
         ActionButton.IsEnabled = false;
@@ -221,34 +257,56 @@ public partial class ToolPageView : UserControl
             _recent?.Add(f);
 
         var values = _values.ToDictionary(kv => kv.Key, kv => kv.Value(), StringComparer.Ordinal);
-        var request = model.BuildRequest(files, ToolPageModel.DefaultOutDir(files), values);
+        _state?.Save(model.Tool.Entry, values, _chosenOut);
+        var queue = RunQueue.For(model.Tool.Entry, files);
+        _queue = queue;
+        CancelButton.IsEnabled = true;
+        DrawQueue(queue);
+
         var progress = new Progress<ToolProgress>(p =>
         {
+            if (!ReferenceEquals(queue, _queue)) return;
             Bar.IsIndeterminate = false;
-            Bar.Value = p.Percent;
+            Bar.Value = queue.PerFile
+                ? (queue.DoneCount + queue.FailedCount) * 100.0 / Math.Max(1, queue.Items.Count) + p.Percent / (double)Math.Max(1, queue.Items.Count)
+                : p.Percent;
             ProgressText.Text = p.Message;
         });
 
-        _cts = new CancellationTokenSource();
-        var ct = _cts.Token;
-        ToolResult result;
+        IReadOnlyList<ToolResult> results;
         try
         {
             // Off the dispatcher: a runner that works synchronously before its first await must not freeze the window.
-            result = await Task.Run(() => ToolRunner.RunAsync(model.Tool, request, progress, ct));
+            results = await queue.RunAsync(
+                (batch, ct) =>
+                {
+                    var request = model.BuildRequest(batch, folder.Folder, values);
+                    return Task.Run(() => ToolRunner.RunAsync(model.Tool, request, progress, ct));
+                },
+                () => DrawQueue(queue));
         }
         catch (Exception ex)
         {
             AppLogger.Error(ex, $"tool {model.ToolId}");
-            result = new ToolResult(false, ToolOutcome.Failed, model.ToolId, model.Tool.Entry.Engine.Name,
-                Array.Empty<string>(), ex.GetType().Name + ": " + ex.Message, null, 0);
+            queue.MarkAllRunning();
+            results = new[]
+            {
+                new ToolResult(false, ToolOutcome.Failed, model.ToolId, model.Tool.Entry.Engine.Name,
+                    Array.Empty<string>(), ex.GetType().Name + ": " + ex.Message, null, 0),
+            };
+            queue.Settle(results[0]);
         }
 
-        if (!ReferenceEquals(model, _model))
+        if (!ReferenceEquals(model, _model) || !ReferenceEquals(queue, _queue))
             return; // the page moved to another tool while this one ran
 
         _running = false;
         RunPanel.Visibility = Visibility.Collapsed;
+        ShowResult(queue.Combine(results, model.ToolId, model.Tool.Entry.Engine.Name));
+    }
+
+    private void ShowResult(ToolResult result)
+    {
         _output = ToolPageModel.PrimaryOutput(result);
         ResultText.Text = ToolPageModel.ResultLine(result);
         ResultText.Foreground = result.Ok
@@ -257,6 +315,34 @@ public partial class ToolPageView : UserControl
         ResultButtons.Visibility = _output is null ? Visibility.Collapsed : Visibility.Visible;
         ResultPanel.Visibility = Visibility.Visible;
         RefreshAction();
+    }
+
+    /// <summary>Per-file state under the progress bar; only drawn when more than one file is queued.</summary>
+    private void DrawQueue(RunQueue queue)
+    {
+        QueueRows.Children.Clear();
+        QueueRows.Visibility = queue.ShowsList ? Visibility.Visible : Visibility.Collapsed;
+        if (!queue.ShowsList)
+            return;
+        foreach (var item in queue.Items)
+        {
+            var state = new TextBlock
+            {
+                Text = RunQueue.Label(item.State) + (item.State == QueueState.Failed && item.Message is not null ? ": " + item.Message : ""),
+                Style = (Style)FindResource("ShellMutedText"),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(12, 0, 0, 0),
+                ToolTip = item.Message,
+            };
+            if (item.State == QueueState.Failed)
+                state.Foreground = (System.Windows.Media.Brush)FindResource("ShellDanger");
+            var name = new TextBlock { Text = item.Name, MinWidth = 160, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = item.Path };
+            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            DockPanel.SetDock(name, Dock.Left);
+            row.Children.Add(name);
+            row.Children.Add(state);
+            QueueRows.Children.Add(row);
+        }
     }
 
     private void OpenOutput()
