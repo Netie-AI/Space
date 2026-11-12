@@ -36,7 +36,7 @@ public class VideoToolTests
     [Fact]
     public void Tools_that_are_not_built_keep_saying_so()
     {
-        foreach (var id in new[] { "vid-add-text", "vid-stabilize", "vid-subtitles", "vid-editor", "vid-slideshow", "vid-adjust" })
+        foreach (var id in new[] { "vid-editor", "vid-stickers", "vid-meme", "vid-stop-motion" })
         {
             var t = Registry.Find(id)!;
             Assert.Null(t.Runner);
