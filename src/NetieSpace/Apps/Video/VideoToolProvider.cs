@@ -129,8 +129,8 @@ public sealed partial class VideoToolProvider : IToolProvider
             var e = Num(cutEnd);
             a.AddRange(new[] { "-i", input });
             a.AddRange(Maps);
-            a.AddRange(Vf("select=lt(t\\," + s + ")+gt(t\\," + e + ")", "setpts=N/FRAME_RATE/TB"));
-            if (info.HasAudio) a.AddRange(new[] { "-af", "aselect=lt(t\\," + s + ")+gt(t\\," + e + "),asetpts=N/SR/TB" });
+            a.AddRange(Vf("select=lt(t\\," + s + ")+gt(t\\," + e + ")", "setpts=if(gt(T\\," + e + ")\\,PTS-(" + Num(cutEnd - start) + ")/TB\\,PTS)"));
+            if (info.HasAudio) a.AddRange(new[] { "-af", "aselect=lt(t\\," + s + ")+gt(t\\," + e + "),asetpts=if(gt(T\\," + e + ")\\,PTS-(" + Num(cutEnd - start) + ")/TB\\,PTS)" });
             a.AddRange(Encode(web));
             return new Plan(a, info.Duration - (cutEnd - start));
         });
@@ -352,7 +352,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         if (w % 2 != 0) throw new ArgumentException("option 'width': " + w + " must be even");
         if (h % 2 != 0) throw new ArgumentException("option 'height': " + h + " must be even");
         if (!HexColor.IsMatch(color)) throw new ArgumentException("option 'color': '" + color + "' is not #RRGGBB");
-        var rgb = "0x" + color[^6..];
+        var rgb = "0x" + color.Substring(1, 6);
 
         string[] filters;
         if (w == 0 || h == 0)
@@ -393,7 +393,7 @@ public sealed partial class VideoToolProvider : IToolProvider
                 throw new ArgumentException($"crop area {w}x{h} at {x},{y} does not fit inside the {info.Width}x{info.Height} frame");
             var a = new List<string> { "-i", input };
             a.AddRange(Maps);
-            a.AddRange(Vf($"crop={w}:{h}:{x}:{y}"));
+            a.AddRange(Vf($"crop={w}:{h}:{x}:{y}:exact=1"));
             a.AddRange(Encode(IsWebM(input)));
             return new Plan(a, info.Duration);
         });
