@@ -66,7 +66,7 @@ internal static class PdfImageTools
         byte[]? oriented = null;
         try
         {
-            using var probe = Image.Load<Rgba32>(file);
+            using var probe = SixLabors.ImageSharp.Image.Load<Rgba32>(file);
             var exif = probe.Metadata.ExifProfile;
             var orient = exif?.GetValue(ExifTag.Orientation);
             if (orient is not null && orient.Value > 1)

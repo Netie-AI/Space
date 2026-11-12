@@ -140,7 +140,7 @@ internal static class PdfEditTools
                 // The default PDF font encoding is WinAnsi: a character outside Latin-1 would be silently
                 // replaced by a wrong glyph, so refuse it instead of stamping the wrong word.
                 foreach (var ch in text)
-                    if (!((ch >= ' ' && ch <= '~') || (ch >= ' ' && ch <= 'ÿ')))
+                    if (!((ch >= ' ' && ch <= '~') || (ch >= '\u00A0' && ch <= '\u00FF')))
                         throw new ArgumentException($"option 'text': the character U+{(int)ch:X4} cannot be drawn (only Latin letters, digits and punctuation up to U+00FF are supported)");
                 font = ResolveFont(OptInt(req, "size", 64, 6, 400), XFontStyle.Bold);
                 brush = new XSolidBrush(ParseColor(Opt(req, "color", "#808080"), "color", opacity));
@@ -223,7 +223,7 @@ internal static class PdfEditTools
     {
         try
         {
-            using var image = Image.Load<Rgba32>(path);
+            using var image = SixLabors.ImageSharp.Image.Load<Rgba32>(path);
             image.Mutate(x => x.Opacity(opacityPercent / 100f));
             using var ms = new MemoryStream();
             image.Save(ms, new PngEncoder());

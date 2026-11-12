@@ -18,7 +18,7 @@ public class PdfToolAdversarialTests
     }
 
     [Theory]
-    [InlineData("Café Über")]
+    [InlineData("Caf\u00E9 \u00DCber")]
     [InlineData("A'B \"C\" 50% D:E;F\\G/H")]
     public void Watermark_text_survives_non_ascii_and_hostile_text(string text)
     {
@@ -36,7 +36,7 @@ public class PdfToolAdversarialTests
     [InlineData("pdf-remove-pages")]
     public void Same_named_inputs_odd_names_and_missing_outdir(string id)
     {
-        var name = "Bob's résumé #1 (final) %20.pdf";
+        var name = "Bob's r\u00E9sum\u00E9 #1 (final) %20.pdf";
         var a = PdfKit.Make(PdfKit.NewDir("x"), name, 3, "AAA");
         var b = PdfKit.Make(PdfKit.NewDir("y"), name, 3, "BBB");
         var outDir = IoPath.Combine(PdfKit.NewDir(), "does", "not", "exist");
@@ -114,7 +114,7 @@ public class PdfToolAdversarialTests
     {
         var a = PdfKit.Make(PdfKit.NewDir(), "a.pdf", 3, "SECRET");
         var expect = new[] { "SECRET page 1", "SECRET page 2", "SECRET page 3" };
-        foreach (var pw in new[] { "pw", "päss wörd'\"%:", "x" })
+        foreach (var pw in new[] { "pw", "p\u00E4ss w\u00F6rd'\"%:", "x" })
         {
             var p = Assert.Single(PdfKit.RunOk("pdf-protect", new[] { a }, PdfKit.NewDir(), ("password", pw)));
             Assert.ThrowsAny<Exception>(() => PdfKit.Texts(p));

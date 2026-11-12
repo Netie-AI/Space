@@ -103,5 +103,44 @@ $deadOut = Join-Path $Out "pdfa"
 $r = Invoke-App @("--tool", "pdf-to-pdfa", "--in", $pdfIn, "--out", $deadOut)
 Check "tool unavailable" (($r.Code -eq 2) -and -not (Test-Path $deadOut)) "exit=$($r.Code) $($r.Err)"
 
+# 8. Built tools are reported available (14 pdf, 9 image, 17 video, plus extract-text).
+Check "built tools available" ($avail -ge 41) "available=$avail (expect at least 41; fewer means an engine probe failed on this PC)"
+
+function Invoke-Tool([string]$Id, [string[]]$Inputs, [string[]]$Extra = @()) {
+    $dir = Join-Path $Out ("run-" + $Id)
+    $res = Join-Path $Out ("run-" + $Id + ".json")
+    $a = @("--tool", $Id)
+    foreach ($i in $Inputs) { $a += @("--in", $i) }
+    $a += @("--out", $dir, "--json", $res) + $Extra
+    $r = Invoke-App $a 300
+    $ok = $false; $bytes = 0; $n = 0
+    if (Test-Path $res) {
+        $doc = Get-Content -Raw $res | ConvertFrom-Json
+        $ok = [bool]$doc.ok
+        foreach ($o in @($doc.outputs)) { if (Test-Path $o) { $n++; $bytes += (Get-Item $o).Length } }
+    }
+    Check "tool $Id" (($r.Code -eq 0) -and $ok -and ($n -ge 1) -and ($bytes -gt 0)) "exit=$($r.Code) ok=$ok outputs=$n bytes=$bytes $($r.Err)"
+}
+
+# 9. One real run per app through the exe.
+$pdfB = Join-Path $root "src\NetieSpace\Assets\pdfjs\sample.pdf"
+Invoke-Tool "pdf-merge" @($pdfIn, $pdfB)
+Invoke-Tool "pdf-rotate" @($pdfIn)
+Invoke-Tool "img-to-jpg" @((Join-Path $root "src\NetieSpace\Assets\netie-icon.png"))
+
+$ffmpeg = $null
+$cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue
+if ($cmd) { $ffmpeg = $cmd.Source }
+elseif (Test-Path (Join-Path $root "tools\ffmpeg\ffmpeg.exe")) { $ffmpeg = Join-Path $root "tools\ffmpeg\ffmpeg.exe" }
+if (-not $ffmpeg) {
+    Check "video fixture" $false "ffmpeg not on PATH and not in tools\ffmpeg; the video tools cannot be checked"
+} else {
+    $clip = Join-Path $Out "clip in.mp4"
+    & $ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=size=320x180:rate=25:duration=3" -f lavfi -i "sine=frequency=440:duration=3" -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest $clip
+    Check "video fixture" ((Test-Path $clip) -and ((Get-Item $clip).Length -gt 0)) $clip
+    Invoke-Tool "vid-mute" @($clip)
+    Invoke-Tool "vid-trim" @($clip) @("--opt", "start=0.5", "--opt", "end=2")
+}
+
 if ($script:failed -gt 0) { Write-Host "FAILED $($script:failed) check(s)"; exit 1 }
 Write-Host "PASS scripts/check-app-shell.ps1"

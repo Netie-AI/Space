@@ -110,8 +110,8 @@ public class ImageToolAdversarialTests
     public async Task Non_ascii_apostrophe_names_and_same_names_from_two_folders_never_collide()
     {
         var d = Dir();
-        var a = CornerImage(IoPath.Combine(d, "one"), "Zoe's  photo é中 (1).png", 30, 10);
-        var b = CornerImage(IoPath.Combine(d, "two"), "Zoe's  photo é中 (1).png", 50, 10);
+        var a = CornerImage(IoPath.Combine(d, "one"), "Zoe's  photo \u00E9\u4E2D (1).png", 30, 10);
+        var b = CornerImage(IoPath.Combine(d, "two"), "Zoe's  photo \u00E9\u4E2D (1).png", 50, 10);
         var r = await Run("img-resize", new[] { a, b }, IoPath.Combine(d, "new", "deep"), ("mode", "percentage"), ("percent", "200"));
         Assert.True(r.Ok, r.Error);
         Assert.Equal(2, r.Outputs.Distinct().Count());

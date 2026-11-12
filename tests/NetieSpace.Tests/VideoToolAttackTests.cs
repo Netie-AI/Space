@@ -45,7 +45,7 @@ public sealed class VideoToolAttackTests
     public void Odd_size_ugly_name_single_input_tools(string id, string key, string val)
     {
         var d = NewDir();
-        var src = MakeVideo(IoPath.Combine(d, "in dir"), "Ünï çlip it's 100%.mp4", 2, audio: id == "vid-volume", size: "322x182", crf: 4);
+        var src = MakeVideo(IoPath.Combine(d, "in dir"), "\u00DCn\u00EF \u00E7lip it's 100%.mp4", 2, audio: id == "vid-volume", size: "322x182", crf: 4);
         var opts = key == "" ? Array.Empty<(string, string)>() : new[] { (key, val) };
         var o = RunOk1(id, IoPath.Combine(d, "new", "deeper"), new[] { src }, opts);
         var p = Probe(o);
