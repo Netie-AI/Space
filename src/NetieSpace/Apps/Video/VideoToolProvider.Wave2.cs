@@ -259,7 +259,7 @@ public sealed partial class VideoToolProvider
         var info = RequireVideo(video);
         W2CheckWindow(start, info);
         var imgInfo = Probe(image);
-        if (!imgInfo.HasVideo) throw new InvalidOperationException(image + " could not be read as a picture");
+        if (!imgInfo.HasVideo || imgInfo.Width <= 0 || imgInfo.Height <= 0) throw new InvalidOperationException(image + " could not be read as a picture");
 
         var ovW = Math.Max(2, (int)Math.Round(info.Width * scale / 100.0) / 2 * 2);
         var x = gh switch { 0 => "W*0.03", 1 => "(W-w)/2", _ => "W-w-W*0.03" };
@@ -533,6 +533,16 @@ public sealed partial class VideoToolProvider
         if (images.Count > 300) throw new ArgumentException("vid-slideshow takes at most 300 pictures, got " + images.Count);
         if (music.Count > 1) throw new ArgumentException("vid-slideshow takes at most one music file, got " + music.Count);
         if (music.Count == 1 && !Probe(music[0]).HasAudio) throw new InvalidOperationException(music[0] + " has no audio stream");
+
+        // A looped input that cannot be decoded never ends, so every picture is proven readable first.
+        foreach (var img in images)
+        {
+            VideoInfo pi;
+            try { pi = Probe(img); }
+            catch (InvalidOperationException ex) { throw new InvalidOperationException(IoPath.GetFileName(img) + " could not be read as a picture: " + ex.Message); }
+            if (!pi.HasVideo || pi.Width <= 0 || pi.Height <= 0)
+                throw new InvalidOperationException(IoPath.GetFileName(img) + " could not be read as a picture");
+        }
 
         const int fps = 25;
         var total = images.Count * secs;
