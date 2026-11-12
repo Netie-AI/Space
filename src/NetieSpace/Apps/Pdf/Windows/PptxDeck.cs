@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using DocumentFormat.OpenXml.Packaging;
 using A = DocumentFormat.OpenXml.Drawing;
 using P = DocumentFormat.OpenXml.Presentation;
@@ -55,6 +56,10 @@ public sealed class PptxDeck : IDisposable
             w *= s2;
             h *= s2;
         }
+        // A very thin page cannot keep its ratio inside 1..56 in on both sides; the picture is fitted and
+        // centred, so only the slide ratio gives way.
+        w = Math.Min(Math.Max(w, MinSlideEmu), MaxSlideEmu);
+        h = Math.Min(Math.Max(h, MinSlideEmu), MaxSlideEmu);
         return ((long)Math.Round(w), (long)Math.Round(h));
     }
 
@@ -113,7 +118,7 @@ public sealed class PptxDeck : IDisposable
         var x = (SlideWidthEmu - cx) / 2;
         var y = (SlideHeightEmu - cy) / 2;
 
-        var label = System.Security.SecurityElement.Escape(name) ?? "";
+        var label = System.Security.SecurityElement.Escape(new string(name.Where(c => c >= ' ').ToArray())) ?? "";
         var rel = slide.GetIdOfPart(imagePart);
         slide.Slide = new P.Slide(
             $"<p:sld xmlns:a=\"{NsA}\" xmlns:r=\"{NsR}\" xmlns:p=\"{NsP}\"><p:cSld><p:spTree>"

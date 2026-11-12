@@ -175,5 +175,26 @@ public class WinToolCoreTests
 
         Assert.Throws<ArgumentOutOfRangeException>(() => PptxDeck.SlideSizeFor(0, 100));
     }
+
+    [Fact]
+    public void Pixelate_on_a_box_smaller_than_the_default_block_still_works()
+    {
+        using var img = Checker(40, 30);
+        var boxes = FaceBlurCore.ParseRegions("5,5,3,3;1,1,2,100000", 40, 30);
+        FaceBlurCore.Apply(img, boxes, "pixelate", 100);
+        using var untouched = Checker(40, 30);
+        Assert.Equal(untouched[30, 20], img[30, 20]);
+    }
+
+    [Fact]
+    public void Extreme_page_shapes_give_a_slide_inside_the_range_with_the_picture_fitted()
+    {
+        foreach (var (pw, ph) in new[] { (100000.0, 50.0), (1.0, 5000.0) })
+        {
+            var (w, h) = PptxDeck.SlideSizeFor(pw, ph);
+            Assert.InRange(w, PptxDeck.EmuPerInch, 56 * PptxDeck.EmuPerInch);
+            Assert.InRange(h, PptxDeck.EmuPerInch, 56 * PptxDeck.EmuPerInch);
+        }
+    }
 }
 #endif

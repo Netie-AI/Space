@@ -63,9 +63,10 @@ public static class FaceBlurCore
     public static float SigmaFor(SRect box, int strength) =>
         Math.Max(2f, strength / 100f * Math.Max(box.Width, box.Height) / 3f);
 
-    /// <summary>Pixelation block size for a box at a strength of 1..100.</summary>
+    /// <summary>Pixelation block size for a box at a strength of 1..100; never larger than the box (the processor throws then).</summary>
     public static int BlockFor(SRect box, int strength) =>
-        Math.Max(4, (int)(Math.Min(box.Width, box.Height) * (strength / 100.0) / 4.0));
+        Math.Max(1, Math.Min(Math.Min(box.Width, box.Height),
+            Math.Max(4, (int)(Math.Min(box.Width, box.Height) * (strength / 100.0) / 4.0))));
 
     /// <summary>Blurs or pixelates every box in place; pixels outside the boxes are not written.</summary>
     public static void Apply(SixLabors.ImageSharp.Image<Rgba32> image, IEnumerable<SRect> boxes, string mode, int strength)
