@@ -103,8 +103,8 @@ $deadOut = Join-Path $Out "pdfa"
 $r = Invoke-App @("--tool", "pdf-to-pdfa", "--in", $pdfIn, "--out", $deadOut)
 Check "tool unavailable" (($r.Code -eq 2) -and -not (Test-Path $deadOut)) "exit=$($r.Code) $($r.Err)"
 
-# 8. Built tools are reported available (15 pdf, 10 image, 27 video).
-Check "built tools available" ($avail -ge 52) "available=$avail (expect at least 52; fewer means an engine probe failed on this PC)"
+# 8. Built tools are reported available (16 pdf, 10 image, 27 video).
+Check "built tools available" ($avail -ge 53) "available=$avail (expect at least 53; fewer means an engine probe failed on this PC)"
 
 function Invoke-Tool([string]$Id, [string[]]$Inputs, [string[]]$Extra = @()) {
     $dir = Join-Path $Out ("run-" + $Id)
@@ -130,6 +130,7 @@ Invoke-Tool "img-to-jpg" @((Join-Path $root "src\NetieSpace\Assets\netie-icon.pn
 
 # Tools that draw text need a real Windows font.
 $icon = Join-Path $root "src\NetieSpace\Assets\netie-icon.png"
+Invoke-Tool "pdf-to-jpg" @($pdfIn) @("--opt", "dpi=96")
 Invoke-Tool "pdf-page-numbers" @($pdfIn)
 Invoke-Tool "pdf-watermark" @($pdfIn) @("--opt", "text=DRAFT")
 Invoke-Tool "pdf-protect" @($pdfIn) @("--opt", "password=check-only")

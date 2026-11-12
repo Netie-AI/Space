@@ -25,8 +25,8 @@
    green (xunit + WinExe compile + Windows-shape test compile). **Not verified on Windows**:
    the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
    Windows run by a different session before #306 closes. Window is a skeleton until #310.
-7. **Tools (S50-E2-a #308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **52 run for
-   real** (15 pdf, 10 image, 27 video), 39 honestly unavailable. 711 xunit on Linux.
+7. **Tools (S50-E2-a #308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **53 run for
+   real** (16 pdf, 10 image, 27 video), 38 honestly unavailable. 711 xunit on Linux.
    Windows CI runs the exe: snapshots, `--list-tools`, 17 tools
    (`scripts/check-app-shell.ps1`). Epics E3 / E4 / E5 have code but no tickets filed.
 8. **App shell (S50-E1-b #310)** -- home, tool grid, tool page, `--snapshot`. Models under
