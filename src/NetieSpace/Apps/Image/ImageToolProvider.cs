@@ -178,14 +178,16 @@ public sealed class ImageToolProvider : IToolProvider
     private static Image<Rgba32> FirstFrame(Image<Rgba32> img) =>
         img.Frames.Count > 1 ? img.Frames.CloneFrame(0) : img.Clone();
 
-    private static string ToJpg(string input, string suffix, ToolRequest rq, ImageIo.OutputNamer namer)
+    private static string ToJpg(string input, string suffix, ToolRequest rq, ImageIo.OutputNamer namer, bool refuseJpg = false)
     {
         var quality = ImageIo.IntOpt(rq.Options, "quality", 90);
         var bg = ImageIo.ParseOpaqueHex("background", ImageIo.StrOpt(rq.Options, "background", "#FFFFFF"));
-        var (src, _) = ImageIo.Load(input);
+        var (src, srcKind) = ImageIo.Load(input);
         using (src)
         using (var flat = FirstFrame(src))
         {
+            if (refuseJpg && srcKind == ImageKind.Jpeg)
+                throw new InvalidOperationException("input is already jpg; pick a different option 'to': " + input);
             flat.Mutate(x => x.AutoOrient());
             flat.Mutate(x => x.BackgroundColor(bg));
             // BackgroundColor paints behind the image; flatten any remaining alpha so the JPG is opaque.
@@ -215,7 +217,7 @@ public sealed class ImageToolProvider : IToolProvider
     private static string ConvertAnyOne(string input, ToolRequest rq, ImageIo.OutputNamer namer)
     {
         var target = ImageKindOpt(rq, "to", "png");
-        if (target == ImageKind.Jpeg) return ToJpg(input, "-converted", rq, namer);
+        if (target == ImageKind.Jpeg) return ToJpg(input, "-converted", rq, namer, true);
         var (src, kind) = ImageIo.Load(input);
         using (src)
         {
