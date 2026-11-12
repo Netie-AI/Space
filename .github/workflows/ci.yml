@@ -43,7 +43,11 @@ jobs:
       # Runs the built exe headless: app snapshots, tool list, one real tool run.
       - name: app shell and tool cli (exe level)
         shell: pwsh
-        run: ./scripts/check-app-shell.ps1 -Out "$env:RUNNER_TEMP/s50"
+        run: |
+          # The solution test run does not build the WinExe; build it here.
+          dotnet build src/NetieSpace/NetieSpace.csproj -c Debug --nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/check-app-shell.ps1 -Out "$env:RUNNER_TEMP/s50"
       - name: upload app snapshots
         if: always()
         uses: actions/upload-artifact@v4
