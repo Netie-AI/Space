@@ -34,7 +34,9 @@ $script:Rules = @(
     @{ Engine = 'PyMuPDF';     Pattern = '^pymupdf' },
     @{ Engine = 'PyMuPDF';     Pattern = '^fitz(-.*)?$'; DirOnly = $true },
     @{ Engine = 'PyMuPDF';     Pattern = '^(_mupdf|mupdfcpp|libmupdf)' },
-    @{ Engine = 'Ghostscript'; Pattern = '^(gswin32c?|gswin64c?|gsdll32|gsdll64)\.(exe|dll)$' },
+    @{ Engine = 'Ghostscript'; Pattern = '^(gswin32c?|gswin64c?|gsdll32|gsdll64|gs)\.(exe|dll)$' },
+    @{ Engine = 'Ghostscript'; Pattern = '^(ghostscript|libgs\.)' },
+    @{ Engine = 'PyMuPDF';     Pattern = '^mupdf(\.(dll|exe|pyd|so|py))?$' },
     @{ Engine = 'OnlyOffice';  Pattern = '^(x2t\.exe$|onlyoffice|documentserver)' }
 )
 

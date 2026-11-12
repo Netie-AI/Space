@@ -102,6 +102,22 @@ def test_decision_record_is_proposed_and_names_its_confirmation():
     assert "tests/test_tool_engines_gate.py" in text
 
 
+def test_name_rules_catch_real_engine_layouts_and_spare_decoys():
+    # Evaluate the script's own name patterns (simple anchored regexes, same in Python and PowerShell).
+    rules = re.findall(r"Engine = '([^']+)';\s+Pattern = '([^']+)'(; DirOnly = \$true)?", gate())
+    assert len(rules) >= 6
+
+    def hit(name: str, is_dir: bool = False) -> bool:
+        return any(re.search(pat, name, re.I) for _, pat, dir_only in rules if is_dir or not dir_only)
+
+    for name in ("gs.exe", "gswin64c.exe", "gsdll64.dll", "ghostscript-0.7.dist-info", "libgs.so.10",
+                 "pymupdf", "pymupdf4llm", "mupdf.dll", "_mupdf.pyd", "x2t.exe", "OnlyOffice", "DocumentServer"):
+        assert hit(name), name
+    assert hit("fitz", is_dir=True) and not hit("fitz")
+    for name in ("xrefstream-mupdf.pdf", "NetieSpace.exe", "ffmpeg.exe", "gsutil.txt", "gsap.js", "Fixtures"):
+        assert not hit(name), name
+
+
 def test_selftest_runs_when_a_powershell_exists():
     shell = shutil.which("pwsh") or shutil.which("powershell")
     if shell is None:
