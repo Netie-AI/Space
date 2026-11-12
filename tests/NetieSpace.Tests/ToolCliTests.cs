@@ -84,7 +84,7 @@ public class ToolCliTests
         var outDir = IoPath.Combine(ToolTestSupport.NewTempDir(), "out2");
         var json = IoPath.Combine(ToolTestSupport.NewTempDir(), "r2.json");
 
-        var (exit, _, err) = Cli(Real(), "--tool", "pdf-watermark", "--in", ToolTestSupport.FixturePdf(),
+        var (exit, _, err) = Cli(Real(), "--tool", "pdf-edit", "--in", ToolTestSupport.FixturePdf(),
             "--out", outDir, "--opt", "text=DRAFT", "--json", json);
 
         Assert.Equal(2, exit);

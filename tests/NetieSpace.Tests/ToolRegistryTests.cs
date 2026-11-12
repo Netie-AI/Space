@@ -101,7 +101,7 @@ public class ToolRegistryTests
         string Text(string id) => reg.Find(id)!.Availability.Text;
 
         Assert.True(reg.Find("pdf-extract-text")!.Availability.Available);
-        Assert.Equal("not built in this version", Text("pdf-watermark"));
+        Assert.Equal("not built in this version", Text("pdf-edit"));
         Assert.Equal("licence not cleared for shipping: Ghostscript", Text("pdf-to-pdfa"));
         Assert.Equal("needs Space#3 disclose", Text("pdf-summarize"));
         Assert.Equal("cloud only", Text("pdf-sign-request"));
