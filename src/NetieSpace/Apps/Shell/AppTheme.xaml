@@ -144,8 +144,9 @@
         <Setter Property="Padding" Value="12"/>
         <Setter Property="Margin" Value="0,0,12,12"/>
         <Setter Property="FontWeight" Value="Normal"/>
-        <!-- 232 + 12 gap: four across the content column of a 1280 wide window. -->
-        <Setter Property="Width" Value="232"/>
+        <!-- 226 + 12 gap: four across a 1280 wide window with the scroll bar showing
+             (1280 - 240 sidebar - 64 margins - 12 scroll bar = 964). -->
+        <Setter Property="Width" Value="226"/>
         <Setter Property="MinHeight" Value="64"/>
     </Style>
 
