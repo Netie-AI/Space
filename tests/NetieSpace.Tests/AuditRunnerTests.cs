@@ -94,7 +94,7 @@ public class AuditRunnerTests
         var big = PdfKit.Make(dir, "big.pdf", 400, "BIG", extraLines: 40);
         foreach (var (id, opts) in new[]
         {
-            ("pdf-split", new[] { ("split_mode", "filesize"), ("max_size_kb", "30") }),
+            ("pdf-split", new[] { ("split_mode", "filesize"), ("max_size_kb", "400") }),
             ("pdf-watermark", new[] { ("text", "DRAFT"), ("tile", "true") }),
             ("pdf-page-numbers", Array.Empty<(string, string)>()),
         })

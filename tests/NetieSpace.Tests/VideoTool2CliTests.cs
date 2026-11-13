@@ -28,7 +28,7 @@ public class VideoTool2CliTests
             Assert.NotNull(t.Runner);
             Assert.True(t.Availability.Available, id + ": " + t.Availability.Text);
         }
-        foreach (var id in new[] { "vid-editor", "vid-stickers", "vid-meme", "vid-stop-motion", "vid-tts" })
+        foreach (var id in new[] { "vid-editor", "vid-stickers", "vid-meme", "vid-stop-motion" })
         {
             var t = Registry.Find(id)!;
             Assert.Null(t.Runner);

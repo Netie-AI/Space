@@ -38,7 +38,6 @@ public class ImageToolTests
     [Theory]
     [InlineData("img-upscale")]
     [InlineData("img-remove-bg")]
-    [InlineData("img-blur-face")]
     public void Model_tools_stay_unbuilt_and_never_claim_to_work(string id)
     {
         var t = Registry().Find(id)!;

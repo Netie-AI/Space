@@ -497,6 +497,10 @@ public sealed partial class VideoToolProvider : IToolProvider
             var a = new List<string> { "-stream_loop", (count - 1).ToString(CultureInfo.InvariantCulture), "-i", input };
             a.AddRange(Maps);
             a.AddRange(Vf());
+            // Newer FFmpeg leaves a timestamp gap at each loop seam, which drifts the frame
+            // rate (24 became 23.88 on FFmpeg 9). Pin the output to the source rate.
+            if (info.Fps > 0)
+                a.AddRange(new[] { "-r", info.Fps.ToString("0.###", CultureInfo.InvariantCulture) });
             a.AddRange(Encode(IsWebM(input)));
             return new Plan(a, info.Duration * count);
         });

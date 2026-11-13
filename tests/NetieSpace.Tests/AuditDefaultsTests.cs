@@ -50,6 +50,12 @@ public class AuditDefaultsTests
                 IoFile.WriteAllText(p, "1\n00:00:00,000 --> 00:00:01,500\nHello\n\n");
                 return p;
             }
+            case Kind.Other when ext.Equals(".txt", StringComparison.OrdinalIgnoreCase):
+            {
+                var p = IoPath.Combine(dir, name);
+                IoFile.WriteAllText(p, "Hello from Netie.\n");
+                return p;
+            }
             default: throw new InvalidOperationException("no fixture for " + ext);
         }
     }
