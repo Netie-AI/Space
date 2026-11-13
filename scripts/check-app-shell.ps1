@@ -103,8 +103,8 @@ $deadOut = Join-Path $Out "pdfa"
 $r = Invoke-App @("--tool", "pdf-to-pdfa", "--in", $pdfIn, "--out", $deadOut)
 Check "tool unavailable" (($r.Code -eq 2) -and -not (Test-Path $deadOut)) "exit=$($r.Code) $($r.Err)"
 
-# 8. Built tools are reported available (16 pdf, 10 image, 27 video).
-Check "built tools available" ($avail -ge 53) "available=$avail (expect at least 53; fewer means an engine probe failed on this PC)"
+# 8. Built tools are reported available (20 pdf, 11 image, 29 video).
+Check "built tools available" ($avail -ge 60) "available=$avail (expect at least 60; fewer means an engine probe failed on this PC)"
 
 function Invoke-Tool([string]$Id, [string[]]$Inputs, [string[]]$Extra = @()) {
     $dir = Join-Path $Out ("run-" + $Id)
@@ -137,6 +137,28 @@ Invoke-Tool "pdf-protect" @($pdfIn) @("--opt", "password=check-only")
 Invoke-Tool "img-resize" @($icon) @("--opt", "width=32")
 Invoke-Tool "img-watermark" @($icon) @("--opt", "text=Netie")
 Invoke-Tool "img-meme" @($icon) @("--opt", "top=Top line", "--opt", "bottom=Bottom line")
+
+Invoke-Tool "pdf-to-word" @($pdfIn)
+Invoke-Tool "pdf-to-powerpoint" @($pdfIn)
+Invoke-Tool "img-blur-face" @($icon) @("--opt", "regions=8,8,24,24")
+# These two need an OCR language and a speech voice on this PC. A PC without them must fail
+# here with the reason, not pass: the tools list as available.
+Invoke-Tool "pdf-ocr" @($pdfIn)
+Invoke-Tool "vid-tts" @() @("--opt", "text=Netie check.")
+
+# 10. Start Menu registration: write, read back with an independent reader, remove.
+$programs = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+$r = Invoke-App @("--register-apps")
+$lnk = @("Netie PDF.lnk", "Netie Image.lnk", "Netie Video.lnk") | ForEach-Object { Join-Path $programs $_ }
+$present = @($lnk | Where-Object { Test-Path $_ }).Count
+Check "register-apps" (($r.Code -eq 0) -and ($present -eq 3)) "exit=$($r.Code) shortcuts=$present $($r.Out) $($r.Err)"
+$reader = Join-Path $PSScriptRoot "check-app-shortcuts.ps1"
+$readOut = & powershell -NoProfile -ExecutionPolicy Bypass -File $reader -ExePath $Exe 2>&1 | Out-String
+$readCode = $LASTEXITCODE
+Check "shortcut AUMID read-back" ($readCode -eq 0) "exit=$readCode $readOut"
+$r = Invoke-App @("--unregister-apps")
+$left = @($lnk | Where-Object { Test-Path $_ }).Count
+Check "unregister-apps" (($r.Code -eq 0) -and ($left -eq 0)) "exit=$($r.Code) left=$left $($r.Out) $($r.Err)"
 
 $ffmpeg = $null
 $cmd = Get-Command ffmpeg -ErrorAction SilentlyContinue

@@ -40,6 +40,9 @@ jobs:
           dotnet test NetieSpace.sln -c Debug --nologo
           --blame-hang-timeout 2m
           --logger "trx;LogFileName=test-results.trx"
+      - name: engine licence gate self-test (Windows PowerShell 5.1)
+        shell: powershell
+        run: ./scripts/check-tool-engines.ps1 -SelfTest
       # Runs the built exe headless: app snapshots, tool list, one real tool run.
       - name: app shell and tool cli (exe level)
         shell: pwsh

@@ -25,13 +25,16 @@
    green (xunit + WinExe compile + Windows-shape test compile). **Not verified on Windows**:
    the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
    Windows run by a different session before #306 closes. Window is a skeleton until #310.
-7. **Tools (S50-E2-a #308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **53 run for
-   real** (16 pdf, 10 image, 27 video), 38 honestly unavailable. 711 xunit on Linux.
-   Windows CI runs the exe: snapshots, `--list-tools`, 17 tools
-   (`scripts/check-app-shell.ps1`). Epics E3 / E4 / E5 have code but no tickets filed.
+7. **Tools (#308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **60 have a runner**
+   (20 pdf, 11 image, 29 video), 31 honestly unavailable. 912 xunit
+   on Linux. Windows CI runs the exe over 22 tools (`scripts/check-app-shell.ps1`).
+   OCR and text to speech need a language pack / voice on the PC and fail naming it.
 8. **App shell (S50-E1-b #310)** -- home, tool grid, tool page, `--snapshot`. Models under
    xunit; **no window has been seen by a person**. `scripts/check-app-shell.ps1` in the
    Windows CI job is the first exe-level evidence; the PNGs are its artifact.
+9. **Install (S50-E1-c #309, S50-E2-b #307)** -- `--register-apps` Start Menu shortcuts with
+   AUMID, pin relaunch, app icons, engine licence gate in `publish.ps1`, notices, DR-0002
+   proposed. COM and PowerShell proven only by Windows CI. No `installer/*.iss` exists.
 
 ## Next
 

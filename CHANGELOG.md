@@ -2,6 +2,15 @@
 
 Append-only. Never edited, only added to. Newest first.
 
+## 2026-11-13
+
+- Wave 3, five lanes each built by one run and attacked by another. 60 of 91 tools have a runner.
+  - Shell: tool search, open-with ranking (start with a file and the tools that accept it lead), per-tool memory of options and output folder (passwords never stored), "Netie <App>" output folder with Change, per-file queue with Cancel, line icons per category instead of a letter. Logic in pure models under xunit; the window is still unseen by a person.
+  - Install (S50-E1-c #309, S50-E2-b #307): `--register-apps` / `--unregister-apps` write Start Menu shortcuts with `System.AppUserModel.ID` through IShellLinkW + IPropertyStore; window relaunch properties for pins; `Assets/apps/netie-<app>.ico` from `scripts/make-app-icons.py` (deterministic); `scripts/check-app-shortcuts.ps1` independent reader; `scripts/check-tool-engines.ps1` fails a package holding PyMuPDF, pymupdf4llm, Ghostscript, MuPDF or OnlyOffice and is called from `publish.ps1`; `THIRD-PARTY-NOTICES.txt`; DR-0002 (proposed). `installer/NetieSpace.iss` does not exist in this repo, so installer entries are not built.
+  - PDF: compress (image downsample and dedupe; refuses a result that is not smaller), PDF to Word (text reflow, not layout), PDF to Excel (only where a table is found, else refused).
+  - Windows engines (compile-checked on Linux, proven only by Windows CI): OCR to text, blur face (detector or manual regions), text to speech, PDF to PowerPoint (one picture slide per page).
+  - Accuracy audit of the 53 earlier tools, defects fixed: split / merge / extract / organize dropped the document title; Protect left a garbled title in other viewers; Rotate clipped pages that already carried a turn; JPG to PDF made unusable page sizes for 1 px and very long pictures; portrait phone clips were treated as landscape (crop bounds, merge canvas); transcoding tools kept only the first audio track; non-square pixels were distorted by resize, merge and GIF; a failed or cancelled batch left earlier outputs behind; progress could reach 100 before a failure. Known and not fixed: ICC profile lost on JPG to PNG (engine limit), PNG alpha in JPG to PDF is a 1-bit mask, compress skips chained image filters, Excel refuses tables with touching columns.
+
 ## 2026-11-12
 
 - PDF to JPG (`pdf-to-jpg`) on Windows.Data.Pdf, one JPEG per page at 36 to 600 dpi, no PyMuPDF (`Apps/Pdf/Windows/PdfRenderToolProvider.cs`). Windows only: its tests compile out on the Linux gate and run on Windows CI. 53 of 91 tools.
