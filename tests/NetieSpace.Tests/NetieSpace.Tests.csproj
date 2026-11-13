@@ -63,6 +63,7 @@
     <Compile Include="..\..\src\NetieSpace\Services\FillProfileHarvest.cs" Link="Linked\FillProfileHarvest.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppIdentity.cs" Link="Linked\Apps\Shell\AppIdentity.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppLaunch.cs" Link="Linked\Apps\Shell\AppLaunch.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\PeekBridge.cs" Link="Linked\Apps\Shell\PeekBridge.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\RecentFiles.cs" Link="Linked\Apps\Shell\RecentFiles.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolPageModel.cs" Link="Linked\Apps\Shell\ToolPageModel.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\HomeModel.cs" Link="Linked\Apps\Shell\HomeModel.cs" />

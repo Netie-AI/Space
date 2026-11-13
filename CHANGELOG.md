@@ -4,6 +4,8 @@ Append-only. Never edited, only added to. Newest first.
 
 ## 2026-11-13
 
+- Peek: an "Open in Netie PDF / Image / Video" button on PDFs, images and videos starts that app with the file (`Apps/Shell/PeekBridge.cs`; argv passed as separate arguments). First ticket-sized step of EPIC-S50-E6 #304; "Edit" and "Edit in app" are still there. Compile-checked and unit-tested; peek itself has no headless mode, so the button has not been seen or clicked.
+- Removed code nothing referenced: `Services/AirGptChatSync.cs`, `Services/PdfMergeService.cs`, `FfmpegService.DeleteMiddleAsync`, `OfficePreviewService.XlsxToMarkdown` (210 lines). The unreachable OpenVault login fallback is left alone: it is one of the four paths Space#3 says not to close by deletion.
 - Shell layout fixed from the first look at the rendered screens (CI snapshot artifact): search field 38 px wide is now 440 px with a glyph and hint; tool page fills up to 680 px with a dashed drop area (the file box had shrunk to 200 px); "All tools" back button on every tool page; tiles one line, four across, reason line only when a tool cannot run; no Recent heading over an empty list; Save to shows the folder name before a file is chosen; unavailable page headed "Not available".
 - Wave 3, five lanes each built by one run and attacked by another. 60 of 91 tools have a runner.
   - Shell: tool search, open-with ranking (start with a file and the tools that accept it lead), per-tool memory of options and output folder (passwords never stored), "Netie <App>" output folder with Change, per-file queue with Cancel, line icons per category instead of a letter. Logic in pure models under xunit; the window is still unseen by a person.

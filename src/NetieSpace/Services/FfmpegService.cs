@@ -65,48 +65,6 @@ public sealed class FfmpegService
             $"Stream-copy failed ({copy.Error}); re-encode failed ({reencode.Error})");
     }
 
-    public async Task<FfmpegResult> DeleteMiddleAsync(
-        string input,
-        TimeSpan cutStart,
-        TimeSpan cutEnd,
-        string? outputPath = null,
-        CancellationToken ct = default)
-    {
-        if (cutEnd <= cutStart)
-            return Fail("Cut end must be after cut start.");
-
-        var dir = IoPath.GetDirectoryName(input)!;
-        var part1 = IoPath.Combine(dir, $"_ns_part1_{Guid.NewGuid():N}.mp4");
-        var part2 = IoPath.Combine(dir, $"_ns_part2_{Guid.NewGuid():N}.mp4");
-        var list = IoPath.Combine(dir, $"_ns_concat_{Guid.NewGuid():N}.txt");
-        var output = string.IsNullOrWhiteSpace(outputPath)
-            ? SiblingOutput(input, "cut")
-            : outputPath;
-
-        try
-        {
-            var r1 = await RunAsync(
-                $"-y -i \"{input}\" -ss 0 -to {FormatTs(cutStart)} -c copy \"{part1}\"", part1, ct);
-            if (!r1.Success) return r1;
-
-            var r2 = await RunAsync(
-                $"-y -ss {FormatTs(cutEnd)} -i \"{input}\" -c copy \"{part2}\"", part2, ct);
-            if (!r2.Success) return r2;
-
-            await IoFile.WriteAllTextAsync(list,
-                $"{FfmpegExportGraph.ConcatDemuxerLine(part1)}\n{FfmpegExportGraph.ConcatDemuxerLine(part2)}\n", ct);
-
-            return await RunAsync(
-                $"-y -f concat -safe 0 -i \"{list}\" -c copy \"{output}\"", output, ct);
-        }
-        finally
-        {
-            TryDelete(part1);
-            TryDelete(part2);
-            TryDelete(list);
-        }
-    }
-
     public async Task<FfmpegResult> MergeAsync(IReadOnlyList<string> inputs, string outputPath, CancellationToken ct = default)
     {
         if (inputs.Count < 2)

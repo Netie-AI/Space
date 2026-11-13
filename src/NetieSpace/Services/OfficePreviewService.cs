@@ -368,48 +368,6 @@ public sealed class OfficePreviewService
     private static string EscapeMdCell(string c) =>
         (c ?? "").Replace("|", "\\|").Replace("\n", " ").Trim();
 
-    /// <summary>Legacy markdown export (chat / convert paths).</summary>
-    public static string XlsxToMarkdown(string path)
-    {
-        using var doc = SpreadsheetDocument.Open(path, false);
-        var sb = new StringBuilder();
-        sb.AppendLine($"# {IoPath.GetFileNameWithoutExtension(path)}");
-        sb.AppendLine();
-
-        var workbook = doc.WorkbookPart;
-        if (workbook is null)
-            return "_Empty workbook_";
-
-        var shared = workbook.SharedStringTablePart?.SharedStringTable;
-        foreach (var sheet in workbook.Workbook.Sheets?.Elements<Sheet>() ?? [])
-        {
-            sb.AppendLine($"## {sheet.Name?.Value}");
-            sb.AppendLine();
-            if (sheet.Id?.Value is null)
-                continue;
-
-            var part = (WorksheetPart)workbook.GetPartById(sheet.Id.Value);
-            var rows = part.Worksheet.Descendants<Row>().Take(200).ToList();
-            if (rows.Count == 0)
-                continue;
-
-            var matrix = rows.Select(r => ExpandRow(r, shared, maxCols: 40)).ToList();
-            var width = matrix.Max(r => r.Count);
-            foreach (var row in matrix)
-                while (row.Count < width)
-                    row.Add("");
-
-            sb.AppendLine("| " + string.Join(" | ", matrix[0]) + " |");
-            sb.AppendLine("| " + string.Join(" | ", Enumerable.Repeat("---", width)) + " |");
-            foreach (var row in matrix.Skip(1).Take(120))
-                sb.AppendLine("| " + string.Join(" | ", row) + " |");
-
-            sb.AppendLine();
-        }
-
-        return sb.ToString();
-    }
-
     private static int WidthHint(WorksheetPart part, int maxCols)
     {
         var max = 0;

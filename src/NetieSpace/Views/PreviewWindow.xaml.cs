@@ -465,6 +465,19 @@ public partial class PreviewWindow : Window
             }
         }
 
+        if (OpenInAppButton is not null)
+        {
+            // Peek hands the file to Netie PDF / Image / Video, each its own process.
+            var app = Apps.Shell.PeekBridge.ForKind(kind.ToString());
+            var show = app is not null && !_pdfSpaceMode && !_editMode;
+            OpenInAppButton.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (app is not null)
+            {
+                OpenInAppButton.Content = Apps.Shell.PeekBridge.Label(app);
+                OpenInAppButton.ToolTip = app.DisplayName;
+            }
+        }
+
         if (EditInAppButton is not null)
         {
             EditInAppButton.Visibility = isPdf ? Visibility.Visible : Visibility.Collapsed;
@@ -2417,6 +2430,30 @@ public partial class PreviewWindow : Window
         OpenExternallyButton.Visibility = Visibility.Visible;
         SummaryText.Text =
             "Could not display this PDF in the light preview. Open in Netie Space (PDFSpace) to edit, or use the OS default from File Explorer.";
+    }
+
+    private void OpenInAppButton_Click(object sender, RoutedEventArgs e)
+    {
+        var path = _currentFilePath;
+        var app = _content is null ? null : Apps.Shell.PeekBridge.ForKind(_content.Kind.ToString());
+        if (app is null || string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
+            return;
+
+        try
+        {
+            var exe = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(exe))
+                throw new InvalidOperationException("the running program path is unknown");
+            var start = new ProcessStartInfo(exe) { UseShellExecute = false };
+            foreach (var arg in Apps.Shell.PeekBridge.Arguments(app, path))
+                start.ArgumentList.Add(arg);
+            Process.Start(start);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"open in {app.DisplayName} failed: {ex.Message}");
+            ConvertStatusText.Text = $"Could not open {app.DisplayName}: {ex.Message}";
+        }
     }
 
     private void OpenExternallyButton_Click(object sender, RoutedEventArgs e)
