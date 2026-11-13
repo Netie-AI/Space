@@ -28,6 +28,7 @@ public partial class AppShell : UserControl
         Home.PendingCleared += () => SelectFile(null);
         Home.SearchChanged += _ => RefreshHome();
         Home.FileDropped += path => SelectFile(path);
+        ToolPage.BackRequested += () => ShowHome(null);
     }
 
     public string? SelectedFile { get; private set; }

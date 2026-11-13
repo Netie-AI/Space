@@ -13,7 +13,11 @@ public partial class HomeView : UserControl
     {
         InitializeComponent();
         ClearPendingButton.Click += (_, _) => PendingCleared?.Invoke();
-        SearchBox.TextChanged += (_, _) => SearchChanged?.Invoke(SearchBox.Text);
+        SearchBox.TextChanged += (_, _) =>
+        {
+            SearchHint.Visibility = SearchBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            SearchChanged?.Invoke(SearchBox.Text);
+        };
         AllowDrop = true;
         DragOver += OnDragOver;
         Drop += OnDrop;
@@ -73,9 +77,10 @@ public partial class HomeView : UserControl
         LoadingText.Visibility = Visibility.Collapsed;
         SetPending(pending);
 
-        RecentSection.Visibility = category is null && !searching ? Visibility.Visible : Visibility.Collapsed;
+        // No heading over nothing: the section appears with the first recent file.
+        RecentSection.Visibility = category is null && !searching && recent.Count > 0
+            ? Visibility.Visible : Visibility.Collapsed;
         RecentRows.Children.Clear();
-        RecentEmpty.Visibility = recent.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         foreach (var r in recent)
             RecentRows.Children.Add(RecentRow(r));
 
@@ -175,19 +180,19 @@ public partial class HomeView : UserControl
         {
             Width = 36,
             Height = 36,
-            CornerRadius = new CornerRadius(6),
+            CornerRadius = new CornerRadius(8),
             Background = (Brush)FindResource(tile.Available ? "ShellAccentTint" : "ShellHover"),
-            VerticalAlignment = VerticalAlignment.Top,
+            VerticalAlignment = VerticalAlignment.Center,
             Child = GlyphPath(tile),
         };
 
-        var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0) };
-        text.Children.Add(new TextBlock { Text = tile.Name, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+        // The name says what the tool does; a second line appears only to say why it cannot run.
+        var text = new StackPanel { Margin = new Thickness(12, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
         text.Children.Add(new TextBlock
         {
-            Text = tile.Verb,
-            Style = (Style)FindResource("ShellMutedText"),
-            Margin = new Thickness(0, 2, 0, 0),
+            Text = tile.Name,
+            FontWeight = FontWeights.SemiBold,
+            TextTrimming = TextTrimming.CharacterEllipsis,
         });
         if (tile.ReasonLine is not null)
         {
@@ -195,8 +200,10 @@ public partial class HomeView : UserControl
             {
                 Text = tile.ReasonLine,
                 Style = (Style)FindResource("ShellMutedText"),
-                FontStyle = FontStyles.Italic,
-                Margin = new Thickness(0, 6, 0, 0),
+                FontSize = 11.5,
+                TextWrapping = TextWrapping.NoWrap,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Margin = new Thickness(0, 3, 0, 0),
             });
         }
 
@@ -212,8 +219,9 @@ public partial class HomeView : UserControl
         {
             Content = row,
             Style = (Style)FindResource("ShellTile"),
-            Opacity = tile.Available ? 1.0 : 0.6,
-            VerticalContentAlignment = VerticalAlignment.Top,
+            Opacity = tile.Available ? 1.0 : 0.62,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            ToolTip = tile.ReasonLine is null ? tile.Name : tile.Name + ": " + tile.ReasonLine,
         };
         var id = tile.ToolId;
         button.Click += (_, _) => ToolPicked?.Invoke(id);

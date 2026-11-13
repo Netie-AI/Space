@@ -32,11 +32,16 @@ public partial class ToolPageView : UserControl
         ActionButton.Click += async (_, _) => await RunAsync();
         OpenButton.Click += (_, _) => OpenOutput();
         ShowButton.Click += (_, _) => ShowOutput();
+        BackButton.Click += (_, _) => BackRequested?.Invoke();
         DropZone.DragOver += OnDragOver;
         DropZone.Drop += OnDrop;
         ChangeFolderButton.Click += (_, _) => ChangeFolder();
         CancelButton.Click += (_, _) => _queue?.Cancel();
     }
+
+    /// <summary>The page has no chrome of its own to leave by; the shell decides where back goes.</summary>
+    public event Action? BackRequested;
+    private string _outFolder = "";
 
     public void Load(RegisteredTool tool, RecentFiles recent, string? pendingFile, AppIdentity app, ToolStateStore state)
     {
@@ -174,6 +179,7 @@ public partial class ToolPageView : UserControl
         }
 
         NoFilesText.Visibility = files.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        BrowseButton.HorizontalAlignment = files.Count == 0 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
         RefreshAction();
     }
 
@@ -183,7 +189,10 @@ public partial class ToolPageView : UserControl
         var check = _model.ValidateFiles(_files);
         FilesMessage.Text = check.Message ?? "";
         FilesMessage.Visibility = !check.Ok && _files.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-        OutFolderText.Text = OutputFolder.Resolve(_app!, _files, _chosenOut);
+        // Before a file is chosen the folder is not known yet; show the name it will carry.
+        var folder = OutputFolder.Resolve(_app!, _files, _chosenOut);
+        _outFolder = folder;
+        OutFolderText.Text = string.IsNullOrWhiteSpace(folder) ? _app!.DisplayName : folder;
         OutFolderText.ToolTip = OutFolderText.Text;
         ActionButton.IsEnabled = _model.ActionEnabled(_files) && !_running;
     }
@@ -191,7 +200,7 @@ public partial class ToolPageView : UserControl
     private void ChangeFolder()
     {
         var dlg = new OpenFolderDialog();
-        var current = OutFolderText.Text;
+        var current = _outFolder;
         if (!string.IsNullOrWhiteSpace(current) && IoDirectory.Exists(current))
             dlg.InitialDirectory = current;
         if (dlg.ShowDialog() == true && !string.IsNullOrWhiteSpace(dlg.FolderName))

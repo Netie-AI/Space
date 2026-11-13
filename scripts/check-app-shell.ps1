@@ -50,7 +50,7 @@ foreach ($app in @("pdf", "image", "video")) {
 }
 
 # 2. Tool page snapshot, available and unavailable.
-foreach ($view in @("pdf-extract-text", "pdf-to-pdfa")) {
+foreach ($view in @("pdf-extract-text", "pdf-to-pdfa", "pdf-watermark", "pdf-split")) {
     $png = Join-Path $Out "$view.png"
     $r = Invoke-App @("--app", "pdf", "--snapshot", $png, "--view", $view)
     $size = 0

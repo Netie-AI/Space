@@ -141,11 +141,12 @@
     <!-- Tool tile on the home grid -->
     <Style x:Key="ShellTile" TargetType="Button" BasedOn="{StaticResource ShellButton}">
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Padding" Value="12"/>
         <Setter Property="Margin" Value="0,0,12,12"/>
         <Setter Property="FontWeight" Value="Normal"/>
-        <Setter Property="Width" Value="236"/>
-        <Setter Property="MinHeight" Value="104"/>
+        <!-- 232 + 12 gap: four across the content column of a 1280 wide window. -->
+        <Setter Property="Width" Value="232"/>
+        <Setter Property="MinHeight" Value="64"/>
     </Style>
 
     <!-- Text input -->
