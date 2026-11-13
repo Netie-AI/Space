@@ -121,7 +121,9 @@ internal static class ShellProps
     public static void SetString(IPropertyStore store, uint pid, string value)
     {
         var key = new PropertyKey(AppRegistration.AppUserModelFormatId, pid);
-        InitPropVariantFromString(value, out var variant);
+        // InitPropVariantFromString is an inline helper in the Windows headers, not an export of
+        // propsys.dll, so the VT_LPWSTR variant is built by hand. PropVariantClear frees the string.
+        var variant = new PropVariant { Vt = VtLpwstr, Data1 = Marshal.StringToCoTaskMemUni(value) };
         try
         {
             store.SetValue(ref key, ref variant);
@@ -132,8 +134,7 @@ internal static class ShellProps
         }
     }
 
-    [DllImport("propsys.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    private static extern void InitPropVariantFromString(string psz, out PropVariant ppropvar);
+    private const ushort VtLpwstr = 31;
 
     [DllImport("ole32.dll")]
     private static extern int PropVariantClear(ref PropVariant pvar);
