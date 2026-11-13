@@ -199,7 +199,7 @@ internal static class PdfToExcelTool
 
     private static bool IsExactNumber(string t)
     {
-        if (!Plain.IsMatch(t)) return false;
+        if (!Plain.IsMatch(t) || t == "-0") return false;
         if (t.Count(char.IsDigit) > 15) return false;
         return double.Parse(t, CultureInfo.InvariantCulture).ToString("R", CultureInfo.InvariantCulture) == t;
     }

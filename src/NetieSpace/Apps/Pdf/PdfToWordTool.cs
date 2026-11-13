@@ -64,7 +64,7 @@ internal static class PdfToWordTool
                 blocks.AddRange(Paragraphs(lines, body));
                 if (withImages) blocks.AddRange(Pictures(page));
                 var w = page.Width; var h = page.Height;
-                if (page.Rotation.Value is 90 or 270) (w, h) = (h, w);
+                // PdfPig already reports width and height as displayed (swapped for /Rotate 90 and 270).
                 pages.Add((w, h, blocks.OrderByDescending(b => b.Top).ToList()));
             }
         }

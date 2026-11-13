@@ -238,7 +238,9 @@ internal static class PdfCompressTool
         using var sha = SHA256.Create();
         var hash = Convert.ToHexString(sha.ComputeHash(img.Stream.Value));
         string K(string key) => img.Elements.ContainsKey(key) ? img.Elements[key].ToString() ?? "" : "";
-        return string.Join("|", hash, K("/Width"), K("/Height"), K("/ColorSpace"), K("/BitsPerComponent"), K("/Filter"), K("/DecodeParms"), K("/Decode"));
+        // Every other entry (Interpolate, OC layer, Intent, Metadata ...) must match too, or merging changes what is shown.
+        var rest = img.Elements.Keys.Where(k => k != "/Length").OrderBy(k => k, StringComparer.Ordinal).Select(k => k + "=" + K(k));
+        return string.Join("|", hash, string.Join(",", rest));
     }
 
     // ----- image recoding -----
