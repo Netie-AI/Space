@@ -26,7 +26,7 @@
    the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
    Windows run by a different session before #306 closes. Window is a skeleton until #310.
 7. **Tools (#308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **60 have a runner**
-   (20 pdf, 11 image, 29 video), 31 honestly unavailable. 912 xunit
+   (21 pdf, 11 image, 28 video), 31 honestly unavailable. 912 xunit
    on Linux. Windows CI runs the exe over 22 tools (`scripts/check-app-shell.ps1`).
    OCR and text to speech need a language pack / voice on the PC and fail naming it.
 8. **App shell (S50-E1-b #310)** -- home, tool grid, tool page, `--snapshot`. Models under

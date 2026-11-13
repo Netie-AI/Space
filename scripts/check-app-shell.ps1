@@ -103,7 +103,7 @@ $deadOut = Join-Path $Out "pdfa"
 $r = Invoke-App @("--tool", "pdf-to-pdfa", "--in", $pdfIn, "--out", $deadOut)
 Check "tool unavailable" (($r.Code -eq 2) -and -not (Test-Path $deadOut)) "exit=$($r.Code) $($r.Err)"
 
-# 8. Built tools are reported available (20 pdf, 11 image, 29 video).
+# 8. Built tools are reported available (21 pdf, 11 image, 28 video).
 Check "built tools available" ($avail -ge 60) "available=$avail (expect at least 60; fewer means an engine probe failed on this PC)"
 
 function Invoke-Tool([string]$Id, [string[]]$Inputs, [string[]]$Extra = @()) {
