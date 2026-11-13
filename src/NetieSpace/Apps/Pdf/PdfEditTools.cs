@@ -37,6 +37,8 @@ internal static class PdfEditTools
                 using var doc = OpenModify(input);
                 var targets = ParsePages(spec, doc.PageCount, "pages");
                 var touched = 0;
+                var boxes = Enumerable.Range(0, doc.PageCount)
+                    .Select(i => (Media: doc.Pages[i].MediaBox, Crop: doc.Pages[i].CropBox)).ToList();
                 foreach (var p in targets.Distinct())
                 {
                     var page = doc.Pages[p - 1];
@@ -44,18 +46,40 @@ internal static class PdfEditTools
                     var portrait = h >= w;
                     if (filter == "portrait" && !portrait) continue;
                     if (filter == "landscape" && portrait) continue;
-                    page.Rotate = (((page.Rotate + delta) % 360) + 360) % 360;
+                    SetRotate(page, (((page.Rotate + delta) % 360) + 360) % 360);
                     touched++;
                 }
                 if (touched == 0)
                     throw new InvalidOperationException($"{IoPath.GetFileName(input)}: no page matched pages '{spec}' with filter '{filter}'");
                 var path = names.Next(Stem(input) + "_rotated", ".pdf");
                 doc.Save(path);
+                VerifyBoxes(path, boxes, input);
                 outputs.Add(path);
                 Report(progress, f + 1, req.Files.Count, "rotated " + IoPath.GetFileName(input));
             }
             return outputs;
         });
+
+    /// <summary>Reads the saved file back and refuses it (deleting it) when a page box differs from the input's.</summary>
+    private static void VerifyBoxes(string output, List<(PdfRectangle Media, PdfRectangle Crop)> expected, string input)
+    {
+        static bool Same(PdfRectangle a, PdfRectangle b) =>
+            Math.Abs(a.X1 - b.X1) < 0.5 && Math.Abs(a.Y1 - b.Y1) < 0.5 && Math.Abs(a.Width - b.Width) < 0.5 && Math.Abs(a.Height - b.Height) < 0.5;
+        string? problem = null;
+        using (var back = OpenImport(output))
+        {
+            if (back.PageCount != expected.Count) problem = "the page count changed";
+            else
+                for (var i = 0; i < expected.Count && problem is null; i++)
+                {
+                    if (!Same(back.Pages[i].MediaBox, expected[i].Media)) problem = $"page {i + 1} changed size";
+                    else if (!expected[i].Crop.IsEmpty && !Same(back.Pages[i].CropBox, expected[i].Crop)) problem = $"page {i + 1} changed its crop area";
+                }
+        }
+        if (problem is null) return;
+        try { IoFile.Delete(output); } catch (IOException) { }
+        throw new InvalidOperationException($"cannot rotate {IoPath.GetFileName(input)}: {problem} while rotating, so the result was discarded");
+    }
 
     // ----- pdf-page-numbers -----
 

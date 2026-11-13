@@ -127,6 +127,42 @@ internal static class PdfToolSupport
         return doc;
     }
 
+    /// <summary>
+    /// Carries the descriptive document fields (title, author, subject, keywords) from <paramref name="from"/> to a
+    /// document built page by page, so a split, merge or extract does not silently drop the title.
+    /// </summary>
+    public static void CopyInfo(PdfDocument from, PdfDocument to)
+    {
+        var i = from.Info;
+        if (!string.IsNullOrEmpty(i.Title)) to.Info.Title = i.Title;
+        if (!string.IsNullOrEmpty(i.Author)) to.Info.Author = i.Author;
+        if (!string.IsNullOrEmpty(i.Subject)) to.Info.Subject = i.Subject;
+        if (!string.IsNullOrEmpty(i.Keywords)) to.Info.Keywords = i.Keywords;
+    }
+
+    private static PdfRectangle Transposed(PdfRectangle r) =>
+        new(new XPoint(r.X1, r.Y1), new XPoint(r.X1 + r.Height, r.Y1 + r.Width));
+
+    /// <summary>
+    /// Sets /Rotate on a page opened for editing so that the page boxes written to the file stay as they were. When a
+    /// page that carries a quarter turn (90 or 270) is saved with a half turn or none, this engine writes its boxes
+    /// transposed, which clips the content; handing it the transposed boxes up front cancels that out. The caller
+    /// still reads the result back (see <see cref="PdfEditTools"/>).
+    /// </summary>
+    public static void SetRotate(PdfPage page, int degrees)
+    {
+        var wasQuarter = ((page.Rotate % 360) + 360) % 360 % 180 != 0;
+        var willBeQuarter = degrees % 180 != 0;
+        var media = page.MediaBox;
+        var crop = page.CropBox;
+        page.Rotate = degrees;
+        if (wasQuarter && !willBeQuarter)
+        {
+            page.MediaBox = Transposed(media);
+            if (!crop.IsEmpty) page.CropBox = Transposed(crop);
+        }
+    }
+
     public static string Stem(string path) => IoPath.GetFileNameWithoutExtension(path);
 
     /// <summary>

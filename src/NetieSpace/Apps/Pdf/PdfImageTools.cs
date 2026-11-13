@@ -91,6 +91,13 @@ internal static class PdfImageTools
             // 96 pixels per inch -> points, so a photo does not become a billboard.
             pw = iw * 0.75 + margin * 2;
             ph = ih * 0.75 + margin * 2;
+            // A PDF page is only valid between 3 and 14400 points a side: a 1 x 1 picture or a 20000 pixel
+            // banner would otherwise give a page no viewer will open. Scale the page (the picture follows it).
+            var grow = Math.Max(1.0, 3.0 / Math.Min(pw, ph));
+            var shrink = Math.Min(1.0, 14400.0 / Math.Max(pw, ph));
+            pw *= grow * shrink; ph *= grow * shrink;
+            if (pw < 3 - 1e-6 || ph < 3 - 1e-6 || pw > 14400 + 1e-6 || ph > 14400 + 1e-6)
+                throw new InvalidOperationException($"{IoPath.GetFileName(file)} is {iw} x {ih} pixels, too elongated to make a PDF page; use pagesize A4 or letter");
         }
         else
         {

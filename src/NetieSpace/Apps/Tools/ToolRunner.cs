@@ -37,33 +37,90 @@ public static class ToolRunner
             return Fail(ToolOutcome.Invalid, invalid);
 
         IReadOnlyList<string> claimed;
+        HashSet<string>? existing = null;
         try
         {
             IoDirectory.CreateDirectory(request.OutDir);
-            claimed = await tool.Runner(resolved, progress, ct).ConfigureAwait(false);
+            existing = Snapshot(request.OutDir);
+            // 100 means done and only this method says so, after every claimed output has been checked.
+            claimed = await tool.Runner(resolved, progress is null ? null : new Capped(progress), ct).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
+            RemoveNew(request.OutDir, existing);
             return Fail(ToolOutcome.Failed, "cancelled");
         }
         catch (Exception ex)
         {
+            RemoveNew(request.OutDir, existing);
             return Fail(ToolOutcome.Failed, ex.GetType().Name + ": " + ex.Message);
         }
 
         if (claimed is null || claimed.Count == 0)
+        {
+            RemoveNew(request.OutDir, existing);
             return Fail(ToolOutcome.Failed, "runner reported no output files");
+        }
 
         foreach (var path in claimed)
         {
+            string? problem = null;
             if (string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
-                return Fail(ToolOutcome.Failed, "claimed output is missing: " + path, null, claimed);
-            if (new System.IO.FileInfo(path).Length == 0)
-                return Fail(ToolOutcome.Failed, "claimed output is zero bytes: " + path, null, claimed);
+                problem = "claimed output is missing: " + path;
+            else if (new System.IO.FileInfo(path).Length == 0)
+                problem = "claimed output is zero bytes: " + path;
+            if (problem is not null)
+            {
+                RemoveNew(request.OutDir, existing);
+                return Fail(ToolOutcome.Failed, problem, null, claimed);
+            }
         }
 
         progress?.Report(new ToolProgress(100, "done"));
         return new ToolResult(true, ToolOutcome.Ok, entry.Id, engine, claimed, null, null, sw.ElapsedMilliseconds);
+    }
+
+    /// <summary>Holds a runner's own progress below 100 so that only a verified success reports done.</summary>
+    private sealed class Capped : IProgress<ToolProgress>
+    {
+        private readonly IProgress<ToolProgress> _inner;
+        public Capped(IProgress<ToolProgress> inner) { _inner = inner; }
+        public void Report(ToolProgress value) =>
+            _inner.Report(value.Percent > 99 ? value with { Percent = 99 } : value);
+    }
+
+    private static HashSet<string> Snapshot(string outDir)
+    {
+        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            foreach (var e in System.IO.Directory.EnumerateFileSystemEntries(outDir)) set.Add(e);
+        }
+        catch (Exception) { /* an unreadable folder is left alone */ }
+        return set;
+    }
+
+    /// <summary>
+    /// A failed run leaves nothing behind: every top-level file or folder that was not in the output folder before the
+    /// run started is removed (a half-written result, or the finished outputs of the earlier files of a batch).
+    /// </summary>
+    private static void RemoveNew(string outDir, HashSet<string>? before)
+    {
+        if (before is null) return;
+        try
+        {
+            foreach (var e in System.IO.Directory.EnumerateFileSystemEntries(outDir).ToList())
+            {
+                if (before.Contains(e)) continue;
+                try
+                {
+                    if (System.IO.Directory.Exists(e)) System.IO.Directory.Delete(e, true);
+                    else System.IO.File.Delete(e);
+                }
+                catch (Exception) { /* best effort: a file still held open is not worth masking the real error */ }
+            }
+        }
+        catch (Exception) { /* ignore */ }
     }
 
     /// <summary>Returns an error message naming the offending file or option key, or null when valid.</summary>

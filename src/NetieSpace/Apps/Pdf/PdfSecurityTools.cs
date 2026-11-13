@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NetieSpace.Apps.Tools;
@@ -46,6 +47,7 @@ internal static class PdfSecurityTools
                 s.PermitAssembleDocument = allowModify;
                 s.PermitAnnotations = allowAnnotate;
                 s.PermitFormsFill = allowAnnotate;
+                RefreshInfoStrings(doc);
                 var path = names.Next(Stem(input) + "_protected", ".pdf");
                 doc.Save(path);
                 Verify("protect", input, "", path, user, "The protected copy was discarded.");
@@ -54,6 +56,27 @@ internal static class PdfSecurityTools
             }
             return outputs;
         });
+
+    /// <summary>
+    /// This engine writes a string it holds as UTF-16 (which is what its Title, Author and Creator setters make) in
+    /// the clear even in a protected file, so every other viewer decrypts it into noise and shows a garbled title.
+    /// A string held in PDFDocEncoding is encrypted correctly, so the descriptive fields are written that way.
+    /// Characters outside Latin-1 cannot be written that way and become '?' rather than noise.
+    /// </summary>
+    private static void RefreshInfoStrings(PdfSharpCore.Pdf.PdfDocument doc)
+    {
+        var i = doc.Info;
+        void Put(string key, string? value)
+        {
+            var safe = new string((value ?? "").Select(c => (c >= ' ' && c <= '~') || (c >= '\u00A1' && c <= '\u00FF') ? c : '?').ToArray());
+            i.Elements[key] = new PdfSharpCore.Pdf.PdfString(safe, PdfSharpCore.Pdf.PdfStringEncoding.PDFDocEncoding);
+        }
+        Put("/Title", i.Title);
+        Put("/Author", i.Author);
+        Put("/Subject", i.Subject);
+        Put("/Keywords", i.Keywords);
+        Put("/Creator", i.Creator);
+    }
 
     public static Task<IReadOnlyList<string>> UnlockAsync(ToolRequest req, IProgress<ToolProgress>? progress, CancellationToken ct) =>
         Work(ct, () =>

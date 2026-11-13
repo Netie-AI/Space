@@ -12,9 +12,13 @@ using NetieSpace.Apps.Tools;
 
 namespace NetieSpace.Apps.Video;
 
-/// <summary>What ffprobe says about one input.</summary>
+/// <summary>
+/// What ffprobe says about one input. Width and Height are the size of the frames the filters see, that is the picture
+/// as displayed: a phone clip stored landscape with a 90 degree rotation tag is reported portrait, because FFmpeg turns
+/// it upright before any filter runs. Sar is the pixel aspect ratio of those frames (1 for square pixels).
+/// </summary>
 internal sealed record VideoInfo(
-    double Duration, bool HasVideo, bool HasAudio, int Width, int Height, double Fps, string VideoCodec);
+    double Duration, bool HasVideo, bool HasAudio, int Width, int Height, double Fps, string VideoCodec, double Sar = 1.0);
 
 /// <summary>
 /// Out-of-process FFmpeg plumbing for the video tools. Every call uses an argument list, never a shell
@@ -91,6 +95,7 @@ internal static class VideoFfmpeg
         int w = 0, h = 0;
         double fps = 0;
         var codec = "";
+        var sar = 1.0;
         if (root.TryGetProperty("streams", out var streams))
             foreach (var s in streams.EnumerateArray())
             {
@@ -105,10 +110,31 @@ internal static class VideoFfmpeg
                     h = s.TryGetProperty("height", out var hh) ? hh.GetInt32() : 0;
                     codec = s.TryGetProperty("codec_name", out var cn) ? cn.GetString() ?? "" : "";
                     if (s.TryGetProperty("avg_frame_rate", out var fr)) fps = ParseRate(fr.GetString());
+                    if (s.TryGetProperty("sample_aspect_ratio", out var sr) && sr.GetString() is string srText && srText.Contains(':'))
+                    {
+                        var sp = srText.Split(':');
+                        if (double.TryParse(sp[0], NumberStyles.Float, CultureInfo.InvariantCulture, out var sn)
+                            && double.TryParse(sp[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var sd2) && sn > 0 && sd2 > 0)
+                            sar = sn / sd2;
+                    }
+                    if (QuarterTurn(s)) (w, h) = (h, w);
                     if (dur <= 0 && s.TryGetProperty("duration", out var sd)) dur = ParseDouble(sd);
                 }
             }
-        return new VideoInfo(dur, hasV, hasA, w, h, fps, codec);
+        return new VideoInfo(dur, hasV, hasA, w, h, fps, codec, sar);
+    }
+
+    /// <summary>True when the stream carries a display rotation of 90 or 270 degrees (display matrix or the older rotate tag).</summary>
+    private static bool QuarterTurn(JsonElement stream)
+    {
+        double deg = 0;
+        if (stream.TryGetProperty("side_data_list", out var list) && list.ValueKind == JsonValueKind.Array)
+            foreach (var sd in list.EnumerateArray())
+                if (sd.TryGetProperty("rotation", out var r)) deg = ParseDouble(r);
+        if (deg == 0 && stream.TryGetProperty("tags", out var tags) && tags.TryGetProperty("rotate", out var tr))
+            deg = ParseDouble(tr);
+        var quarter = ((Math.Round(deg) % 180) + 180) % 180;
+        return quarter == 90;
     }
 
     private static double ParseDouble(JsonElement e)
@@ -289,7 +315,14 @@ internal static class VideoFfmpeg
     public static string[] Vf(params string[] filters) =>
         new[] { "-vf", string.Join(",", filters.Concat(new[] { EvenScale })) };
 
-    public static readonly string[] Maps = { "-map", "0:v:0", "-map", "0:a:0?" };
+    /// <summary>The first video stream and every audio stream: a tool that is not about the sound keeps all the tracks.</summary>
+    public static readonly string[] Maps = { "-map", "0:v:0", "-map", "0:a?" };
+
+    /// <summary>
+    /// Makes pixels square by widening (or heightening) the frame to its displayed shape, so a size or aspect
+    /// computed afterwards is the shape a viewer sees. A no-op for the usual square-pixel video.
+    /// </summary>
+    public const string SquarePixels = "scale='if(gte(sar,1),iw*sar,iw)':'if(lt(sar,1),ih/sar,ih)',setsar=1";
 
     /// <summary>Containers where video can be stream-copied while the audio is re-encoded to AAC.</summary>
     public static bool CopyOk(string inputPath) =>

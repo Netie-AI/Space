@@ -273,7 +273,7 @@ public sealed partial class VideoToolProvider
         var a = new List<string> { "-i", video };
         if (W2Is(image, new[] { ".gif" })) a.AddRange(new[] { "-ignore_loop", "0", "-i", image });
         else a.AddRange(new[] { "-loop", "1", "-framerate", Num(fps), "-i", image });
-        a.AddRange(new[] { "-filter_complex", graph, "-map", "[v]", "-map", "0:a:0?" });
+        a.AddRange(new[] { "-filter_complex", graph, "-map", "[v]", "-map", "0:a?" });
         a.AddRange(Encode(IsWebM(video)));
         a.AddRange(new[] { "-t", Num(info.Duration) });
 
@@ -692,7 +692,7 @@ public sealed partial class VideoToolProvider
             if (speed != 100) chain.Add("setpts=PTS*100/" + speed.ToString(CultureInfo.InvariantCulture));
             chain.Add("fps=" + fps.ToString(CultureInfo.InvariantCulture));
             if (width > 0) chain.Add("scale=" + width.ToString(CultureInfo.InvariantCulture) + ":-1:flags=lanczos");
-            var graph = "[0:v:0]" + string.Join(",", chain) + ",split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
+            var graph = "[0:v:0]" + SquarePixels + "," + string.Join(",", chain) + ",split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
             var a = new List<string>();
             if (start > 0) a.AddRange(new[] { "-ss", Num(start) });
             a.AddRange(new[] { "-t", Num(len), "-i", input, "-filter_complex", graph, "-map", "[g]", "-an", "-loop", "0" });

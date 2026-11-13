@@ -203,8 +203,10 @@ public sealed partial class VideoToolProvider : IToolProvider
 
         var inputs = r.Files.Select(Full).ToList();
         var infos = inputs.Select(RequireVideo).ToList();
-        var w = infos[0].Width / 2 * 2;
-        var h = infos[0].Height / 2 * 2;
+        // The canvas is the first clip as displayed: rotation tags are already applied in Width and Height, pixel shape here.
+        var sar0 = infos[0].Sar;
+        var w = (int)Math.Round(infos[0].Width * Math.Max(1.0, sar0)) / 2 * 2;
+        var h = (int)Math.Round(infos[0].Height / Math.Min(1.0, sar0)) / 2 * 2;
         if (w < 2 || h < 2) throw new InvalidOperationException("first video has no usable frame size");
         var fps = infos[0].Fps >= 1 && infos[0].Fps <= 120 ? infos[0].Fps : 30;
         var anyAudio = infos.Any(i => i.HasAudio);
@@ -215,7 +217,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         var concatIn = new System.Text.StringBuilder();
         for (var i = 0; i < inputs.Count; i++)
         {
-            g.Add($"[{i}:v:0]scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={Num(fps)},format=yuv420p[v{i}]");
+            g.Add($"[{i}:v:0]{SquarePixels},scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={Num(fps)},format=yuv420p[v{i}]");
             concatIn.Append($"[v{i}]");
             if (anyAudio)
             {
@@ -370,7 +372,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         {
             var a = new List<string> { "-i", input };
             a.AddRange(Maps);
-            a.AddRange(Vf(filters));
+            a.AddRange(Vf(new[] { SquarePixels }.Concat(filters).ToArray()));
             a.AddRange(Encode(IsWebM(input)));
             return new Plan(a, info.Duration);
         });
@@ -452,7 +454,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         {
             var a = new List<string> { "-i", input, "-map", "0:v:0" };
             var keep = audio == "keep" && info.HasAudio;
-            if (keep) a.AddRange(new[] { "-map", "0:a:0" });
+            if (keep) a.AddRange(new[] { "-map", "0:a" });
             a.AddRange(Vf("setpts=PTS*100/" + speed));
             if (keep) a.AddRange(new[] { "-af", AtempoChain(speed / 100.0) });
             else a.Add("-an");
@@ -512,7 +514,7 @@ public sealed partial class VideoToolProvider : IToolProvider
             var a = new List<string> { "-i", input };
             if (CopyOk(input))
             {
-                a.AddRange(new[] { "-map", "0:v:0", "-map", "0:a:0", "-c:v", "copy", "-af", "volume=" + vol, "-c:a", "aac", "-b:a", "160k" });
+                a.AddRange(new[] { "-map", "0:v:0", "-map", "0:a", "-c:v", "copy", "-af", "volume=" + vol, "-c:a", "aac", "-b:a", "160k" });
             }
             else
             {
@@ -537,7 +539,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         var a = new List<string>();
         if (start > 0) a.AddRange(new[] { "-ss", Num(start) });
         a.AddRange(new[] { "-t", Num(len), "-i", input });
-        var graph = $"[0:v:0]fps={fps},scale=min({width}\\,iw):-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
+        var graph = $"[0:v:0]{SquarePixels},fps={fps},scale=min({width}\\,iw):-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
         a.AddRange(new[] { "-filter_complex", graph, "-map", "[g]", "-an", "-loop", "0" });
         return new Plan(a, len);
     }
