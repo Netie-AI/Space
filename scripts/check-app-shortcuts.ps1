@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Independent reader for the Netie PDF / Image / Video Start Menu shortcuts.
+  Independent reader for the Netie PDF / Image / Video / MD Start Menu shortcuts.
 .DESCRIPTION
   Reads each .lnk back through its own COM interop (IShellLinkW, IPersistFile, IPropertyStore;
   read path only, no code shared with NetieSpace.exe) and prints one line per shortcut:
@@ -156,7 +156,8 @@ if (-not ('NetieCheck.Reader' -as [type])) {
 $expected = @(
     @{ File = 'Netie PDF.lnk';   Aumid = 'Netie.Pdf';   Args = '--app pdf';   Icon = 'netie-pdf.ico' },
     @{ File = 'Netie Image.lnk'; Aumid = 'Netie.Image'; Args = '--app image'; Icon = 'netie-image.ico' },
-    @{ File = 'Netie Video.lnk'; Aumid = 'Netie.Video'; Args = '--app video'; Icon = 'netie-video.ico' }
+    @{ File = 'Netie Video.lnk'; Aumid = 'Netie.Video'; Args = '--app video'; Icon = 'netie-video.ico' },
+    @{ File = 'Netie MD.lnk';    Aumid = 'Netie.Md';    Args = '--app md';    Icon = 'netie-md.ico' }
 )
 
 $failed = 0

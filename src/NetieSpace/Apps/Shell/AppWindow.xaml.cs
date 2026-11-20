@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
+using NetieSpace.Apps.Md.WinRt;
 using NetieSpace.Apps.Tools;
 using NetieSpace.Helpers;
 
@@ -12,6 +13,7 @@ namespace NetieSpace.Apps.Shell;
 public partial class AppWindow : Window
 {
     private readonly AppIdentity _identity;
+    private readonly MdView? _md;
 
     public AppWindow(AppIdentity identity, string? openPath)
     {
@@ -22,13 +24,37 @@ public partial class AppWindow : Window
         // Before the window is shown, so a taskbar pin relaunches this app and not Netie Space.
         SourceInitialized += (_, _) =>
             AppRelaunch.Apply(new System.Windows.Interop.WindowInteropHelper(this).Handle, _identity);
+        if (identity.IsMarkdown)
+        {
+            // Netie MD hosts a web page instead of the tool shell.
+            _md = new MdView(new MdMarkdigEngine(), MdTheme.Load());
+            Content = _md;
+            _md.DocumentChanged += name => Title = name is null ? identity.DisplayName : name + " - " + identity.DisplayName;
+            Loaded += async (_, _) =>
+            {
+                if (!string.IsNullOrWhiteSpace(openPath))
+                    await _md.OpenAsync(openPath);
+            };
+            Closed += (_, _) => _md.Shutdown();
+            return;
+        }
+
         Shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), openPath);
         Loaded += async (_, _) => await LoadToolsAsync();
     }
 
-    public string? SelectedFile => Shell.SelectedFile;
+    public string? SelectedFile => _md is not null ? _md.CurrentPath : Shell.SelectedFile;
 
-    public void SelectFile(string? path) => Shell.SelectFile(path);
+    public void SelectFile(string? path)
+    {
+        if (_md is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(path))
+                _ = _md.OpenAsync(path);
+            return;
+        }
+        Shell.SelectFile(path);
+    }
 
     /// <summary>Availability probes can be slow: build the registry view off the UI thread.</summary>
     private async Task LoadToolsAsync()

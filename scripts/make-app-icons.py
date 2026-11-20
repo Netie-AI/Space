@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate the three Netie app icons (netie-pdf / netie-image / netie-video .ico).
+"""Generate the four Netie app icons (netie-pdf / netie-image / netie-video / netie-md .ico).
 
 Standard library only (zlib, struct). Deterministic: running it twice yields identical bytes.
 Each .ico holds 16, 24, 32, 48 and 256 px frames, every frame a PNG (32-bit RGBA).
-Original Netie marks: a folded page (PDF), a ridge with a sun (Image), a play wedge (Video),
+Original Netie marks: a folded page (PDF), a ridge with a sun (Image), a play wedge (Video), an M with an arrow (MD),
 white on a rounded square in a per-app accent.
 
 Usage: python3 scripts/make-app-icons.py [out_dir]
@@ -23,6 +23,7 @@ ACCENTS = {
     "pdf": ((236, 112, 98), (196, 70, 66)),
     "image": ((94, 196, 184), (52, 150, 148)),
     "video": ((150, 134, 236), (104, 92, 200)),
+    "md": ((244, 178, 84), (222, 134, 52)),
 }
 WHITE = (255, 255, 255)
 
@@ -72,7 +73,17 @@ def mark_video(x, y):
     return 1 if in_poly(x, y, [(0.37, 0.27), (0.37, 0.73), (0.73, 0.50)]) else 0
 
 
-MARKS = {"pdf": mark_pdf, "image": mark_image, "video": mark_video}
+def mark_md(x, y):
+    """A letter M with a down arrow under it: the Markdown mark, white on the accent."""
+    letter = [(0.22, 0.60), (0.22, 0.26), (0.32, 0.26), (0.50, 0.46), (0.68, 0.26),
+              (0.78, 0.26), (0.78, 0.60), (0.68, 0.60), (0.68, 0.42), (0.50, 0.62),
+              (0.32, 0.42), (0.32, 0.60)]
+    arrow = [(0.46, 0.66), (0.54, 0.66), (0.54, 0.72), (0.62, 0.72), (0.50, 0.84),
+             (0.38, 0.72), (0.46, 0.72)]
+    return 1 if in_poly(x, y, letter) or in_poly(x, y, arrow) else 0
+
+
+MARKS = {"pdf": mark_pdf, "image": mark_image, "video": mark_video, "md": mark_md}
 
 
 def render(app: str, size: int) -> bytes:

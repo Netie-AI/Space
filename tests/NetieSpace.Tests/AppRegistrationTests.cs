@@ -11,6 +11,7 @@ public class AppRegistrationTests
     [InlineData("pdf", "Netie PDF.lnk", "--app pdf", "Netie.Pdf", "netie-pdf.ico")]
     [InlineData("image", "Netie Image.lnk", "--app image", "Netie.Image", "netie-image.ico")]
     [InlineData("video", "Netie Video.lnk", "--app video", "Netie.Video", "netie-video.ico")]
+    [InlineData("md", "Netie MD.lnk", "--app md", "Netie.Md", "netie-md.ico")]
     public void Each_app_has_one_shortcut_with_its_arguments_aumid_and_icon(
         string key, string file, string args, string aumid, string icon)
     {
@@ -22,11 +23,11 @@ public class AppRegistrationTests
     }
 
     [Fact]
-    public void Exactly_three_shortcuts_with_distinct_names_and_aumids()
+    public void Exactly_four_shortcuts_with_distinct_names_and_aumids()
     {
-        Assert.Equal(3, AppRegistration.Specs.Count);
-        Assert.Equal(3, AppRegistration.Specs.Select(s => s.FileName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
-        Assert.Equal(3, AppRegistration.Specs.Select(s => s.Aumid).Distinct().Count());
+        Assert.Equal(4, AppRegistration.Specs.Count);
+        Assert.Equal(4, AppRegistration.Specs.Select(s => s.FileName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(4, AppRegistration.Specs.Select(s => s.Aumid).Distinct().Count());
         Assert.DoesNotContain(AppRegistration.Specs, s => s.FileName.Equals("Netie Space.lnk", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -114,6 +115,7 @@ public class AppRegistrationTests
     [InlineData("pdf")]
     [InlineData("image")]
     [InlineData("video")]
+    [InlineData("md")]
     public void Icon_is_a_real_ico_with_the_five_sizes_and_png_frames(string key)
     {
         var bytes = IoFile.ReadAllBytes(IoPath.Combine(IconDir(), $"netie-{key}.ico"));

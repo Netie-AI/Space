@@ -4,7 +4,7 @@ public enum AppLaunchKind
 {
     /// <summary>Not ours: the Space tray path handles these args as before.</summary>
     Space,
-    /// <summary>--app pdf|image|video, optional file.</summary>
+    /// <summary>--app pdf|image|video|md, optional file.</summary>
     App,
     /// <summary>--tool ... / --list-tools: headless tool CLI (S50-E2-a).</summary>
     ToolCli,
@@ -36,7 +36,7 @@ public sealed record AppLaunch(AppLaunchKind Kind, AppIdentity? Identity = null,
             var shown = string.IsNullOrWhiteSpace(value) ? "(none)" : value;
             return new AppLaunch(
                 AppLaunchKind.Invalid,
-                Error: $"Unknown --app value: {shown}. Expected pdf, image or video.");
+                Error: $"Unknown --app value: {shown}. Expected pdf, image, video or md.");
         }
 
         return new AppLaunch(AppLaunchKind.App, identity, ExtractOpenPath(args, appIndex));

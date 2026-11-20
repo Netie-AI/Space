@@ -27,14 +27,14 @@ def load_generator():
 
 def test_generator_is_deterministic_and_matches_the_committed_icons():
     gen = load_generator()
-    for app in ("pdf", "image", "video"):
+    for app in ("pdf", "image", "video", "md"):
         first = gen.build(app)
         assert first == gen.build(app), f"{app}: two runs differ"
         assert first == (ICONS / f"netie-{app}.ico").read_bytes(), f"{app}: committed icon is stale"
 
 
 def test_icons_have_the_five_sizes_and_png_frames():
-    for app in ("pdf", "image", "video"):
+    for app in ("pdf", "image", "video", "md"):
         data = (ICONS / f"netie-{app}.ico").read_bytes()
         reserved, kind, count = struct.unpack_from("<HHH", data, 0)
         assert (reserved, kind, count) == (0, 1, 5)
@@ -74,7 +74,7 @@ def test_scripts_are_ascii_and_wired_to_the_exe_switches():
     # Registration is handled before the app / Space dispatch (no mutex, no window).
     assert entry.index("AppRegistration.Parse(args)") < entry.index("AppLaunch.Parse(args)")
     reader = (ROOT / "scripts/check-app-shortcuts.ps1").read_text(encoding="utf-8")
-    for needle in ("Netie.Pdf", "Netie.Image", "Netie.Video", "--app pdf", "--app image", "--app video",
+    for needle in ("Netie.Pdf", "Netie.Image", "Netie.Video", "Netie.Md", "--app pdf", "--app image", "--app video", "--app md",
                    "9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3", "exit 1"):
         assert needle in reader, needle
 

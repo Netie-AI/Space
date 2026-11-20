@@ -27,7 +27,7 @@ public static class AppRegistration
     public const uint RelaunchIconResourcePid = 3;
     public const uint RelaunchDisplayNameResourcePid = 4;
 
-    public static IReadOnlyList<ShortcutSpec> Specs { get; } = AppIdentity.All.Select(ForIdentity).ToArray();
+    public static IReadOnlyList<ShortcutSpec> Specs { get; } = AppIdentity.Everything.Select(ForIdentity).ToArray();
 
     public static ShortcutSpec ForIdentity(AppIdentity identity) => new(
         identity.Key,
