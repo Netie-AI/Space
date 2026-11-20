@@ -124,6 +124,14 @@
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
+            <!-- Same fix as IconGhostButton (App.xaml): keep the app TextBlock style off the glyph. -->
+            <Style.Resources>
+                <Style TargetType="TextBlock">
+                    <Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+                    <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
+                </Style>
+            </Style.Resources>
         </Style>
         <Style x:Key="DocModeBtn" TargetType="Button">
             <Setter Property="Padding" Value="10,6"/>

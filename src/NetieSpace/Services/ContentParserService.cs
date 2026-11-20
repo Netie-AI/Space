@@ -438,7 +438,7 @@ public sealed class ContentParserService
         using var document = PdfDocument.Open(filePath);
         foreach (var page in document.GetPages())
         {
-            sb.AppendLine(page.Text);
+            sb.AppendLine(NetieSpace.Apps.Pdf.PdfText.PageText(page));
             sb.AppendLine();
         }
         var text = sb.ToString().Trim();
