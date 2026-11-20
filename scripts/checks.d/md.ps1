@@ -2,47 +2,33 @@
 # Everything it writes lands under $Out\md so the CI artifact carries the document, the snapshot and the PDF.
 
 Add-Type -AssemblyName System.Drawing
-# Windows PowerShell 5.1 and PowerShell 7 resolve System.Drawing differently: reference the assemblies that hold the types.
-$drawRefs = @([System.Drawing.Bitmap], [System.Drawing.Rectangle], [System.Drawing.Imaging.BitmapData]) |
-    ForEach-Object { $_.Assembly.Location } | Sort-Object -Unique
-if (-not ('MdCheck.Pixels' -as [type])) {
-    Add-Type -ReferencedAssemblies $drawRefs -TypeDefinition @'
+# No compiled System.Drawing code: Windows PowerShell 5.1 and PowerShell 7 reference it differently.
+# Pixels are counted in PowerShell on every second pixel; thresholds below are for that sampling.
+if (-not ('MdCheck.Win' -as [type])) {
+    Add-Type -TypeDefinition @'
 using System;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 namespace MdCheck {
-    public static class Pixels {
-        public static int Count(string path, int r, int g, int b, int tol) {
-            using (var bmp = new Bitmap(path)) {
-                var rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
-                var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-                try {
-                    var bytes = new byte[data.Stride * data.Height];
-                    Marshal.Copy(data.Scan0, bytes, 0, bytes.Length);
-                    int n = 0;
-                    for (int y = 0; y < data.Height; y++) {
-                        int row = y * data.Stride;
-                        for (int x = 0; x < data.Width; x++) {
-                            int i = row + x * 4;
-                            if (Math.Abs(bytes[i + 2] - r) <= tol && Math.Abs(bytes[i + 1] - g) <= tol && Math.Abs(bytes[i] - b) <= tol) n++;
-                        }
-                    }
-                    return n;
-                } finally { bmp.UnlockBits(data); }
-            }
-        }
-        public static string Size(string path) {
-            using (var bmp = new Bitmap(path)) { return bmp.Width + "x" + bmp.Height; }
-        }
-    }
     public static class Win {
         [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
         [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-        [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     }
 }
 '@
+}
+
+function Get-PixelCount([string]$Path, [int]$R, [int]$G, [int]$B, [int]$Tol) {
+    $bmp = New-Object System.Drawing.Bitmap $Path
+    try {
+        $n = 0
+        for ($y = 0; $y -lt $bmp.Height; $y += 2) {
+            for ($x = 0; $x -lt $bmp.Width; $x += 2) {
+                $c = $bmp.GetPixel($x, $y)
+                if ([Math]::Abs($c.R - $R) -le $Tol -and [Math]::Abs($c.G - $G) -le $Tol -and [Math]::Abs($c.B - $B) -le $Tol) { $n++ }
+            }
+        }
+        return $n
+    } finally { $bmp.Dispose() }
 }
 
 $mdDir = Join-Path $Out "md"
@@ -114,11 +100,13 @@ $size = 0
 if (Test-Path $png) { $size = (Get-Item $png).Length }
 Check "md snapshot" (($r.Code -eq 0) -and ($size -gt 10240)) "exit=$($r.Code) bytes=$size $($r.Out) $($r.Err)"
 if ($size -gt 0) {
-    $dim = [MdCheck.Pixels]::Size($png)
-    $magenta = [MdCheck.Pixels]::Count($png, 233, 30, 99, 6)
-    $border = [MdCheck.Pixels]::Count($png, 189, 189, 189, 3)
-    Check "md snapshot shows the local picture" ($magenta -gt 5000) "size=$dim magenta-pixels=$magenta"
-    Check "md snapshot draws table borders" ($border -gt 300) "grey-border-pixels=$border"
+    $probe = New-Object System.Drawing.Bitmap $png
+    $dim = "$($probe.Width)x$($probe.Height)"
+    $probe.Dispose()
+    $magenta = Get-PixelCount $png 233 30 99 6
+    $border = Get-PixelCount $png 189 189 189 3
+    Check "md snapshot shows the local picture" ($magenta -gt 1000) "size=$dim sampled-magenta-pixels=$magenta"
+    Check "md snapshot draws table borders" ($border -gt 60) "sampled-grey-border-pixels=$border"
 }
 
 # 2. The PDF is a real PDF with the document in it.
