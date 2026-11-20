@@ -59,7 +59,7 @@ $lines = @(
     '',
     '![Local panel](panel%20one.png)',
     '',
-    '![Remote one](http://127.0.0.1:' + $port + '/remote.png)',
+    ("![Remote one](http://127.0.0.1:{0}/remote.png)" -f $port),
     '',
     '![Missing one](nothing-here.png)',
     '',
@@ -120,7 +120,8 @@ Check "md print to pdf" (($pdfSize -gt 2048) -and ($head -eq "%PDF-")) "bytes=$p
 Start-Sleep -Seconds 1
 $contacted = $listener.Pending()
 $listener.Stop()
-Check "md never fetches a remote picture" (-not $contacted) "listener-contacted=$contacted port=$port"
+$remoteInDoc = (Get-Content -Raw $doc) -match ("http://127.0.0.1:" + $port + "/remote.png")
+Check "md never fetches a remote picture" ($remoteInDoc -and (-not $contacted)) "listener-contacted=$contacted port=$port"
 
 # 4. Failures are loud: a missing file and missing arguments are not a silent exit 0.
 $r = Invoke-App @("--app", "md", "--open", (Join-Path $mdDir "absent.md"), "--snapshot", (Join-Path $mdDir "absent.png")) 90
