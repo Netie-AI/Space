@@ -6,11 +6,16 @@
         <!-- Palantir-style display: geometric grotesk, all-caps wordmarks -->
         <FontFamily x:Key="DisplayFont">Bahnschrift, Segoe UI Variable Display, Segoe UI Variable, Helvetica Neue, Segoe UI</FontFamily>
         <FontFamily x:Key="BodyFont">Bahnschrift, Segoe UI Variable Text, Segoe UI Variable, Helvetica Neue, Segoe UI</FontFamily>
+        <FontFamily x:Key="MonoFont">SF Mono, Cascadia Code, Consolas</FontFamily>
 
         <!-- Liquid Glass tokens (Regular dark chrome) -->
+        <SolidColorBrush x:Key="GlassFill" Color="#6610141C"/>
         <SolidColorBrush x:Key="GlassBorder" Color="#48FFFFFF"/>
         <SolidColorBrush x:Key="GlassHighlight" Color="#22FFFFFF"/>
         <SolidColorBrush x:Key="ContentWellBrush" Color="#E6101218"/>
+        <SolidColorBrush x:Key="BgBrush" Color="#10141C"/>
+        <SolidColorBrush x:Key="PanelBrush" Color="#1A1E28"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#222836"/>
         <SolidColorBrush x:Key="BorderBrush" Color="#33FFFFFF"/>
         <!-- Cool teal primary — avoid purple/indigo glow -->
         <SolidColorBrush x:Key="AccentBrush" Color="#5EC4B8"/>
