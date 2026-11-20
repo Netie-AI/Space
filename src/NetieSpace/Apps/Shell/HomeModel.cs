@@ -9,6 +9,9 @@ public sealed record HomeTile(
 {
     /// <summary>Line-icon geometry for the tile, by category (see <see cref="TileGlyphs"/>).</summary>
     public string PathData => TileGlyphs.ForCategory(Category);
+
+    /// <summary>This tool's own icon-font glyph (see <see cref="ToolGlyphs"/>); null when the id has none.</summary>
+    public string? IconGlyph => ToolGlyphs.For(ToolId);
 }
 
 public sealed record HomeCategory(string Name, IReadOnlyList<HomeTile> Tiles);

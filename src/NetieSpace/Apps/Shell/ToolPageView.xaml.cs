@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 using NetieSpace.Apps.Tools;
 using NetieSpace.Helpers;
@@ -24,6 +26,8 @@ public partial class ToolPageView : UserControl
     private string? _chosenOut;
     private string? _output;
     private bool _running;
+    private CancellationTokenSource? _previewCts;
+    private CancellationTokenSource? _resultCts;
 
     public ToolPageView()
     {
@@ -57,8 +61,11 @@ public partial class ToolPageView : UserControl
         _running = false;
         _values.Clear();
 
+        _previewCts?.Cancel();
+        _resultCts?.Cancel();
         TitleText.Text = _model.Name;
         CategoryText.Text = tool.Entry.Category;
+        DrawTitleIcon(tool.Entry);
         ActionButton.Content = _model.ActionLabel;
         RunPanel.Visibility = Visibility.Collapsed;
         ResultPanel.Visibility = Visibility.Collapsed;
@@ -74,6 +81,7 @@ public partial class ToolPageView : UserControl
         WorkPanel.Visibility = _model.Available ? Visibility.Visible : Visibility.Collapsed;
 
         BuildOptions();
+        OptionsCard.Visibility = _model.Options.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         SetFiles(pendingFile is not null && _model.Accepts(pendingFile)
             ? new[] { pendingFile }
             : Array.Empty<string>());
@@ -86,7 +94,7 @@ public partial class ToolPageView : UserControl
         {
             // The last used value, when the store still holds a valid one, replaces the entry default.
             var d = _memory.Options.TryGetValue(d0.Key, out var remembered) ? d0 with { Default = remembered } : d0;
-            var block = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+            var block = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
             FrameworkElement control;
             switch (d.Control)
             {
@@ -101,10 +109,18 @@ public partial class ToolPageView : UserControl
                 case OptionControl.ComboBox:
                 case OptionControl.GridCombo:
                 {
-                    var combo = new ComboBox { ItemsSource = d.Choices, MaxWidth = 320, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 220 };
-                    combo.SelectedItem = d.Choices.FirstOrDefault(c => string.Equals(c, d.Default, StringComparison.OrdinalIgnoreCase))
-                                         ?? d.Choices.FirstOrDefault();
-                    _values[d.Key] = () => combo.SelectedItem as string ?? "";
+                    // The list shows readable labels; the value the runner and the memory file see is unchanged.
+                    var items = d.Choices.Select(c => new ChoiceItem(c, d.ChoiceLabel(c))).ToList();
+                    var combo = new ComboBox
+                    {
+                        ItemsSource = items,
+                        DisplayMemberPath = nameof(ChoiceItem.Label),
+                        SelectedValuePath = nameof(ChoiceItem.Value),
+                        MaxWidth = 360, HorizontalAlignment = HorizontalAlignment.Left, MinWidth = 260,
+                    };
+                    combo.SelectedValue = d.Choices.FirstOrDefault(c => string.Equals(c, d.Default, StringComparison.OrdinalIgnoreCase))
+                                          ?? d.Choices.FirstOrDefault();
+                    _values[d.Key] = () => combo.SelectedValue as string ?? "";
                     control = combo;
                     break;
                 }
@@ -140,18 +156,61 @@ public partial class ToolPageView : UserControl
                 }
                 default:
                 {
-                    var tb = new TextBox { Text = d.Default };
+                    // "1-end" reads as an empty box with the hint "All pages"; blank means the tool's own default.
+                    var tb = new TextBox { Text = d.StartText };
                     _values[d.Key] = () => tb.Text;
-                    control = tb;
+                    control = d.Hint is { } hint ? WithHint(tb, hint) : tb;
                     break;
                 }
             }
 
-            var label = new TextBlock { Text = d.Label, Margin = new Thickness(0, 0, 0, 4) };
+            var label = new TextBlock { Text = d.Label, Margin = new Thickness(0, 0, 0, 6) };
             label.Style = (Style)FindResource("ShellMutedText");
             block.Children.Add(label);
             block.Children.Add(control);
             OptionsHost.Children.Add(block);
+        }
+    }
+
+    /// <summary>A text box with grey text over it while it is empty.</summary>
+    private FrameworkElement WithHint(TextBox tb, string hint)
+    {
+        tb.MaxWidth = 360;
+        tb.HorizontalAlignment = HorizontalAlignment.Left;
+        tb.MinWidth = 260;
+        var note = new TextBlock
+        {
+            Text = hint,
+            Style = (Style)FindResource("ShellMutedText"),
+            FontSize = 13,
+            IsHitTestVisible = false,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(10, 0, 0, 0),
+        };
+        note.Visibility = tb.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        tb.TextChanged += (_, _) => note.Visibility = tb.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var grid = new Grid { MaxWidth = 360, MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
+        grid.Children.Add(tb);
+        grid.Children.Add(note);
+        return grid;
+    }
+
+    internal sealed record ChoiceItem(string Value, string Label)
+    {
+        public override string ToString() => Label;
+    }
+
+    /// <summary>The tool's own icon in the title badge; the category line drawing when no icon font is installed.</summary>
+    private void DrawTitleIcon(ToolEntry entry)
+    {
+        var glyph = IconFont.Available ? ToolGlyphs.For(entry.Id) : null;
+        TitleGlyph.Text = glyph ?? "";
+        TitleGlyph.Visibility = glyph is null ? Visibility.Collapsed : Visibility.Visible;
+        TitlePath.Visibility = glyph is null ? Visibility.Visible : Visibility.Collapsed;
+        if (glyph is null)
+        {
+            try { TitlePath.Data = Geometry.Parse(TileGlyphs.ForCategory(entry.Category)); }
+            catch (FormatException) { TitlePath.Data = Geometry.Parse(TileGlyphs.Fallback); }
         }
     }
 
@@ -172,12 +231,26 @@ public partial class ToolPageView : UserControl
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = path,
             };
+            var size = SizeOf(path);
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             row.Children.Add(remove);
+            if (size is not null)
+            {
+                var sizeText = new TextBlock
+                {
+                    Text = ToolPageModel.FormatSize(size.Value),
+                    Style = (Style)FindResource("ShellCaption"),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 0, 12, 0),
+                };
+                DockPanel.SetDock(sizeText, Dock.Right);
+                row.Children.Add(sizeText);
+            }
             row.Children.Add(name);
             FileRows.Children.Add(row);
         }
 
+        RefreshPreview();
         NoFilesText.Visibility = files.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         BrowseButton.HorizontalAlignment = files.Count == 0 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
         RefreshAction();
@@ -249,7 +322,7 @@ public partial class ToolPageView : UserControl
         var folder = OutputFolder.Prepare(OutputFolder.Resolve(_app!, files, _chosenOut));
         if (!folder.Ok)
         {
-            ShowResult(new ToolResult(false, ToolOutcome.Invalid, model.ToolId, model.Tool.Entry.Engine.Name,
+            await ShowResultAsync(new ToolResult(false, ToolOutcome.Invalid, model.ToolId, model.Tool.Entry.Engine.Name,
                 Array.Empty<string>(), folder.Message, null, 0));
             return;
         }
@@ -311,19 +384,190 @@ public partial class ToolPageView : UserControl
 
         _running = false;
         RunPanel.Visibility = Visibility.Collapsed;
-        ShowResult(queue.Combine(results, model.ToolId, model.Tool.Entry.Engine.Name));
+        await ShowResultAsync(queue.Combine(results, model.ToolId, model.Tool.Entry.Engine.Name));
     }
 
-    private void ShowResult(ToolResult result)
+    private static long? SizeOf(string path)
     {
+        try { return IoFile.Exists(path) ? new System.IO.FileInfo(path).Length : null; }
+        catch (Exception) { return null; }
+    }
+
+    /// <summary>
+    /// The result as a card: thumbnail of the output when the engines can draw one, its name, size and type,
+    /// the "Done: path" line, and Open / Show in folder. The card is first on the page. The thumbnail is awaited
+    /// (at most two seconds) before the card appears, so it never pops in after the person has looked.
+    /// </summary>
+    private async Task ShowResultAsync(ToolResult result)
+    {
+        var model = _model;
         _output = ToolPageModel.PrimaryOutput(result);
-        ResultText.Text = ToolPageModel.ResultLine(result);
-        ResultText.Foreground = result.Ok
-            ? (System.Windows.Media.Brush)FindResource("ShellInk")
-            : (System.Windows.Media.Brush)FindResource("ShellDanger");
+        var summary = ToolPageModel.Summarize(result, SizeOf);
+
+        ResultTitle.Text = summary.Title;
+        ResultTitle.ToolTip = summary.Primary;
+        ResultDetail.Text = summary.Detail;
+        ResultDetail.Visibility = summary.Detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        ResultText.Text = summary.Line;
+        var danger = (Brush)FindResource("ShellDanger");
+        ResultTitle.Foreground = summary.Ok ? (Brush)FindResource("ShellInk") : danger;
+        ResultText.Foreground = summary.Ok ? (Brush)FindResource("ShellMuted") : danger;
+        ResultCard.BorderBrush = summary.Ok ? (Brush)FindResource("ShellAccent") : danger;
+        ResultMark.Background = summary.Ok ? (Brush)FindResource("ShellAccent") : danger;
+        ResultMarkGlyph.Foreground = summary.Ok ? (Brush)FindResource("ShellAccentInk") : Brushes.White;
+        // Check mark / cross in the icon font; plain letters if no icon font exists.
+        ResultMarkGlyph.Text = IconFont.Available ? (summary.Ok ? "\uE73E" : "\uE711") : (summary.Ok ? "+" : "x");
         ResultButtons.Visibility = _output is null ? Visibility.Collapsed : Visibility.Visible;
+
+        ResultThumb.Source = null;
+        ResultThumbBadge.Text = "";
+        ResultThumbBox.Visibility = summary.Primary is null ? Visibility.Collapsed : Visibility.Visible;
+        if (summary.Primary is { } primary)
+        {
+            _resultCts?.Cancel();
+            var cts = _resultCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var source = await ThumbnailOfAsync(primary, cts.Token);
+            if (!ReferenceEquals(model, _model))
+                return; // the page moved to another tool while the thumbnail was drawn
+            ResultThumb.Source = source;
+            ResultThumbBadge.Text = source is null ? PreviewPlan.TypeBadge(primary) : "";
+        }
+
         ResultPanel.Visibility = Visibility.Visible;
+        ResultPanel.BringIntoView();
         RefreshAction();
+    }
+
+    /// <summary>One picture of a file: the first page of a PDF, the picture itself, or null for any other type or a failure.</summary>
+    private static async Task<ImageSource?> ThumbnailOfAsync(string path, CancellationToken ct)
+    {
+        try
+        {
+            switch (PreviewPlan.KindOf(path))
+            {
+                case PreviewKind.Pdf:
+                    return (await Thumbnails.PdfPagesAsync(path, 1, 160, ct))?.Pages.FirstOrDefault();
+                case PreviewKind.Image:
+                    return Thumbnails.Picture(path, 240)?.Image;
+                default:
+                    return null;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The panel beside the options: pages of the first file as a thumbnail strip, its picture, or a typed
+    /// placeholder. A file that cannot be drawn says so in the panel; nothing is silently blank.
+    /// </summary>
+    private async void RefreshPreview()
+    {
+        _previewCts?.Cancel();
+        PreviewStrip.Children.Clear();
+        PreviewMore.Visibility = Visibility.Collapsed;
+        if (_files.Count == 0)
+        {
+            PreviewPanel.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        var first = _files[0];
+        var cts = _previewCts = new CancellationTokenSource();
+        PreviewPanel.Visibility = Visibility.Visible;
+        PreviewTitle.Text = IoPath.GetFileName(first);
+        PreviewTitle.ToolTip = first;
+        var more = _files.Count - 1;
+        var size = SizeOf(first);
+        PreviewCaption.Text = size is null ? "" : ToolPageModel.FormatSize(size.Value);
+        PreviewStripScroll.Visibility = Visibility.Collapsed;
+        PreviewPictureBox.Visibility = Visibility.Collapsed;
+        PreviewPlaceholder.Visibility = Visibility.Collapsed;
+        if (more > 0)
+        {
+            PreviewMore.Text = more == 1 ? "and 1 more file" : $"and {more} more files";
+            PreviewMore.Visibility = Visibility.Visible;
+        }
+
+        try
+        {
+            switch (PreviewPlan.KindOf(first))
+            {
+                case PreviewKind.Pdf:
+                {
+                    ShowPlaceholder(first, "Drawing pages");
+                    var strip = await Thumbnails.PdfPagesAsync(first, PreviewPlan.MaxPages, 224, cts.Token);
+                    if (cts.IsCancellationRequested) return;
+                    if (strip is null || strip.Pages.Count == 0)
+                    {
+                        ShowPlaceholder(first, "No preview. The file may be protected or damaged.");
+                        return;
+                    }
+                    for (var i = 0; i < strip.Pages.Count; i++)
+                        PreviewStrip.Children.Add(PageThumb(strip.Pages[i], i + 1));
+                    PreviewCaption.Text = PreviewPlan.PageCaption(strip.PageCount, strip.Pages.Count)
+                        + (size is null ? "" : " - " + ToolPageModel.FormatSize(size.Value));
+                    PreviewPlaceholder.Visibility = Visibility.Collapsed;
+                    PreviewStripScroll.Visibility = Visibility.Visible;
+                    break;
+                }
+                case PreviewKind.Image:
+                {
+                    var pic = await Task.Run(() => Thumbnails.Picture(first, 640), cts.Token);
+                    if (cts.IsCancellationRequested) return;
+                    if (pic is null)
+                    {
+                        ShowPlaceholder(first, "No preview for this picture type.");
+                        return;
+                    }
+                    PreviewPicture.Source = pic.Value.Image;
+                    PreviewCaption.Text = $"{pic.Value.PixelWidth} x {pic.Value.PixelHeight} px"
+                        + (size is null ? "" : " - " + ToolPageModel.FormatSize(size.Value));
+                    PreviewPictureBox.Visibility = Visibility.Visible;
+                    break;
+                }
+                default:
+                    ShowPlaceholder(first, "");
+                    break;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // a newer file list replaced this one
+        }
+    }
+
+    private void ShowPlaceholder(string path, string note)
+    {
+        PreviewBadge.Text = PreviewPlan.TypeBadge(path);
+        PreviewNote.Text = note;
+        PreviewNote.Visibility = note.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+        PreviewPlaceholder.Visibility = Visibility.Visible;
+    }
+
+    private FrameworkElement PageThumb(ImageSource page, int number)
+    {
+        var frame = new Border
+        {
+            Background = Brushes.White,
+            BorderBrush = (Brush)FindResource("ShellLine"),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Child = new System.Windows.Controls.Image { Source = page, Stretch = Stretch.Uniform },
+        };
+        RenderOptions.SetBitmapScalingMode(frame, BitmapScalingMode.HighQuality);
+        var stack = new StackPanel { Width = 116, Margin = new Thickness(0, 0, 10, 12) };
+        stack.Children.Add(frame);
+        stack.Children.Add(new TextBlock
+        {
+            Text = number.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            Style = (Style)FindResource("ShellCaption"),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 4, 0, 0),
+        });
+        return stack;
     }
 
     /// <summary>Per-file state under the progress bar; only drawn when more than one file is queued.</summary>

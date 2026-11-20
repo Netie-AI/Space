@@ -58,6 +58,15 @@ foreach ($view in @("pdf-extract-text", "pdf-to-pdfa", "pdf-watermark", "pdf-spl
     Check "snapshot view $view" (($r.Code -eq 0) -and ($size -gt 10240)) "exit=$($r.Code) bytes=$size $($r.Err)"
 }
 
+# 2b. Tool page snapshot in the other two apps, so their pages are looked at too.
+foreach ($pair in @(@("image", "img-resize"), @("image", "img-convert-any"), @("video", "vid-speed"))) {
+    $png = Join-Path $Out "$($pair[1]).png"
+    $r = Invoke-App @("--app", $pair[0], "--snapshot", $png, "--view", $pair[1])
+    $size = 0
+    if (Test-Path $png) { $size = (Get-Item $png).Length }
+    Check "snapshot view $($pair[1])" (($r.Code -eq 0) -and ($size -gt 10240)) "exit=$($r.Code) bytes=$size $($r.Err)"
+}
+
 # 3. Unknown view: exit 2 and stderr names it. No PNG.
 $png = Join-Path $Out "nope.png"
 $r = Invoke-App @("--app", "pdf", "--snapshot", $png, "--view", "nope")

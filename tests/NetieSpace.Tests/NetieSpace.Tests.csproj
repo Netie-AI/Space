@@ -77,6 +77,10 @@
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\HomeModel.cs" Link="Linked\Apps\Shell\HomeModel.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\SnapshotArgs.cs" Link="Linked\Apps\Shell\SnapshotArgs.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\TileGlyphs.cs" Link="Linked\Apps\Shell\TileGlyphs.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolGlyphs.cs" Link="Linked\Apps\Shell\ToolGlyphs.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\OptionLabels.cs" Link="Linked\Apps\Shell\OptionLabels.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppPalette.cs" Link="Linked\Apps\Shell\AppPalette.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\PreviewPlan.cs" Link="Linked\Apps\Shell\PreviewPlan.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolSearch.cs" Link="Linked\Apps\Shell\ToolSearch.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\OpenWith.cs" Link="Linked\Apps\Shell\OpenWith.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolState.cs" Link="Linked\Apps\Shell\ToolState.cs" />

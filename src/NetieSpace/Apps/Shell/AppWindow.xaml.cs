@@ -18,6 +18,7 @@ public partial class AppWindow : Window
     public AppWindow(AppIdentity identity, string? openPath)
     {
         _identity = identity;
+        AppAccents.Apply(identity);
         InitializeComponent();
         Title = identity.DisplayName;
         ApplyIcon();

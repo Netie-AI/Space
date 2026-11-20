@@ -36,6 +36,7 @@ public partial class AppShell : UserControl
     public void Initialize(AppIdentity identity, RecentFiles recent, string? openPath, ToolStateStore? state = null)
     {
         _identity = identity;
+        AppAccents.Apply(identity);
         _recent = recent;
         _state = state ?? new ToolStateStore(ToolStateStore.DefaultPath(identity));
         SelectedFile = string.IsNullOrWhiteSpace(openPath) ? null : openPath;
@@ -83,6 +84,7 @@ public partial class AppShell : UserControl
         if (tool is null)
             return;
         _activeCategoryForNav = tool.Entry.Category;
+        Home.CloseTooltips();
         BuildNav();
         ToolPage.Load(tool, _recent!, SelectedFile, _identity!, _state!);
         Home.Visibility = Visibility.Collapsed;
@@ -103,7 +105,8 @@ public partial class AppShell : UserControl
         {
             Content = new TextBlock { Text = label, TextTrimming = TextTrimming.CharacterEllipsis },
             Style = (Style)FindResource(isOn ? "ShellNavItemOn" : "ShellNavItem"),
-            ToolTip = label,
+            // No tooltip: the label is on the button, and a tooltip on a button that is rebuilt by the click
+            // (BuildNav) was left on screen over the next page.
         };
         b.Click += (_, _) => ShowHome(category);
         return b;
