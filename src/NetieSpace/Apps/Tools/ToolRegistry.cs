@@ -147,8 +147,15 @@ public sealed class ToolRegistry
     /// <summary>Probes the given engines in parallel (bounded); results land in the cache.</summary>
     public void WarmEngines(IEnumerable<EngineRef> engines)
     {
-        Parallel.ForEach(engines, new ParallelOptions { MaxDegreeOfParallelism = ProbeParallelism },
-            e => _cachingProbe.Probe(e));
+        // Own threads, not the pool: probes block on processes, and a small pool would ramp up one thread at a time.
+        var queue = new ConcurrentQueue<EngineRef>(engines);
+        var workers = Enumerable.Range(0, Math.Min(ProbeParallelism, queue.Count)).Select(_ =>
+        {
+            var t = new Thread(() => { while (queue.TryDequeue(out var e)) _cachingProbe.Probe(e); }) { IsBackground = true, Name = "engine-warm" };
+            t.Start();
+            return t;
+        }).ToList();
+        foreach (var t in workers) t.Join();
     }
 
     private RegisteredTool Describe(ToolEntry entry)

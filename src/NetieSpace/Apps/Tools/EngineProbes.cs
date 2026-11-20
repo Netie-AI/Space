@@ -40,12 +40,11 @@ public sealed class EngineProbes : IEngineProbe
     {
         var key = engine.ProbeKey ?? "inproc";
         if (key == "inproc") return (true, "");
-        var task = System.Threading.Tasks.Task.Run(() => ProbeCore(engine));
-        try
-        {
-            if (task.Wait(_budgetMs)) return task.Result;
-        }
-        catch (Exception) { return (false, engine.Name); }
+        // A dedicated thread, not the pool: pool workers blocked waiting on a queued probe would eat the budget.
+        (bool Ok, string Detail) result = (false, engine.Name);
+        var worker = new System.Threading.Thread(() => result = ProbeCore(engine)) { IsBackground = true, Name = "engine-probe" };
+        worker.Start();
+        if (worker.Join(_budgetMs)) return result;
         return (false, engine.Name + " (probe timed out)");
     }
 

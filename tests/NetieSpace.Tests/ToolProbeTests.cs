@@ -110,6 +110,15 @@ public class ToolProbeTests
     }
 
     [Fact]
+    public void Probes_run_on_their_own_thread_so_a_busy_thread_pool_cannot_time_them_out()
+    {
+        bool? onPool = null;
+        var p = new FakePlatform { OcrF = () => { onPool = Thread.CurrentThread.IsThreadPoolThread; return (true, ""); } };
+        Assert.True(Real(p, e: Engines.WinRtOcr).Ok);
+        Assert.False(onPool);
+    }
+
+    [Fact]
     public void The_default_budget_is_two_seconds() => Assert.Equal(2000, EngineProbes.ProbeTimeoutMs);
 
     [Fact]
