@@ -59,6 +59,7 @@ function Get-UserChoice {
 
 function Run-Exe([string]$file, [string[]]$argList, [int]$timeoutSec = 180) {
     $p = Start-Process -FilePath $file -ArgumentList $argList -PassThru -WindowStyle Hidden
+    $null = $p.Handle
     if (-not $p.WaitForExit($timeoutSec * 1000)) {
         try { $p.Kill() } catch { }
         return -999
