@@ -37,11 +37,15 @@ public class WinTool2RedactTests
     /// <summary>True when the term is in the file bytes or in any decoded stream, as ASCII or UTF-16.</summary>
     private static bool Leaks(string pdfPath, string term)
     {
-        var patterns = new[]
+        var lowered = term.ToLowerInvariant();
+        var patterns = new List<byte[]>
         {
-            System.Text.Encoding.ASCII.GetBytes(term.ToLowerInvariant()),
-            System.Text.Encoding.BigEndianUnicode.GetBytes(term.ToLowerInvariant()),
-            System.Text.Encoding.Unicode.GetBytes(term.ToLowerInvariant()),
+            System.Text.Encoding.ASCII.GetBytes(lowered),
+            System.Text.Encoding.BigEndianUnicode.GetBytes(lowered),
+            System.Text.Encoding.Unicode.GetBytes(lowered),
+            // <hex> strings, ASCII and UTF-16BE
+            System.Text.Encoding.ASCII.GetBytes(Convert.ToHexString(System.Text.Encoding.ASCII.GetBytes(lowered)).ToLowerInvariant()),
+            System.Text.Encoding.ASCII.GetBytes(Convert.ToHexString(System.Text.Encoding.BigEndianUnicode.GetBytes(lowered)).ToLowerInvariant()),
         };
         bool Has(byte[] hay)
         {

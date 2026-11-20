@@ -76,7 +76,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
     {
         var dpi = PdfToolSupport.OptInt(request, "dpi", 200, 100, 300);
         var color = PdfToolSupport.ParseColor(PdfToolSupport.Opt(request, "color", "#000000"), "color");
-        if (color.A != 255)
+        if (color.A < 0.999)
             throw new ArgumentException("option 'color': a see-through colour would not hide anything; use #RRGGBB");
         var regionsText = PdfToolSupport.Opt(request, "regions", "");
         var terms = PdfToolSupport.Opt(request, "text", "")
@@ -365,8 +365,12 @@ public sealed class PdfRedactToolProvider : IToolProvider
 
     private static bool FileContains(string path, string term)
     {
+        var lowered = term.ToLowerInvariant();
         var patterns = new[] { Encoding.ASCII, Encoding.BigEndianUnicode, Encoding.Unicode }
-            .Select(e => e.GetBytes(term.ToLowerInvariant())).ToList();
+            .Select(e => e.GetBytes(lowered)).ToList();
+        // PDF strings may also be written as <hex>, as ASCII or UTF-16BE (document info, annotations).
+        foreach (var e in new[] { Encoding.ASCII, Encoding.BigEndianUnicode })
+            patterns.Add(Encoding.ASCII.GetBytes(Convert.ToHexString(e.GetBytes(lowered)).ToLowerInvariant()));
         bool Has(byte[] hay)
         {
             var lower = (byte[])hay.Clone();
