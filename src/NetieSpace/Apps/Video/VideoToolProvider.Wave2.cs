@@ -41,7 +41,7 @@ public sealed partial class VideoToolProvider
 {
     // ------------------------------------------------------------------ wave 2 scaffolding
 
-    private sealed record W2Plan(IReadOnlyList<string> Args, double ExpectedSeconds);
+    internal sealed record W2Plan(IReadOnlyList<string> Args, double ExpectedSeconds);
 
     private static readonly string[] W2ImageExts = { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tif", ".tiff", ".webp" };
 
@@ -682,22 +682,30 @@ public sealed partial class VideoToolProvider
         var fpsOpt = IntOpt(r, "fps", 0, 30, 0);
         var speed = IntOpt(r, "speed", 25, 400, 100);
 
-        return W2OneToOneGif(r, p, ct, (input, info) =>
-        {
-            W2CheckWindow(start, info);
-            var len = Math.Min(length ?? (info.Duration - start), info.Duration - start);
-            if (len > 120) throw new ArgumentException("option 'duration': a GIF longer than 120 s is not sensible (this would be " + Num(len) + " s)");
-            var fps = fpsOpt > 0 ? fpsOpt : (info.Fps >= 1 ? Math.Min(30, (int)Math.Round(info.Fps)) : 12);
-            var chain = new List<string>();
-            if (speed != 100) chain.Add("setpts=PTS*100/" + speed.ToString(CultureInfo.InvariantCulture));
-            chain.Add("fps=" + fps.ToString(CultureInfo.InvariantCulture));
-            if (width > 0) chain.Add("scale=" + width.ToString(CultureInfo.InvariantCulture) + ":-1:flags=lanczos");
-            var graph = "[0:v:0]" + SquarePixels + "," + string.Join(",", chain) + ",split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
-            var a = new List<string>();
-            if (start > 0) a.AddRange(new[] { "-ss", Num(start) });
-            a.AddRange(new[] { "-t", Num(len), "-i", input, "-filter_complex", graph, "-map", "[g]", "-an", "-loop", "0" });
-            return new W2Plan(a, len * 100.0 / speed);
-        });
+        return W2OneToOneGif(r, p, ct, (input, info) => GifEditorPlan(input, info, start, length, width, fpsOpt, speed));
+    }
+
+    internal static W2Plan GifEditorPlan(string input, VideoInfo info, double start, double? length, int width, int fpsOpt, int speed)
+    {
+        W2CheckWindow(start, info);
+        var len = Math.Min(length ?? (info.Duration - start), info.Duration - start);
+        if (len > 120) throw new ArgumentException("option 'duration': a GIF longer than 120 s is not sensible (this would be " + Num(len) + " s)");
+        var fps = fpsOpt > 0 ? fpsOpt : (info.Fps >= 1 ? Math.Min(30, (int)Math.Round(info.Fps)) : 12);
+        var outSeconds = len * 100.0 / speed;
+        var chain = new List<string>();
+        if (speed != 100) chain.Add("setpts=PTS*100/" + speed.ToString(CultureInfo.InvariantCulture));
+        chain.Add("fps=" + fps.ToString(CultureInfo.InvariantCulture));
+        // Width 0 keeps the picture's size, but a long or large clip is scaled down until its frames fit the queue budget.
+        var fit = GifFitWidth(info, width, outSeconds, fps, upscale: true);
+        var sar = info.Sar > 0 ? info.Sar : 1.0;
+        var ownWidth = sar >= 1 ? info.Width * sar : info.Width;
+        if (width > 0 || fit < Math.Floor(ownWidth))
+            chain.Add("scale=" + fit.ToString(CultureInfo.InvariantCulture) + ":-1:flags=lanczos");
+        var graph = "[0:v:0]" + SquarePixels + "," + string.Join(",", chain) + ",split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
+        var a = new List<string>();
+        if (start > 0) a.AddRange(new[] { "-ss", Num(start) });
+        a.AddRange(new[] { "-t", Num(len), "-i", input, "-filter_complex", graph, "-map", "[g]", "-an", "-loop", "0" });
+        return new W2Plan(a, outSeconds);
     }
 
     private static async Task<IReadOnlyList<string>> W2OneToOneGif(

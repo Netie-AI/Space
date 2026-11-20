@@ -112,7 +112,7 @@ internal static class PdfSecurityTools
                     copy.Info.Author = src.Info.Author;
                     copy.Info.Subject = src.Info.Subject;
                     copy.Info.Keywords = src.Info.Keywords;
-                    for (var pg = 0; pg < src.PageCount; pg++) copy.AddPage(src.Pages[pg]);
+                    for (var pg = 0; pg < src.PageCount; pg++) PdfToolSupport.AddPageClean(copy, src.Pages[pg]);
                     copy.Save(path);
                 }
                 Verify("unlock", input, password, path, null, "Try the open (user) password instead of a permissions password.");

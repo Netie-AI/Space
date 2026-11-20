@@ -128,6 +128,43 @@ internal static class PdfToolSupport
     }
 
     /// <summary>
+    /// Adds <paramref name="src"/> to <paramref name="dest"/> without the pages it links to. A link annotation with a
+    /// /Dest or a /GoTo action points at another page object, and importing a page pulls in everything it points at,
+    /// so a one-page extract would carry the whole linked-to chain of pages (and an unlock would double them). The
+    /// links are dropped from the source page (read-only import copy, never saved) first; every other annotation,
+    /// and links to a web address or a file, stay.
+    /// </summary>
+    public static PdfPage AddPageClean(PdfDocument dest, PdfPage src)
+    {
+        DropPageLinks(src);
+        return dest.AddPage(src);
+    }
+
+    private static void DropPageLinks(PdfPage page)
+    {
+        var annots = page.Elements.GetArray("/Annots");
+        if (annots is null) return;
+        var items = annots.Elements;
+        for (var i = items.Count - 1; i >= 0; i--)
+        {
+            var d = (items[i] as PdfSharpCore.Pdf.Advanced.PdfReference)?.Value as PdfDictionary ?? items[i] as PdfDictionary;
+            if (d is not null && PointsAtAPage(d)) items.RemoveAt(i);
+        }
+        if (items.Count == 0) page.Elements.Remove("/Annots");
+    }
+
+    private static bool PointsAtAPage(PdfDictionary annot)
+    {
+        if (annot.Elements.ContainsKey("/Dest")) return true;
+        foreach (var key in new[] { "/A", "/PA" })
+        {
+            var action = annot.Elements.GetDictionary(key);
+            if (action is not null && string.Equals(action.Elements.GetName("/S"), "/GoTo", StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// Carries the descriptive document fields (title, author, subject, keywords) from <paramref name="from"/> to a
     /// document built page by page, so a split, merge or extract does not silently drop the title.
     /// </summary>

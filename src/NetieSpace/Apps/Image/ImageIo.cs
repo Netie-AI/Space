@@ -37,6 +37,65 @@ public static class ImageIo
                 $"{what} is {width} x {height} pixels, above the limit of {MaxPixels / 1000000} megapixels this tool will open or create");
     }
 
+    /// <summary>
+    /// Same limit for an animation: every frame is decoded to a full canvas, so width x height x frames is what
+    /// memory pays. Throws when that is above <see cref="MaxPixels"/>.
+    /// </summary>
+    public static void CheckPixelBudget(long width, long height, long frames, string what)
+    {
+        CheckPixelBudget(width, height, what);
+        if (frames > 1 && width * height * frames > MaxPixels)
+            throw new InvalidOperationException(
+                $"{what} is {width} x {height} pixels with {frames} frames, above the limit of {MaxPixels / 1000000} megapixels in total this tool will open or create");
+    }
+
+    /// <summary>
+    /// Counts the frames of a GIF by walking its block structure (no pixel decoding, no allocation beyond a buffer),
+    /// stopping early once more than <paramref name="stopAfter"/> are seen. 1 for a file that is not a readable GIF.
+    /// </summary>
+    internal static int GifFrameCount(string path, int stopAfter = int.MaxValue)
+    {
+        try
+        {
+            using var s = new System.IO.BufferedStream(IoFile.OpenRead(path), 1 << 16);
+            var head = new byte[13];
+            if (s.Read(head, 0, 13) < 13 || head[0] != 'G' || head[1] != 'I' || head[2] != 'F') return 1;
+            void SkipTable(int packed) { if ((packed & 0x80) != 0) Skip(s, 3 * (1 << ((packed & 7) + 1))); }
+            SkipTable(head[10]);
+            var frames = 0;
+            while (frames <= stopAfter)
+            {
+                var id = s.ReadByte();
+                if (id == 0x21) { s.ReadByte(); SkipSubBlocks(s); }
+                else if (id == 0x2C)
+                {
+                    frames++;
+                    var desc = new byte[9];
+                    if (s.Read(desc, 0, 9) < 9) break;
+                    SkipTable(desc[8]);
+                    s.ReadByte();
+                    SkipSubBlocks(s);
+                }
+                else break;
+            }
+            return Math.Max(1, frames);
+        }
+        catch (Exception) { return 1; }
+    }
+
+    private static void Skip(System.IO.Stream s, long n)
+    {
+        var buf = new byte[4096];
+        while (n > 0) { var r = s.Read(buf, 0, (int)Math.Min(buf.Length, n)); if (r <= 0) throw new System.IO.EndOfStreamException(); n -= r; }
+    }
+
+    private static void SkipSubBlocks(System.IO.Stream s)
+    {
+        int len;
+        while ((len = s.ReadByte()) > 0) Skip(s, len);
+        if (len < 0) throw new System.IO.EndOfStreamException();
+    }
+
     public static string Extension(ImageKind k) => k switch
     {
         ImageKind.Jpeg => ".jpg",
@@ -82,6 +141,9 @@ public static class ImageIo
                     $"image is too large to open (limit {MaxPixels / 1000000} megapixels): {path}");
             }
             CheckPixelBudget(info.Width, info.Height, "image " + path);
+            // An animation costs a full canvas per frame; the header alone does not say how many there are.
+            var frames = GifFrameCount(path, (int)(MaxPixels / Math.Max(1, (long)info.Width * info.Height)));
+            CheckPixelBudget(info.Width, info.Height, frames, "animated image " + path);
             var img = SixLabors.ImageSharp.Image.Load<Rgba32>(path, out var fmt);
             ImageKind kind;
             if (fmt is JpegFormat) kind = ImageKind.Jpeg;

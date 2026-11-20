@@ -27,7 +27,7 @@ internal static class PdfOrganizeTools
                 ct.ThrowIfCancellationRequested();
                 using var src = OpenImport(req.Files[i]);
                 if (i == 0) CopyInfo(src, outDoc);
-                for (var p = 0; p < src.PageCount; p++) outDoc.AddPage(src.Pages[p]);
+                for (var p = 0; p < src.PageCount; p++) AddPageClean(outDoc, src.Pages[p]);
                 Report(progress, i + 1, req.Files.Count, "merged " + IoPath.GetFileName(req.Files[i]));
             }
             var path = new OutputNamer(req.OutDir).Next(Stem(req.Files[0]) + "_merged", ".pdf");
@@ -51,7 +51,7 @@ internal static class PdfOrganizeTools
             {
                 using var d = new PdfDocument();
                 CopyInfo(src, d);
-                foreach (var p in pages0) d.AddPage(src.Pages[p]);
+                foreach (var p in pages0) AddPageClean(d, src.Pages[p]);
                 var path = names.Next($"{stem}_part{index:D3}", ".pdf");
                 d.Save(path);
                 outputs.Add(path);
@@ -95,7 +95,7 @@ internal static class PdfOrganizeTools
                     var path = names.Next(stem + "_removed", ".pdf");
                     using var d = new PdfDocument();
                     CopyInfo(src, d);
-                    foreach (var p in keep) d.AddPage(src.Pages[p]);
+                    foreach (var p in keep) AddPageClean(d, src.Pages[p]);
                     d.Save(path);
                     outputs.Add(path);
                     break;
@@ -137,7 +137,7 @@ internal static class PdfOrganizeTools
     private static long MeasureSaved(PdfDocument src, List<int> pages0)
     {
         using var d = new PdfDocument();
-        foreach (var p in pages0) d.AddPage(src.Pages[p]);
+        foreach (var p in pages0) AddPageClean(d, src.Pages[p]);
         using var ms = new MemoryStream();
         d.Save(ms, false);
         return ms.Length;
@@ -158,7 +158,7 @@ internal static class PdfOrganizeTools
             for (var p = 0; p < src.PageCount; p++)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!drop.Contains(p + 1)) d.AddPage(src.Pages[p]);
+                if (!drop.Contains(p + 1)) AddPageClean(d, src.Pages[p]);
             }
             var path = new OutputNamer(req.OutDir).Next(Stem(req.Files[0]) + "_removed", ".pdf");
             d.Save(path);
@@ -182,7 +182,7 @@ internal static class PdfOrganizeTools
             {
                 using var d = new PdfDocument();
                 CopyInfo(src, d);
-                foreach (var p in pages) d.AddPage(src.Pages[p - 1]);
+                foreach (var p in pages) AddPageClean(d, src.Pages[p - 1]);
                 var path = names.Next(stem + "_extract", ".pdf");
                 d.Save(path);
                 outputs.Add(path);
@@ -195,7 +195,7 @@ internal static class PdfOrganizeTools
                     ct.ThrowIfCancellationRequested();
                     using var d = new PdfDocument();
                     CopyInfo(src, d);
-                    d.AddPage(src.Pages[p - 1]);
+                    AddPageClean(d, src.Pages[p - 1]);
                     var path = names.Next($"{stem}_page-{p:D3}", ".pdf");
                     d.Save(path);
                     outputs.Add(path);
@@ -255,7 +255,7 @@ internal static class PdfOrganizeTools
                         var src = docs[fileNo - 1];
                         foreach (var p in ParsePages(body.Substring(colon + 1), src.PageCount, "plan"))
                         {
-                            var page = outDoc.AddPage(src.Pages[p - 1]);
+                            var page = AddPageClean(outDoc, src.Pages[p - 1]);
                             if (rot != 0) page.Rotate = (page.Rotate + rot) % 360;
                             lastW = page.Width.Point; lastH = page.Height.Point;
                         }

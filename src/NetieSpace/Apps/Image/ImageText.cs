@@ -162,12 +162,14 @@ public static class ImageText
         var w = x1 - x0; var h = y1 - y0;
         var cov = Rasterise(ink, dx - x0, dy - y0, w, h);
 
-        if (halo > 0)
+        // The ink is rasterised once and laid onto every frame, so an animation is marked all the way through.
+        var ring = halo > 0 ? Dilate(cov, w, h, outlinePx) : null;
+        for (var f = 0; f < img.Frames.Count; f++)
         {
-            var ring = Dilate(cov, w, h, outlinePx);
-            Composite(img, ring, x0, y0, w, h, outline, opacity);
+            var frame = img.Frames[f];
+            if (ring is not null) Composite(frame, ring, x0, y0, w, h, outline, opacity);
+            Composite(frame, cov, x0, y0, w, h, fill, opacity);
         }
-        Composite(img, cov, x0, y0, w, h, fill, opacity);
     }
 
     private static float[] Rasterise(Ink ink, float ox, float oy, int w, int h)
@@ -278,7 +280,7 @@ public static class ImageText
         return res;
     }
 
-    private static void Composite(Image<Rgba32> img, float[] cov, int x0, int y0, int w, int h, Rgba32 color, float opacity)
+    private static void Composite(ImageFrame<Rgba32> img, float[] cov, int x0, int y0, int w, int h, Rgba32 color, float opacity)
     {
         for (var y = 0; y < h; y++)
             for (var x = 0; x < w; x++)

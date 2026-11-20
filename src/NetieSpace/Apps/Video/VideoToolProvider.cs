@@ -42,7 +42,7 @@ public sealed partial class VideoToolProvider : IToolProvider
 
     // ------------------------------------------------------------------ scaffolding
 
-    private sealed record Plan(IReadOnlyList<string> Args, double ExpectedSeconds);
+    internal sealed record Plan(IReadOnlyList<string> Args, double ExpectedSeconds);
 
     /// <summary>
     /// One output per input file. <paramref name="build"/> returns the ffmpeg arguments without the output path
@@ -533,7 +533,35 @@ public sealed partial class VideoToolProvider : IToolProvider
 
     // ------------------------------------------------------------------ vid-to-gif
 
-    private static Plan GifPlan(string input, VideoInfo info, double start, double? length, int fps, int width)
+    /// <summary>
+    /// ffmpeg holds every frame of the clip between palettegen and paletteuse (the palette needs the whole clip before
+    /// the first frame can be written), up to 4 bytes a pixel. The picture is scaled down until all of them fit here.
+    /// </summary>
+    internal const long GifQueueBudgetBytes = 512L * 1024 * 1024;
+
+    /// <summary>
+    /// Output width for a GIF of <paramref name="outSeconds"/> at <paramref name="fps"/>: the width asked for
+    /// (0 = the picture's own width), shrunk until the queued frames fit <see cref="GifQueueBudgetBytes"/>.
+    /// Never below 16 pixels (or the source, if smaller). <paramref name="upscale"/> lets an explicit width exceed the source.
+    /// </summary>
+    internal static int GifFitWidth(VideoInfo info, int wanted, double outSeconds, int fps, bool upscale)
+    {
+        var sar = info.Sar > 0 ? info.Sar : 1.0;
+        double effW = sar >= 1 ? info.Width * sar : info.Width;
+        double effH = sar < 1 ? info.Height / sar : info.Height;
+        var w = wanted > 0 ? (upscale ? wanted : Math.Min(wanted, effW)) : effW;
+        var frames = Math.Max(1.0, Math.Ceiling(outSeconds * fps));
+        var fit = Math.Sqrt(GifQueueBudgetBytes * effW / (frames * 4.0 * Math.Max(1.0, effH)));
+        var result = Math.Min(w, fit);
+        result = Math.Max(result, Math.Min(16.0, w));
+        var floor = Math.Min(16.0, w);
+        var px = (int)Math.Floor(result);
+        // Heights round up, so step down until the rounded frame size fits as well.
+        while (px > floor && frames * px * Math.Ceiling(px * effH / effW) * 4.0 > GifQueueBudgetBytes) px--;
+        return Math.Max(1, px);
+    }
+
+    internal static Plan GifPlan(string input, VideoInfo info, double start, double? length, int fps, int width)
     {
         if (start >= info.Duration)
             throw new ArgumentException("option 'start' (" + Num(start) + " s) is at or past the end of the video");
@@ -543,7 +571,8 @@ public sealed partial class VideoToolProvider : IToolProvider
         var a = new List<string>();
         if (start > 0) a.AddRange(new[] { "-ss", Num(start) });
         a.AddRange(new[] { "-t", Num(len), "-i", input });
-        var graph = $"[0:v:0]{SquarePixels},fps={fps},scale=min({width}\\,iw):-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
+        var fit = GifFitWidth(info, width, len, fps, upscale: false);
+        var graph = $"[0:v:0]{SquarePixels},fps={fps},scale=min({fit}\\,iw):-1:flags=lanczos,split[a][b];[a]palettegen[p];[b][p]paletteuse[g]";
         a.AddRange(new[] { "-filter_complex", graph, "-map", "[g]", "-an", "-loop", "0" });
         return new Plan(a, len);
     }
@@ -587,7 +616,7 @@ public sealed partial class VideoToolProvider : IToolProvider
         var g = new List<string>();
         if (!copy) g.Add("[0:v:0]" + EvenScale + "[v]");
         g.Add(mix
-            ? $"[1:a:0]volume={vol}[a1];[0:a:0][a1]amix=inputs=2:duration=first:dropout_transition=0[a]"
+            ? $"[1:a:0]volume={vol}[a1];[0:a:0][a1]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[a]"
             : $"[1:a:0]volume={vol},apad[a]");
 
         var a = new List<string> { "-i", video, "-i", audio, "-filter_complex", string.Join(";", g),

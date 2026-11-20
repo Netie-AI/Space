@@ -4,6 +4,7 @@ using NetieSpace.Apps.Bridge;
 
 namespace NetieSpace.Tests;
 
+[Collection(AllocationMeasuringCollection.Name)]
 public sealed class BridgeDropTests : IDisposable
 {
     private readonly BridgeTempDir _dir = new();
