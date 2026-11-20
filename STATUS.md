@@ -36,8 +36,9 @@
    (Space#3). Proven on CI with AirGPT absent; never run against a live AirGPT.
 11. **No AGPL** -- PyMuPDF/pymupdf4llm removed (pypdfium2, pikepdf, reportlab, svglib LGPL).
    CI python job installs them and fails on any SKIP line. Dev stress scripts still import it.
-12. **Peek defects open** (seen in CI screenshots): icon glyph boxes, docx text unreadable
-   on dark, summary uses a label for Office, PDF summary glues words. Lane s50-peek-defects.
+12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
+   actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
+   clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
 
 ## Next
 
