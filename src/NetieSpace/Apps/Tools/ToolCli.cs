@@ -35,7 +35,7 @@ public static class ToolCli
 
     private static int Dispatch(string[] args, TextWriter stdout, TextWriter stderr, ToolRegistry registry)
     {
-        bool list = false;
+        bool list = false, doctor = false;
         string? toolId = null, outDir = null, jsonPath = null;
         var inputs = new List<string>();
         var opts = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -53,6 +53,7 @@ public static class ToolCli
                 switch (args[i])
                 {
                     case "--list-tools": list = true; break;
+                    case "--doctor": doctor = true; break;
                     case "--tool": toolId = Next("--tool"); break;
                     case "--in": inputs.Add(Next("--in")); break;
                     case "--out": outDir = Next("--out"); break;
@@ -75,13 +76,52 @@ public static class ToolCli
             }
         }
 
+        if (doctor)
+        {
+            if (list || toolId is not null || inputs.Count > 0 || outDir is not null || opts.Count > 0)
+            {
+                stderr.WriteLine("bad arguments: --doctor takes only --json <file>");
+                return 2;
+            }
+            return Doctor(registry, jsonPath, stdout, stderr);
+        }
+
         if (list == (toolId is not null))
         {
-            stderr.WriteLine("bad arguments: give exactly one of --list-tools or --tool <id>");
+            stderr.WriteLine("bad arguments: give exactly one of --list-tools, --tool <id> or --doctor");
             return 2;
         }
 
         return list ? ListTools(registry, jsonPath, stdout, stderr) : RunTool(registry, toolId!, inputs, outDir, opts, jsonPath, stdout, stderr);
+    }
+
+    private static int Doctor(ToolRegistry registry, string? jsonPath, TextWriter stdout, TextWriter stderr)
+    {
+        var report = ToolDoctor.Build(registry);
+        foreach (var r in report)
+            stdout.WriteLine(string.Join("\t", r.Name, r.License.ToString(),
+                r.Present ? "present" : "missing: " + r.Reason,
+                r.ToolCount + " tools", r.RunnerCount + " with a runner"));
+
+        if (jsonPath is not null)
+        {
+            var doc = new
+            {
+                count = report.Count,
+                engines = report.Select(r => new
+                {
+                    name = r.Name,
+                    licence = r.License.ToString(),
+                    present = r.Present,
+                    reason = r.Present ? null : r.Reason,
+                    tools = r.ToolCount,
+                    runners = r.RunnerCount,
+                    toolIds = r.ToolIds,
+                }).ToList(),
+            };
+            if (!TryWrite(jsonPath, JsonSerializer.Serialize(doc, Json), stderr)) return 1;
+        }
+        return 0;
     }
 
     private static string AvailText(ToolAvailability a) => a.Available ? "available" : "unavailable";
@@ -92,8 +132,9 @@ public static class ToolCli
         foreach (var t in all)
         {
             var e = t.Entry;
-            stdout.WriteLine(string.Join("\t", e.Id, e.App.ToString().ToLowerInvariant(), e.Engine.Name,
-                e.Engine.License.ToString(), AvailText(t.Availability), t.Availability.Text));
+            var eng = registry.EffectiveEngine(e);
+            stdout.WriteLine(string.Join("\t", e.Id, e.App.ToString().ToLowerInvariant(), eng.Name,
+                eng.License.ToString(), AvailText(t.Availability), t.Availability.Text));
         }
 
         if (jsonPath is not null)
@@ -105,8 +146,8 @@ public static class ToolCli
                 {
                     id = t.Entry.Id,
                     app = t.Entry.App.ToString().ToLowerInvariant(),
-                    engine = t.Entry.Engine.Name,
-                    licence = t.Entry.Engine.License.ToString(),
+                    engine = registry.EffectiveEngine(t.Entry).Name,
+                    licence = registry.EffectiveEngine(t.Entry).License.ToString(),
                     available = t.Availability.Available,
                     reason = t.Availability.Available ? null : t.Availability.Text,
                 }).ToList(),

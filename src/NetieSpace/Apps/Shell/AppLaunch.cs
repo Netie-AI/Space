@@ -6,7 +6,7 @@ public enum AppLaunchKind
     Space,
     /// <summary>--app pdf|image|video, optional file.</summary>
     App,
-    /// <summary>--tool ... / --list-tools: headless tool CLI (S50-E2-a).</summary>
+    /// <summary>--tool ... / --list-tools / --doctor: headless tool CLI (S50-E2-a).</summary>
     ToolCli,
     /// <summary>--app with a missing or unknown value.</summary>
     Invalid,
@@ -24,7 +24,7 @@ public sealed record AppLaunch(AppLaunchKind Kind, AppIdentity? Identity = null,
         var appIndex = IndexOf(args, "--app");
         if (appIndex < 0)
         {
-            return IndexOf(args, "--tool") >= 0 || IndexOf(args, "--list-tools") >= 0
+            return IndexOf(args, "--tool") >= 0 || IndexOf(args, "--list-tools") >= 0 || IndexOf(args, "--doctor") >= 0
                 ? new AppLaunch(AppLaunchKind.ToolCli)
                 : new AppLaunch(AppLaunchKind.Space);
         }

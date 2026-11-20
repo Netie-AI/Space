@@ -65,6 +65,7 @@ public class AppLaunchTests
 
     [Theory]
     [InlineData("--list-tools")]
+    [InlineData("--doctor")]
     [InlineData("--tool")]
     public void Tool_flags_route_to_the_tool_cli(string flag)
     {
