@@ -185,7 +185,8 @@ public partial class ToolPageView : UserControl
             FontSize = 13,
             IsHitTestVisible = false,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(10, 0, 0, 0),
+            // border 1 + TextBox padding 9 + the text view's own 2 px: the hint starts where typed text does.
+            Margin = new Thickness(12, 0, 0, 0),
         };
         note.Visibility = tb.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         tb.TextChanged += (_, _) => note.Visibility = tb.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;

@@ -217,7 +217,9 @@
                     <Border x:Name="bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="{StaticResource ShellRadiusControl}" Padding="{TemplateBinding Padding}">
+                            CornerRadius="{StaticResource ShellRadiusControl}">
+                        <!-- No Padding here: the TextBox applies its own Padding inside PART_ContentHost,
+                             so a second copy on the border pushed typed text 9 px right of the hint. -->
                         <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
