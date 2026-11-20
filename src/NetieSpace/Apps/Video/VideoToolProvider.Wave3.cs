@@ -32,7 +32,11 @@ public sealed partial class VideoToolProvider
 
     private const int MemeMaxChars = 200;
     private const int MemeMaxLines = 3;
-    private const double MemeEm = 0.75; // pessimistic advance of a bold capital, in em
+
+    /// <summary>Pessimistic advance of one bold capital in em (DejaVu Sans Bold: W and M reach 1.0, most capitals 0.85, a space 0.35).</summary>
+    private static double MemeCharEm(char c) => c switch { 'W' or 'M' => 1.05, ' ' => 0.4, _ => 0.9 };
+
+    private static double MemeEmWidth(string s) => s.Sum(MemeCharEm);
 
     private static string? MemeFont()
     {
@@ -64,8 +68,8 @@ public sealed partial class VideoToolProvider
         return sb.ToString().Trim().ToUpperInvariant();
     }
 
-    /// <summary>Greedy word wrap into lines of at most <paramref name="maxChars"/>; null when a word does not fit one line.</summary>
-    internal static List<string>? MemeWrap(string text, int maxChars)
+    /// <summary>Greedy word wrap into lines of at most <paramref name="maxEm"/> em; null when a word does not fit one line.</summary>
+    internal static List<string>? MemeWrap(string text, double maxEm)
     {
         var lines = new List<string>();
         foreach (var para in text.Split('\n'))
@@ -73,8 +77,8 @@ public sealed partial class VideoToolProvider
             var cur = new StringBuilder();
             foreach (var word in para.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries))
             {
-                if (word.Length > maxChars) return null;
-                if (cur.Length > 0 && cur.Length + 1 + word.Length > maxChars) { lines.Add(cur.ToString()); cur.Clear(); }
+                if (MemeEmWidth(word) > maxEm) return null;
+                if (cur.Length > 0 && MemeEmWidth(cur.ToString() + " " + word) > maxEm) { lines.Add(cur.ToString()); cur.Clear(); }
                 if (cur.Length > 0) cur.Append(' ');
                 cur.Append(word);
             }
@@ -90,12 +94,12 @@ public sealed partial class VideoToolProvider
         var floor = Math.Max(8, (int)Math.Round(height * 0.04));
         for (var fs = Math.Max(8, (int)Math.Round(height * 0.09)); fs >= floor; fs = fs > floor && fs * 9 / 10 < floor ? floor : fs * 9 / 10)
         {
-            var maxChars = (int)Math.Floor(width * 0.9 / (fs * MemeEm));
+            var maxEm = width * 0.88 / fs;
             wrapped = new Dictionary<string, List<string>>();
-            var ok = maxChars >= 1;
+            var ok = true;
             foreach (var c in list)
             {
-                var w = ok ? MemeWrap(c, maxChars) : null;
+                var w = MemeWrap(c, maxEm);
                 if (w is null || w.Count > MemeMaxLines) { ok = false; break; }
                 wrapped[c] = w;
             }
@@ -190,7 +194,10 @@ public sealed partial class VideoToolProvider
             // Sample the clip at the chosen rate, then repeat each kept frame back up to the original rate: the length stays.
             var a = new List<string> { "-i", input };
             a.AddRange(Maps);
-            a.AddRange(Vf("fps=" + keep.ToString(CultureInfo.InvariantCulture), "fps=" + Num(src)));
+            // tpad holds the last kept frame to the end, so a length that is not a whole number of kept intervals is still reached.
+            var hold = (int)Math.Ceiling(src / keep) + 1;
+            a.AddRange(Vf("fps=" + keep.ToString(CultureInfo.InvariantCulture) + ":eof_action=pass", "fps=" + Num(src),
+                "tpad=stop_mode=clone:stop=" + hold.ToString(CultureInfo.InvariantCulture)));
             a.AddRange(Encode(IsWebM(input)));
             a.AddRange(new[] { "-t", Num(info.Duration) });
             return new Plan(a, info.Duration);

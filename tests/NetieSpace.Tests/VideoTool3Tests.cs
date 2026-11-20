@@ -285,6 +285,29 @@ public class VideoTool3Tests
         Assert.InRange(Probe(output).Duration, 1.85, 2.15);
     }
 
+    [Theory]
+    [InlineData(0.4, 1)]
+    [InlineData(1.3, 1)]
+    [InlineData(2.5, 2)]
+    public void StopMotion_keeps_the_length_when_it_is_not_a_whole_number_of_kept_intervals(double seconds, int keep)
+    {
+        var dir = NewDir();
+        var input = MakeVideo(dir, "short.mp4", seconds: seconds, audio: false, rate: 15);
+        var output = RunOk1("vid-stop-motion", Out(dir), new[] { input }, ("fps", keep.ToString()));
+        Assert.InRange(Probe(output).Duration, Probe(input).Duration - 0.1, Probe(input).Duration + 0.1);
+    }
+
+    [Fact]
+    public void Meme_wide_capitals_stay_inside_the_frame()
+    {
+        var dir = NewDir();
+        var input = Flat(dir, "w.mp4", "320x180", 1, false);
+        var output = RunOk1("vid-meme", Out(dir), new[] { input }, ("top", "WWWWWWWWWWWWWWWWWWWW WWWWWWWWWWWW"));
+        var f = FrameAt(output, 3);
+        Assert.Equal(0, f.Count(0, 0, 3, 180, (r, g, b) => IsWhite(r, g, b) || IsBlack(r, g, b)));
+        Assert.Equal(0, f.Count(317, 0, 3, 180, (r, g, b) => IsWhite(r, g, b) || IsBlack(r, g, b)));
+    }
+
     [Fact]
     public void StopMotion_refuses_a_rate_that_is_not_below_the_video_and_rates_out_of_range()
     {
