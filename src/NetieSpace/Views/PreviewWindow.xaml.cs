@@ -8536,6 +8536,47 @@ public partial class PreviewWindow : Window
         UpdateCornerMasks();
         EnsureTopmostNoActivate();
         AnimationHelper.AnimateOpen(RootBorder, _animationMs);
+        Dispatcher.BeginInvoke(new Action(LogGlyphFonts), System.Windows.Threading.DispatcherPriority.ContextIdle);
+    }
+
+    private static bool _glyphFontsLogged;
+
+    /// <summary>
+    /// One line per process: the font the icon buttons really draw with, and whether the icon fonts are
+    /// installed. A glyph box means one of the two is wrong; this says which (desktop job reads app.log).
+    /// </summary>
+    private void LogGlyphFonts()
+    {
+        if (_glyphFontsLogged)
+            return;
+        _glyphFontsLogged = true;
+        try
+        {
+            static System.Windows.Controls.TextBlock? FirstText(DependencyObject d)
+            {
+                for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(d); i++)
+                {
+                    var c = System.Windows.Media.VisualTreeHelper.GetChild(d, i);
+                    if (c is System.Windows.Controls.TextBlock tb)
+                        return tb;
+                    var inner = FirstText(c);
+                    if (inner is not null)
+                        return inner;
+                }
+                return null;
+            }
+
+            var installed = System.Windows.Media.Fonts.SystemFontFamilies.Select(f => f.Source).ToList();
+            bool Has(string n) => installed.Any(f => string.Equals(f, n, StringComparison.OrdinalIgnoreCase));
+            var tb = FirstText(LookupClipButton);
+            AppLogger.Info(
+                $"Peek glyph font: button='{LookupClipButton.FontFamily.Source}' drawn='{tb?.FontFamily.Source}' " +
+                $"text='{tb?.Text}' installed: SegoeFluentIcons={Has("Segoe Fluent Icons")} SegoeMDL2Assets={Has("Segoe MDL2 Assets")}");
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"Peek glyph font probe failed: {ex.Message}");
+        }
     }
 
     public async Task RequestCloseAsync()
