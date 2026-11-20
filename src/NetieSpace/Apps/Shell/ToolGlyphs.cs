@@ -12,7 +12,7 @@ public static class ToolGlyphs
     private static readonly Dictionary<string, int> Table = new(StringComparer.Ordinal)
     {
         // Netie PDF - Organize PDF
-        ["pdf-merge"] = 0xEA3C, ["pdf-split"] = 0xF740, ["pdf-remove-pages"] = 0xE74D,
+        ["pdf-merge"] = 0xEA3C, ["pdf-split"] = 0xF57D, ["pdf-remove-pages"] = 0xE74D,
         ["pdf-extract-pages"] = 0xEDE1, ["pdf-organize"] = 0xF246, ["pdf-scan"] = 0xE8FE,
         // Optimize PDF
         ["pdf-compress"] = 0xF012, ["pdf-repair"] = 0xE90F, ["pdf-ocr"] = 0xF683,
@@ -34,7 +34,7 @@ public static class ToolGlyphs
         ["pdf-smart-split"] = 0xE99A, ["pdf-validate-pdfa"] = 0xF760, ["pdf-extract-text"] = 0xEC34,
 
         // Netie Image - Convert
-        ["img-convert-any"] = 0xE895, ["img-dpi"] = 0xEDA8, ["img-from-jpg"] = 0xE91B,
+        ["img-convert-any"] = 0xE895, ["img-dpi"] = 0xEDA8, ["img-from-jpg"] = 0xE7C5,
         ["img-to-jpg"] = 0xEB9F, ["img-html-to-image"] = 0xEE71,
         // Create
         ["img-meme"] = 0xE899, ["img-photo-editor"] = 0xEB3C,
@@ -53,7 +53,7 @@ public static class ToolGlyphs
         // Create
         ["vid-meme"] = 0xE899, ["vid-slideshow"] = 0xE786,
         // Cut and assemble
-        ["vid-loop"] = 0xE8EE, ["vid-merge"] = 0xEA3C, ["vid-split"] = 0xF740, ["vid-trim"] = 0xE78A,
+        ["vid-loop"] = 0xE8EE, ["vid-merge"] = 0xEA3C, ["vid-split"] = 0xF5AC, ["vid-trim"] = 0xE78A,
         // Effects and colour
         ["vid-adjust"] = 0xE9E9, ["vid-filters"] = 0xE794,
         // Overlays and text

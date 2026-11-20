@@ -30,6 +30,8 @@ public static class AppSnapshot
                 return SnapshotArgs.ExitInvalid;
             }
 
+            // Before the shell exists: an element outside a window does not repaint when a resource appears later.
+            AppAccents.Apply(identity);
             var shell = new AppShell();
             shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), null);
             shell.SetTools(tools);
