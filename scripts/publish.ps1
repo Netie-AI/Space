@@ -8,6 +8,8 @@ param(
     [switch]$RegisterStartup,
     [switch]$IncludeVenv,
     [switch]$IncludeEnv,
+    # CI / installer builds: do not write the build machine's HKCU Open-with keys.
+    [switch]$NoRegister,
     [ValidateRange(1, 20)]
     [int]$MaxRetries = 5,
     [ValidateRange(1, 60)]
@@ -140,6 +142,18 @@ if (Test-Path $codeSrc) {
     Write-Host "[OK] Copied Assets/code-viewer/" -ForegroundColor Green
 }
 
+# Per-app icons (Netie PDF / Image / Video). Start Menu shortcuts and --register-apps read them
+# from <exe folder>\Assets\apps; single-file publish does not place Content items there.
+$appsSrc = Join-Path $root 'src\NetieSpace\Assets\apps'
+$appsDst = Join-Path $dist 'Assets\apps'
+if (Test-Path $appsSrc) {
+    Invoke-WithRetry -Description 'Copying app icons' -Operation {
+        New-Item -ItemType Directory -Force -Path $appsDst | Out-Null
+        Copy-Item (Join-Path $appsSrc '*') $appsDst -Recurse -Force
+    }
+    Write-Host "[OK] Copied Assets/apps/" -ForegroundColor Green
+}
+
 # Bundle icon next to portable exe
 $icoSrc = Join-Path $root 'src\NetieSpace\Assets\netie.ico'
 if (Test-Path $icoSrc) {
@@ -218,4 +232,8 @@ if ($RegisterStartup) {
 }
 
 # Additive Explorer Open with + Start Menu. Does not steal Word/Excel/PDF defaults.
-& (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
+if ($NoRegister) {
+    Write-Host "[SKIP] register-open-with (-NoRegister)" -ForegroundColor Yellow
+} else {
+    & (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
+}
