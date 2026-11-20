@@ -21,20 +21,23 @@
    put secrets.
 5. **Cert sign** -- xunit `PdfClassicXref`. UI `LoadPfx` EphemeralKeySet then
    PersistKeySet. Adobe Reader check still human.
-6. **Netie PDF / Image / Video app processes (S50-E1-a #306)** -- code landed, Linux gate
-   green (xunit + WinExe compile + Windows-shape test compile). **Not verified on Windows**:
-   the `--app` walk, AUMID read-back, second-launch activate and `WinRtSmokeTests` need a
-   Windows run by a different session before #306 closes. Window is a skeleton until #310.
-7. **Tools (#308, E3 #301, E4 #302, E5 #303)** -- 91 catalog rows, **60 have a runner**
-   (21 pdf, 11 image, 28 video), 31 honestly unavailable. 912 xunit
-   on Linux. Windows CI runs the exe over 22 tools (`scripts/check-app-shell.ps1`).
-   OCR and text to speech need a language pack / voice on the PC and fail naming it.
-8. **App shell (S50-E1-b #310)** -- home, tool grid, tool page, `--snapshot`. Models under
-   xunit; **no window has been seen by a person**. `scripts/check-app-shell.ps1` in the
-   Windows CI job is the first exe-level evidence; the PNGs are its artifact.
-9. **Install (S50-E1-c #309, S50-E2-b #307)** -- `--register-apps` Start Menu shortcuts with
-   AUMID, pin relaunch, app icons, engine licence gate in `publish.ps1`, notices, DR-0002
-   proposed. COM and PowerShell proven only by Windows CI. No `installer/*.iss` exists.
+6. **S50 integration branch (#311, wave 4 consolidated)** -- 12 lanes merged, every lane
+   branch proven an ancestor. Windows CI green at 762860f: xunit 1365 passed 0 skipped,
+   exe checks PASS, desktop (real windows, UI Automation) PASS, installer PASS. Linux 1275.
+7. **Tools** -- 91 catalog rows, **68 available on the Windows runner** (floor enforced in
+   `scripts/check-app-shell.ps1` and `check-installer.ps1`). New: pdf-repair, pdf-sign-self,
+   pdf-redact, pdf-from-html, img-html-to-image, vid-meme, vid-stop-motion, vid-screen-record.
+   `--doctor [--json]` gives every engine a definite state (13 of 31 present on the runner).
+8. **Apps** -- Netie PDF / Image / Video / MD (`--app md`, local pictures only, print to PDF).
+   Four Start Menu shortcuts; every icon checked before any shortcut is written.
+9. **Install** -- per-user Inno Setup (`installer/NetieSpace.iss`, package.yml): silent
+   install, tools, shortcuts, uninstall green on CI. Clean machine and upgrade unverified.
+10. **Send to phone** -- `--send-to-phone FILE [--yes]`: no --yes = disclosure, nothing sent
+   (Space#3). Proven on CI with AirGPT absent; never run against a live AirGPT.
+11. **No AGPL** -- PyMuPDF/pymupdf4llm removed (pypdfium2, pikepdf, reportlab, svglib LGPL).
+   CI python job installs them and fails on any SKIP line. Dev stress scripts still import it.
+12. **Peek defects open** (seen in CI screenshots): icon glyph boxes, docx text unreadable
+   on dark, summary uses a label for Office, PDF summary glues words. Lane s50-peek-defects.
 
 ## Next
 
