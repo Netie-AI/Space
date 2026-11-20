@@ -390,7 +390,6 @@ internal static class Win32Api
     public static extern int StrCmpLogicalW(string psz1, string psz2);
 
     public const int WmKeyup = 0x0101;
-    public const int WmChar = 0x0102;
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -533,9 +532,6 @@ internal static class Win32Api
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern int RegisterApplicationRestart(string? pwzCommandLine, int dwFlags);
 
-    public const int RestartNoCrash = 1;
-    public const int RestartNoHang = 2;
-    public const int RestartNoPatch = 4;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct KbdLlHookStruct
