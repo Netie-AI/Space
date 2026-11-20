@@ -75,8 +75,9 @@ public sealed class FaceBlurToolProvider : IToolProvider
 
                     FaceBlurCore.Apply(img, boxes, mode, strength);
                     var path = namer.Reserve(input, "-blurred", ImageIo.Extension(kind));
-                    img.Save(path, ImageIo.Encoder(kind, 92));
+                    // Listed first: if Save dies halfway, the catch below deletes the partial file too.
                     outputs.Add(path);
+                    img.Save(path, ImageIo.Encoder(kind, 92));
                 }
                 progress?.Report(new ToolProgress((i + 1) * 100 / request.Files.Count,
                     "image " + (i + 1) + " of " + request.Files.Count));

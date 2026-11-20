@@ -81,6 +81,9 @@ public sealed class PdfRenderToolProvider : IToolProvider
                     };
 
                     var outPath = FreePath(request.OutDir, $"{stem}-p{i + 1:000}", ".jpg", outputs);
+                    // Listed before the file exists: a failed or cancelled write leaves a partial file, and the
+                    // rollback below can only delete what it has been told about.
+                    outputs.Add(outPath);
                     using (var stream = new InMemoryRandomAccessStream())
                     {
                         await page.RenderToStreamAsync(stream, options);
@@ -91,7 +94,6 @@ public sealed class PdfRenderToolProvider : IToolProvider
                         using var target = IoFile.Create(outPath);
                         await source.CopyToAsync(target, ct);
                     }
-                    outputs.Add(outPath);
                     progress?.Report(new ToolProgress(
                         (int)((f + (i + 1) / (double)total) * 100 / request.Files.Count),
                         $"page {i + 1} of {total}"));

@@ -100,8 +100,9 @@ public sealed class PdfOcrToolProvider : IToolProvider
 
                 var stem = IoPath.GetFileNameWithoutExtension(input);
                 var outPath = WinPdfRender.FreePath(request.OutDir, stem, ".txt", outputs);
-                IoFile.WriteAllText(outPath, text.ToString(), new UTF8Encoding(false));
+                // Listed first: if the write dies halfway, the catch below deletes the partial file too.
                 outputs.Add(outPath);
+                IoFile.WriteAllText(outPath, text.ToString(), new UTF8Encoding(false));
             }
         }
         catch

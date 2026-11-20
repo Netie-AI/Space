@@ -88,6 +88,8 @@
     <Compile Include="..\..\src\NetieSpace\Apps\Bridge\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Bridge\Windows\**" Link="Linked\Apps\Bridge\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\NetieSpace\Apps\Md\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Md\Windows\**" Link="Linked\Apps\Md\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Condition="'$(NetieWindowsTests)' == 'true'" Include="..\..\src\NetieSpace\Apps\*\Windows\**\*.cs" Link="Linked\Apps\Windows\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- PptxDeck is pure Open XML (no WinRT), so the Linux gate compiles it too and can run its tests. -->
+    <Compile Condition="'$(NetieWindowsTests)' != 'true'" Include="..\..\src\NetieSpace\Apps\Pdf\Windows\PptxDeck.cs" Link="Linked\Apps\Windows\Pdf\PptxDeck.cs" />
     <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Tools\Windows\**" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
