@@ -492,9 +492,12 @@ public partial class PreviewWindow : Window
 
     // ── Tooltip guard ──────────────────────────────────────────────────────────
     // Class of defect: a window opens under a resting pointer, WPF shows the tooltip of whatever is
-    // under it ("Drag out to copy the file" over the picture) and nothing ever moved to dismiss it.
-    // A tooltip may open only after the pointer has really moved since the view last changed, every
-    // tooltip closes itself after a few seconds, and a view change closes the one that is showing.
+    // under it ("Drag out to copy the file" over the picture, seen in the desktop job) and nothing
+    // ever moved to dismiss it. Marking ToolTipOpening handled does not cancel a tooltip, so the
+    // guard works on the source instead: tooltips are off, and the picture carries no drag hint,
+    // until the pointer has really moved since the view last changed. A view change takes them away
+    // again (which also closes one that is showing). Every tooltip closes itself after a few seconds.
+    private const string ImageDragHint = "Drag out to copy the file";
     private bool _tipArmed;
     private Point _tipAnchor;
 
@@ -503,18 +506,17 @@ public partial class PreviewWindow : Window
         ToolTipService.SetShowDuration(this, 3500);
         ToolTipService.SetInitialShowDelay(this, 600);
         ResetTooltipGuard();
-        AddHandler(ToolTipService.ToolTipOpeningEvent, new ToolTipEventHandler((_, e) =>
-        {
-            if (!_tipArmed)
-                e.Handled = true;
-        }), handledEventsToo: true);
         PreviewMouseMove += (_, e) =>
         {
             if (_tipArmed)
                 return;
             var p = e.GetPosition(this);
-            if (Math.Abs(p.X - _tipAnchor.X) + Math.Abs(p.Y - _tipAnchor.Y) > 3)
-                _tipArmed = true;
+            if (Math.Abs(p.X - _tipAnchor.X) + Math.Abs(p.Y - _tipAnchor.Y) <= 3)
+                return;
+            _tipArmed = true;
+            ToolTipService.SetIsEnabled(this, true);
+            if (PreviewImage is not null)
+                PreviewImage.ToolTip = ImageDragHint;
         };
         MouseLeave += (_, _) => ResetTooltipGuard();
         Deactivated += (_, _) => ResetTooltipGuard();
@@ -525,13 +527,9 @@ public partial class PreviewWindow : Window
     {
         _tipArmed = false;
         try { _tipAnchor = Mouse.GetPosition(this); } catch { _tipAnchor = default; }
-        // Assigning ToolTip closes a tooltip that is open on that element.
+        ToolTipService.SetIsEnabled(this, false);
         if (PreviewImage is not null)
-        {
-            var tip = PreviewImage.ToolTip;
             PreviewImage.ToolTip = null;
-            PreviewImage.ToolTip = tip;
-        }
     }
 
     private void UpdateActionButtons(PreviewKind kind)
@@ -1272,6 +1270,9 @@ public partial class PreviewWindow : Window
                 SummaryText.Text = "Playing";
                 UpdateActionButtons(PreviewKind.Video);
                 UpdateMarkRangeTint();
+                _videoOpened = false;
+                _videoFailed = false;
+                _ = ProbeVideoPictureAsync();
             }
             catch (Exception ex)
             {
@@ -1410,6 +1411,7 @@ public partial class PreviewWindow : Window
 
     private async void PreviewVideo_MediaFailed(object? sender, ExceptionRoutedEventArgs e)
     {
+        _videoFailed = true;
         LogVideoProbe("MediaFailed", $"error='{e.ErrorException?.GetType().Name}: {e.ErrorException?.Message}'");
         if (string.IsNullOrWhiteSpace(_currentFilePath) || !_ffmpeg.IsAvailable)
         {
@@ -2148,17 +2150,27 @@ public partial class PreviewWindow : Window
         }
     }
 
-    /// <summary>Wait a moment after open, log what MediaElement reports, and show a still frame if it has no picture.</summary>
+    private bool _videoOpened;
+    private bool _videoFailed;
+
+    /// <summary>
+    /// Watchdog: 2 s after Play() log what MediaElement reports, whether or not it ever raised
+    /// MediaOpened or MediaFailed (on the CI runner it raised neither: no media pipeline, black pane).
+    /// With no picture, show a still frame and say so plainly.
+    /// </summary>
     private async Task ProbeVideoPictureAsync()
     {
         var path = _currentFilePath;
-        await Task.Delay(1500);
+        await Task.Delay(2000);
         if (!string.Equals(path, _currentFilePath, StringComparison.OrdinalIgnoreCase)
             || _content?.Kind != PreviewKind.Video)
             return;
-        LogVideoProbe("after-1500ms");
-        if (PreviewVideo.NaturalVideoWidth == 0 || !PreviewVideo.HasVideo)
-            await ShowVideoPosterAsync("MediaElement reports no picture (NaturalVideoWidth=0)");
+        LogVideoProbe("watchdog-2000ms", $"mediaOpenedRaised={_videoOpened} mediaFailedRaised={_videoFailed}");
+        if (!_videoOpened || PreviewVideo.NaturalVideoWidth == 0 || !PreviewVideo.HasVideo)
+            await ShowVideoPosterAsync(_videoFailed
+                ? "MediaFailed was raised"
+                : _videoOpened ? "MediaElement opened the clip but reports no picture (NaturalVideoWidth=0)"
+                : "MediaElement raised neither MediaOpened nor MediaFailed (no media pipeline)");
     }
 
     private async Task ShowVideoPosterAsync(string reason)
@@ -2207,8 +2219,8 @@ public partial class PreviewWindow : Window
 
     private void PreviewVideo_MediaOpened(object sender, RoutedEventArgs e)
     {
+        _videoOpened = true;
         LogVideoProbe("opened");
-        _ = ProbeVideoPictureAsync();
         if (!PreviewVideo.NaturalDuration.HasTimeSpan)
             return;
 

@@ -1151,7 +1151,6 @@
                                        MouseMove="PreviewImage_MouseMove"
                                        MouseLeftButtonUp="PreviewImage_MouseLeftButtonUp"
                                        MouseLeave="PreviewImage_MouseLeave"
-                                       ToolTip="Drag out to copy the file"
                                        ToolTipService.ShowDuration="3000">
                                     <Image.LayoutTransform>
                                         <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>

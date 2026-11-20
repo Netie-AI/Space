@@ -426,7 +426,7 @@ foreach ($name in $fixtures) {
     }
     $timings[$name] = $clock.ElapsedMilliseconds
     # Wait for the content, not a fixed time: no "Loading preview..." left, then one paint.
-    $rendered = Wait-PeekRendered $win 15
+    $rendered = Wait-PeekRendered $win 45   # the first peek starts WebView2 cold (22 s on the runner)
     Check "peek $name finished loading" ($rendered.Ms -ge 0) "after $($rendered.Ms) ms stuck=$($rendered.Stuck) (-1 means a visible 'Loading...' never went away)"
     Start-Sleep -Milliseconds 1500   # WebView2 paint
     [void](Focus-Window $win)
@@ -435,6 +435,18 @@ foreach ($name in $fixtures) {
     $btns = Get-Buttons $win
     $controls[$name] = $btns
     Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240) -and ($btns.Count -gt 0)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons (0 buttons means the peek chrome is not exposed or not drawn)"
+
+    # No tooltip may be showing in a fresh peek (nothing moved the pointer, so nothing may be hovered).
+    $tipCond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ToolTip)
+    $tips = @()
+    foreach ($w3 in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+        try {
+            if ($w3.Current.ProcessId -ne $space.Id) { continue }
+            if ($w3.Current.ControlType -eq [System.Windows.Automation.ControlType]::ToolTip) { $tips += [string]$w3.Current.Name; continue }
+            foreach ($t3 in $w3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tipCond)) { $tips += [string]$t3.Current.Name }
+        } catch { }
+    }
+    Check "peek $name shows no stale tooltip" ($tips.Count -eq 0) "tooltips=[$($tips -join ' | ')]"
 
     # Header: one row. Every header button shares one Y band; a wrapped header spreads over 2-3 bands.
     $winRect = $win.Current.BoundingRectangle
@@ -517,7 +529,7 @@ foreach ($name in $fixtures) {
         Check "video probe logged what MediaElement reports" ($probe.Count -gt 0) "lines=$($probe.Count) (see video-probe.txt: natural=WxH, hasVideo, MediaFailed)"
         $wr = $winRect
         $vs = [PixelStats]::Region($png, [int]($wr.X + $wr.Width * 0.1), [int]($top + 140), [int]($wr.Width * 0.8), [int]($wr.Height * 0.4))
-        Check "video pane is not black" (($vs[3] -gt 12) -or ($vs[4] -gt 12)) ("meanGrey={0:N1} stdGrey={1:N1} (a black pane is mean~0 std~0)" -f $vs[3], $vs[4])
+        Check "video pane is not black (a picture or the still frame)" ($vs[4] -gt 3) ("meanGrey={0:N1} stdGrey={1:N1} (an empty pane is flat: std below 3)" -f $vs[3], $vs[4])
     }
 
     # Q3_Report: the bridge button, while the peek is open.

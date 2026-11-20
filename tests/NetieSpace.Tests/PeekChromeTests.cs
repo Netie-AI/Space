@@ -90,19 +90,23 @@ public class PeekChromeTests
     // ---- 2. tooltips ----
 
     [Fact]
-    public void Drag_hint_tooltip_has_a_short_show_duration()
+    public void Drag_hint_is_not_a_static_tooltip_on_the_picture()
     {
+        // A static ToolTip shows under a resting pointer when the window opens (seen in the desktop job).
+        // The hint is assigned only after the pointer moves; the XAML keeps a short show duration.
         var img = Named(PreviewXaml(), "PreviewImage");
-        Assert.Equal("Drag out to copy the file", img.Attribute("ToolTip")?.Value);
+        Assert.Null(img.Attribute("ToolTip"));
         Assert.True(int.Parse(img.Attribute("ToolTipService.ShowDuration")!.Value) <= 4000);
     }
 
     [Fact]
-    public void Window_gates_tooltips_until_the_pointer_moves()
+    public void Window_withholds_tooltips_until_the_pointer_moves()
     {
         var cs = File.ReadAllText(Repo("src", "NetieSpace", "Views", "PreviewWindow.xaml.cs"));
-        Assert.Contains("ToolTipService.ToolTipOpeningEvent", cs);
-        Assert.Contains("e.Handled = true", cs);
+        Assert.Contains("private const string ImageDragHint = \"Drag out to copy the file\";", cs);
+        Assert.Contains("PreviewImage.ToolTip = ImageDragHint;", cs);
+        Assert.Contains("PreviewImage.ToolTip = null;", cs);
+        Assert.Contains("ToolTipService.SetIsEnabled(this, false);", cs);
         Assert.Contains("ResetTooltipGuard();", cs);
     }
 
@@ -159,5 +163,7 @@ public class PeekChromeTests
         Assert.Contains("NaturalVideoWidth", cs);
         Assert.Contains("LogVideoProbe(\"MediaFailed\"", cs);
         Assert.Contains("LogVideoProbe(\"opened\")", cs);
+        // The CI runner raised neither MediaOpened nor MediaFailed: the watchdog must not depend on them.
+        Assert.Contains("LogVideoProbe(\"watchdog-2000ms\"", cs);
     }
 }
