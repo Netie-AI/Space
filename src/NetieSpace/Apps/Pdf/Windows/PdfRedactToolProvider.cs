@@ -187,32 +187,29 @@ public sealed class PdfRedactToolProvider : IToolProvider
 
             if (terms.Count > 0)
             {
-                var words = page.GetWords().ToList();
+                // Letters, not words: the word grouping splits text on turned pages and across wide spacing.
+                // Matching runs on the letters without spaces, in drawing order, so "Jo hn" and "John" both match.
+                var letters = page.Letters;
                 var text = new StringBuilder();
-                var starts = new List<int>();
-                foreach (var w in words)
-                {
-                    if (text.Length > 0) text.Append(' ');
-                    starts.Add(text.Length);
-                    text.Append(w.Text);
-                }
+                var owner = new List<int>();
+                for (var k = 0; k < letters.Count; k++)
+                    foreach (var c in letters[k].Value)
+                        if (!char.IsWhiteSpace(c)) { text.Append(c); owner.Add(k); }
                 var haystack = text.ToString();
                 foreach (var term in terms)
                 {
+                    var needle = new string(term.Where(c => !char.IsWhiteSpace(c)).ToArray());
+                    if (needle.Length == 0) continue;
                     var at = 0;
-                    while (at <= haystack.Length - term.Length
-                           && (at = haystack.IndexOf(term, at, StringComparison.OrdinalIgnoreCase)) >= 0)
+                    while (at <= haystack.Length - needle.Length
+                           && (at = haystack.IndexOf(needle, at, StringComparison.OrdinalIgnoreCase)) >= 0)
                     {
                         found.Add(term);
-                        var end = at + term.Length;
-                        for (var k = 0; k < words.Count; k++)
+                        foreach (var k in owner.Skip(at).Take(needle.Length).Distinct())
                         {
-                            var ws = starts[k];
-                            var we = ws + words[k].Text.Length;
-                            if (ws >= end || we <= at) continue;
-                            // PdfPig reports words already turned to the displayed page, origin bottom-left,
+                            // PdfPig reports letters already turned to the displayed page, origin bottom-left,
                             // the crop box shifted to 0,0. The render check below catches any disagreement.
-                            var b = words[k].BoundingBox;
+                            var b = letters[k].GlyphRectangle;
                             var l = Math.Min(Math.Min(b.BottomLeft.X, b.TopLeft.X), Math.Min(b.BottomRight.X, b.TopRight.X));
                             var r = Math.Max(Math.Max(b.BottomLeft.X, b.TopLeft.X), Math.Max(b.BottomRight.X, b.TopRight.X));
                             var lo = Math.Min(Math.Min(b.BottomLeft.Y, b.TopLeft.Y), Math.Min(b.BottomRight.Y, b.TopRight.Y));
@@ -221,7 +218,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
                                 l - TextPadPoints, plan.HeightPt - hi - TextPadPoints,
                                 r - l + 2 * TextPadPoints, hi - lo + 2 * TextPadPoints, true));
                         }
-                        at += Math.Max(1, term.Length);
+                        at += Math.Max(1, needle.Length);
                     }
                 }
             }
