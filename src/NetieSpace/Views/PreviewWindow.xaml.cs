@@ -105,6 +105,8 @@ public partial class PreviewWindow : Window
     private double _fitZoom = 1.0;
     private bool _zoomAtFit = true;
     private bool _summaryBarEnabled = true;
+    /// <summary>The user asked for a summary of a picture or clip (they have none by default). Per file.</summary>
+    private bool _summaryAsked;
     private bool _textEditMode;
     private CancellationTokenSource? _textAutosaveCts;
     private readonly Stack<string> _previewStack = new();
@@ -213,6 +215,7 @@ public partial class PreviewWindow : Window
         ChatPanel.AddToChatRequested += OnAddToChatRequested;
         ChatPanel.CloseRequested += CloseChatPanel;
         PreviewVideo.MediaFailed += PreviewVideo_MediaFailed;
+        InstallTooltipGuard();
 
         _videoTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _videoTimer.Tick += (_, _) => UpdateVideoUi();
@@ -225,8 +228,7 @@ public partial class PreviewWindow : Window
         _summaryCollapsed = UserPrefs.SummaryCollapsed;
         _summaryDocked = UserPrefs.SummaryDocked;
         ApplySummaryBarVisibility();
-        if (SummaryToggleButton is not null)
-            SummaryToggleButton.Content = _summaryBarEnabled ? "Summary" : "Summary off";
+        RefreshSummaryToggleLabel();
 
         // Opaque #10141C — FromArgb(0x10,0x14,0x1C) was alpha=16 (nearly transparent) and
         // crashed/composited badly with AllowsTransparency + WebView2 HWND.
@@ -329,6 +331,8 @@ public partial class PreviewWindow : Window
             ClearStampSession();
         _currentFilePath = filePath;
         _activeSheetName = null;
+        _summaryAsked = false;
+        ResetTooltipGuard();
         // Binding does a synchronous JSON read + full bubble rebuild. Only pay it when the panel is
         // actually visible — a closed panel rebinds lazily in OpenChatPanel, so arrow-key browsing
         // between files never touches the chat store.
@@ -394,7 +398,7 @@ public partial class PreviewWindow : Window
             var aiLabel = _ai.IsConfigured ? _ai.ActiveProvider : "no AI key";
             StatusText.Text = $"{_content.Kind} · {FormatSize(_content.FileSizeBytes)} · {aiLabel}";
             PaintCloudPathChip();
-            if (_summaryBarEnabled)
+            if (_summaryBarEnabled && PeekChromeRules.SummaryByDefault(_content.Kind))
             {
                 // First-run consent is modal — showing it inside the load path pinned the loading
                 // overlay behind the dialog. Defer it so the preview paints first, then prompt.
@@ -440,8 +444,98 @@ public partial class PreviewWindow : Window
         }
     }
 
+    /// <summary>
+    /// One header row: "Open in Netie ..." is the primary action of a kind; Edit only takes that
+    /// slot when the kind has no bridge (text, code, Word, edit mode). Otherwise Edit is a row in
+    /// the More popup. The Buttons are moved, never recreated, so every handler and name survives.
+    /// </summary>
+    private void PlacePeekActions()
+    {
+        if (PeekPrimarySlot is null || PeekMorePanel is null || OpenInAppButton is null)
+            return;
+        var editPrimary = PeekChromeRules.EditIsPrimary(OpenInAppButton.Visibility == Visibility.Visible);
+        PlacePeekAction(EditModeButton, editPrimary);
+        PlacePeekAction(TextEditButton, editPrimary);
+    }
+
+    private void PlacePeekAction(System.Windows.Controls.Button? b, bool primary)
+    {
+        if (b is null)
+            return;
+        var want = primary ? (Panel)PeekPrimarySlot : PeekMorePanel;
+        if (!ReferenceEquals(b.Parent, want))
+        {
+            (b.Parent as Panel)?.Children.Remove(b);
+            if (primary)
+                want.Children.Add(b);
+            else
+                want.Children.Insert(0, b);
+        }
+        b.Style = (Style)FindResource(primary ? "PeekPrimaryBtn" : "PeekMenuRow");
+    }
+
+    private void MoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (MorePopup.IsOpen)
+        {
+            MorePopup.IsOpen = false;
+            return;
+        }
+        if (SharePopup.IsOpen)
+            SharePopup.IsOpen = false;
+        MorePopup.PlacementTarget = MoreButton;
+        MorePopup.IsOpen = true;
+    }
+
+    /// <summary>Any action inside the More sheet closes it (the action itself runs from its own Click).</summary>
+    private void MorePanel_Click(object sender, RoutedEventArgs e) => MorePopup.IsOpen = false;
+
+    // ── Tooltip guard ──────────────────────────────────────────────────────────
+    // Class of defect: a window opens under a resting pointer, WPF shows the tooltip of whatever is
+    // under it ("Drag out to copy the file" over the picture, seen in the desktop job) and nothing
+    // ever moved to dismiss it. Marking ToolTipOpening handled does not cancel a tooltip, so the
+    // guard works on the source instead: tooltips are off, and the picture carries no drag hint,
+    // until the pointer has really moved since the view last changed. A view change takes them away
+    // again (which also closes one that is showing). Every tooltip closes itself after a few seconds.
+    private const string ImageDragHint = "Drag out to copy the file";
+    private bool _tipArmed;
+    private Point _tipAnchor;
+
+    private void InstallTooltipGuard()
+    {
+        ToolTipService.SetShowDuration(this, 3500);
+        ToolTipService.SetInitialShowDelay(this, 600);
+        ResetTooltipGuard();
+        PreviewMouseMove += (_, e) =>
+        {
+            if (_tipArmed)
+                return;
+            var p = e.GetPosition(this);
+            if (Math.Abs(p.X - _tipAnchor.X) + Math.Abs(p.Y - _tipAnchor.Y) <= 3)
+                return;
+            _tipArmed = true;
+            ToolTipService.SetIsEnabled(this, true);
+            if (PreviewImage is not null)
+                PreviewImage.ToolTip = ImageDragHint;
+        };
+        MouseLeave += (_, _) => ResetTooltipGuard();
+        Deactivated += (_, _) => ResetTooltipGuard();
+    }
+
+    /// <summary>Called when the view changes: close what shows and wait for the pointer to move.</summary>
+    private void ResetTooltipGuard()
+    {
+        _tipArmed = false;
+        try { _tipAnchor = Mouse.GetPosition(this); } catch { _tipAnchor = default; }
+        ToolTipService.SetIsEnabled(this, false);
+        if (PreviewImage is not null)
+            PreviewImage.ToolTip = null;
+    }
+
     private void UpdateActionButtons(PreviewKind kind)
     {
+        ResetTooltipGuard();
+        RefreshSummaryToggleLabel();
         var isVideo = kind == PreviewKind.Video;
         var isPdf = kind == PreviewKind.Pdf;
         var isImage = kind == PreviewKind.Image;
@@ -570,6 +664,9 @@ public partial class PreviewWindow : Window
         ZoomOutButton.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomFitButton.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomLabel.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
+        if (PeekToolbar is not null)
+            PeekToolbar.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
+        PlacePeekActions();
 
         // Let the WebView own trackpad/Ctrl+wheel zoom for reflowable content; keep it OFF for PDF
         // (its own canvas-scale path already handles zoom — WebView factor on top double-zooms/blurs).
@@ -1173,6 +1270,9 @@ public partial class PreviewWindow : Window
                 SummaryText.Text = "Playing";
                 UpdateActionButtons(PreviewKind.Video);
                 UpdateMarkRangeTint();
+                _videoOpened = false;
+                _videoFailed = false;
+                _ = ProbeVideoPictureAsync();
             }
             catch (Exception ex)
             {
@@ -1311,6 +1411,8 @@ public partial class PreviewWindow : Window
 
     private async void PreviewVideo_MediaFailed(object? sender, ExceptionRoutedEventArgs e)
     {
+        _videoFailed = true;
+        LogVideoProbe("MediaFailed", $"error='{e.ErrorException?.GetType().Name}: {e.ErrorException?.Message}'");
         if (string.IsNullOrWhiteSpace(_currentFilePath) || !_ffmpeg.IsAvailable)
         {
             ConvertStatusText.Text = $"Video playback failed: {e.ErrorException?.Message}";
@@ -2025,8 +2127,109 @@ public partial class PreviewWindow : Window
         }
     }
 
+    /// <summary>
+    /// One log line of what MediaElement really reports, so a black pane is diagnosed from facts:
+    /// no picture decoder (NaturalVideoWidth 0), software render tier, or a failed open.
+    /// </summary>
+    private void LogVideoProbe(string stage, string extra = "")
+    {
+        try
+        {
+            var dur = PreviewVideo.NaturalDuration.HasTimeSpan ? PreviewVideo.NaturalDuration.TimeSpan.TotalSeconds : -1;
+            AppLogger.Info(
+                $"[video] {stage} file='{IoPath.GetFileName(_currentFilePath)}' " +
+                $"natural={PreviewVideo.NaturalVideoWidth}x{PreviewVideo.NaturalVideoHeight} " +
+                $"hasVideo={PreviewVideo.HasVideo} hasAudio={PreviewVideo.HasAudio} durationSec={dur:0.##} " +
+                $"positionSec={PreviewVideo.Position.TotalSeconds:0.##} " +
+                $"element={PreviewVideo.ActualWidth:0}x{PreviewVideo.ActualHeight:0} " +
+                $"renderTier={RenderCapability.Tier >> 16} {extra}".TrimEnd());
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"[video] {stage} probe failed: {ex.Message}");
+        }
+    }
+
+    private bool _videoOpened;
+    private bool _videoFailed;
+
+    /// <summary>
+    /// Watchdog: 2 s after Play() log what MediaElement reports, whether or not it ever raised
+    /// MediaOpened or MediaFailed (on the CI runner it raised neither: no media pipeline, black pane).
+    /// With no picture, show a still frame and say so plainly.
+    /// </summary>
+    private async Task ProbeVideoPictureAsync()
+    {
+        var path = _currentFilePath;
+        await Task.Delay(2000);
+        if (!string.Equals(path, _currentFilePath, StringComparison.OrdinalIgnoreCase)
+            || _content?.Kind != PreviewKind.Video)
+            return;
+        LogVideoProbe("watchdog-2000ms", $"mediaOpenedRaised={_videoOpened} mediaFailedRaised={_videoFailed}");
+        if (!_videoOpened || PreviewVideo.NaturalVideoWidth == 0 || !PreviewVideo.HasVideo)
+            await ShowVideoPosterAsync(_videoFailed
+                ? "MediaFailed was raised"
+                : _videoOpened ? "MediaElement opened the clip but reports no picture (NaturalVideoWidth=0)"
+                : "MediaElement raised neither MediaOpened nor MediaFailed (no media pipeline)");
+    }
+
+    private async Task ShowVideoPosterAsync(string reason)
+    {
+        var path = _currentFilePath;
+        AppLogger.Warn($"[video] no picture from MediaElement: {reason}; trying a still frame");
+        if (string.IsNullOrWhiteSpace(path) || !_ffmpeg.IsAvailable)
+        {
+            ConvertStatusText.Text = "This PC cannot draw the video picture here.";
+            return;
+        }
+        try
+        {
+            var dir = IoPath.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "NetieSpace", "cache", "video-poster");
+            IoDirectory.CreateDirectory(dir);
+            var stamp = new System.IO.FileInfo(path).LastWriteTimeUtc.Ticks;
+            var png = IoPath.Combine(dir, $"{IoPath.GetFileNameWithoutExtension(path)}_{stamp}.png");
+            if (!IoFile.Exists(png) || new System.IO.FileInfo(png).Length < 200)
+            {
+                var args = $"-y -ss 0.5 -i \"{path}\" -frames:v 1 -vf \"scale='min(1280,iw)':-2\" \"{png}\"";
+                if (!await _ffmpeg.RunPublicAsync(args, png))
+                {
+                    ConvertStatusText.Text = "This PC cannot draw the video picture here.";
+                    return;
+                }
+            }
+            if (!string.Equals(path, _currentFilePath, StringComparison.OrdinalIgnoreCase))
+                return;
+            var bmp = new BitmapImage();
+            bmp.BeginInit();
+            bmp.CacheOption = BitmapCacheOption.OnLoad;
+            bmp.UriSource = new Uri(png);
+            bmp.EndInit();
+            bmp.Freeze();
+            VideoPoster.Source = bmp;
+            VideoPoster.Visibility = Visibility.Visible;
+            ConvertStatusText.Text = "Showing a still frame: this PC cannot play the video picture. Sound and Open in Netie Video still work.";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"[video] poster failed: {ex.Message}");
+            ConvertStatusText.Text = "This PC cannot draw the video picture here.";
+        }
+    }
+
     private void PreviewVideo_MediaOpened(object sender, RoutedEventArgs e)
     {
+        _videoOpened = true;
+        LogVideoProbe("opened");
+        // The pipeline can be slower than the watchdog (3.7 s on the CI runner): once it really has a
+        // picture, the still frame stands down.
+        if (PreviewVideo.NaturalVideoWidth > 0 && VideoPoster is not null && VideoPoster.Visibility == Visibility.Visible)
+        {
+            VideoPoster.Visibility = Visibility.Collapsed;
+            VideoPoster.Source = null;
+            ConvertStatusText.Text = "";
+            AppLogger.Info("[video] real picture arrived; still frame hidden");
+        }
         if (!PreviewVideo.NaturalDuration.HasTimeSpan)
             return;
 
@@ -5859,15 +6062,48 @@ public partial class PreviewWindow : Window
         }
     }
 
+    private bool SummaryIsOptIn => _content is not null && !PeekChromeRules.SummaryByDefault(_content.Kind);
+
+    private void RefreshSummaryToggleLabel()
+    {
+        if (SummaryToggleButton is null)
+            return;
+        SummaryToggleButton.Content = SummaryIsOptIn
+            ? (_summaryAsked && _summaryBarEnabled ? "Hide summary" : "Summary")
+            : (_summaryBarEnabled ? "Summary" : "Summary off");
+    }
+
     private void SummaryToggleButton_Click(object sender, RoutedEventArgs e)
     {
+        if (SummaryIsOptIn)
+        {
+            // Pictures and clips have no summary until asked. Asking also switches a paused bar back on.
+            if (!_summaryBarEnabled)
+            {
+                _summaryBarEnabled = true;
+                UserPrefs.SummaryBarEnabled = true;
+                _summaryAsked = true;
+            }
+            else
+            {
+                _summaryAsked = !_summaryAsked;
+            }
+            RefreshSummaryToggleLabel();
+            ApplySummaryBarVisibility();
+            if (_summaryAsked && _content is not null)
+            {
+                SummaryText.Text = "Generating summary...";
+                _ = LoadSummaryAsync(_content, _cts?.Token ?? CancellationToken.None);
+            }
+            return;
+        }
+
         _summaryBarEnabled = !_summaryBarEnabled;
         UserPrefs.SummaryBarEnabled = _summaryBarEnabled;
-        if (SummaryToggleButton is not null)
-            SummaryToggleButton.Content = _summaryBarEnabled ? "Summary" : "Summary off";
+        RefreshSummaryToggleLabel();
         ApplySummaryBarVisibility();
 
-        if (_summaryBarEnabled && _content is not null && _content.Kind != PreviewKind.Video)
+        if (_summaryBarEnabled && _content is not null)
         {
             SummaryText.Text = "Generating summary...";
             _ = LoadSummaryAsync(_content, _cts?.Token ?? CancellationToken.None);
@@ -5882,7 +6118,8 @@ public partial class PreviewWindow : Window
 
     /// <summary>True when the summary should occupy chrome at all (editor ribbons win the row).</summary>
     private bool SummaryChromeAllowed =>
-        _summaryBarEnabled && !(_editMode && _content?.Kind is PreviewKind.Video or PreviewKind.Pdf);
+        _summaryBarEnabled && !(_editMode && _content?.Kind is PreviewKind.Video or PreviewKind.Pdf)
+        && (_content is null || PeekChromeRules.SummaryByDefault(_content.Kind) || _summaryAsked);
 
     private void ApplySummaryBarVisibility() => ApplySummaryLayout(animate: false);
 
@@ -7537,6 +7774,11 @@ public partial class PreviewWindow : Window
             // ignore
         }
 
+        if (VideoPoster is not null)
+        {
+            VideoPoster.Visibility = Visibility.Collapsed;
+            VideoPoster.Source = null;
+        }
         PreviewVideo.Visibility = Visibility.Visible;
     }
 
@@ -8217,11 +8459,11 @@ public partial class PreviewWindow : Window
     {
         if (!_summaryBarEnabled)
             return;
-        if (content.Kind == PreviewKind.Video)
-            return;
-
         var local = LocalSummaryService.Build(content);
         SummaryText.Text = local;
+        // A clip's summary is its facts only: no cloud call for a video.
+        if (content.Kind == PreviewKind.Video)
+            return;
 
         if (!EnsureCloudPathAcked())
         {
@@ -9069,8 +9311,8 @@ public partial class PreviewWindow : Window
         }
 
         SyncImageCanvasMinSize();
-        var vw = Math.Max(1, ImageScroll.ViewportWidth - 32);
-        var vh = Math.Max(1, ImageScroll.ViewportHeight - 32);
+        var vw = ImageScroll.ViewportWidth - 32;
+        var vh = ImageScroll.ViewportHeight - 32;
         double iw = PreviewImage.Source.Width;
         double ih = PreviewImage.Source.Height;
         if (PreviewImage.Source is BitmapSource bs)
@@ -9079,14 +9321,8 @@ public partial class PreviewWindow : Window
             ih = bs.PixelHeight;
         }
 
-        if (iw < 1 || ih < 1)
-        {
-            _fitZoom = 1.0;
-        }
-        else
-        {
-            _fitZoom = Math.Clamp(Math.Min(vw / iw, vh / ih), 0.05, 8.0);
-        }
+        // Fit shrinks a large picture to the pane and never enlarges a small one (was 684% for 64 px).
+        _fitZoom = PeekChromeRules.FitZoom(vw, vh, iw, ih);
 
         if (resetUserZoom || _zoomAtFit)
         {
@@ -9124,7 +9360,7 @@ public partial class PreviewWindow : Window
 
     private void ApplyZoom()
     {
-        ZoomLabel.Text = $"{_zoom * 100:0}%";
+        ZoomLabel.Text = PeekChromeRules.ZoomText(_zoom);
 
         if (ImageScroll.Visibility == Visibility.Visible)
         {

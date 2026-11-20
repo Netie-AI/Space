@@ -220,6 +220,120 @@ function Stop-All {
     foreach ($p in Get-Process -Name NetieSpace -ErrorAction SilentlyContinue) { try { $p.Kill() } catch { } }
 }
 
+# Pixel analysis of a screenshot region. Contrast is measured on the ink, never on the log or the DOM:
+# the page background is the most common grey in the crop, ink is whatever differs from it by 60+ grey
+# levels, and the ratio is WCAG relative luminance of that background against the farthest quarter of the ink.
+Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+public static class PixelStats {
+    static double Lin(int c) { double v = c / 255.0; return v <= 0.03928 ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4); }
+    // Returns { contrastRatio, inkFraction, backgroundGrey, meanGrey, stdGrey }.
+    public static double[] Region(string png, int x, int y, int w, int h) {
+        using (var bmp = new Bitmap(png)) {
+            x = Math.Max(0, Math.Min(x, bmp.Width - 1)); y = Math.Max(0, Math.Min(y, bmp.Height - 1));
+            w = Math.Max(1, Math.Min(w, bmp.Width - x)); h = Math.Max(1, Math.Min(h, bmp.Height - y));
+            var rect = new Rectangle(x, y, w, h);
+            var data = bmp.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            var grey = new int[w * h]; var rgb = new int[w * h];
+            var hist = new int[256];
+            double sum = 0, sum2 = 0;
+            try {
+                var row = new byte[Math.Abs(data.Stride)];
+                for (int j = 0; j < h; j++) {
+                    System.Runtime.InteropServices.Marshal.Copy(new IntPtr(data.Scan0.ToInt64() + (long)j * data.Stride), row, 0, w * 4);
+                    for (int i = 0; i < w; i++) {
+                        int b = row[i * 4], g = row[i * 4 + 1], r = row[i * 4 + 2];
+                        int gr = (int)(0.299 * r + 0.587 * g + 0.114 * b);
+                        grey[j * w + i] = gr; rgb[j * w + i] = (r << 16) | (g << 8) | b;
+                        hist[gr]++; sum += gr; sum2 += (double)gr * gr;
+                    }
+                }
+            } finally { bmp.UnlockBits(data); }
+            int n = w * h, bg = 0;
+            for (int k = 1; k < 256; k++) if (hist[k] > hist[bg]) bg = k;
+            double mean = sum / n, std = Math.Sqrt(Math.Max(0, sum2 / n - mean * mean));
+            var inkDist = new System.Collections.Generic.List<int>();
+            var inkGrey = new System.Collections.Generic.List<int>();
+            for (int k = 0; k < n; k++) {
+                int d = Math.Abs(grey[k] - bg);
+                if (d >= 60) { inkDist.Add(d); inkGrey.Add(grey[k]); }
+            }
+            double frac = (double)inkDist.Count / n;
+            if (inkDist.Count == 0) return new double[] { 1.0, 0.0, bg, mean, std };
+            var order = new int[inkDist.Count];
+            for (int k = 0; k < order.Length; k++) order[k] = k;
+            Array.Sort(inkDist.ToArray(), order);
+            int from = (int)(order.Length * 0.75);
+            double inkSum = 0; int cnt = 0;
+            for (int k = from; k < order.Length; k++) { inkSum += inkGrey[order[k]]; cnt++; }
+            int ink = (int)Math.Round(inkSum / Math.Max(1, cnt));
+            double l1 = Lin(bg), l2 = Lin(ink);
+            double ratio = (Math.Max(l1, l2) + 0.05) / (Math.Min(l1, l2) + 0.05);
+            return new double[] { ratio, frac, bg, mean, std };
+        }
+    }
+    public static void Crop(string png, string outPng, int x, int y, int w, int h) {
+        using (var bmp = new Bitmap(png)) {
+            x = Math.Max(0, Math.Min(x, bmp.Width - 1)); y = Math.Max(0, Math.Min(y, bmp.Height - 1));
+            w = Math.Max(1, Math.Min(w, bmp.Width - x)); h = Math.Max(1, Math.Min(h, bmp.Height - y));
+            using (var c = bmp.Clone(new Rectangle(x, y, w, h), bmp.PixelFormat)) c.Save(outPng, ImageFormat.Png);
+        }
+    }
+}
+"@
+
+# Visible Button rectangles of one window: name, left, top, width, height.
+function Get-ButtonRects($Win) {
+    $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Button)
+    $rows = @()
+    foreach ($b in $Win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+        try {
+            if ($b.Current.IsOffscreen) { continue }
+            $r = $b.Current.BoundingRectangle
+            if ($r.IsEmpty -or $r.Width -le 0) { continue }
+            $rows += [pscustomobject]@{ Name = ([string]$b.Current.Name).Trim(); X = [int]$r.X; Y = [int]$r.Y; W = [int]$r.Width; H = [int]$r.Height }
+        } catch { }
+    }
+    return ,$rows
+}
+
+# The visible "Loading..." text of a window, or $null. Only text that is on screen counts.
+function Get-LoadingText($Win) {
+    $tcond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Text)
+    foreach ($t in $Win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tcond)) {
+        try {
+            $n = [string]$t.Current.Name
+            if ($n -notlike "Loading*") { continue }
+            $r = $t.Current.BoundingRectangle
+            if ($t.Current.IsOffscreen -or $r.IsEmpty -or $r.Width -le 0) { continue }
+            return ("'{0}' at {1},{2} {3}x{4} class={5} id={6}" -f $n, [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $t.Current.ClassName, $t.Current.AutomationId)
+        } catch { }
+    }
+    return $null
+}
+
+# Waits until the peek has finished loading: no visible "Loading..." text left in the window.
+# Returns @{ Ms = elapsed or -1; Stuck = the text that never went away }.
+function Wait-PeekRendered($Win, [int]$TimeoutSec = 15) {
+    $clock = [System.Diagnostics.Stopwatch]::StartNew()
+    Start-Sleep -Milliseconds 700   # the overlay itself only appears after 180 ms
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $quiet = 0
+    $last = $null
+    while ((Get-Date) -lt $deadline) {
+        $last = Get-LoadingText $Win
+        # A first-run consent window (local memory, cloud disclosure) is modal and pins the overlay until a
+        # person answers it. After 6 s answer it with the private choice, as a person would, then keep waiting.
+        if ($last -and $clock.ElapsedMilliseconds -gt 6000) { Dismiss-Dialogs "while loading" }
+        if ($last) { $quiet = 0 } else { $quiet++ }
+        if ($quiet -ge 3) { Start-Sleep -Milliseconds 1200; return @{ Ms = $clock.ElapsedMilliseconds; Stuck = "" } }  # 3 clean looks, then one paint
+        Start-Sleep -Milliseconds 300
+    }
+    return @{ Ms = -1; Stuck = $last }
+}
+
 # Fixtures -----------------------------------------------------------------------------------
 $fx = Join-Path $Out "fixtures"
 New-Item -ItemType Directory -Force -Path $fx | Out-Null
@@ -300,6 +414,7 @@ $fixtures = @("Q3_Report.pdf", "Contract_Lease.pdf", "Portrait_product.png", "Br
 if (Test-Path $mp4) { $fixtures += "clip.mp4" } else { Check "mp4 fixture" $false "ffmpeg not found; no video peek" }
 $timings = @{}
 $controls = @{}
+$headerRows = @{}
 $title = "NETIE SPACE Preview"
 foreach ($name in $fixtures) {
     $file = Join-Path $fx $name
@@ -313,13 +428,112 @@ foreach ($name in $fixtures) {
         continue
     }
     $timings[$name] = $clock.ElapsedMilliseconds
-    Start-Sleep -Milliseconds 3500   # WebView2 paint
+    # Wait for the content, not a fixed time: no "Loading preview..." left, then one paint.
+    $rendered = Wait-PeekRendered $win 45   # the first peek starts WebView2 cold (22 s on the runner)
+    Check "peek $name finished loading" ($rendered.Ms -ge 0) "after $($rendered.Ms) ms stuck=$($rendered.Stuck) (-1 means a visible 'Loading...' never went away)"
+    Start-Sleep -Milliseconds 1500   # WebView2 paint
     [void](Focus-Window $win)
     $png = Save-Screen ("peek-" + $name + ".png")
     Dismiss-Dialogs $name
-    $btns = @(Get-Buttons $win)
+    $btns = Get-Buttons $win
     $controls[$name] = $btns
     Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240) -and ($btns.Count -gt 0)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons (0 buttons means the peek chrome is not exposed or not drawn)"
+
+    # No tooltip may be showing in a fresh peek (nothing moved the pointer, so nothing may be hovered).
+    $tipCond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::ToolTip)
+    $tips = @()
+    foreach ($w3 in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+        try {
+            if ($w3.Current.ProcessId -ne $space.Id) { continue }
+            if ($w3.Current.ControlType -eq [System.Windows.Automation.ControlType]::ToolTip) { $tips += [string]$w3.Current.Name; continue }
+            foreach ($t3 in $w3.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tipCond)) { $tips += [string]$t3.Current.Name }
+        } catch { }
+    }
+    Check "peek $name shows no stale tooltip" ($tips.Count -eq 0) "tooltips=[$($tips -join ' | ')]"
+
+    # Header: one row. Every header button shares one Y band; a wrapped header spreads over 2-3 bands.
+    $winRect = $win.Current.BoundingRectangle
+    $rects = Get-ButtonRects $win
+    $top = [int]$winRect.Y
+    # Only the names the peek header has ever held (so the viewer's own toolbar inside WebView2 never counts),
+    # in the top 150 px: a wrapped header spreads these over 2-3 rows, one row keeps them in a single Y band.
+    $headerPattern = '^(Open in Netie|Edit$|Done$|Workbench$|Summary|Hide summary|AI:|Cloud:|Chat$|Look up|Remove BG|OCR$|Copy$|Compress$|Rotate 90|Send to Comfy|Windows AI|Share$|Settings$|More$|Close$)'
+    $headerBtns = @($rects | Where-Object { ($_.Y - $top) -lt 150 -and $_.Name -match $headerPattern })
+    if ($headerBtns.Count -gt 0) {
+        $centers = @($headerBtns | ForEach-Object { $_.Y + [int]($_.H / 2) })
+        $spread = ($centers | Measure-Object -Maximum).Maximum - ($centers | Measure-Object -Minimum).Minimum
+        Check "peek $name header is one row" ($spread -le 14) "buttons=$($headerBtns.Count) centreY spread=${spread}px names=$(($headerBtns | ForEach-Object { $_.Name }) -join ' | ')"
+        Check "peek $name header holds at most 7 buttons" ($headerBtns.Count -le 7) "count=$($headerBtns.Count)"
+        $more = @($headerBtns | Where-Object { $_.Name -eq "More" })
+        Check "peek $name has a More button" ($more.Count -eq 1) ""
+    } else {
+        Check "peek $name header buttons found" $false "no header button found in the top 150 px of the window"
+    }
+    $headerRows[$name] = $headerBtns
+
+    # Summary strip: not on pictures and clips unless asked.
+    if ($name -in @("Portrait_product.png", "clip.mp4")) {
+        $strip = Get-TextLine $win "Type:"
+        Check "peek $name shows no summary strip by default" ($null -eq $strip) "text='$strip'"
+    }
+
+    # Image: opens at Fit, which never enlarges, and the label shows the real zoom.
+    if ($name -eq "Portrait_product.png") {
+        $zl = $null
+        $tcond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Text)
+        foreach ($t in $win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tcond)) {
+            try { $n = [string]$t.Current.Name; if ($n -match '^\d+%$') { $zl = $n; break } } catch { }
+        }
+        $zv = 0; if ($zl) { $zv = [int]($zl.TrimEnd('%')) }
+        Check "peek image zoom label is shown and is at most 100%" ($zl -and $zv -le 100 -and $zv -ge 5) "zoom='$zl' (684% was the old Fit on a 64 px picture)"
+
+        # More sheet: every secondary action is still there.
+        $moreBtn = Find-Button $win "More" -Exact
+        if ($moreBtn -and (Invoke-Element $moreBtn)) {
+            Start-Sleep -Milliseconds 900
+            Save-Screen "peek-more-Portrait_product.png" | Out-Null
+            $all = @()
+            foreach ($w2 in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+                if ($w2.Current.ProcessId -ne $space.Id) { continue }
+                $all += Get-Buttons $w2
+            }
+            $need = @("Summary", "Chat", "Remove BG", "OCR", "Copy", "Compress", "Rotate 90", "Send to Comfy...", "Windows AI...")
+            $missing = @($need | Where-Object { $all -notcontains $_ })
+            Check "More sheet lists every image action" ($missing.Count -eq 0) "missing=[$($missing -join ', ')] found=[$($all -join ' | ')]"
+            [void](Invoke-Element $moreBtn)   # toggle closed
+            Start-Sleep -Milliseconds 400
+        } else {
+            Check "More sheet opens" $false "More button not found or not invokable"
+        }
+    }
+
+    # Word: the page text is readable. Crop the page area, measure ink against its background.
+    if ($name -eq "memo.docx") {
+        $cx = [int]($winRect.X + $winRect.Width * 0.12); $cy = [int]($top + 190)
+        $cw = [int]($winRect.Width * 0.76); $chh = [int]($winRect.Height * 0.40)
+        [PixelStats]::Crop($png, (Join-Path $Out "peek-memo-crop.png"), $cx, $cy, $cw, $chh)
+        $st = [PixelStats]::Region($png, $cx, $cy, $cw, $chh)
+        Check "memo.docx text is readable (contrast >= 4.5, ink visible)" (($st[0] -ge 4.5) -and ($st[1] -ge 0.0003) -and ($st[1] -le 0.35)) ("contrast={0:N2} inkFraction={1:N5} backgroundGrey={2} meanGrey={3:N1}" -f $st[0], $st[1], $st[2], $st[3])
+    }
+
+    # Video: record what MediaElement reported, plainly, and check the pane is not black.
+    if ($name -eq "clip.mp4") {
+        $probe = @()
+        if (Test-Path $log) {
+            try {
+                $fs = [System.IO.File]::Open($log, 'Open', 'Read', 'ReadWrite')
+                $sr = New-Object System.IO.StreamReader $fs
+                $probe = @($sr.ReadToEnd() -split "`n" | Where-Object { $_ -match '\[video\]' })
+                $sr.Dispose(); $fs.Dispose()
+            } catch { Write-Host "note: could not read app.log for the video probe: $($_.Exception.Message)" }
+        }
+        $probe | ForEach-Object { Write-Host "video: $($_.Trim())" }
+        $probe | Set-Content -Path (Join-Path $Out "video-probe.txt") -Encoding UTF8
+        Check "video probe logged what MediaElement reports" ($probe.Count -gt 0) "lines=$($probe.Count) (see video-probe.txt: natural=WxH, hasVideo, MediaFailed)"
+        $wr = $winRect
+        $vs = [PixelStats]::Region($png, [int]($wr.X + $wr.Width * 0.1), [int]($top + 140), [int]($wr.Width * 0.8), [int]($wr.Height * 0.4))
+        Check "video pane is not black (a picture or the still frame)" ($vs[4] -gt 3) ("meanGrey={0:N1} stdGrey={1:N1} (an empty pane is flat: std below 3)" -f $vs[3], $vs[4])
+    }
 
     # Q3_Report: the bridge button, while the peek is open.
     if ($name -eq "Q3_Report.pdf") {
@@ -363,6 +577,7 @@ foreach ($name in $fixtures) {
 }
 $timings | ConvertTo-Json | Set-Content -Path (Join-Path $Out "peek-timings.json") -Encoding UTF8
 $controls | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $Out "peek-controls.json") -Encoding UTF8
+$headerRows | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $Out "peek-header-rects.json") -Encoding UTF8
 
 # 5. Drive the apps. Start from no app process: the Space tray process is the only one left.
 foreach ($p in Get-Process -Name NetieSpace -ErrorAction SilentlyContinue) {

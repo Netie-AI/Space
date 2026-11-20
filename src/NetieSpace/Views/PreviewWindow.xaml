@@ -334,72 +334,31 @@
                                    MouseLeftButtonUp="FileNameText_MouseLeftButtonUp"/>
                     </DockPanel>
 
-                    <WrapPanel Grid.Column="1" MaxWidth="560" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,6">
-                        <Button x:Name="EditModeButton" Content="Edit" Visibility="Collapsed"
-                                Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
-                                FontWeight="SemiBold" FontSize="13"
-                                Click="EditModeButton_Click"
-                                ToolTip="Edit tools"/>
-                        <Button x:Name="EditInAppButton" Content="Workbench" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="14,8"
-                                FontWeight="SemiBold" FontSize="13"
-                                Click="EditInAppButton_Click"
-                                ToolTip="Open the PDF workbench"/>
-                        <Button x:Name="OpenInAppButton" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="14,8"
-                                FontWeight="SemiBold" FontSize="13"
-                                Click="OpenInAppButton_Click"/>
-                        <Button x:Name="TextEditButton" Content="Edit" Visibility="Collapsed"
-                                Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
-                                FontWeight="SemiBold" FontSize="13"
-                                Click="TextEditButton_Click"
-                                ToolTip="Edit text"/>
-                        <Button x:Name="SummaryToggleButton" Content="Summary"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="12,6"
-                                Click="SummaryToggleButton_Click"
-                                ToolTip="AI summary"/>
-                        <Button x:Name="ProviderButton" Content="AI: —"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="ProviderButton_Click"
-                                ToolTip="Switch AI provider"/>
-                        <Button x:Name="ContinueChatButton" Content="Chat"
-                                Style="{StaticResource TealButton}" Margin="0,0,8,0"
-                                Click="ContinueChatButton_Click"
-                                ToolTip="Notes &amp; chat"/>
+                    <!-- ONE row: primary action for the kind, icon buttons, More, close. Nothing is removed:
+                         every secondary action is a real Button living in PeekMorePanel (the More popup).
+                         Edit buttons are primary only when there is no "Open in Netie ..." (see PlacePeekAction). -->
+                    <StackPanel x:Name="PeekHeaderRow" Grid.Column="1" Orientation="Horizontal"
+                                HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,8,0,8">
+                        <StackPanel x:Name="PeekPrimarySlot" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Button x:Name="OpenInAppButton" Visibility="Collapsed"
+                                    Style="{StaticResource PeekPrimaryBtn}"
+                                    Click="OpenInAppButton_Click"/>
+                            <Button x:Name="EditModeButton" Content="Edit" Visibility="Collapsed"
+                                    Style="{StaticResource PeekPrimaryBtn}"
+                                    Click="EditModeButton_Click"
+                                    ToolTip="Edit tools"/>
+                            <Button x:Name="TextEditButton" Content="Edit" Visibility="Collapsed"
+                                    Style="{StaticResource PeekPrimaryBtn}"
+                                    Click="TextEditButton_Click"
+                                    ToolTip="Edit text"/>
+                        </StackPanel>
                         <Button x:Name="LookupClipButton" Content="&#xE721;"
-                                Style="{StaticResource IconGlyphButton}" Margin="0,0,8,0"
+                                Style="{StaticResource IconGlyphButton}" Margin="0,0,6,0"
                                 Click="LookupClipButton_Click"
                                 ToolTip="Look up selection" AutomationProperties.Name="Look up selection"/>
-                        <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="RemoveBgButton_Click"/>
-                        <Button x:Name="OcrImageButton" Content="OCR" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="OcrImageButton_Click"
-                                ToolTip="Read text (OCR)"/>
-                        <Button x:Name="CopyImageButton" Content="Copy" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="CopyImageButton_Click"
-                                ToolTip="Copy image"/>
-                        <Button x:Name="CompressImageButton" Content="Compress" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="CompressImageButton_Click"
-                                ToolTip="Reduce file size"/>
-                        <Button x:Name="RotateImageButton" Content="Rotate 90" Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="RotateImageButton_Click"
-                                ToolTip="Rotate 90 deg clockwise (saves a copy)"/>
-                        <Button x:Name="SendToComfyButton" Content="Send to Comfy..." Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="SendToComfyButton_Click"
-                                ToolTip="Send to ComfyUI"/>
-                        <Button x:Name="WindowsAiButton" Content="Windows AI..." Visibility="Collapsed"
-                                Style="{StaticResource GhostButton}" Margin="0,0,8,0"
-                                Click="WindowsAiButton_Click"
-                                ToolTip="Windows AI"/>
                         <!-- Share replaces the old text "convert" entry: icon only, sheet does the rest -->
                         <Button x:Name="ShareButton"
-                                Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
+                                Style="{StaticResource IconGhostButton}" Margin="0,0,6,0"
                                 Click="ShareButton_Click"
                                 ToolTip="Share" AutomationProperties.Name="Share">
                             <Path Stroke="{StaticResource TextBrush}" StrokeThickness="1.7"
@@ -408,22 +367,76 @@
                                   Data="M 12,3.4 L 12,14.6 M 8.2,7.2 L 12,3.4 L 15.8,7.2 M 7.6,10 L 5.6,10 C 4.7,10 4,10.7 4,11.6 L 4,19 C 4,19.9 4.7,20.6 5.6,20.6 L 18.4,20.6 C 19.3,20.6 20,19.9 20,19 L 20,11.6 C 20,10.7 19.3,10 18.4,10 L 16.4,10"/>
                         </Button>
                         <Button x:Name="SetupHelpButton" Content="&#xE713;"
-                                Style="{StaticResource IconGlyphButton}" Margin="0,0,8,0"
+                                Style="{StaticResource IconGlyphButton}" Margin="0,0,6,0"
                                 Click="SetupHelpButton_Click"
                                 ToolTip="Settings" AutomationProperties.Name="Settings"/>
-                        <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,8,0">
-                            <Button x:Name="ZoomOutButton" Content="−" Style="{StaticResource GhostButton}"
-                                    Margin="0,0,4,0" Padding="10,4" Click="ZoomOutButton_Click"/>
-                            <TextBlock x:Name="ZoomLabel" Text="100%" VerticalAlignment="Center"
-                                       Foreground="{StaticResource MutedBrush}" FontSize="11.5" MinWidth="40" TextAlignment="Center"/>
-                            <Button x:Name="ZoomInButton" Content="+" Style="{StaticResource GhostButton}"
-                                    Margin="0,0,4,0" Padding="10,4" Click="ZoomInButton_Click"/>
-                            <Button x:Name="ZoomFitButton" Content="Fit" Style="{StaticResource GhostButton}"
-                                    Padding="10,4" Click="ZoomFitButton_Click"/>
-                        </StackPanel>
+                        <Button x:Name="MoreButton" Content="More"
+                                Style="{StaticResource PeekQuietBtn}" Margin="0,0,6,0"
+                                Click="MoreButton_Click"
+                                ToolTip="More actions" AutomationProperties.Name="More"/>
                         <Button x:Name="CloseChromeButton" Content="✕" Style="{StaticResource IconCloseButton}" Click="CloseButton_Click"
                                 ToolTip="Close" AutomationProperties.Name="Close"/>
-                    </WrapPanel>
+                    </StackPanel>
+
+                    <!-- More sheet. Own HWND, so it draws over WebView2. Any Click inside closes it. -->
+                    <Popup x:Name="MorePopup" PlacementTarget="{Binding ElementName=MoreButton}"
+                           Placement="Bottom" HorizontalOffset="-150" VerticalOffset="6"
+                           StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+                           Focusable="False">
+                        <Border Width="204" CornerRadius="14" Padding="6"
+                                Background="#F21A1E28" BorderBrush="#3AFFFFFF" BorderThickness="1"
+                                Margin="12" ButtonBase.Click="MorePanel_Click">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="22" ShadowDepth="5" Direction="270"
+                                                  Color="#000000" Opacity="0.45"/>
+                            </Border.Effect>
+                            <StackPanel x:Name="PeekMorePanel">
+                                <Button x:Name="EditInAppButton" Content="Workbench" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="EditInAppButton_Click"
+                                        ToolTip="Open the PDF workbench"/>
+                                <Button x:Name="SummaryToggleButton" Content="Summary"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="SummaryToggleButton_Click"
+                                        ToolTip="AI summary"/>
+                                <Button x:Name="ContinueChatButton" Content="Chat"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="ContinueChatButton_Click"
+                                        ToolTip="Notes &amp; chat"/>
+                                <Button x:Name="ProviderButton" Content="AI: —"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="ProviderButton_Click"
+                                        ToolTip="Switch AI provider"/>
+                                <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="RemoveBgButton_Click"/>
+                                <Button x:Name="OcrImageButton" Content="OCR" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="OcrImageButton_Click"
+                                        ToolTip="Read text (OCR)"/>
+                                <Button x:Name="CopyImageButton" Content="Copy" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="CopyImageButton_Click"
+                                        ToolTip="Copy image"/>
+                                <Button x:Name="CompressImageButton" Content="Compress" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="CompressImageButton_Click"
+                                        ToolTip="Reduce file size"/>
+                                <Button x:Name="RotateImageButton" Content="Rotate 90" Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="RotateImageButton_Click"
+                                        ToolTip="Rotate 90 deg clockwise (saves a copy)"/>
+                                <Button x:Name="SendToComfyButton" Content="Send to Comfy..." Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="SendToComfyButton_Click"
+                                        ToolTip="Send to ComfyUI"/>
+                                <Button x:Name="WindowsAiButton" Content="Windows AI..." Visibility="Collapsed"
+                                        Style="{StaticResource PeekMenuRow}"
+                                        Click="WindowsAiButton_Click"
+                                        ToolTip="Windows AI"/>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
 
                     <!-- Share sheet. Popups get their own HWND, so this draws cleanly over WebView2. -->
                     <Popup x:Name="SharePopup" PlacementTarget="{Binding ElementName=ShareButton}"
@@ -719,6 +732,19 @@
                             </StackPanel>
                         </DockPanel>
                     </Border>
+                    <!-- Content toolbar: compact zoom on the right. Only zoomable kinds show it. -->
+                    <Border x:Name="PeekToolbar" DockPanel.Dock="Top" Visibility="Collapsed" Padding="22,2,18,2">
+                        <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
+                            <Button x:Name="ZoomOutButton" Content="-" Style="{StaticResource PeekZoomBtn}"
+                                    Click="ZoomOutButton_Click" ToolTip="Zoom out" AutomationProperties.Name="Zoom out"/>
+                            <TextBlock x:Name="ZoomLabel" Text="100%" VerticalAlignment="Center"
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11.5" MinWidth="44" TextAlignment="Center"/>
+                            <Button x:Name="ZoomInButton" Content="+" Style="{StaticResource PeekZoomBtn}"
+                                    Click="ZoomInButton_Click" ToolTip="Zoom in" AutomationProperties.Name="Zoom in"/>
+                            <Button x:Name="ZoomFitButton" Content="Fit" Style="{StaticResource PeekQuietBtn}"
+                                    Padding="8,0" Click="ZoomFitButton_Click" ToolTip="Fit to window" AutomationProperties.Name="Fit"/>
+                        </StackPanel>
+                    </Border>
                     <Grid x:Name="PeekActionStrip" DockPanel.Dock="Bottom" Visibility="Collapsed">
                         <Border Padding="22,6,22,10" Background="Transparent">
                             <StackPanel Orientation="Horizontal">
@@ -755,19 +781,20 @@
                     </Grid>
 
                     <Grid>
-                        <Border x:Name="PreviewSummaryHost" Padding="22,10,14,4" MaxHeight="104">
+                        <Border x:Name="PreviewSummaryHost" Padding="22,8,14,6" MaxHeight="58">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" MaxHeight="76"
+                                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Disabled" MaxHeight="40"
                                               Style="{StaticResource GlassScrollViewer}">
                                     <TextBlock x:Name="SummaryText" Text="Generating summary..."
                                                FontFamily="{StaticResource BodyFont}"
                                                Foreground="{StaticResource TextBrush}"
                                                FontSize="13" LineHeight="19" TextWrapping="Wrap" Opacity="0.94"
+                                               MaxHeight="38" TextTrimming="CharacterEllipsis"
                                                Cursor="Hand" MouseLeftButtonUp="SummaryText_MouseLeftButtonUp"/>
                                 </ScrollViewer>
 
@@ -1124,7 +1151,7 @@
                                        MouseMove="PreviewImage_MouseMove"
                                        MouseLeftButtonUp="PreviewImage_MouseLeftButtonUp"
                                        MouseLeave="PreviewImage_MouseLeave"
-                                       ToolTip="Drag out to copy the file">
+                                       ToolTipService.ShowDuration="3000">
                                     <Image.LayoutTransform>
                                         <ScaleTransform x:Name="ImageScale" ScaleX="1" ScaleY="1"/>
                                     </Image.LayoutTransform>
@@ -1175,6 +1202,8 @@
                                       Stretch="Uniform"
                                       MediaOpened="PreviewVideo_MediaOpened"
                                       MediaEnded="PreviewVideo_MediaEnded"/>
+                        <!-- Still frame shown only when MediaElement cannot draw this clip's picture. -->
+                        <Image x:Name="VideoPoster" Visibility="Collapsed" Stretch="Uniform" IsHitTestVisible="False"/>
                         <!-- Leave-black / Add black / text: OV lane is not the picture.
                              Playhead on that packed range must show the card here or
                              Export "picture is not black" is the first cue. -->
