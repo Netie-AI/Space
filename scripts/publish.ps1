@@ -142,6 +142,18 @@ if (Test-Path $codeSrc) {
     Write-Host "[OK] Copied Assets/code-viewer/" -ForegroundColor Green
 }
 
+# Per-app icons (Netie PDF / Image / Video). Start Menu shortcuts and --register-apps read them
+# from <exe folder>\Assets\apps; single-file publish does not place Content items there.
+$appsSrc = Join-Path $root 'src\NetieSpace\Assets\apps'
+$appsDst = Join-Path $dist 'Assets\apps'
+if (Test-Path $appsSrc) {
+    Invoke-WithRetry -Description 'Copying app icons' -Operation {
+        New-Item -ItemType Directory -Force -Path $appsDst | Out-Null
+        Copy-Item (Join-Path $appsSrc '*') $appsDst -Recurse -Force
+    }
+    Write-Host "[OK] Copied Assets/apps/" -ForegroundColor Green
+}
+
 # Bundle icon next to portable exe
 $icoSrc = Join-Path $root 'src\NetieSpace\Assets\netie.ico'
 if (Test-Path $icoSrc) {
