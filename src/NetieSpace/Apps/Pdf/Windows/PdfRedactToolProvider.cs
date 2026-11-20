@@ -172,15 +172,13 @@ public sealed class PdfRedactToolProvider : IToolProvider
         {
             ct.ThrowIfCancellationRequested();
             var page = pig.GetPage(n);
-            var rotation = ((page.Rotation.Value % 360) + 360) % 360;
+            // PdfPig 0.1.9 gives the crop box and the letters already turned to the displayed page
+            // (a page turned 90 degrees reports the swapped size); the renderer check proves it per page.
             var crop = page.CropBox.Bounds;
-            var rawW = crop.Right - crop.Left;
-            var rawH = crop.Top - crop.Bottom;
-            var swap = rotation is 90 or 270;
             var plan = new PagePlan
             {
-                WidthPt = swap ? rawH : rawW,
-                HeightPt = swap ? rawW : rawH,
+                WidthPt = crop.Right - crop.Left,
+                HeightPt = crop.Top - crop.Bottom,
                 LetterCount = page.Letters.Count,
             };
             plans.Add(plan);
@@ -215,7 +213,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
                             var lo = Math.Min(Math.Min(b.BottomLeft.Y, b.TopLeft.Y), Math.Min(b.BottomRight.Y, b.TopRight.Y));
                             var hi = Math.Max(Math.Max(b.BottomLeft.Y, b.TopLeft.Y), Math.Max(b.BottomRight.Y, b.TopRight.Y));
                             plan.Boxes.Add(new Box(
-                                l - TextPadPoints, plan.HeightPt - hi - TextPadPoints,
+                                l - crop.Left - TextPadPoints, crop.Top - hi - TextPadPoints,
                                 r - l + 2 * TextPadPoints, hi - lo + 2 * TextPadPoints, true));
                         }
                         at += Math.Max(1, needle.Length);
