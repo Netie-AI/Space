@@ -259,6 +259,7 @@ public sealed class ImageToolProvider : IToolProvider
             using (mark)
             {
                 img.Mutate(x => x.AutoOrient());
+                mark.Mutate(x => x.AutoOrient());
                 var (mw, mh) = ImageGeometry.OverlaySize(img.Width, img.Height, mark.Width, mark.Height, scale);
                 mark.Mutate(x => x.Resize(mw, mh, KnownResamplers.Lanczos3));
                 var (px, py) = ImageGeometry.OverlayOrigin(img.Width, img.Height, mw, mh, position);
