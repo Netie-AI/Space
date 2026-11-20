@@ -34,38 +34,7 @@ public class WinTool2RedactTests
         ("This page has only harmless words OTHERPAGETEXT", 0),
         ("closing " + Secret.ToLowerInvariant() + " lower case here", 0));
 
-    /// <summary>True when the term is in the file bytes or in any decoded stream, as ASCII or UTF-16.</summary>
-    private static bool Leaks(string pdfPath, string term)
-    {
-        var lowered = term.ToLowerInvariant();
-        var patterns = new List<byte[]>
-        {
-            System.Text.Encoding.ASCII.GetBytes(lowered),
-            System.Text.Encoding.BigEndianUnicode.GetBytes(lowered),
-            System.Text.Encoding.Unicode.GetBytes(lowered),
-            // <hex> strings, ASCII and UTF-16BE
-            System.Text.Encoding.ASCII.GetBytes(Convert.ToHexString(System.Text.Encoding.ASCII.GetBytes(lowered)).ToLowerInvariant()),
-            System.Text.Encoding.ASCII.GetBytes(Convert.ToHexString(System.Text.Encoding.BigEndianUnicode.GetBytes(lowered)).ToLowerInvariant()),
-        };
-        bool Has(byte[] hay)
-        {
-            var lower = (byte[])hay.Clone();
-            for (var i = 0; i < lower.Length; i++)
-                if (lower[i] >= 'A' && lower[i] <= 'Z') lower[i] = (byte)(lower[i] + 32);
-            return patterns.Any(p => lower.AsSpan().IndexOf(p) >= 0);
-        }
-        if (Has(IoFile.ReadAllBytes(pdfPath))) return true;
-        using var doc = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
-        foreach (var item in doc.Internals.GetAllObjects())
-        {
-            if (item is not PdfSharpCore.Pdf.PdfDictionary dict || dict.Stream is null) continue;
-            byte[] bytes;
-            try { bytes = dict.Stream.UnfilteredValue; }
-            catch { continue; }
-            if (Has(bytes)) return true;
-        }
-        return false;
-    }
+    private static bool Leaks(string pdfPath, string term) => PdfRedactToolProvider.FileContains(pdfPath, term);
 
     private static async Task<SixLabors.ImageSharp.Image<Rgba32>> Render(string pdf, int pageIndex, int dpi)
     {
@@ -102,7 +71,10 @@ public class WinTool2RedactTests
             doc.Info.Title = Secret;
             doc.Save(plain);
         }
-        Assert.True(Leaks(plain, Secret), "the byte scanner missed a term in the document info");
+        var raw = System.Text.Encoding.Latin1.GetString(IoFile.ReadAllBytes(plain));
+        var at = raw.IndexOf("/Title", StringComparison.Ordinal);
+        Assert.True(Leaks(plain, Secret), "the scanner missed a term in the document info; file near /Title: "
+            + (at < 0 ? "(no /Title at all)" : raw.Substring(at, Math.Min(120, raw.Length - at)).Replace('\0', '~')));
         Assert.False(Leaks(plain, "ZZNOTINTHEFILEZZ"));
     }
 

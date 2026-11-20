@@ -103,7 +103,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
         var boxed = plans.Count(p => p.Boxes.Count > 0);
 
         IoDirectory.CreateDirectory(request.OutDir);
-        var temp = IoPath.Combine(request.OutDir, ".netie-redact-" + Guid.NewGuid().ToString("N") + ".tmp");
+        var temp = IoPath.Combine(request.OutDir, ".netie-redact-" + Guid.NewGuid().ToString("N") + ".pdf");
         string? final = null;
         var images = new List<XImage>();
         try
@@ -143,6 +143,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
 
             // 3. Prove it on the file that will be handed over.
             VerifyOutput(temp, plans, terms);
+            await VerifySizesAsync(temp, plans, ct);
 
             final = WinPdfRender.FreePath(request.OutDir, IoPath.GetFileNameWithoutExtension(input) + "-redacted", ".pdf", Array.Empty<string>());
             IoFile.Move(temp, final);
@@ -325,6 +326,24 @@ public sealed class PdfRedactToolProvider : IToolProvider
         }
     }
 
+    /// <summary>The finished file must show every page at the size the source page was shown at.</summary>
+    private static async Task VerifySizesAsync(string path, List<PagePlan> plans, CancellationToken ct)
+    {
+        var shown = await WinPdfRender.OpenAsync(path, ct);
+        if ((int)shown.PageCount != plans.Count)
+            throw new InvalidOperationException($"the redacted file shows {shown.PageCount} pages, expected {plans.Count}; nothing was written");
+        for (var i = 0; i < plans.Count; i++)
+        {
+            using var page = shown.GetPage((uint)i);
+            var w = page.Size.Width * PointsPerUnit;
+            var h = page.Size.Height * PointsPerUnit;
+            if (Math.Abs(w - plans[i].WidthPt) > Math.Max(2.0, plans[i].WidthPt * 0.01)
+                || Math.Abs(h - plans[i].HeightPt) > Math.Max(2.0, plans[i].HeightPt * 0.01))
+                throw new InvalidOperationException(
+                    $"page {i + 1} is {w:0.#} x {h:0.#} points in the redacted file but was {plans[i].WidthPt:0.#} x {plans[i].HeightPt:0.#}; nothing was written");
+        }
+    }
+
     private static string LettersOnly(UglyToad.PdfPig.Content.Page page) =>
         new string(page.Letters.SelectMany(l => l.Value).Where(c => !char.IsWhiteSpace(c)).ToArray());
 
@@ -340,8 +359,6 @@ public sealed class PdfRedactToolProvider : IToolProvider
             {
                 var page = pig.GetPage(n);
                 var plan = plans[n - 1];
-                if (Math.Abs(page.Width - plan.WidthPt) > 1 || Math.Abs(page.Height - plan.HeightPt) > 1)
-                    throw new InvalidOperationException($"page {n} changed size while being rebuilt; nothing was written");
                 if (plan.Boxes.Count > 0 && page.Letters.Count != 0)
                     throw new InvalidOperationException($"page {n} still has extractable text after redaction; nothing was written");
                 if (plan.Boxes.Count == 0 && page.Letters.Count != plan.LetterCount)
@@ -363,12 +380,16 @@ public sealed class PdfRedactToolProvider : IToolProvider
                 throw new InvalidOperationException($"'{term}' is still inside the file (a note, form value or metadata of a page that was copied); nothing was written");
     }
 
-    private static bool FileContains(string path, string term)
+    /// <summary>
+    /// True when the term is in the file bytes (ASCII, UTF-16, or as a hex string), in a decoded stream, or in a
+    /// decoded PDF string anywhere in the object tree (info, annotations, form values, metadata names).
+    /// </summary>
+    internal static bool FileContains(string path, string term)
     {
         var lowered = term.ToLowerInvariant();
         var patterns = new[] { Encoding.ASCII, Encoding.BigEndianUnicode, Encoding.Unicode }
             .Select(e => e.GetBytes(lowered)).ToList();
-        // PDF strings may also be written as <hex>, as ASCII or UTF-16BE (document info, annotations).
+        // PDF strings may also be written as <hex>, as ASCII or UTF-16BE.
         foreach (var e in new[] { Encoding.ASCII, Encoding.BigEndianUnicode })
             patterns.Add(Encoding.ASCII.GetBytes(Convert.ToHexString(e.GetBytes(lowered)).ToLowerInvariant()));
         bool Has(byte[] hay)
@@ -382,6 +403,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
         using var doc = PdfReader.Open(path, PdfDocumentOpenMode.Import);
         foreach (var item in doc.Internals.GetAllObjects())
         {
+            if (StringsIn(item, 0).Any(v => v.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)) return true;
             if (item is not PdfSharpCore.Pdf.PdfDictionary dict || dict.Stream is null) continue;
             byte[] bytes;
             try { bytes = dict.Stream.UnfilteredValue; }
@@ -389,5 +411,32 @@ public sealed class PdfRedactToolProvider : IToolProvider
             if (Has(bytes)) return true;
         }
         return false;
+    }
+
+    private static IEnumerable<string> StringsIn(PdfSharpCore.Pdf.PdfItem? item, int depth)
+    {
+        if (item is null || depth > 12) yield break;
+        switch (item)
+        {
+            case PdfSharpCore.Pdf.PdfString str:
+                yield return str.Value;
+                break;
+            case PdfSharpCore.Pdf.PdfName name:
+                yield return name.Value;
+                break;
+            case PdfSharpCore.Pdf.Advanced.PdfReference:
+                break;
+            case PdfSharpCore.Pdf.PdfDictionary dict:
+                foreach (var key in dict.Elements.Keys)
+                {
+                    yield return key;
+                    foreach (var v in StringsIn(dict.Elements[key], depth + 1)) yield return v;
+                }
+                break;
+            case PdfSharpCore.Pdf.PdfArray array:
+                foreach (var element in array.Elements)
+                    foreach (var v in StringsIn(element, depth + 1)) yield return v;
+                break;
+        }
     }
 }
