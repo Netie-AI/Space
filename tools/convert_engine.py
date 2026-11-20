@@ -1108,7 +1108,10 @@ def wrap_html(body: str, title: str = "Preview") -> str:
     return (
         "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
         f"<title>{html.escape(title)}</title>"
-        "<style>body{font-family:system-ui,sans-serif;margin:24px;color:#222}"
+        # Text colour and page colour travel together. The peek paints its WebView2 host dark
+        # (#10141c); #222 text with no background of its own was near-black on near-black.
+        "<style>html{background:#fff}"
+        "body{font-family:system-ui,sans-serif;margin:24px;color:#222;background:#fff}"
         "article.office-body{max-width:900px;margin:0 auto}"
         "img{max-width:100%;height:auto}"
         "section.slide{margin:0 0 2em;padding:0 0 1em;border-bottom:1px solid #ddd}"

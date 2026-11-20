@@ -54,6 +54,9 @@
     <Compile Include="..\..\src\NetieSpace\Services\VideoEditSession.cs" Link="Linked\VideoEditSession.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\Timeline\TimelineProject.cs" Link="Linked\TimelineProject.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\CortexWasmPolicy.cs" Link="Linked\CortexWasmPolicy.cs" />
+    <!-- Peek summary: pure extractive half (LocalSummaryErrors.cs reads AiService and stays out). -->
+    <Compile Include="..\..\src\NetieSpace\Models\AppModels.cs" Link="Linked\Models\AppModels.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\LocalSummaryService.cs" Link="Linked\LocalSummaryService.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegExportGraph.cs" Link="Linked\FfmpegExportGraph.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegService.cs" Link="Linked\FfmpegService.cs" />
     <Compile Include="..\..\src\NetieSpace\Helpers\AppLogger.cs" Link="Linked\AppLogger.cs" />

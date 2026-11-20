@@ -8049,6 +8049,34 @@ def test_pptx_photo_export() -> None:
             assert "word/media/image1.png" in zf.namelist()
 
 
+def test_preview_html_text_is_readable_on_its_own_page() -> None:
+    """The peek host is dark (#10141c). A preview page must paint its own background."""
+    import re
+    import zipfile
+
+    eng = load_engine()
+    page = eng.wrap_html("<p>Tenant pays rent.</p>", "memo.docx")
+    css = page.split("<style>", 1)[1].split("</style>", 1)[0]
+    body_rule = re.search(r"body\{([^}]*)\}", css).group(1)
+    assert "color:" in body_rule and "background:" in (css + body_rule), css
+    assert "html{background:#fff}" in css, css
+
+    # End to end through the real action, on a docx with no styles (the desktop-job memo.docx shape).
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        docx = d / "memo.docx"
+        with zipfile.ZipFile(docx, "w") as z:
+            z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>')
+            z.writestr("_rels/.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>')
+            z.writestr("word/document.xml", '<?xml version="1.0"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>Lease summary</w:t></w:r></w:p><w:p><w:r><w:t>Tenant pays rent on the first of each month.</w:t></w:r></w:p></w:body></w:document>')
+        out = d / "preview.html"
+        res = run_engine(["preview-html", str(docx), str(out)])
+        assert res.get("success"), res
+        html = out.read_text(encoding="utf-8")
+        assert "Tenant pays rent on the first of each month." in html
+        assert "background:#fff" in html and "color:#222" in html, html[:400]
+
+
 def test_photo_odp_docx_export() -> None:
     """Share default PDF on a photo ODP / image-only DOCX used empty markdown."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -8679,6 +8707,7 @@ if __name__ == "__main__":
     test_pdf_markdown_image_only()
     test_pptx_photo_export()
     test_photo_odp_docx_export()
+    test_preview_html_text_is_readable_on_its_own_page()
     test_photo_ods_xlsx_export()
     test_ole_doc_xls_pdf_not_blank()
     test_ole_ppt_md_not_blank()

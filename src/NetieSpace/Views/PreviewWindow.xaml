@@ -106,6 +106,20 @@
             <Setter Property="Foreground" Value="#2C2C2C"/>
             <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
             <Setter Property="FontSize" Value="16"/>
+            <!-- Glyph text (e.g. &#xE721;) is drawn by the TextBlock a Button generates for string content.
+                 The app-wide implicit TextBlock styles (BodyFont, ShellBodyFont) set FontFamily on
+                 that TextBlock and beat the font inherited from the Button, so the glyph drew as an
+                 empty box (desktop job: drawn='Bahnschrift...' with both icon fonts installed). A
+                 Style.Resources shield did not reach it. A local FontFamily on the TextBlock does.
+                 String content only: a ContentTemplate would also wrap Path / UIElement content. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextAlignment="Center"
+                                   FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -353,7 +367,7 @@
                                 Click="ContinueChatButton_Click"
                                 ToolTip="Notes &amp; chat"/>
                         <Button x:Name="LookupClipButton" Content="&#xE721;"
-                                Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
+                                Style="{StaticResource IconGlyphButton}" Margin="0,0,8,0"
                                 Click="LookupClipButton_Click"
                                 ToolTip="Look up selection" AutomationProperties.Name="Look up selection"/>
                         <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
@@ -394,7 +408,7 @@
                                   Data="M 12,3.4 L 12,14.6 M 8.2,7.2 L 12,3.4 L 15.8,7.2 M 7.6,10 L 5.6,10 C 4.7,10 4,10.7 4,11.6 L 4,19 C 4,19.9 4.7,20.6 5.6,20.6 L 18.4,20.6 C 19.3,20.6 20,19.9 20,19 L 20,11.6 C 20,10.7 19.3,10 18.4,10 L 16.4,10"/>
                         </Button>
                         <Button x:Name="SetupHelpButton" Content="&#xE713;"
-                                Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
+                                Style="{StaticResource IconGlyphButton}" Margin="0,0,8,0"
                                 Click="SetupHelpButton_Click"
                                 ToolTip="Settings" AutomationProperties.Name="Settings"/>
                         <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,8,0">

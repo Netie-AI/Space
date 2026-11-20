@@ -431,8 +431,26 @@
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <!-- IconGhostButton whose content is a glyph string from the icon font (not a Path) -->
+        <Style x:Key="IconGlyphButton" TargetType="Button" BasedOn="{StaticResource IconGhostButton}">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
+            <!-- Glyph text (&#xE721;) is drawn by the TextBlock a Button generates for string content.
+                 The app-wide implicit TextBlock styles (BodyFont, ShellBodyFont) set FontFamily on
+                 that TextBlock and beat the font inherited from the Button, so the glyph drew as an
+                 empty box (desktop job: drawn='Bahnschrift...' with both icon fonts installed). A
+                 Style.Resources shield did not reach it. A local FontFamily on the TextBlock does.
+                 String content only: a ContentTemplate would also wrap Path / UIElement content. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextAlignment="Center"
+                                   FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Small, quiet affordance for chrome corners (dock / collapse handles) -->

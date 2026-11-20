@@ -48,6 +48,14 @@ internal static class PdfText
     public static double WordBaseline(Word w) =>
         w.Letters.Count > 0 ? w.Letters[0].StartBaseLine.Y : w.BoundingBox.Bottom;
 
+    /// <summary>
+    /// A page as readable text, one line per visual line. Page.Text has no line breaks: PdfPig
+    /// emits letters in content-stream order, so "Q3 Report" and "Executive Summary" set on two
+    /// lines come out as "Q3 ReportExecutive Summary".
+    /// </summary>
+    public static string PageText(Page page) =>
+        string.Join("\n", Lines(page.GetWords()).Select(l => l.Text).Where(t => t.Length > 0));
+
     /// <summary>Words to lines: same baseline within a third of the type size, left to right, top to bottom.</summary>
     public static List<PdfTextLine> Lines(IEnumerable<Word> words)
     {
