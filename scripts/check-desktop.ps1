@@ -324,6 +324,9 @@ function Wait-PeekRendered($Win, [int]$TimeoutSec = 15) {
     $last = $null
     while ((Get-Date) -lt $deadline) {
         $last = Get-LoadingText $Win
+        # A first-run consent window (local memory, cloud disclosure) is modal and pins the overlay until a
+        # person answers it. After 6 s answer it with the private choice, as a person would, then keep waiting.
+        if ($last -and $clock.ElapsedMilliseconds -gt 6000) { Dismiss-Dialogs "while loading" }
         if ($last) { $quiet = 0 } else { $quiet++ }
         if ($quiet -ge 3) { Start-Sleep -Milliseconds 1200; return @{ Ms = $clock.ElapsedMilliseconds; Stuck = "" } }  # 3 clean looks, then one paint
         Start-Sleep -Milliseconds 300

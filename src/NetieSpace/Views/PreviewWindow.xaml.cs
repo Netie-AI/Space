@@ -2221,6 +2221,15 @@ public partial class PreviewWindow : Window
     {
         _videoOpened = true;
         LogVideoProbe("opened");
+        // The pipeline can be slower than the watchdog (3.7 s on the CI runner): once it really has a
+        // picture, the still frame stands down.
+        if (PreviewVideo.NaturalVideoWidth > 0 && VideoPoster is not null && VideoPoster.Visibility == Visibility.Visible)
+        {
+            VideoPoster.Visibility = Visibility.Collapsed;
+            VideoPoster.Source = null;
+            ConvertStatusText.Text = "";
+            AppLogger.Info("[video] real picture arrived; still frame hidden");
+        }
         if (!PreviewVideo.NaturalDuration.HasTimeSpan)
             return;
 

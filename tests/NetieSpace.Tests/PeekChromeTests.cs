@@ -165,5 +165,7 @@ public class PeekChromeTests
         Assert.Contains("LogVideoProbe(\"opened\")", cs);
         // The CI runner raised neither MediaOpened nor MediaFailed: the watchdog must not depend on them.
         Assert.Contains("LogVideoProbe(\"watchdog-2000ms\"", cs);
+        // MediaElement opened 3.7 s after Play on the runner: the still frame must stand down when it does.
+        Assert.Contains("still frame hidden", cs);
     }
 }
