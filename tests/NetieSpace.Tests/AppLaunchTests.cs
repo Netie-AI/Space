@@ -9,6 +9,7 @@ public class AppLaunchTests
     [InlineData("pdf", "Netie.Pdf", "Netie PDF")]
     [InlineData("image", "Netie.Image", "Netie Image")]
     [InlineData("video", "Netie.Video", "Netie Video")]
+    [InlineData("md", "Netie.Md", "Netie MD")]
     [InlineData("PDF", "Netie.Pdf", "Netie PDF")]
     public void App_flag_resolves_identity(string value, string aumid, string name)
     {
@@ -85,9 +86,29 @@ public class AppLaunchTests
     }
 
     [Fact]
+    public void The_tool_apps_stay_three_and_every_app_is_four()
+    {
+        Assert.Equal(new[] { "pdf", "image", "video" }, AppIdentity.All.Select(a => a.Key));
+        Assert.Equal(new[] { "pdf", "image", "video", "md" }, AppIdentity.Everything.Select(a => a.Key));
+        Assert.True(AppIdentity.Md.IsMarkdown);
+        Assert.DoesNotContain(AppIdentity.Everything.Where(a => a != AppIdentity.Md), a => a.IsMarkdown);
+    }
+
+    [Fact]
+    public void Md_launch_carries_the_open_path_and_unknown_apps_name_the_choices()
+    {
+        var launch = AppLaunch.Parse(new[] { "--app", "md", "--open", "C:\\notes\\a b.md" });
+        Assert.Equal(AppIdentity.Md, launch.Identity);
+        Assert.Equal("C:\\notes\\a b.md", launch.OpenPath);
+        var bad = AppLaunch.Parse(new[] { "--app", "docx" });
+        Assert.Equal(AppLaunchKind.Invalid, bad.Kind);
+        Assert.Contains("md", bad.Error);
+    }
+
+    [Fact]
     public void Kernel_object_names_are_per_app_and_never_the_Space_names()
     {
-        var names = AppIdentity.All
+        var names = AppIdentity.Everything
             .SelectMany(a => new[] { a.InstanceMutexName, a.ActivateEventName, a.PendingOpenPath })
             .ToList();
         Assert.Equal(names.Count, names.Distinct().Count());

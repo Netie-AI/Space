@@ -4,7 +4,7 @@ using NetieSpace.Helpers;
 namespace NetieSpace.Apps.Shell;
 
 /// <summary>
-/// Start Menu shortcuts for Netie PDF / Image / Video, written through COM because
+/// Start Menu shortcuts for Netie PDF / Image / Video / MD, written through COM because
 /// WScript.Shell cannot carry System.AppUserModel.ID: IShellLinkW for target, arguments and
 /// icon, IPropertyStore on the same link for the AUMID, then IPersistFile.Save.
 /// HKCU / Start Menu only. Never touches a UserChoice key and never writes HKLM.
@@ -50,7 +50,7 @@ public static class AppShortcuts
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AttachConsole(uint dwProcessId);
 
-    /// <summary>Writes the three shortcuts into <paramref name="programsDirectory"/>.</summary>
+    /// <summary>Writes the four shortcuts into <paramref name="programsDirectory"/>.</summary>
     public static void Register(string exePath, string programsDirectory, Action<string> log)
     {
         if (!IoFile.Exists(exePath))
@@ -59,7 +59,7 @@ public static class AppShortcuts
 
         // Every icon is checked before the first shortcut is written: a missing one must not leave the first
         // shortcuts behind on a run that then exits 1.
-        foreach (var identity in AppIdentity.All)
+        foreach (var identity in AppIdentity.Everything)
         {
             var icon = AppRegistration.IconPath(exeDirectory, identity);
             if (!IoFile.Exists(icon))
@@ -68,7 +68,7 @@ public static class AppShortcuts
         }
 
         IoDirectory.CreateDirectory(programsDirectory);
-        foreach (var identity in AppIdentity.All)
+        foreach (var identity in AppIdentity.Everything)
         {
             var spec = AppRegistration.ForIdentity(identity);
             var icon = AppRegistration.IconPath(exeDirectory, identity);
@@ -78,7 +78,7 @@ public static class AppShortcuts
         }
     }
 
-    /// <summary>Deletes exactly the three shortcuts. Anything else in the folder stays.</summary>
+    /// <summary>Deletes exactly the four shortcuts. Anything else in the folder stays.</summary>
     public static void Unregister(string programsDirectory, Action<string> log)
     {
         foreach (var spec in AppRegistration.Specs)

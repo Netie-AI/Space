@@ -1,4 +1,6 @@
 using System.Reflection;
+using NetieSpace.Apps.Md;
+using NetieSpace.Apps.Md.WinRt;
 using NetieSpace.Helpers;
 
 namespace NetieSpace.Apps.Shell;
@@ -47,6 +49,26 @@ public static class AppEntry
 
         var identity = launch.Identity!;
         var pid = Environment.ProcessId;
+
+        // Netie MD has its own headless path (--open FILE --snapshot PNG [--pdf PDF]): a web page, not a tool shell.
+        if (identity.IsMarkdown)
+        {
+            var md = MdArgs.Parse(args);
+            if (md.Headless)
+            {
+                try { Win32Api.AttachConsole(Win32Api.AttachParentProcess); } catch { /* no parent console */ }
+                if (md.Error is not null)
+                {
+                    Console.Error.WriteLine(md.Error);
+                    app.Shutdown(MdArgs.ExitInvalid);
+                }
+                else
+                {
+                    app.Shutdown(MdHeadless.Run(md, new MdMarkdigEngine()));
+                }
+                return true;
+            }
+        }
 
         // --snapshot renders headless and exits: no single-instance mutex (a running app must not
         // block it), no AUMID, no window, no dialog.

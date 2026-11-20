@@ -10,13 +10,20 @@ public sealed record AppIdentity(string Key, string Aumid, string DisplayName)
     public static readonly AppIdentity Pdf = new("pdf", "Netie.Pdf", "Netie PDF");
     public static readonly AppIdentity Image = new("image", "Netie.Image", "Netie Image");
     public static readonly AppIdentity Video = new("video", "Netie.Video", "Netie Video");
+    public static readonly AppIdentity Md = new("md", "Netie.Md", "Netie MD");
 
+    /// <summary>The three tool apps: tool grid, family switcher and Peek hand-off. Netie MD is not one.</summary>
     public static IReadOnlyList<AppIdentity> All { get; } = new[] { Pdf, Image, Video };
 
-    public static AppIdentity? Find(string? key) =>
-        All.FirstOrDefault(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase));
+    /// <summary>Every app process: the tool apps and the Markdown viewer. Find, registration and icons use this.</summary>
+    public static IReadOnlyList<AppIdentity> Everything { get; } = new[] { Pdf, Image, Video, Md };
 
-    /// <summary>"Pdf" / "Image" / "Video": the segment used in kernel object names.</summary>
+    public bool IsMarkdown => string.Equals(Key, Md.Key, StringComparison.Ordinal);
+
+    public static AppIdentity? Find(string? key) =>
+        Everything.FirstOrDefault(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>"Pdf" / "Image" / "Video" / "Md": the segment used in kernel object names.</summary>
     public string ObjectName => Aumid["Netie.".Length..];
 
     public string InstanceMutexName => $"Local\\Netie.{ObjectName}.Instance.v1";

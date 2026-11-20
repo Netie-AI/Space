@@ -63,7 +63,7 @@ public class ReviewWindowsTests
         var root = ToolTestSupport.NewTempDir();
         var exe = IoPath.Combine(root, "NetieSpace.exe");
         IoFile.WriteAllText(exe, "not a real exe; only its folder and existence matter here");
-        var ids = NetieSpace.Apps.Shell.AppIdentity.All.ToList();
+        var ids = NetieSpace.Apps.Shell.AppIdentity.Everything.ToList();
         // Every icon but the last one exists, so the old order wrote shortcuts for the first apps and then failed.
         foreach (var id in ids.Take(ids.Count - 1))
         {
