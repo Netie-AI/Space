@@ -33,12 +33,13 @@ public static class MdHtml
         var outline = new List<MdHeading>();
         var used = new HashSet<string>(StringComparer.Ordinal);
         var levels = new List<int>();
+        var nextSuffix = new Dictionary<string, int>(StringComparer.Ordinal);
         var html = Heading.Replace(withLinks, m =>
         {
             var level = m.Groups[1].Value[0] - '0';
             var inner = m.Groups[3].Value;
             var title = TitleOf(inner);
-            var id = UniqueId(Slug(title), used);
+            var id = UniqueId(Slug(title), used, nextSuffix);
             while (levels.Count > 0 && levels[^1] >= level)
                 levels.RemoveAt(levels.Count - 1);
             outline.Add(new MdHeading(id, title, level, levels.Count));
@@ -77,11 +78,16 @@ public static class MdHtml
         return sb.Length == 0 ? "section" : sb.ToString();
     }
 
-    public static string UniqueId(string slug, HashSet<string> used)
+    public static string UniqueId(string slug, HashSet<string> used) => UniqueId(slug, used, new Dictionary<string, int>());
+
+    /// <summary>The next suffix per slug is remembered, so thousands of equal headings stay linear.</summary>
+    public static string UniqueId(string slug, HashSet<string> used, Dictionary<string, int> next)
     {
         var id = slug;
-        for (var n = 1; !used.Add(id); n++)
-            id = slug + "-" + n;
+        var n = next.GetValueOrDefault(slug, 1);
+        while (!used.Add(id))
+            id = slug + "-" + n++;
+        next[slug] = n;
         return id;
     }
 

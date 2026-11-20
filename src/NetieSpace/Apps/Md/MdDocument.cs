@@ -7,7 +7,8 @@ public sealed record MdDocument(
     string? Error, bool Unstable, MdFileStamp? Stamp)
 {
     /// <summary>NavigateToString takes about 2 MB; stay well under it.</summary>
-    public const int MaxPageChars = 1_800_000;
+    public const int MaxPageBytes = 1_800_000;
+    public static readonly TimeSpan RenderLimit = TimeSpan.FromSeconds(5);
 
     /// <summary>Reads, renders and wraps the file. Never throws: a failure becomes a notice page with Error set.</summary>
     public static MdDocument Load(string path, IMdEngine engine, string? nonce = null, Func<string, bool>? fileExists = null)
@@ -26,9 +27,15 @@ public sealed record MdDocument(
         try
         {
             var probe = fileExists ?? (p => IoFile.Exists(p) && MdPictures.HasNoLinkBelow(folder, p));
-            var body = MdHtml.Process(engine.ToHtml(read.Text), folder, probe);
+            var render = Task.Run(() => engine.ToHtml(read.Text));
+            if (!render.Wait(RenderLimit))
+            {
+                const string slow = "Document too complex to show";
+                return new MdDocument(full, folder, title, MdShell.Notice(title, slow, nonce), Array.Empty<MdHeading>(), slow, false, read.Stamp);
+            }
+            var body = MdHtml.Process(render.Result, folder, probe);
             var page = MdShell.Page(title, body.Html, nonce);
-            if (page.Length > MaxPageChars)
+            if (System.Text.Encoding.UTF8.GetByteCount(page) > MaxPageBytes)
             {
                 const string big = "Document too large to show";
                 return new MdDocument(full, folder, title, MdShell.Notice(title, big, nonce), Array.Empty<MdHeading>(), big, false, read.Stamp);
@@ -37,8 +44,9 @@ public sealed record MdDocument(
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {
+            var cause = ex is AggregateException { InnerException: { } inner } ? inner : ex;
             const string failed = "Document could not be rendered";
-            return new MdDocument(full, folder, title, MdShell.Notice(title, failed + ": " + ex.GetType().Name, nonce),
+            return new MdDocument(full, folder, title, MdShell.Notice(title, failed + ": " + cause.GetType().Name, nonce),
                 Array.Empty<MdHeading>(), failed, false, read.Stamp);
         }
     }

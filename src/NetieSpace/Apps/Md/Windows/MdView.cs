@@ -35,6 +35,8 @@ public sealed class MdView : Grid
     private readonly MdChangeGate _gate = new(TimeSpan.FromMilliseconds(300), TimeSpan.FromSeconds(2));
     private FileSystemWatcher? _watcher;
     private TaskCompletionSource<bool>? _navigated;
+    private bool _awaitStart;
+    private ulong _wantedNavigation;
     private string? _mappedFolder;
     private int _openVersion;
     private bool _shutdown;
@@ -209,10 +211,23 @@ public sealed class MdView : Grid
         core.NavigationStarting += (_, e) =>
         {
             if (!MdShell.IsAllowedRequest(e.Uri))
+            {
                 e.Cancel = true;
+                return;
+            }
+            if (_awaitStart)
+            {
+                _awaitStart = false;
+                _wantedNavigation = e.NavigationId;
+            }
         };
         core.NewWindowRequested += (_, e) => e.Handled = true;
-        core.NavigationCompleted += (_, e) => _navigated?.TrySetResult(e.IsSuccess);
+        core.NavigationCompleted += (_, e) =>
+        {
+            // Only the navigation this open started counts; a superseded one finishing late is ignored.
+            if (e.NavigationId == _wantedNavigation)
+                _navigated?.TrySetResult(e.IsSuccess);
+        };
         core.WebMessageReceived += (_, e) => OnWebMessage(e.TryGetWebMessageAsString());
         _web.ZoomFactorChanged += (_, _) => _zoomLabel.Text = MdZoom.Label(_web.ZoomFactor);
         return core;
@@ -252,6 +267,7 @@ public sealed class MdView : Grid
 
             MapFolder(core, doc.Folder);
             _navigated = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _awaitStart = true;
             core.NavigateToString(doc.Page);
             var done = await Task.WhenAny(_navigated.Task, Task.Delay(TimeSpan.FromSeconds(20)));
             if (version != _openVersion || _shutdown)
@@ -341,7 +357,11 @@ public sealed class MdView : Grid
             if (TryFindResource("ShellNavItem") is Style style)
                 button.Style = style;
             var id = h.Id;
-            button.Click += async (_, _) => await ScrollToAsync(id);
+            button.Click += async (_, _) =>
+            {
+                try { await ScrollToAsync(id); }
+                catch (Exception ex) { AppLogger.Warn($"[app:md] scroll failed: {ex.Message}"); }
+            };
             _outline.Children.Add(button);
         }
     }

@@ -40,6 +40,32 @@ public class MdHtmlTests : IDisposable
     }
 
     [Fact]
+    public void Thousands_of_equal_headings_stay_fast_and_distinct()
+    {
+        var html = string.Concat(Enumerable.Repeat("<h1>a</h1>", 30000));
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var body = Process(html);
+        Assert.True(sw.ElapsedMilliseconds < 3000, sw.ElapsedMilliseconds + " ms");
+        Assert.Equal(30000, body.Outline.Select(h => h.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void An_engine_that_never_returns_becomes_a_notice()
+    {
+        var md = IoPath.Combine(_dir, "slow.md");
+        IoFile.WriteAllText(md, "x");
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var doc = MdDocument.Load(md, new Slow(), "NN");
+        Assert.Equal("Document too complex to show", doc.Error);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(20));
+    }
+
+    private sealed class Slow : IMdEngine
+    {
+        public string ToHtml(string markdown) { Thread.Sleep(TimeSpan.FromSeconds(30)); return ""; }
+    }
+
+    [Fact]
     public void Titles_are_plain_text_and_ids_are_safe_characters_only()
     {
         var body = Process("<h2>A <code>b</code> &amp; <em>c</em>: d</h2><h2>&lt;script&gt;alert(1)&lt;/script&gt;</h2><h2>!!!</h2><h2><img src=\"a.png\" alt=\"\"></h2>");
@@ -199,6 +225,20 @@ public class MdHtmlTests : IDisposable
     }
 
     [Fact]
+    public void The_navigation_limit_counts_bytes_not_characters()
+    {
+        var md = IoPath.Combine(_dir, "cjk.md");
+        IoFile.WriteAllText(md, "x");
+        var doc = MdDocument.Load(md, new Wide(), "NN");
+        Assert.Equal("Document too large to show", doc.Error);
+    }
+
+    private sealed class Wide : IMdEngine
+    {
+        public string ToHtml(string markdown) => "<p>" + new string('\u6f22', 700_000) + "</p>";
+    }
+
+    [Fact]
     public void A_page_over_the_navigation_limit_is_refused_not_cut()
     {
         var md = IoPath.Combine(_dir, "big.md");
@@ -210,6 +250,6 @@ public class MdHtmlTests : IDisposable
 
     private sealed class Fat : IMdEngine
     {
-        public string ToHtml(string markdown) => "<p>" + new string('x', MdDocument.MaxPageChars) + "</p>";
+        public string ToHtml(string markdown) => "<p>" + new string('x', MdDocument.MaxPageBytes) + "</p>";
     }
 }
