@@ -34,6 +34,7 @@ public static class DeskNative {
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
     [DllImport("user32.dll")] public static extern int GetSystemMetrics(int i);
+    [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte scan, uint flags, UIntPtr extra);
 }
 "@
 [void][DeskNative]::SetProcessDPIAware()
@@ -192,9 +193,22 @@ function Get-TextLine($Win, [string]$Prefix) {
     return $null
 }
 
+# Windows refuses SetForegroundWindow from a process that did not get the last input once another
+# app (for example a Netie PDF started from peek) holds the foreground. A tapped Alt key lifts that lock.
+# Returns true only when the window really is in front, so a focus failure is never blamed on the app.
 function Focus-Window($El) {
-    try { [void][DeskNative]::SetForegroundWindow([IntPtr]$El.Current.NativeWindowHandle) } catch { }
-    Start-Sleep -Milliseconds 300
+    $h = [IntPtr]0
+    try { $h = [IntPtr]$El.Current.NativeWindowHandle } catch { return $false }
+    for ($i = 0; $i -lt 3; $i++) {
+        try {
+            [DeskNative]::keybd_event(0x12, 0, 0, [UIntPtr]::Zero)
+            [DeskNative]::keybd_event(0x12, 0, 2, [UIntPtr]::Zero)
+            [void][DeskNative]::SetForegroundWindow($h)
+        } catch { }
+        Start-Sleep -Milliseconds 300
+        if ([DeskNative]::GetForegroundWindow() -eq $h) { return $true }
+    }
+    return $false
 }
 
 function Windows-Titled([string]$Title) {
@@ -300,7 +314,7 @@ foreach ($name in $fixtures) {
     }
     $timings[$name] = $clock.ElapsedMilliseconds
     Start-Sleep -Milliseconds 3500   # WebView2 paint
-    Focus-Window $win
+    [void](Focus-Window $win)
     $png = Save-Screen ("peek-" + $name + ".png")
     Dismiss-Dialogs $name
     $btns = @(Get-Buttons $win)
@@ -328,7 +342,8 @@ foreach ($name in $fixtures) {
     # Close the peek with Esc; fall back to the window pattern so one stuck peek cannot cascade.
     $peek = Find-Window $title @($space.Id)
     if ($peek) {
-        Focus-Window $peek
+        $front = Focus-Window $peek
+        Check "peek $name is in front before Esc" $front "foreground=$([DeskNative]::GetForegroundWindow()) peek=$($peek.Current.NativeWindowHandle)"
         [System.Windows.Forms.SendKeys]::SendWait("{ESC}")
     } else { Write-Host "note: peek $name was already gone before Esc" }
     $gone = $false
@@ -360,10 +375,10 @@ $pdfWin = Wait-Window "Netie PDF" @($pdfApp.Id) 40
 Check "netie pdf window" ($null -ne $pdfWin) "pid=$($pdfApp.Id)"
 if ($pdfWin) {
     Start-Sleep -Seconds 3
-    Focus-Window $pdfWin
+    [void](Focus-Window $pdfWin)
     Save-Screen "app-pdf-home.png" | Out-Null
     Dismiss-Dialogs "app"
-    Focus-Window $pdfWin
+    [void](Focus-Window $pdfWin)
 
     $tile = Wait-ButtonByText $pdfWin "Rotate PDF" 30
     Check "Rotate PDF tile found" ($null -ne $tile) ""
