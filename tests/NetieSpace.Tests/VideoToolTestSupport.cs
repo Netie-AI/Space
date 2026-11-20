@@ -19,6 +19,27 @@ internal sealed class ListProgress : IProgress<ToolProgress>
 /// and, where the picture matters, by comparing a decoded frame with a reference frame. ffmpeg and ffprobe are
 /// required: when they are missing these helpers throw, so a missing engine fails the suite loudly (no skips).
 /// </summary>
+/// <summary>
+/// Cancels on the first progress report that shows ffmpeg mid-encode (1 to 90 percent), synchronously on the
+/// reporting thread. A fixed Task.Delay before Cancel races the encode: on a busy runner the delay's
+/// continuation runs seconds late and the tool finishes first. Fired says whether the cancel really happened.
+/// </summary>
+internal sealed class CancelOnProgress : IProgress<ToolProgress>
+{
+    private readonly CancellationTokenSource _cts;
+    private readonly System.Diagnostics.Stopwatch? _sw;
+    private int _fired;
+    public CancelOnProgress(CancellationTokenSource cts, System.Diagnostics.Stopwatch? sw = null) { _cts = cts; _sw = sw; }
+    public bool Fired => Volatile.Read(ref _fired) == 1;
+    public void Report(ToolProgress value)
+    {
+        if (value.Percent is < 1 or > 90) return;
+        if (Interlocked.Exchange(ref _fired, 1) == 1) return;
+        _sw?.Start();
+        _cts.Cancel();
+    }
+}
+
 internal static class VideoToolTestSupport
 {
     private static readonly Lazy<ToolRegistry> RegistryLazy = new(() => ToolRegistry.Load(probe: new EngineProbes()));

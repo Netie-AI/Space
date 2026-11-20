@@ -8,7 +8,7 @@ namespace NetieSpace.Tests;
 /// Decoder hardening: a tiny file whose header claims a huge canvas must be refused before any pixel
 /// memory is allocated, by every tool that opens images.
 /// </summary>
-[Collection(AllocationMeasuringCollection.Name)]
+[Collection(IsolatedMeasurementCollection.Name)]
 public class ImageTool2HardeningTests
 {
     private static string Dir() => ToolTestSupport.NewTempDir();

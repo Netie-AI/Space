@@ -102,10 +102,9 @@ public class VideoTool2StabilizeTests
         var input = MakeLavfi(dir, "long.mp4", Shaky.Replace("640x360", "1280x720"), seconds: 8, rate: 25);
         var tool = Registry.Find("vid-stabilize")!;
         using var cts = new CancellationTokenSource();
-        var task = ToolRunner.RunAsync(tool, new ToolRequest(new[] { input }, Out(dir), new Dictionary<string, string>()), null, cts.Token);
-        await Task.Delay(300);
-        cts.Cancel();
-        var r = await task;
+        var cancelAt = new CancelOnProgress(cts);
+        var r = await ToolRunner.RunAsync(tool, new ToolRequest(new[] { input }, Out(dir), new Dictionary<string, string>()), cancelAt, cts.Token);
+        Assert.True(cancelAt.Fired, "vid-stabilize finished with no mid-run progress report; make the clip longer");
         Assert.False(r.Ok);
         Assert.Equal("cancelled", r.Error);
         Assert.Empty(Files(Out(dir)));

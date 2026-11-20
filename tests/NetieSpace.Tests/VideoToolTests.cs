@@ -651,10 +651,9 @@ public class VideoToolTests
         var tool = Registry.Find("vid-loop")!;
         var req = new ToolRequest(new[] { input }, outDir, new Dictionary<string, string> { ["count"] = "16" });
         using var cts = new CancellationTokenSource();
-        var task = ToolRunner.RunAsync(tool, req, null, cts.Token);
-        await Task.Delay(400);
-        cts.Cancel();
-        var r = await task;
+        var cancelAt = new CancelOnProgress(cts);
+        var r = await ToolRunner.RunAsync(tool, req, cancelAt, cts.Token);
+        Assert.True(cancelAt.Fired, "vid-loop finished with no mid-run progress report; make the clip longer");
         Assert.False(r.Ok);
         Assert.Equal("cancelled", r.Error);
         Assert.Empty(IoDirectory.GetFiles(outDir));

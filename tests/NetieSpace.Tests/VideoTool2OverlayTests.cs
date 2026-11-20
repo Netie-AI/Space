@@ -140,10 +140,9 @@ public class VideoTool2OverlayTests
 
         var outDir2 = IoPath.Combine(dir, "out2");
         using var cts = new CancellationTokenSource();
-        var task = ToolRunner.RunAsync(tool, req with { OutDir = outDir2 }, null, cts.Token);
-        await Task.Delay(300);
-        cts.Cancel();
-        var r = await task;
+        var cancelAt = new CancelOnProgress(cts);
+        var r = await ToolRunner.RunAsync(tool, req with { OutDir = outDir2 }, cancelAt, cts.Token);
+        Assert.True(cancelAt.Fired, "vid-add-text finished with no mid-run progress report; make the clip longer");
         Assert.False(r.Ok);
         Assert.Equal("cancelled", r.Error);
         Assert.Empty(Files(outDir2));

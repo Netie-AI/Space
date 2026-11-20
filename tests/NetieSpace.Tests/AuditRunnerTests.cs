@@ -5,6 +5,7 @@ using static NetieSpace.Tests.VideoToolTestSupport;
 namespace NetieSpace.Tests;
 
 /// <summary>Audit angles (e) and (f): failure paths leave nothing behind, progress says 100 only on success, cancel is prompt.</summary>
+[Collection(IsolatedMeasurementCollection.Name)]
 public class AuditRunnerTests
 {
     private static readonly ToolRegistry Registry = ToolRegistry.Load(probe: new EngineProbes());
@@ -181,22 +182,5 @@ public class AuditRunnerTests
         Assert.NotEqual(first.Outputs[0], second.Outputs[0]);
         Assert.NotEqual(clip, first.Outputs[0]);
         Assert.Equal(clipBytes, IoFile.ReadAllBytes(clip));
-    }
-
-    /// <summary>Cancels on the first report that shows the encode underway (1 to 90 percent), on the reporting thread.</summary>
-    private sealed class CancelOnProgress : IProgress<ToolProgress>
-    {
-        private readonly CancellationTokenSource _cts;
-        private readonly Stopwatch _sw;
-        private int _fired;
-        public CancelOnProgress(CancellationTokenSource cts, Stopwatch sw) { _cts = cts; _sw = sw; }
-        public bool Fired => Volatile.Read(ref _fired) == 1;
-        public void Report(ToolProgress value)
-        {
-            if (value.Percent is < 1 or > 90) return;
-            if (Interlocked.Exchange(ref _fired, 1) == 1) return;
-            _sw.Start();
-            _cts.Cancel();
-        }
     }
 }

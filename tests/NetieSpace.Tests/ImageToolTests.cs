@@ -205,14 +205,14 @@ public class ImageToolTests
     public async Task Progress_is_reported_per_file_and_ends_at_100()
     {
         var files = Enumerable.Range(0, 3).Select(i => CornerImage(Dir(), "p" + i + ".png")).ToArray();
-        var seen = new List<int>();
+        // Synchronous reporter: Progress<T> posts to the thread pool, so "100" could arrive after the assert.
+        var progress = new ListProgress();
         var tool = Registry().Find("img-resize")!;
         var r = await ToolRunner.RunAsync(tool,
             new ToolRequest(files, Dir(), new Dictionary<string, string> { ["width"] = "10" }),
-            new Progress<ToolProgress>(p => { lock (seen) seen.Add(p.Percent); }), CancellationToken.None);
+            progress, CancellationToken.None);
         Assert.True(r.Ok, r.Error);
-        await Task.Delay(100);
-        Assert.Contains(100, seen);
+        Assert.Contains(100, progress.Reports.Select(p => p.Percent));
     }
 
     // ---- crop -----------------------------------------------------------------------------------
