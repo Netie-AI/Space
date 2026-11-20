@@ -34,6 +34,11 @@
     </PackageReference>
   </ItemGroup>
 
+  <!-- Windows-only tool and app code under Apps\*\Windows may host WebView2 (HTML to PDF, Netie MD). -->
+  <ItemGroup Condition="'$(NetieWindowsTests)' == 'true'">
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
   <!-- UseWPF drops these two from the implicit usings; the suite is written against them. -->
   <ItemGroup Condition="'$(NetieWindowsTests)' == 'true'">
     <Using Include="System.IO" />
@@ -83,7 +88,7 @@
     <Compile Include="..\..\src\NetieSpace\Apps\Bridge\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Bridge\Windows\**" Link="Linked\Apps\Bridge\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\NetieSpace\Apps\Md\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Md\Windows\**" Link="Linked\Apps\Md\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Condition="'$(NetieWindowsTests)' == 'true'" Include="..\..\src\NetieSpace\Apps\*\Windows\**\*.cs" Link="Linked\Apps\Windows\%(RecursiveDir)%(Filename)%(Extension)" />
-    <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Tools\Windows\**" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
