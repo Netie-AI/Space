@@ -126,14 +126,16 @@ public class PeekDefectTests
     // ---- 1. icon glyph buttons ----
 
     [Fact]
-    public void Every_icon_font_button_style_shields_its_glyph_from_the_app_TextBlock_style()
+    public void Every_icon_font_button_style_draws_its_glyph_with_a_local_font()
     {
-        // App.xaml and every view: a Style that sets an icon FontFamily on a Button must carry its own
-        // implicit TextBlock style, or the app-wide TextBlock style (BodyFont) wins on the TextBlock the
-        // Button generates for a string glyph and the glyph draws as an empty box.
+        // A Button style that sets an icon FontFamily must carry a ContentTemplate whose TextBlock sets
+        // FontFamily itself. Inherited font loses to the app implicit TextBlock styles (BodyFont,
+        // ShellBodyFont): the desktop job drew the glyph with 'Bahnschrift...' and showed an empty box
+        // while both icon fonts were installed. A Style.Resources shield did not help.
         var files = new[] { Repo("src", "NetieSpace", "App.xaml") }
             .Concat(Directory.GetFiles(Repo("src", "NetieSpace", "Views"), "*.xaml"));
-        var checkedStyles = 0;
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var checkedStyles = new List<string>();
         foreach (var file in files)
         {
             var doc = XDocument.Load(file);
@@ -148,18 +150,29 @@ public class PeekDefectTests
                 if (!setsIconFont)
                     continue;
 
-                checkedStyles++;
-                var shield = style.Elements().Where(e => e.Name.LocalName == "Style.Resources")
-                    .SelectMany(r => r.Elements())
-                    .Any(e => e.Name.LocalName == "Style" &&
-                              e.Attribute("TargetType")?.Value == "TextBlock" &&
-                              e.Elements().Any(s => s.Attribute("Property")?.Value == "FontFamily"));
-                Assert.True(shield,
-                    $"{Path.GetFileName(file)}: Button style '{style.Attribute(XName.Get("Key", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value}' " +
-                    "sets an icon font but has no TextBlock FontFamily shield in Style.Resources");
+                var key = style.Attribute(x + "Key")?.Value ?? "(unkeyed)";
+                checkedStyles.Add(key);
+                var template = style.Elements()
+                    .Where(e => e.Name.LocalName == "Setter" && e.Attribute("Property")?.Value == "ContentTemplate")
+                    .SelectMany(e => e.Descendants())
+                    .FirstOrDefault(e => e.Name.LocalName == "TextBlock");
+                Assert.True(template is not null && template.Attribute("FontFamily") is not null,
+                    $"{Path.GetFileName(file)}: Button style '{key}' sets an icon font but its ContentTemplate " +
+                    "has no TextBlock with a local FontFamily");
             }
         }
 
-        Assert.True(checkedStyles >= 2, "expected IconGhostButton and DocIconBtn");
+        Assert.Contains("IconGlyphButton", checkedStyles);
+        Assert.Contains("DocIconBtn", checkedStyles);
+    }
+
+    [Fact]
+    public void Glyph_text_buttons_use_the_glyph_style_and_Path_buttons_do_not()
+    {
+        // ContentTemplate wraps every kind of content, so a Path button on a glyph style would show text.
+        var xaml = File.ReadAllText(Repo("src", "NetieSpace", "Views", "PreviewWindow.xaml"));
+        foreach (var name in new[] { "LookupClipButton", "SetupHelpButton" })
+            Assert.Matches($@"x:Name=""{name}""[^>]*Style=""\{{StaticResource IconGlyphButton\}}""", xaml.Replace("\r\n", " ").Replace("\n", " "));
+        Assert.Matches(@"x:Name=""ShareButton""\s+Style=""\{StaticResource IconGhostButton\}""", xaml.Replace("\r\n", "\n"));
     }
 }

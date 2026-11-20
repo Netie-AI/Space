@@ -431,20 +431,26 @@
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
-            <!-- The app-wide TextBlock style (BodyFont) lands on the TextBlock that a Button
-                 generates for string content and beats the font this style hands down, so a
-                 glyph like &#xE721; drew as a missing-glyph box. An implicit style in the
-                 Style's own resources is found first for those TextBlocks: it follows the
-                 Button's FontFamily. Path / UIElement content is untouched. -->
-            <Style.Resources>
-                <Style TargetType="TextBlock">
-                    <Setter Property="FontFamily" Value="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
-                    <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
-                    <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
-                </Style>
-            </Style.Resources>
+        </Style>
+
+        <!-- IconGhostButton whose content is a glyph string from the icon font (not a Path) -->
+        <Style x:Key="IconGlyphButton" TargetType="Button" BasedOn="{StaticResource IconGhostButton}">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
+            <!-- Glyph text (&#xE721;) is drawn by the TextBlock a Button generates for string content.
+                 The app-wide implicit TextBlock styles (BodyFont, ShellBodyFont) set FontFamily on
+                 that TextBlock and beat the font inherited from the Button, so the glyph drew as an
+                 empty box (desktop job: drawn='Bahnschrift...' with both icon fonts installed). A
+                 Style.Resources shield did not reach it. A local FontFamily on the TextBlock does.
+                 String content only: a ContentTemplate would also wrap Path / UIElement content. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextAlignment="Center"
+                                   FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Small, quiet affordance for chrome corners (dock / collapse handles) -->
