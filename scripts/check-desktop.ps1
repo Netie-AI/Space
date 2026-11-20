@@ -113,6 +113,42 @@ function Find-Button($Win, [string]$Pattern, [switch]$Exact) {
     return $null
 }
 
+# A tile is a Button whose content is a Grid, so it carries no name of its own: find the text
+# named $Text, then walk up the control tree to the Button that holds it.
+function Find-ButtonByText($Win, [string]$Text) {
+    $cond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), $Text
+    $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+    foreach ($t in $Win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
+        $e = $t
+        for ($i = 0; $i -lt 6 -and $e; $i++) {
+            if ($e.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button) { return $e }
+            $e = $walker.GetParent($e)
+        }
+    }
+    return $null
+}
+
+function Wait-ButtonByText($Win, [string]$Text, [int]$TimeoutSec = 20) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $b = Find-ButtonByText $Win $Text
+        if ($b) { return $b }
+        Start-Sleep -Milliseconds 250
+    }
+    return $null
+}
+
+# First-run consent windows of Space (local memory, cloud disclosure) sit on top of everything.
+# Screenshots are taken first; this answers them with the private choice so the run can continue.
+function Dismiss-Dialogs([string]$Tag) {
+    foreach ($label in @("Not now", "Keep local only")) {
+        $b = Find-Button ([System.Windows.Automation.AutomationElement]::RootElement) $label -Exact
+        if ($b) {
+            try { [void](Invoke-Element $b); Write-Host "note: dismissed first-run dialog '$label' ($Tag)"; Start-Sleep -Milliseconds 500 } catch { }
+        }
+    }
+}
+
 function Invoke-Element($El) {
     # Waits up to 10 s for the control to be enabled. Returns $false instead of throwing.
     $deadline = (Get-Date).AddSeconds(10)
@@ -236,6 +272,7 @@ if (-not $ready) {
 }
 Start-Sleep -Seconds 2
 Save-Screen "space-ready.png" | Out-Null
+Dismiss-Dialogs "ready"
 
 # 3. Peek each fixture.
 $fixtures = @("Q3_Report.pdf", "Contract_Lease.pdf", "Portrait_product.png", "Brand_mark.svg", "page.html",
@@ -259,6 +296,7 @@ foreach ($name in $fixtures) {
     Start-Sleep -Milliseconds 3500   # WebView2 paint
     Focus-Window $win
     $png = Save-Screen ("peek-" + $name + ".png")
+    Dismiss-Dialogs $name
     $btns = @(Get-Buttons $win)
     $controls[$name] = $btns
     Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240) -and ($btns.Count -gt 0)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons (0 buttons means the peek chrome is not exposed or not drawn)"
@@ -318,8 +356,10 @@ if ($pdfWin) {
     Start-Sleep -Seconds 3
     Focus-Window $pdfWin
     Save-Screen "app-pdf-home.png" | Out-Null
+    Dismiss-Dialogs "app"
+    Focus-Window $pdfWin
 
-    $tile = Wait-Button $pdfWin "*Rotate PDF*" 30
+    $tile = Wait-ButtonByText $pdfWin "Rotate PDF" 30
     Check "Rotate PDF tile found" ($null -ne $tile) ""
     if ($tile) {
         Check "Rotate PDF tile invoked" (Invoke-Element $tile) ""
