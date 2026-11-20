@@ -12,7 +12,21 @@ public sealed record OptionDescriptor(
     string Default,
     IReadOnlyList<string> Choices,
     int? Min,
-    int? Max);
+    int? Max,
+    bool IsPageRange = false)
+{
+    /// <summary>What a person reads for a choice. The choice itself is what the runner receives.</summary>
+    public string ChoiceLabel(string value) => OptionLabels.For(Key, value);
+
+    /// <summary>Greyed text of an empty page-range box, when the default means "everything"; else null.</summary>
+    public string? Hint => IsPageRange ? OptionLabels.PageRangeHint(Default) : null;
+
+    /// <summary>The text the control starts with: empty when <see cref="Hint"/> stands in for the default.</summary>
+    public string StartText => Hint is not null ? "" : Default;
+}
+
+/// <summary>The result card as data: what the person reads after a run.</summary>
+public sealed record ResultSummary(bool Ok, string Title, string Detail, string Line, string? Primary, int FileCount);
 
 public sealed record FilesCheck(bool Ok, string? Message);
 
@@ -132,6 +146,30 @@ public sealed class ToolPageModel
         return r.Error ?? r.Reason ?? "failed";
     }
 
+    /// <summary>
+    /// Title, detail line and the old "Done: path" line for the result card. <paramref name="sizeOf"/> returns a file's
+    /// length or null when it cannot be read; a missing size is left out of the text, never guessed.
+    /// </summary>
+    public static ResultSummary Summarize(ToolResult r, Func<string, long?> sizeOf)
+    {
+        var line = ResultLine(r);
+        if (!r.Ok || r.Outputs.Count == 0)
+            return new ResultSummary(false, "Could not finish", "", line, null, 0);
+
+        var sizes = r.Outputs.Select(sizeOf).ToList();
+        var known = sizes.Where(s => s is not null).Select(s => s!.Value).ToList();
+        var sizeText = known.Count == 0 ? null : FormatSize(known.Sum());
+        if (r.Outputs.Count == 1)
+        {
+            var path = r.Outputs[0];
+            var ext = IoPath.GetExtension(path).TrimStart('.').ToUpperInvariant();
+            var detail = string.Join(" - ", new[] { ext.Length > 0 ? ext + " file" : null, sizeText }.Where(x => x is not null));
+            return new ResultSummary(true, IoPath.GetFileName(path), detail, line, path, 1);
+        }
+        var many = $"{r.Outputs.Count} files";
+        return new ResultSummary(true, many + " created", sizeText is null ? many : many + " - " + sizeText, line, r.Outputs[0], r.Outputs.Count);
+    }
+
     public static string? PrimaryOutput(ToolResult r) => r.Ok && r.Outputs.Count > 0 ? r.Outputs[0] : null;
 
     /// <summary>Arguments for explorer.exe so the file is selected, not its folder opened.</summary>
@@ -173,6 +211,6 @@ public sealed class ToolPageModel
             ToolOptionKind.Choice or ToolOptionKind.Grid => choices.Count > 0 ? choices[0] : "",
             _ => "",
         };
-        return new OptionDescriptor(o.Key, control, o.Label, def, choices, min, max);
+        return new OptionDescriptor(o.Key, control, o.Label, def, choices, min, max, o.Kind == ToolOptionKind.PageRange);
     }
 }

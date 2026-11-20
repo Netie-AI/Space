@@ -19,9 +19,9 @@
                 BorderBrush="{StaticResource ShellLine}" BorderThickness="0,0,1,0">
             <DockPanel Margin="16,18,16,16">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,20">
-                    <Border Width="32" Height="32" CornerRadius="6" Background="{StaticResource ShellAccent}">
+                    <Border Width="32" Height="32" CornerRadius="{StaticResource ShellRadiusControl}" Background="{DynamicResource ShellAccent}">
                         <TextBlock x:Name="AppGlyph" FontWeight="Bold" FontSize="16"
-                                   Foreground="{StaticResource ShellAccentInk}"
+                                   Foreground="{DynamicResource ShellAccentInk}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock x:Name="AppName" Style="{StaticResource ShellSection}"
@@ -35,6 +35,7 @@
         </Border>
 
         <Grid Grid.Column="1">
+            <Border Height="3" VerticalAlignment="Top" Background="{DynamicResource ShellAccent}" Panel.ZIndex="2"/>
             <local:HomeView x:Name="Home"/>
             <local:ToolPageView x:Name="ToolPage" Visibility="Collapsed"/>
         </Grid>

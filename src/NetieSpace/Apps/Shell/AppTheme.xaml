@@ -18,11 +18,14 @@
     <SolidColorBrush x:Key="ShellLine" Color="#D6D6D6"/>
     <SolidColorBrush x:Key="ShellHover" Color="#EEEEEE"/>
     <SolidColorBrush x:Key="ShellPress" Color="#E2E2E2"/>
-    <SolidColorBrush x:Key="ShellAccent" Color="#5EC4B8"/>
-    <SolidColorBrush x:Key="ShellAccentHover" Color="#4FB3A7"/>
-    <SolidColorBrush x:Key="ShellAccentPress" Color="#43A096"/>
-    <SolidColorBrush x:Key="ShellAccentTint" Color="#E3F4F2"/>
-    <SolidColorBrush x:Key="ShellAccentInk" Color="#10141C"/>
+    <!-- ShellAccent, ShellAccentHover, ShellAccentPress, ShellAccentTint, ShellAccentStrong and ShellAccentInk are
+         not defined here: each app process installs its own (PDF red, Image teal, Video violet, MD slate) in
+         Application.Resources through AppAccents, and everything below reads them with DynamicResource. -->
+
+    <!-- One visual system: spacing steps 4 / 8 / 12 / 16 / 24 / 32, radii 6 (controls) and 10 (cards, tiles),
+         type 24 title / 15 section / 13 body / 12 label / 11.5 caption. -->
+    <CornerRadius x:Key="ShellRadiusControl">6</CornerRadius>
+    <CornerRadius x:Key="ShellRadiusCard">10</CornerRadius>
     <SolidColorBrush x:Key="ShellDanger" Color="#B3261E"/>
     <SolidColorBrush x:Key="ShellThumb" Color="#C4C8CE"/>
     <SolidColorBrush x:Key="ShellThumbHover" Color="#9EA4AD"/>
@@ -70,7 +73,7 @@
                     <Border x:Name="bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            CornerRadius="{StaticResource ShellRadiusControl}" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="Center"/>
                     </Border>
@@ -92,9 +95,9 @@
     <Style TargetType="Button" BasedOn="{StaticResource ShellButton}"/>
 
     <Style x:Key="ShellActionButton" TargetType="Button" BasedOn="{StaticResource ShellButton}">
-        <Setter Property="Background" Value="{StaticResource ShellAccent}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource ShellAccent}"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellAccentInk}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellAccent}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellAccent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellAccentInk}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="Padding" Value="18,9"/>
         <Setter Property="MinHeight" Value="38"/>
@@ -104,15 +107,15 @@
                     <Border x:Name="bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            CornerRadius="{StaticResource ShellRadiusControl}" Padding="{TemplateBinding Padding}">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellAccentHover}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellAccentHover}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellAccentPress}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellAccentPress}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -134,7 +137,7 @@
         <Setter Property="MinHeight" Value="34"/>
     </Style>
     <Style x:Key="ShellNavItemOn" TargetType="Button" BasedOn="{StaticResource ShellNavItem}">
-        <Setter Property="Background" Value="{StaticResource ShellAccentTint}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellAccentTint}"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
@@ -147,7 +150,53 @@
         <!-- 226 + 12 gap: four across a 1280 wide window with the scroll bar showing
              (1280 - 240 sidebar - 64 margins - 12 scroll bar = 964). -->
         <Setter Property="Width" Value="226"/>
-        <Setter Property="MinHeight" Value="64"/>
+        <Setter Property="MinHeight" Value="68"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="bd" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{StaticResource ShellRadiusCard}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ShellAccent}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellSidebar}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellPress}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Card: the one container for the preview, the result and the unavailable notice -->
+    <Style x:Key="ShellCard" TargetType="Border">
+        <Setter Property="Background" Value="#FFFFFF"/>
+        <Setter Property="BorderBrush" Value="{StaticResource ShellLine}"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="CornerRadius" Value="{StaticResource ShellRadiusCard}"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <!-- Icon-font text (Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on Windows 10) -->
+    <Style x:Key="ShellIcon" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+        <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellAccentStrong}"/>
+        <Setter Property="FontSize" Value="20"/>
+        <Setter Property="HorizontalAlignment" Value="Center"/>
+        <Setter Property="VerticalAlignment" Value="Center"/>
+        <Setter Property="TextAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="ShellCaption" TargetType="TextBlock" BasedOn="{StaticResource ShellMutedText}">
+        <Setter Property="FontSize" Value="11.5"/>
     </Style>
 
     <!-- Text input -->
@@ -168,12 +217,12 @@
                     <Border x:Name="bd" Background="{TemplateBinding Background}"
                             BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="{TemplateBinding BorderThickness}"
-                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            CornerRadius="{StaticResource ShellRadiusControl}" Padding="{TemplateBinding Padding}">
                         <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{StaticResource ShellAccentPress}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ShellAccentPress}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -202,7 +251,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsHighlighted" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ShellAccentTint}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ShellAccentTint}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45"/>
@@ -234,7 +283,7 @@
                                     <Border x:Name="Chrome" Background="{TemplateBinding Background}"
                                             BorderBrush="{TemplateBinding BorderBrush}"
                                             BorderThickness="{TemplateBinding BorderThickness}"
-                                            CornerRadius="4">
+                                            CornerRadius="{StaticResource ShellRadiusControl}">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*"/>
@@ -265,7 +314,7 @@
                             <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}"
                                     Background="#FFFFFF" BorderBrush="{StaticResource ShellLine}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,2,0,0" Padding="2">
+                                    CornerRadius="{StaticResource ShellRadiusControl}" Margin="0,2,0,0" Padding="2">
                                 <ScrollViewer CanContentScroll="True">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
                                 </ScrollViewer>
@@ -302,8 +351,8 @@
                     </StackPanel>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="box" Property="Background" Value="{StaticResource ShellAccent}"/>
-                            <Setter TargetName="box" Property="BorderBrush" Value="{StaticResource ShellAccent}"/>
+                            <Setter TargetName="box" Property="Background" Value="{DynamicResource ShellAccent}"/>
+                            <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource ShellAccent}"/>
                             <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
@@ -325,7 +374,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bd" Background="Transparent" CornerRadius="4"
+                    <Border x:Name="Bd" Background="Transparent" CornerRadius="{StaticResource ShellRadiusControl}"
                             Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                           VerticalAlignment="Center"/>
@@ -335,7 +384,7 @@
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource ShellHover}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ShellAccentTint}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ShellAccentTint}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -354,7 +403,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border x:Name="th" Background="{StaticResource ShellThumb}" CornerRadius="4" Margin="2"/>
+                    <Border x:Name="th" Background="{StaticResource ShellThumb}" CornerRadius="{StaticResource ShellRadiusControl}" Margin="2"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="th" Property="Background" Value="{StaticResource ShellThumbHover}"/>
@@ -424,7 +473,7 @@
     <!-- Progress -->
     <Style TargetType="ProgressBar">
         <Setter Property="Height" Value="6"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellAccent}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellAccent}"/>
         <Setter Property="Background" Value="{StaticResource ShellHover}"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>

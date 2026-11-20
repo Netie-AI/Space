@@ -55,6 +55,7 @@ public partial class HomeView : UserControl
         LoadingText.Visibility = Visibility.Visible;
         RecentSection.Visibility = Visibility.Collapsed;
         ToolsHost.Children.Clear();
+        _tiles.Clear();
     }
 
     public void SetPending(string? path)
@@ -85,6 +86,7 @@ public partial class HomeView : UserControl
             RecentRows.Children.Add(RecentRow(r));
 
         ToolsHost.Children.Clear();
+        _tiles.Clear();
         NoToolsText.Text = grid.EmptyLine ?? "";
         NoToolsText.Visibility = grid.EmptyLine is null ? Visibility.Collapsed : Visibility.Visible;
 
@@ -161,7 +163,7 @@ public partial class HomeView : UserControl
         return new Path
         {
             Data = geometry,
-            Stroke = (Brush)FindResource("ShellInk"),
+            Stroke = (Brush)FindResource("ShellAccentStrong"),
             StrokeThickness = 1.6,
             StrokeLineJoin = PenLineJoin.Round,
             StrokeStartLineCap = PenLineCap.Round,
@@ -174,16 +176,45 @@ public partial class HomeView : UserControl
         };
     }
 
+    /// <summary>The tool's own icon-font glyph; the category line drawing when the id has none or no icon font is installed.</summary>
+    private UIElement TileIcon(HomeTile tile)
+    {
+        if (tile.IconGlyph is { } glyph && IconFont.Available)
+        {
+            var icon = new TextBlock { Text = glyph, Style = (Style)FindResource("ShellIcon") };
+            if (!tile.Available)
+                icon.Foreground = (Brush)FindResource("ShellMuted");
+            return icon;
+        }
+        return GlyphPath(tile);
+    }
+
+    private readonly List<Button> _tiles = new();
+
+    /// <summary>
+    /// Closes any tooltip still showing on a tile and drops it, so a hint from the grid cannot stay on screen
+    /// over the tool page after the click that left the grid.
+    /// </summary>
+    public void CloseTooltips()
+    {
+        foreach (var b in _tiles)
+        {
+            if (b.ToolTip is System.Windows.Controls.ToolTip tip)
+                tip.IsOpen = false;
+            b.ToolTip = null;
+        }
+    }
+
     private Button TileButton(HomeTile tile)
     {
         var badge = new Border
         {
-            Width = 36,
-            Height = 36,
-            CornerRadius = new CornerRadius(8),
+            Width = 40,
+            Height = 40,
+            CornerRadius = new CornerRadius(10),
             Background = (Brush)FindResource(tile.Available ? "ShellAccentTint" : "ShellHover"),
             VerticalAlignment = VerticalAlignment.Center,
-            Child = GlyphPath(tile),
+            Child = TileIcon(tile),
         };
 
         // The name says what the tool does; a second line appears only to say why it cannot run.
@@ -221,8 +252,10 @@ public partial class HomeView : UserControl
             Style = (Style)FindResource("ShellTile"),
             Opacity = tile.Available ? 1.0 : 0.62,
             VerticalContentAlignment = VerticalAlignment.Center,
-            ToolTip = tile.ReasonLine is null ? tile.Name : tile.Name + ": " + tile.ReasonLine,
+            // The name is already on the tile: a hint appears only to say why it cannot run.
+            ToolTip = tile.ReasonLine is null ? null : new System.Windows.Controls.ToolTip { Content = tile.Name + ": " + tile.ReasonLine },
         };
+        _tiles.Add(button);
         var id = tile.ToolId;
         button.Click += (_, _) => ToolPicked?.Invoke(id);
         return button;
