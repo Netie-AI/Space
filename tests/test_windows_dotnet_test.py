@@ -7,16 +7,12 @@ ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github/workflows/ci.yml"
 SLN = ROOT / "NetieSpace.sln"
 
-
-def _workflows() -> str:
-    d = ROOT / ".github/workflows"
-    return "\n".join(p.read_text(encoding="utf-8") for p in sorted(d.glob("*.yml")))
 CSPROJ = ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj"
 NLE = ROOT / "tests/NetieSpace.Tests/VideoNleSessionTests.cs"
 
 
 def test_windows_ci_runs_dotnet_test():
-    yml = _workflows()
+    yml = CI.read_text(encoding="utf-8")
     sln = SLN.read_text(encoding="utf-8")
     csproj = CSPROJ.read_text(encoding="utf-8")
     nle = NLE.read_text(encoding="utf-8")

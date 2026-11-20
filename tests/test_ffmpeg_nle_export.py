@@ -82,10 +82,7 @@ class FfmpegNleExportTests(unittest.TestCase):
         self.assertIn("fade=t=in", graph)
         self.assertIn("fade=t=out", graph)
         self.assertIn("XfadeOffsetSeconds", graph)
-        yml = "\n".join(
-            p.read_text(encoding="utf-8")
-            for p in sorted((ROOT / ".github/workflows").glob("*.yml"))
-        )
+        yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         self.assertIn("apt-get install -y -qq ffmpeg", yml)
         self.assertIn("FedericoCarboni/setup-ffmpeg@v3", yml)
         self.assertNotIn("choco install ffmpeg", yml)
