@@ -4104,6 +4104,285 @@ def test_rtf_annotation_photo_export() -> None:
         assert res.get("tool") == "docx-zip", res
 
 
+def test_rtf_fldinst_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred fldinst / datafield."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "fldinst|datafield" in src
+    assert "Unstarred \\\\fldinst /" in src or "Unstarred \\fldinst /" in src
+    assert "Do not strip \\\\fldrslt (field result is page copy)" in src or "Do not strip \\fldrslt (field result is page copy)" in src
+    assert "Do not strip \\\\upr (fallback is page copy)" in src or "Do not strip \\upr (fallback is page copy)" in src
+    if not pymupdf_available():
+        print("SKIP rtf fldinst -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf fldinst -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\fldinst Photo}",
+            r"{\datafield Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\fldinst Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        result = d / "result.rtf"
+        result.write_text(
+            r"{\rtf1\ansi{\fldrslt Hello}{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest3 = d / "result.docx"
+        res = run_engine(["export-as", str(result), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_rtf_userprops_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred userprops / docvar."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "fldinst|datafield|userprops|docvar" in src
+    assert "Unstarred \\\\userprops /" in src or "Unstarred \\userprops /" in src
+    assert "Do not strip \\\\fldrslt (field result is page copy)" in src or "Do not strip \\fldrslt (field result is page copy)" in src
+    if not pymupdf_available():
+        print("SKIP rtf userprops -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf userprops -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\userprops Photo}",
+            r"{\docvar Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\userprops Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_rtf_xmlopen_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred xmlopen / expandedcolortbl."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "xmlopen|expandedcolortbl|nesttableprops|nonesttables|defchp|defpap" in src
+    assert "Unstarred \\\\xmlopen /" in src or "Unstarred \\xmlopen /" in src
+    assert "Do not strip \\\\upr (fallback is page copy)" in src or "Do not strip \\upr (fallback is page copy)" in src
+    if not pymupdf_available():
+        print("SKIP rtf xmlopen -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf xmlopen -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\xmlopen Photo}",
+            r"{\expandedcolortbl Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\xmlopen Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_rtf_bkmk_photo_export() -> None:
+    """Share dest Word/PDF on photo RTF whose leftover is unstarred bkmkstart / xe / tc."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "bkmkstart|bkmkend|xe|tc|rxe" in src
+    assert "Unstarred \\\\bkmkstart /" in src or "Unstarred \\bkmkstart /" in src
+    assert "Do not strip \\\\upr (fallback is page copy)" in src or "Do not strip \\upr (fallback is page copy)" in src
+    if not pymupdf_available():
+        print("SKIP rtf bkmk -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP rtf bkmk -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        hexpng = png.hex()
+        for leftover in (
+            r"{\bkmkstart Photo}",
+            r"{\xe Photo}",
+            r"{\tc Photo}",
+        ):
+            rtf = d / "photo.rtf"
+            rtf.write_text(
+                r"{\rtf1\ansi" + leftover + r"{\pict\pngblip\picw64\pich48 " + hexpng + "}}",
+                encoding="ascii",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(rtf), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(rtf), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-rtf-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                assert pix.samples[1] >= 160 and pix.samples[0] < 40, leftover
+            finally:
+                doc.close()
+        mixed = d / "mixed.rtf"
+        mixed.write_text(
+            r"{\rtf1\ansi{\bkmkstart Photo} Hello{\pict\pngblip " + hexpng + "}}",
+            encoding="ascii",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_odf_object_replacements_export() -> None:
     """Share dest PDF/Word on photo ODT whose zip picture is ObjectReplacements/."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -4990,6 +5269,910 @@ def test_html_mailmerge_photo_export() -> None:
             assert not media, media
 
 
+def test_html_custom_docprops_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is CustomDocumentProperties."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?:[\\w.-]+:)?CustomDocumentProperties" in src
+    assert 'Leftover "Photo" in <o:CustomDocumentProperties> stole dest Word / dest PDF Story.' in src
+    assert "Do not strip xml islands outside head (parked)." in src
+    if not pymupdf_available():
+        print("SKIP html custom docprops -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html custom docprops -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<o:CustomDocumentProperties><o:Photo>Photo</o:Photo></o:CustomDocumentProperties>",
+            "<CustomDocumentProperties><o:Company>Photo</o:Company></CustomDocumentProperties>",
+            "<o:CustomDocumentProperties><o:Name>Photo</o:Name>",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        b64 = base64.b64encode(png).decode("ascii")
+        xml = d / "photo.xml"
+        xml.write_text(
+            '<?xml version="1.0"?>'
+            '<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"'
+            ' xmlns:o="urn:schemas-microsoft-com:office:office">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            "<o:CustomDocumentProperties><o:Photo>Photo</o:Photo></o:CustomDocumentProperties>"
+            "</w:wordDocument>",
+            encoding="utf-8",
+        )
+        dest = d / "xml.docx"
+        res = run_engine(["export-as", str(xml), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<o:CustomDocumentProperties><o:Photo>Photo</o:Photo></o:CustomDocumentProperties>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_docprops_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is o:DocumentProperties."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?:[\\w.-]+:)?(?:DocumentProperties|OfficeDocumentSettings)" in src
+    assert 'Leftover "Photo" in <o:DocumentProperties> stole dest Word / dest PDF Story.' in src
+    assert "o:Title was already stripped; o:Author / o:Company were not." in src
+    assert "TargetScreenSize 800x600 stole dest the same way." in src
+    if not pymupdf_available():
+        print("SKIP html docprops -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html docprops -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<o:DocumentProperties><o:Author>Photo</o:Author></o:DocumentProperties>",
+            "<o:DocumentProperties><o:Company>Photo</o:Company></o:DocumentProperties>",
+            "<o:OfficeDocumentSettings><o:TargetScreenSize>800x600</o:TargetScreenSize></o:OfficeDocumentSettings>",
+            "<o:DocumentProperties><o:Author>Photo",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        b64 = base64.b64encode(png).decode("ascii")
+        xml = d / "photo.xml"
+        xml.write_text(
+            '<?xml version="1.0"?>'
+            '<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"'
+            ' xmlns:o="urn:schemas-microsoft-com:office:office">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            "<o:DocumentProperties><o:Author>Photo</o:Author></o:DocumentProperties>"
+            "</w:wordDocument>",
+            encoding="utf-8",
+        )
+        dest = d / "xml.docx"
+        res = run_engine(["export-as", str(xml), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<o:DocumentProperties><o:Author>Photo</o:Author></o:DocumentProperties>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_word_settings_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is w:View / w:BrowserLevel."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?:[\\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize" in src
+    assert "Leftover Print / false / 800x600 in <w:View> / <w:SaveIfXMLInvalid> / <w:BrowserLevel> stole dest Word / dest PDF Story." in src
+    assert "Prefix required. Do not strip <w:p> (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html word settings -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html word settings -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<w:View>Print</w:View>",
+            "<w:SaveIfXMLInvalid>false</w:SaveIfXMLInvalid>",
+            "<w:BrowserLevel>MicrosoftInternetExplorer4</w:BrowserLevel>",
+            "<w:TargetScreenSize>800x600</w:TargetScreenSize>",
+            "<w:View>Print",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:View>Print</w:View><p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        page = d / "page.html"
+        page.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:p><w:r><w:t>Hello</w:t></w:r></w:p></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "page.docx"
+        res = run_engine(["export-as", str(page), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_comment_pstyle_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is pStyle=CommentText."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "Leftover \"Photo\" in pStyle=CommentText / BalloonText stole dest Word / dest PDF Story." in src
+    assert "Do not strip pStyle=Normal / Header / EndnoteText (page copy)." in src
+    assert "CommentText|BalloonText|CommentSubject|Balloon Text|annotation text|annotation subject" in src
+    if not pymupdf_available():
+        print("SKIP html comment pstyle -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html comment pstyle -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr><w:r><w:t>Photo</w:t></w:r></w:p>',
+            '<w:p><w:pPr><w:pStyle w:val="BalloonText"/></w:pPr><w:r><w:t>Photo</w:t></w:r></w:p>',
+            '<w:p><w:pPr><w:pStyle w:val="annotation text"/></w:pPr><w:r><w:t>Photo</w:t></w:r></w:p>',
+            '<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:t>Photo</w:t></w:r>',
+            '<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr><w:t>Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<w:p><w:pPr><w:pStyle w:val="CommentText"/></w:pPr><w:r><w:t>Photo</w:t></w:r></w:p>'
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        normal = d / "normal.html"
+        normal.write_text(
+            '<html><body><img src="pic.png">'
+            '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr><w:r><w:t>Hello</w:t></w:r></w:p>'
+            "</body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "normal.docx"
+        res = run_engine(["export-as", str(normal), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_lidtheme_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is w:LidThemeOther."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript" in src
+    assert "Leftover EN-US / JA in <w:LidThemeOther> / <w:LidThemeAsian> stole dest Word / dest PDF Story." in src
+    assert "(?:[\\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize" in src
+    if not pymupdf_available():
+        print("SKIP html lidtheme -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html lidtheme -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<w:LidThemeOther>EN-US</w:LidThemeOther>",
+            "<w:LidThemeAsian>JA</w:LidThemeAsian>",
+            "<w:LidThemeComplexScript>AR-SA</w:LidThemeComplexScript>",
+            "<w:LidThemeOther>EN-US",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:LidThemeOther>EN-US</w:LidThemeOther><p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_charspacing_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is CharacterSpacingControl."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript|CharacterSpacingControl|ValidateAgainstSchemas" in src
+    assert "LidThemeOther|LidThemeAsian|LidThemeComplexScript" in src
+    assert "(?:[\\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize" in src
+    assert "Leftover DontCompress / false in <w:CharacterSpacingControl> / <w:ValidateAgainstSchemas> stole dest Word / dest PDF Story." in src
+    assert "Prefix required. Do not strip <w:p> (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html charspacing -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html charspacing -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<w:CharacterSpacingControl>DontCompress</w:CharacterSpacingControl>",
+            "<w:ValidateAgainstSchemas>false</w:ValidateAgainstSchemas>",
+            "<w:SaveInvalidXML>false</w:SaveInvalidXML>",
+            "<w:RelyOnVML>false</w:RelyOnVML>",
+            "<w:AllowPNG>true</w:AllowPNG>",
+            "<w:CharacterSpacingControl>DontCompress",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:CharacterSpacingControl>DontCompress</w:CharacterSpacingControl>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        page = d / "page.html"
+        page.write_text(
+            '<html><body><img src="pic.png">'
+            "<w:p><w:r><w:t>Hello</w:t></w:r></w:p></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "page.docx"
+        res = run_engine(["export-as", str(page), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_msocom_cont_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is mso-comment-continuation."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "mso-comment-reference|mso-special-character\\s*:\\s*comment|mso-comment-continuation" in src
+    assert "mso-element\\s*:\\s*comment(?:-list)?|mso-comment-reference" in src
+    assert 'Leftover "Photo" in style=mso-comment-continuation stole dest Word / dest PDF Story.' in src
+    assert "Do not strip mso-element:header / footnote (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html msocom-cont -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html msocom-cont -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<span style="mso-comment-continuation:yes">Photo</span>',
+            '<div style="mso-comment-continuation:yes">Photo</div>',
+            '<a style="mso-comment-continuation:yes">Photo</a>',
+            '<span style="mso-comment-continuation:yes">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<span style="mso-comment-continuation:yes">Photo</span>'
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        header = d / "header.html"
+        header.write_text(
+            '<html><body><img src="pic.png">'
+            '<span style="mso-element:header">Hello</span></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "header.docx"
+        res = run_engine(["export-as", str(header), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_mso_stylename_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is mso-style-name Comment Text."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "msoChangeDel|msoDeleted|msoCommentTextChar|msoCommentSubjectChar|msoBalloonTextChar" in src
+    assert "msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference" in src
+    assert "msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor" in src
+    assert "Comment Text|Comment Subject|Comment Reference|Balloon Text|annotation text" in src
+    assert 'Leftover "Photo" in style=mso-style-name:"Comment Text" stole dest Word / dest PDF Story.' in src
+    assert "Do not strip mso-style-name:Normal / Heading (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html mso-stylename -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html mso-stylename -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            "<span style='mso-style-name:\"Comment Text\"'>Photo</span>",
+            '<span style="mso-style-name:Comment Text">Photo</span>',
+            "<p style='mso-style-name:\"Balloon Text\"'>Photo</p>",
+            "<span class=MsoCommentTextChar>Photo</span>",
+            "<span style='mso-style-name:\"Comment Text\"'>Photo",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Comment Text\"'>Photo</span>"
+            "<p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        normal = d / "normal.html"
+        normal.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Normal\"'>Hello</span></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "normal.docx"
+        res = run_engine(["export-as", str(normal), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        heading = d / "heading.html"
+        heading.write_text(
+            '<html><body><img src="pic.png">'
+            "<span style='mso-style-name:\"Heading 1\"'>Hello</span></body></html>",
+            encoding="utf-8",
+        )
+        dest4 = d / "heading.docx"
+        res = run_engine(["export-as", str(heading), str(dest4)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_docvar_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is w:docVar."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "(?:[\\w.-]+:)?(?:docVars|docVar|DocVar)" in src
+    assert 'Leftover "Photo" in <w:docVar> / <w:docVars> stole dest Word / dest PDF Story.' in src
+    assert "Attribute-only w:val is already empty. Do not strip HTML <del> (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html docvar -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html docvar -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<w:docVar w:name="x">Photo</w:docVar>',
+            '<w:DocVar w:name="x">Photo</w:DocVar>',
+            '<w:docVars><w:docVar w:name="x">Photo</w:docVar></w:docVars>',
+            '<w:docVar w:name="x">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<w:docVar w:name="x">Photo</w:docVar><p>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        deleted = d / "deleted.html"
+        deleted.write_text(
+            '<html><body><img src="pic.png"><del>Hello</del></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "deleted.docx"
+        res = run_engine(["export-as", str(deleted), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_mso_deletion_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is mso-deletion / msoChangeDel."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "msocomhide|msocomanch|msocomanchor|msoChangeDel|msoDeleted" in src
+    assert "msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference" in src
+    assert "msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor" in src
+    assert "(?:mso-deletion|mso-deleted)\\s*:\\s*yes\\b" in src
+    assert 'Leftover "Photo" in style=mso-deletion / class=msoChangeDel stole dest Word / dest PDF Story.' in src
+    assert "Do not strip mso-insertion / msoIns / HTML <del> (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html mso-deletion -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html mso-deletion -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<span style="mso-deletion:yes">Photo</span>',
+            '<span style="mso-deleted:yes">Photo</span>',
+            "<span class=msoChangeDel>Photo</span>",
+            "<span class=msoDeleted>Photo</span>",
+            '<span style="mso-deletion:yes">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        b64 = base64.b64encode(png).decode("ascii")
+        xml = d / "photo.xml"
+        xml.write_text(
+            '<?xml version="1.0"?>'
+            '<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            '<span style="mso-deletion:yes">Photo</span></w:wordDocument>',
+            encoding="utf-8",
+        )
+        dest = d / "xml.docx"
+        res = run_engine(["export-as", str(xml), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<span style="mso-deletion:yes">Photo</span><p>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        ins = d / "ins.html"
+        ins.write_text(
+            '<html><body><img src="pic.png">'
+            '<span class=msoIns>Hello</span>'
+            '<span style="mso-insertion:yes">Hello</span></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "ins.docx"
+        res = run_engine(["export-as", str(ins), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        deleted = d / "deleted.html"
+        deleted.write_text(
+            '<html><body><img src="pic.png"><del>Hello</del></body></html>',
+            encoding="utf-8",
+        )
+        dest4 = d / "deleted.docx"
+        res = run_engine(["export-as", str(deleted), str(dest4)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
 def test_html_msoacetate_photo_export() -> None:
     """Share dest Word/PDF on photo Word-HTML whose leftover is class=MsoAcetate."""
     src = ENGINE.read_text(encoding="utf-8")
@@ -5295,6 +6478,171 @@ def test_html_msocomhide_photo_export() -> None:
             assert "Hello" in xml
             media = [n for n in zf.namelist() if n.startswith("word/media/")]
             assert not media, media
+
+
+def test_html_mso_element_comment_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is style mso-element:comment."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "mso-element\\s*:\\s*comment(?:-list)?|mso-comment-reference" in src
+    assert "style=mso-element:comment / comment-list is Office comment storage." in src
+    assert "Do not strip mso-element:header / footnote (page copy)." in src
+    if not pymupdf_available():
+        print("SKIP html mso-element comment -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html mso-element comment -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<div style="mso-element:comment-list"><div style="mso-element:comment">Photo</div></div>',
+            '<div style="mso-element:comment">Photo</div>',
+            '<span style="mso-comment-reference:A_1">Photo</span>',
+            '<div style="mso-element:comment">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<div style="mso-element:comment">Photo</div><p>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        header = d / "header.html"
+        header.write_text(
+            '<html><body><img src="pic.png">'
+            '<div style="mso-element:header">Hello</div></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "header.docx"
+        res = run_engine(["export-as", str(header), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_msocom_a_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is <a class=msocomoff>."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "<a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML)." in src
+    assert "(?:span|div|p|a)" in src
+    assert "mso-comment-reference|mso-special-character\\s*:\\s*comment" in src
+    if not pymupdf_available():
+        print("SKIP html msocom-a -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html msocom-a -- Pillow missing")
+        return
+    import zipfile
+    import io
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<a class="msocomoff" href="#_msocom_1">Photo</a>',
+            '<a class="msocomanch" name="_msoanchor_1">Photo</a>',
+            '<a style="mso-comment-reference:A_1">Photo</a>',
+            '<span style="mso-special-character:comment">Photo</span>',
+            '<a class="msocomoff">Photo',
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<a class="msocomoff">Photo</a><p>Hello</p></body></html>',
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        link = d / "link.html"
+        link.write_text(
+            '<html><body><img src="pic.png">'
+            '<a href="x">Hello</a></body></html>',
+            encoding="utf-8",
+        )
+        dest3 = d / "link.docx"
+        res = run_engine(["export-as", str(link), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
 
 
 def test_html_unclosed_style_photo_export() -> None:
@@ -5851,6 +7199,115 @@ def test_html_aml_comment_photo_export() -> None:
         mixed.write_text(
             '<html><body><img src="pic.png">'
             "<aml:annotation>Photo</aml:annotation><p>Hello</p></body></html>",
+            encoding="utf-8",
+        )
+        dest2 = d / "mixed.docx"
+        res = run_engine(["export-as", str(mixed), str(dest2)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+        math = d / "math.html"
+        math.write_text(
+            '<html><body><img src="pic.png">'
+            "<math><annotation>Photo</annotation></math></body></html>",
+            encoding="utf-8",
+        )
+        dest3 = d / "math.docx"
+        res = run_engine(["export-as", str(math), str(dest3)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip", res
+
+
+def test_html_aml_nested_photo_export() -> None:
+    """Share dest Word/PDF on photo Word-HTML whose leftover is nested aml:annotation."""
+    src = ENGINE.read_text(encoding="utf-8")
+    assert "aml:annotation|w:annotation" in src
+    assert "(?=<) would stop at nested <aml:content> / <w:p> and leave Photo." in src
+    assert "Stop at </aml:annotation> / body / img so nested comment runs strip." in src
+    assert "Do not strip MathML <annotation> (parked)" in src
+    if not pymupdf_available():
+        print("SKIP html aml nested -- pymupdf missing")
+        return
+    try:
+        from PIL import Image
+    except Exception:
+        print("SKIP html aml nested -- Pillow missing")
+        return
+    import zipfile
+    import io
+    import base64
+
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        buf = io.BytesIO()
+        Image.new("RGB", (64, 48), (20, 180, 80)).save(buf, format="PNG")
+        png = buf.getvalue()
+        (d / "pic.png").write_bytes(png)
+        for leftover in (
+            '<aml:annotation aml:type="Word.Comment"><aml:content>Photo</aml:content></aml:annotation>',
+            "<w:comment><w:p><w:t>Photo</w:t></w:p></w:comment>",
+            "<w:moveFromText><w:r><w:t>Photo</w:t></w:r></w:moveFromText>",
+            "<aml:annotation><aml:content>Photo",
+        ):
+            html = d / "photo.html"
+            html.write_text(
+                '<html><body><img src="pic.png">' + leftover + "</body></html>",
+                encoding="utf-8",
+            )
+            dest = d / "photo.docx"
+            res = run_engine(["export-as", str(html), str(dest)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "docx-zip-images", (leftover, res)
+            with zipfile.ZipFile(dest) as zf:
+                media = [n for n in zf.namelist() if n.startswith("word/media/")]
+                assert media, (leftover, zf.namelist())
+                im = Image.open(io.BytesIO(zf.read(media[0])))
+                try:
+                    px = im.convert("RGB").getpixel((8, 8))
+                    assert px[1] >= 160 and px[0] < 40, (leftover, px)
+                finally:
+                    im.close()
+            pdf = d / "photo.pdf"
+            res = run_engine(["export-as", str(html), str(pdf)])
+            assert res.get("success"), (leftover, res)
+            assert res.get("tool") == "pymupdf-html-images", (leftover, res)
+            import pymupdf
+            doc = pymupdf.open(pdf)
+            try:
+                pix = doc[0].get_pixmap()
+                i = (pix.height // 2 * pix.width + pix.width // 2) * pix.n
+                r, g = pix.samples[i], pix.samples[i + 1]
+                assert g >= 160 and r < 40, (leftover, r, g)
+            finally:
+                doc.close()
+        b64 = base64.b64encode(png).decode("ascii")
+        xml = d / "photo.xml"
+        xml.write_text(
+            '<?xml version="1.0"?>'
+            '<w:wordDocument xmlns:w="http://schemas.microsoft.com/office/word/2003/wordml"'
+            ' xmlns:aml="http://schemas.microsoft.com/aml/2001/core">'
+            f'<w:binData w:name="wordml://1.png">{b64}</w:binData>'
+            '<aml:annotation aml:type="Word.Comment"><aml:content>Photo</aml:content></aml:annotation>'
+            "</w:wordDocument>",
+            encoding="utf-8",
+        )
+        dest = d / "xml.docx"
+        res = run_engine(["export-as", str(xml), str(dest)])
+        assert res.get("success"), res
+        assert res.get("tool") == "docx-zip-images", res
+        with zipfile.ZipFile(dest) as zf:
+            media = [n for n in zf.namelist() if n.startswith("word/media/")]
+            assert media, zf.namelist()
+            im = Image.open(io.BytesIO(zf.read(media[0])))
+            try:
+                px = im.convert("RGB").getpixel((8, 8))
+                assert px[1] >= 160 and px[0] < 40, px
+            finally:
+                im.close()
+        mixed = d / "mixed.html"
+        mixed.write_text(
+            '<html><body><img src="pic.png">'
+            '<aml:annotation><aml:content>Photo</aml:content></aml:annotation>'
+            "<p>Hello</p></body></html>",
             encoding="utf-8",
         )
         dest2 = d / "mixed.docx"
@@ -7451,6 +8908,10 @@ if __name__ == "__main__":
     test_rtf_themedata_photo_export()
     test_rtf_nonshppict_photo_export()
     test_rtf_annotation_photo_export()
+    test_rtf_fldinst_photo_export()
+    test_rtf_userprops_photo_export()
+    test_rtf_xmlopen_photo_export()
+    test_rtf_bkmk_photo_export()
     test_odf_object_replacements_export()
     test_md_image_photo_pdf()
     test_html_lrm_wj_photo_export()
@@ -7463,9 +8924,21 @@ if __name__ == "__main__":
     test_html_msocomsubj_photo_export()
     test_html_flddata_photo_export()
     test_html_mailmerge_photo_export()
+    test_html_custom_docprops_photo_export()
+    test_html_docprops_photo_export()
+    test_html_word_settings_photo_export()
+    test_html_comment_pstyle_photo_export()
+    test_html_lidtheme_photo_export()
+    test_html_charspacing_photo_export()
+    test_html_msocom_cont_photo_export()
+    test_html_mso_stylename_photo_export()
+    test_html_docvar_photo_export()
+    test_html_mso_deletion_photo_export()
     test_html_msoacetate_photo_export()
     test_html_msoballoon_photo_export()
     test_html_msocomhide_photo_export()
+    test_html_mso_element_comment_photo_export()
+    test_html_msocom_a_photo_export()
     test_html_unclosed_style_photo_export()
     test_html_unclosed_desc_photo_export()
     test_html_noframes_photo_export()
@@ -7474,6 +8947,7 @@ if __name__ == "__main__":
     test_xml_bindata_photo_export()
     test_html_deltext_photo_export()
     test_html_aml_comment_photo_export()
+    test_html_aml_nested_photo_export()
     test_html_msodel_photo_export()
     test_html_wdel_photo_export()
     test_docx_del_t_photo_export()

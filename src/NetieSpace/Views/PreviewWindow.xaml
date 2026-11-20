@@ -320,17 +320,17 @@
                                    MouseLeftButtonUp="FileNameText_MouseLeftButtonUp"/>
                     </DockPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <WrapPanel Grid.Column="1" MaxWidth="560" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,6">
                         <Button x:Name="EditModeButton" Content="Edit" Visibility="Collapsed"
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
                                 Click="EditModeButton_Click"
-                                ToolTip="Light PDF / video tools in this preview"/>
-                        <Button x:Name="EditInAppButton" Content="Edit in app" Visibility="Collapsed"
+                                ToolTip="Edit tools"/>
+                        <Button x:Name="EditInAppButton" Content="Workbench" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="14,8"
                                 FontWeight="SemiBold" FontSize="13"
                                 Click="EditInAppButton_Click"
-                                ToolTip="PDFSpace workbench — Fill &amp; Sign, Edit PDF, Organize, right-rail tools"/>
+                                ToolTip="Open the PDF workbench"/>
                         <Button x:Name="OpenInAppButton" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,10,0" Padding="14,8"
                                 FontWeight="SemiBold" FontSize="13"
@@ -339,55 +339,55 @@
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
                                 Click="TextEditButton_Click"
-                                ToolTip="Edit text — autosaves as you type"/>
+                                ToolTip="Edit text"/>
                         <Button x:Name="SummaryToggleButton" Content="Summary"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="12,6"
                                 Click="SummaryToggleButton_Click"
-                                ToolTip="Show or hide AI summary (off skips AI calls)"/>
+                                ToolTip="AI summary"/>
                         <Button x:Name="ProviderButton" Content="AI: —"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="ProviderButton_Click"
-                                ToolTip="Switch AI. Cloud path is on when the label says Cloud:"/>
+                                ToolTip="Switch AI provider"/>
                         <Button x:Name="ContinueChatButton" Content="Chat"
                                 Style="{StaticResource TealButton}" Margin="0,0,8,0"
                                 Click="ContinueChatButton_Click"
-                                ToolTip="Side panel notes &amp; chat — saved on this file"/>
+                                ToolTip="Notes &amp; chat"/>
                         <Button x:Name="LookupClipButton" Content="&#xE721;"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
                                 Click="LookupClipButton_Click"
-                                ToolTip="Look Up highlighted text (or right-click the page)"/>
+                                ToolTip="Look up selection" AutomationProperties.Name="Look up selection"/>
                         <Button x:Name="RemoveBgButton" Content="Remove BG" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="RemoveBgButton_Click"/>
                         <Button x:Name="OcrImageButton" Content="OCR" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="OcrImageButton_Click"
-                                ToolTip="Read text from this image (local OCR; cloud stays opt-in)"/>
+                                ToolTip="Read text (OCR)"/>
                         <Button x:Name="CopyImageButton" Content="Copy" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="CopyImageButton_Click"
-                                ToolTip="Copy this image (bitmap + file). Drag the picture out to drop it into a folder or chat."/>
+                                ToolTip="Copy image"/>
                         <Button x:Name="CompressImageButton" Content="Compress" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="CompressImageButton_Click"
-                                ToolTip="Lower JPEG file size (quality picker)"/>
+                                ToolTip="Reduce file size"/>
                         <Button x:Name="RotateImageButton" Content="Rotate 90" Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="RotateImageButton_Click"
-                                ToolTip="Write a 90-degree clockwise copy beside this file"/>
+                                ToolTip="Rotate 90 deg clockwise (saves a copy)"/>
                         <Button x:Name="SendToComfyButton" Content="Send to Comfy..." Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="SendToComfyButton_Click"
-                                ToolTip="Queue this image in local ComfyUI (127.0.0.1:8188). rembg / Copy still work if Comfy is down."/>
+                                ToolTip="Send to ComfyUI"/>
                         <Button x:Name="WindowsAiButton" Content="Windows AI..." Visibility="Collapsed"
                                 Style="{StaticResource GhostButton}" Margin="0,0,8,0"
                                 Click="WindowsAiButton_Click"
-                                ToolTip="Probe local WinML / Windows AI. rembg / Copy still work if it is down."/>
+                                ToolTip="Windows AI"/>
                         <!-- Share replaces the old text "convert" entry: icon only, sheet does the rest -->
                         <Button x:Name="ShareButton"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
                                 Click="ShareButton_Click"
-                                ToolTip="Share — the whole file, a converted copy, or just what you selected">
+                                ToolTip="Share" AutomationProperties.Name="Share">
                             <Path Stroke="{StaticResource TextBrush}" StrokeThickness="1.7"
                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                                   Stretch="Uniform" Width="16" Height="16"
@@ -396,7 +396,7 @@
                         <Button x:Name="SetupHelpButton" Content="&#xE713;"
                                 Style="{StaticResource IconGhostButton}" Margin="0,0,8,0"
                                 Click="SetupHelpButton_Click"
-                                ToolTip="Settings — plan · keys · My details · vault"/>
+                                ToolTip="Settings" AutomationProperties.Name="Settings"/>
                         <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="0,0,8,0">
                             <Button x:Name="ZoomOutButton" Content="−" Style="{StaticResource GhostButton}"
                                     Margin="0,0,4,0" Padding="10,4" Click="ZoomOutButton_Click"/>
@@ -407,8 +407,9 @@
                             <Button x:Name="ZoomFitButton" Content="Fit" Style="{StaticResource GhostButton}"
                                     Padding="10,4" Click="ZoomFitButton_Click"/>
                         </StackPanel>
-                        <Button x:Name="CloseChromeButton" Content="✕" Style="{StaticResource IconCloseButton}" Click="CloseButton_Click"/>
-                    </StackPanel>
+                        <Button x:Name="CloseChromeButton" Content="✕" Style="{StaticResource IconCloseButton}" Click="CloseButton_Click"
+                                ToolTip="Close" AutomationProperties.Name="Close"/>
+                    </WrapPanel>
 
                     <!-- Share sheet. Popups get their own HWND, so this draws cleanly over WebView2. -->
                     <Popup x:Name="SharePopup" PlacementTarget="{Binding ElementName=ShareButton}"
@@ -710,14 +711,14 @@
                                 <Button x:Name="AddChatClipButton" Content="Add to Chat" Style="{StaticResource GhostButton}"
                                         Visibility="Collapsed"
                                         Margin="0,0,8,0" Padding="10,4" Click="AddChatClipButton_Click"
-                                        ToolTip="Stage this file (parsed) as an attachment — nothing sends until you press Send"/>
-                                <Button x:Name="SendSlideChatButton" Content="Send slide" Style="{StaticResource GhostButton}"
+                                        ToolTip="Attach to chat"/>
+                                <Button x:Name="SendSlideChatButton" Content="Add slide" Style="{StaticResource GhostButton}"
                                         Margin="0,0,8,0" Padding="10,4" Click="SendSlideChatButton_Click"
                                         Visibility="Collapsed"
-                                        ToolTip="Attach the visible slide image to chat — not the whole deck. Nothing sends until you press Send."/>
+                                        ToolTip="Attach this slide to chat"/>
                                 <Button x:Name="RegionSelectButton" Content="Select area" Style="{StaticResource GhostButton}"
                                         Margin="0,0,8,0" Padding="10,4" Click="RegionSelectButton_Click"
-                                        ToolTip="Drag a box over text or a figure — it parses first, then stages as an attachment"/>
+                                        ToolTip="Select an area for chat"/>
                                 <Button x:Name="OpenExternallyButton" Content="Open in Netie Space" Visibility="Collapsed"
                                         Style="{StaticResource GhostButton}" Margin="0,0,8,0" Padding="10,4"
                                         Click="OpenExternallyButton_Click"
@@ -828,8 +829,6 @@
                                                 <MenuItem Header="Edit text / OCR…" Click="PdfEditTextMode_Click"
                                                           ToolTip="Edit native text or seed OCR boxes, then Save into this PDF"/>
                                                 <Separator/>
-                                                <MenuItem Header="Compress…" IsEnabled="False"
-                                                          ToolTip="Coming soon — not a fake rewrite"/>
                                                 <MenuItem Header="Export as…" Click="PdfExportAsMenu_Click"
                                                           ToolTip="Pick another format via the Share export picker"/>
                                                 <Separator/>

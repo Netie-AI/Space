@@ -216,21 +216,6 @@ public static class PreviewHtmlDiskCache
         IoPath.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "NetieSpace", "preview-cache");
 
-    public static string? TryRead(string filePath, long size, DateTime lastWriteUtc)
-    {
-        try
-        {
-            var path = TryGetHtmlFile(filePath, size, lastWriteUtc);
-            if (path is null)
-                return null;
-            return IoFile.ReadAllText(path);
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
     /// <summary>Returns cached HTML file path if present (for WebView file:// navigation).</summary>
     public static string? TryGetHtmlFile(string filePath, long size, DateTime lastWriteUtc)
     {
@@ -257,48 +242,6 @@ public static class PreviewHtmlDiskCache
         var path = IoPath.Combine(CacheDir, Key(filePath, size, lastWriteUtc) + ".html");
         IoFile.WriteAllText(path, html);
         return path;
-    }
-
-    /// <summary>Bundle dir for HTML + sibling media/ (mammoth external images).</summary>
-    public static string BundleDir(string filePath, long size, DateTime lastWriteUtc)
-    {
-        var dir = IoPath.Combine(CacheDir, Key(filePath, size, lastWriteUtc));
-        IoDirectory.CreateDirectory(dir);
-        return dir;
-    }
-
-    public static string BundleHtmlPath(string filePath, long size, DateTime lastWriteUtc) =>
-        IoPath.Combine(BundleDir(filePath, size, lastWriteUtc), "preview.html");
-
-    /// <summary>Copy engine HTML + optional sibling media/ into the disk-cache bundle.</summary>
-    public static string ImportBundle(string filePath, long size, DateTime lastWriteUtc, string sourceHtmlPath)
-    {
-        var destDir = BundleDir(filePath, size, lastWriteUtc);
-        var destHtml = IoPath.Combine(destDir, "preview.html");
-        IoFile.Copy(sourceHtmlPath, destHtml, overwrite: true);
-
-        var srcMedia = IoPath.Combine(IoPath.GetDirectoryName(sourceHtmlPath)!, "media");
-        var destMedia = IoPath.Combine(destDir, "media");
-        if (IoDirectory.Exists(srcMedia))
-        {
-            if (IoDirectory.Exists(destMedia))
-            {
-                try { IoDirectory.Delete(destMedia, true); } catch { /* ignore */ }
-            }
-
-            CopyDirectory(srcMedia, destMedia);
-        }
-
-        return destHtml;
-    }
-
-    private static void CopyDirectory(string src, string dest)
-    {
-        IoDirectory.CreateDirectory(dest);
-        foreach (var file in IoDirectory.GetFiles(src))
-            IoFile.Copy(file, IoPath.Combine(dest, IoPath.GetFileName(file)), overwrite: true);
-        foreach (var dir in IoDirectory.GetDirectories(src))
-            CopyDirectory(dir, IoPath.Combine(dest, IoPath.GetFileName(dir)));
     }
 
     public static string CacheKey(string filePath, long size, DateTime lastWriteUtc) =>

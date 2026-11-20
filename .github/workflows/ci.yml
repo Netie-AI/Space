@@ -77,11 +77,17 @@ jobs:
         run: python -m compileall -q -f tests scripts
       - name: contract tests
         run: |
-          set -euo pipefail
+          # Run every contract test and fail at the end: one red test must not hide the rest.
+          set -uo pipefail
+          failed=""
           for f in tests/test_*.py; do
             echo "== $f"
-            python "$f"
+            python "$f" || failed="$failed $f"
           done
+          if [ -n "$failed" ]; then
+            echo "FAILED:$failed"
+            exit 1
+          fi
       - name: pillar1 wipe reference encode
         run: ./scripts/encode-pillar1-wipe.sh "$(mktemp -d)"
 

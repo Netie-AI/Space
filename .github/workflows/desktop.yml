@@ -1,0 +1,39 @@
+name: Desktop
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: desktop (windows)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: build
+        run: dotnet build src/NetieSpace/NetieSpace.csproj -c Debug --nologo
+      - name: drive the real windows
+        shell: powershell
+        run: ./scripts/check-desktop.ps1 -Out "$env:RUNNER_TEMP\s50-desktop"
+      - name: upload screenshots and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: s50-desktop
+          path: ${{ runner.temp }}/s50-desktop
+          if-no-files-found: warn
