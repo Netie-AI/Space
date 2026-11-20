@@ -219,9 +219,31 @@ def test_scripts_and_docs():
     assert "check-pillar1-export.ps1" in enc_ps
     cursor_ci = (ROOT / "scripts/ci-cursor.sh").read_text(encoding="utf-8")
     assert "encode-pillar1-wipe.sh" in cursor_ci
-    yml = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    yml = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in sorted((ROOT / ".github/workflows").glob("*.yml"))
+    )
     assert "encode-pillar1-wipe.ps1" in yml
     assert "encode-pillar1-wipe.sh" in yml
+    gha = (ROOT / "docs/HUMAN_GHA_BILLING.md").read_text(encoding="utf-8")
+    assert "spending limit needs to be increased" in gha
+    assert "Do **not** merge a PR while GitHub Actions `CI` is red" in gha
+    assert "leftover dest PRs start only the python workflow" in gha
+    assert "Draft leftover dest PRs wait on hosted jobs with real steps + PASS." in gha
+    assert "#281 CI path-split + billing playbook" in gha
+    assert "#290 leftover `DocumentProperties`" in gha
+    assert "#291 leftover Word HTML settings" in gha
+    assert "#292 leftover WordML `pStyle=CommentText`" in gha
+    assert "#293 leftover Word `LidThemeOther`" in gha
+    assert "#294 leftover Word `docVar`" in gha
+    assert "#295 leftover Word `mso-deletion`" in gha
+    assert "#296 leftover Word `CharacterSpacingControl`" in gha
+    assert "#297 leftover Word `mso-comment-continuation`" in gha
+    assert "#298 leftover Word `mso-style-name" in gha
+    check = (ROOT / "scripts/gha-billing-check.sh").read_text(encoding="utf-8")
+    assert "spending limit needs to be increased" in check
+    assert "Do not merge" in check
+    assert "docs/HUMAN_GHA_BILLING.md" in parked
     assert "tools/ffmpeg" in pillar
     assert "price_1U8ckCFV5wcFod2faXiUCsaV" in (ROOT / "docs/HUMAN_STRIPE_CHECKOUT.md").read_text(encoding="utf-8")
     publish_ps = (ROOT / "scripts/publish.ps1").read_text(encoding="utf-8")
