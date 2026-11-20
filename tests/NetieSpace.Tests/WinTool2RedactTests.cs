@@ -278,27 +278,5 @@ public class WinTool2RedactTests
         Assert.Equal(2, IoDirectory.GetFiles(outDir, "*.pdf").Length);
         Assert.Equal(2, IoDirectory.GetFiles(outDir).Length);
     }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(90)]
-    [InlineData(180)]
-    [InlineData(270)]
-    public void The_display_mapping_sends_the_corners_of_the_page_box_to_the_corners_of_the_view(int rotation)
-    {
-        // A 200 x 100 page box at (10, 20): its bottom-left corner of the page is, once turned, a known corner.
-        var whole = PdfRedactToolProvider.ToDisplay(10, 20, 210, 120, 10, 20, 210, 120, rotation);
-        var turned = rotation is 90 or 270;
-        Assert.Equal(0, whole.X, 6);
-        Assert.Equal(0, whole.Y, 6);
-        Assert.Equal(turned ? 100 : 200, whole.W, 6);
-        Assert.Equal(turned ? 200 : 100, whole.H, 6);
-
-        // The bottom-left 20 x 10 square of the unturned page.
-        var corner = PdfRedactToolProvider.ToDisplay(10, 20, 30, 30, 10, 20, 210, 120, rotation);
-        var (ex, ey) = rotation switch { 90 => (0.0, 0.0), 180 => (180.0, 0.0), 270 => (90.0, 180.0), _ => (0.0, 90.0) };
-        Assert.Equal(ex, corner.X, 6);
-        Assert.Equal(ey, corner.Y, 6);
-    }
 }
 #endif

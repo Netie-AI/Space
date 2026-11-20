@@ -35,7 +35,7 @@ public sealed class PdfRedactToolProvider : IToolProvider
     }
 
     /// <summary>A box on a page, in points from the top-left corner of the page as displayed.</summary>
-    internal readonly record struct Box(double X, double Y, double W, double H);
+    internal readonly record struct Box(double X, double Y, double W, double H, bool FromText = false);
 
     private static readonly Regex RegionToken = new(
         @"^(\d+)\s*:\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)$",
@@ -61,32 +61,6 @@ public sealed class PdfRedactToolProvider : IToolProvider
             list.Add((page, box));
         }
         return list;
-    }
-
-    /// <summary>
-    /// Maps a rectangle in PDF user space (origin bottom-left of the page box) to points from the top-left of
-    /// the page as displayed, for a page rotated by <paramref name="rotation"/> degrees clockwise.
-    /// </summary>
-    internal static Box ToDisplay(
-        double left, double bottom, double right, double top,
-        double boxL, double boxB, double boxR, double boxT, int rotation)
-    {
-        (double X, double Y) P(double x, double y) => rotation switch
-        {
-            90 => (y - boxB, x - boxL),
-            180 => (boxR - x, y - boxB),
-            270 => (boxT - y, boxR - x),
-            _ => (x - boxL, boxT - y),
-        };
-        var a = P(left, bottom);
-        var b = P(right, top);
-        var c = P(left, top);
-        var d = P(right, bottom);
-        var x0 = Math.Min(Math.Min(a.X, b.X), Math.Min(c.X, d.X));
-        var x1 = Math.Max(Math.Max(a.X, b.X), Math.Max(c.X, d.X));
-        var y0 = Math.Min(Math.Min(a.Y, b.Y), Math.Min(c.Y, d.Y));
-        var y1 = Math.Max(Math.Max(a.Y, b.Y), Math.Max(c.Y, d.Y));
-        return new Box(x0, y0, x1 - x0, y1 - y0);
     }
 
     private sealed class PagePlan
@@ -235,15 +209,16 @@ public sealed class PdfRedactToolProvider : IToolProvider
                             var ws = starts[k];
                             var we = ws + words[k].Text.Length;
                             if (ws >= end || we <= at) continue;
+                            // PdfPig reports words already turned to the displayed page, origin bottom-left,
+                            // the crop box shifted to 0,0. The render check below catches any disagreement.
                             var b = words[k].BoundingBox;
                             var l = Math.Min(Math.Min(b.BottomLeft.X, b.TopLeft.X), Math.Min(b.BottomRight.X, b.TopRight.X));
                             var r = Math.Max(Math.Max(b.BottomLeft.X, b.TopLeft.X), Math.Max(b.BottomRight.X, b.TopRight.X));
                             var lo = Math.Min(Math.Min(b.BottomLeft.Y, b.TopLeft.Y), Math.Min(b.BottomRight.Y, b.TopRight.Y));
                             var hi = Math.Max(Math.Max(b.BottomLeft.Y, b.TopLeft.Y), Math.Max(b.BottomRight.Y, b.TopRight.Y));
-                            var box = ToDisplay(l, lo, r, hi, crop.Left, crop.Bottom, crop.Right, crop.Top, rotation);
                             plan.Boxes.Add(new Box(
-                                box.X - TextPadPoints, box.Y - TextPadPoints,
-                                box.W + 2 * TextPadPoints, box.H + 2 * TextPadPoints));
+                                l - TextPadPoints, plan.HeightPt - hi - TextPadPoints,
+                                r - l + 2 * TextPadPoints, hi - lo + 2 * TextPadPoints, true));
                         }
                         at += Math.Max(1, term.Length);
                     }
@@ -291,10 +266,44 @@ public sealed class PdfRedactToolProvider : IToolProvider
         if (image.Width != (int)width || image.Height != (int)height)
             throw new InvalidOperationException($"page {index + 1} of {input} rendered at {image.Width}x{image.Height}, expected {width}x{height}");
 
+        RequireInkUnderTextBoxes(image, plan, index + 1, input);
         Paint(image, plan, color);
         using var ms = new System.IO.MemoryStream();
         SixLabors.ImageSharp.ImageExtensions.SaveAsPng(image, ms);
         return ms.ToArray();
+    }
+
+    /// <summary>
+    /// The boxes came from the text reader, the pixels from the renderer. If none of the text boxes of a page
+    /// sits on anything drawn, the two disagree about the page and painting would hide the wrong place.
+    /// </summary>
+    private static void RequireInkUnderTextBoxes(SixLabors.ImageSharp.Image<Rgb24> image, PagePlan plan, int pageNumber, string input)
+    {
+        var textBoxes = plan.Boxes.Where(b => b.FromText).ToList();
+        if (textBoxes.Count == 0) return;
+        var sx = image.Width / plan.WidthPt;
+        var sy = image.Height / plan.HeightPt;
+        foreach (var box in textBoxes)
+        {
+            var x0 = Math.Max(0, (int)Math.Floor(box.X * sx));
+            var x1 = Math.Min(image.Width, (int)Math.Ceiling((box.X + box.W) * sx));
+            var y0 = Math.Max(0, (int)Math.Floor(box.Y * sy));
+            var y1 = Math.Min(image.Height, (int)Math.Ceiling((box.Y + box.H) * sy));
+            if (HasInk(image, x0, x1, y0, y1)) return;
+        }
+        throw new InvalidOperationException(
+            $"page {pageNumber} of {input}: none of the {textBoxes.Count} boxes for option 'text' sits on anything the renderer drew, so the two readers disagree about the page; nothing was written (use option 'regions')");
+    }
+
+    private static bool HasInk(SixLabors.ImageSharp.Image<Rgb24> image, int x0, int x1, int y0, int y1)
+    {
+        for (var y = y0; y < y1; y++)
+        {
+            var row = image.GetPixelRowSpan(y);
+            for (var x = x0; x < x1; x++)
+                if (row[x].R < 200 || row[x].G < 200 || row[x].B < 200) return true;
+        }
+        return false;
     }
 
     private static void Paint(SixLabors.ImageSharp.Image<Rgb24> image, PagePlan plan, XColor color)
@@ -316,27 +325,65 @@ public sealed class PdfRedactToolProvider : IToolProvider
         }
     }
 
+    private static string LettersOnly(UglyToad.PdfPig.Content.Page page) =>
+        new string(page.Letters.SelectMany(l => l.Value).Where(c => !char.IsWhiteSpace(c)).ToArray());
+
     /// <summary>Reads the finished file back: no text on boxed pages, the others unchanged, no term anywhere.</summary>
     private static void VerifyOutput(string path, List<PagePlan> plans, List<string> terms)
     {
-        using var pig = PigDocument.Open(path);
-        if (pig.NumberOfPages != plans.Count)
-            throw new InvalidOperationException($"the redacted file has {pig.NumberOfPages} pages, expected {plans.Count}; nothing was written");
-        for (var n = 1; n <= plans.Count; n++)
+        using (var pig = PigDocument.Open(path))
         {
-            var page = pig.GetPage(n);
-            var plan = plans[n - 1];
-            if (plan.Boxes.Count > 0 && page.Letters.Count != 0)
-                throw new InvalidOperationException($"page {n} still has extractable text after redaction; nothing was written");
-            if (plan.Boxes.Count == 0 && page.Letters.Count != plan.LetterCount)
-                throw new InvalidOperationException($"page {n} lost text while being copied; nothing was written");
-            if (terms.Count > 0)
+            if (pig.NumberOfPages != plans.Count)
+                throw new InvalidOperationException($"the redacted file has {pig.NumberOfPages} pages, expected {plans.Count}; nothing was written");
+            var squeezed = terms.Select(t => new string(t.Where(c => !char.IsWhiteSpace(c)).ToArray())).ToList();
+            for (var n = 1; n <= plans.Count; n++)
             {
-                var text = string.Join(" ", page.GetWords().Select(w => w.Text));
-                foreach (var term in terms)
-                    if (text.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
-                        throw new InvalidOperationException($"'{term}' is still in the text of page {n}; nothing was written");
+                var page = pig.GetPage(n);
+                var plan = plans[n - 1];
+                if (Math.Abs(page.Width - plan.WidthPt) > 1 || Math.Abs(page.Height - plan.HeightPt) > 1)
+                    throw new InvalidOperationException($"page {n} changed size while being rebuilt; nothing was written");
+                if (plan.Boxes.Count > 0 && page.Letters.Count != 0)
+                    throw new InvalidOperationException($"page {n} still has extractable text after redaction; nothing was written");
+                if (plan.Boxes.Count == 0 && page.Letters.Count != plan.LetterCount)
+                    throw new InvalidOperationException($"page {n} lost text while being copied; nothing was written");
+                if (terms.Count == 0) continue;
+                var words = string.Join(" ", page.GetWords().Select(w => w.Text));
+                var letters = LettersOnly(page);
+                for (var t = 0; t < terms.Count; t++)
+                    if (words.IndexOf(terms[t], StringComparison.OrdinalIgnoreCase) >= 0
+                        || letters.IndexOf(squeezed[t], StringComparison.OrdinalIgnoreCase) >= 0)
+                        throw new InvalidOperationException($"'{terms[t]}' is still in the text of page {n}; nothing was written");
             }
         }
+
+        // Copied pages keep their annotations, form values and page metadata: look in the bytes too.
+        // Short terms would match compressed data by chance, so only terms of 5 characters or more are searched.
+        foreach (var term in terms.Where(t => t.Length >= 5))
+            if (FileContains(path, term))
+                throw new InvalidOperationException($"'{term}' is still inside the file (a note, form value or metadata of a page that was copied); nothing was written");
+    }
+
+    private static bool FileContains(string path, string term)
+    {
+        var patterns = new[] { Encoding.ASCII, Encoding.BigEndianUnicode, Encoding.Unicode }
+            .Select(e => e.GetBytes(term.ToLowerInvariant())).ToList();
+        bool Has(byte[] hay)
+        {
+            var lower = (byte[])hay.Clone();
+            for (var i = 0; i < lower.Length; i++)
+                if (lower[i] >= (byte)'A' && lower[i] <= (byte)'Z') lower[i] = (byte)(lower[i] + 32);
+            return patterns.Any(p => lower.AsSpan().IndexOf(p) >= 0);
+        }
+        if (Has(IoFile.ReadAllBytes(path))) return true;
+        using var doc = PdfReader.Open(path, PdfDocumentOpenMode.Import);
+        foreach (var item in doc.Internals.GetAllObjects())
+        {
+            if (item is not PdfSharpCore.Pdf.PdfDictionary dict || dict.Stream is null) continue;
+            byte[] bytes;
+            try { bytes = dict.Stream.UnfilteredValue; }
+            catch { continue; }
+            if (Has(bytes)) return true;
+        }
+        return false;
     }
 }

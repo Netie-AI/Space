@@ -36,7 +36,9 @@ Invoke-Tool "pdf-redact" @($htmlPdf) @("--opt", "text=NetieRedactProof", "--opt"
 $redacted = Copy-ToolOutputs "pdf-redact" "win2-" | Select-Object -First 1
 $bytes = [System.IO.File]::ReadAllBytes($redacted)
 $ascii = [System.Text.Encoding]::ASCII.GetString($bytes)
-Check "redacted pdf does not hold the word in its bytes" (-not $ascii.ToLowerInvariant().Contains("netieredactproof")) $redacted
+# A picture-only file has no font resource at all, and the input page (text) does.
+$inAscii = [System.Text.Encoding]::ASCII.GetString([System.IO.File]::ReadAllBytes($htmlPdf))
+Check "redacted pdf has no font, the input has" (($ascii -notmatch "/Font") -and ($inAscii -match "/Font")) $redacted
 
 # A picture of the redacted page to look at.
 Invoke-Tool "pdf-to-jpg" @($redacted) @("--opt", "dpi=100")

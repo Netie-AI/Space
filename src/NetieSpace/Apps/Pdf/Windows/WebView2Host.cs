@@ -23,6 +23,17 @@ internal static class WebView2Host
     /// <summary>User-data folder of the most recent run (already deleted when a run returns).</summary>
     internal static string? LastUserDataFolder;
 
+    /// <summary>Lets the timeout path close the view on the thread that owns it.</summary>
+    private sealed class Cleanup
+    {
+        public Action? Close;
+        private int _done;
+        public void Run()
+        {
+            if (Interlocked.Exchange(ref _done, 1) == 0) Close?.Invoke();
+        }
+    }
+
     public sealed class Session
     {
         private int _blocked;
@@ -67,6 +78,7 @@ internal static class WebView2Host
         LastUserDataFolder = userData;
         LastBlockedCount = 0;
         var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanup = new Cleanup();
 
         var thread = new Thread(() =>
         {
@@ -75,7 +87,7 @@ internal static class WebView2Host
             {
                 try
                 {
-                    tcs.TrySetResult(await BodyAsync(htmlPath, width, height, userData, work));
+                    tcs.TrySetResult(await BodyAsync(htmlPath, width, height, userData, work, cleanup));
                 }
                 catch (Exception ex)
                 {
@@ -102,8 +114,19 @@ internal static class WebView2Host
         }
         finally
         {
-            // A timed-out or cancelled run leaves the thread parked in WebView2: stop its message loop.
-            Dispatcher.FromThread(thread)?.BeginInvokeShutdown(DispatcherPriority.Send);
+            // A timed-out or cancelled run leaves the thread parked in WebView2: close the view and end the
+            // browser on its own thread, then stop the message loop.
+            var d = Dispatcher.FromThread(thread);
+            if (d is not null)
+            {
+                try
+                {
+                    var op = d.InvokeAsync(cleanup.Run, DispatcherPriority.Send);
+                    await Task.WhenAny(op.Task, Task.Delay(5000));
+                }
+                catch { /* the loop is already gone */ }
+                d.BeginInvokeShutdown(DispatcherPriority.Send);
+            }
             await DeleteFolderAsync(userData);
         }
     }
@@ -119,7 +142,7 @@ internal static class WebView2Host
     }
 
     private static async Task<T> BodyAsync<T>(
-        string htmlPath, int width, int height, string userData, Func<Session, Task<T>> work)
+        string htmlPath, int width, int height, string userData, Func<Session, Task<T>> work, Cleanup cleanup)
     {
         var hwnd = IntPtr.Zero;
         CoreWebView2Controller? controller = null;
@@ -137,7 +160,7 @@ internal static class WebView2Host
             // filter below is what counts the refusals.
             var options = new CoreWebView2EnvironmentOptions
             {
-                AdditionalBrowserArguments = "--host-resolver-rules=\"MAP * ~NOTFOUND\" --proxy-server=127.0.0.1:1",
+                AdditionalBrowserArguments = "--host-resolver-rules=\"MAP * ~NOTFOUND\" --proxy-server=127.0.0.1:1 --disable-features=CalculateNativeWinOcclusion",
             };
             CoreWebView2Environment env;
             try
@@ -154,6 +177,15 @@ internal static class WebView2Host
             controller.RasterizationScale = 1.0;
             controller.Bounds = new System.Drawing.Rectangle(0, 0, width, height);
             controller.IsVisible = true;
+            var browserPid = (int)controller.CoreWebView2.BrowserProcessId;
+            cleanup.Close = () =>
+            {
+                try { controller.Close(); } catch { /* already gone */ }
+                if (hwnd != IntPtr.Zero) NativeMethods.DestroyWindow(hwnd);
+                // Close alone leaves the browser holding its profile until the managed environment is
+                // collected; this browser belongs to this run only (its own user-data folder), so end it.
+                try { System.Diagnostics.Process.GetProcessById(browserPid).Kill(true); } catch { /* exited */ }
+            };
 
             var session = new Session(env, controller, hwnd);
             var core = controller.CoreWebView2;
@@ -176,6 +208,13 @@ internal static class WebView2Host
                 TaskCreationOptions.RunContinuationsAsynchronously);
             core.NavigationStarting += (_, e) =>
             {
+                if (!IsLocal(e.Uri))
+                {
+                    // A page that sends itself to the web (meta refresh, location=) stays on its own content.
+                    e.Cancel = true;
+                    session.CountBlocked();
+                    return;
+                }
                 if (e.Uri.StartsWith("file:", StringComparison.OrdinalIgnoreCase)) started.Add(e.NavigationId);
             };
             core.NavigationCompleted += (_, e) =>
@@ -186,6 +225,13 @@ internal static class WebView2Host
             var done = await loaded.Task;
             if (!done.IsSuccess)
                 throw new InvalidOperationException("cannot load " + htmlPath + ": " + done.WebErrorStatus);
+            // Pictures the page points at (all local) must have decoded before anything is measured.
+            for (var i = 0; i < 10; i++)
+            {
+                var ready = await core.ExecuteScriptAsync("Array.from(document.images).every(function(i){return i.complete})");
+                if (ready == "true") break;
+                await Task.Delay(300);
+            }
             await Task.Delay(400);
 
             try
@@ -199,16 +245,22 @@ internal static class WebView2Host
         }
         finally
         {
-            try { controller?.Close(); } catch { /* already gone */ }
-            if (hwnd != IntPtr.Zero) NativeMethods.DestroyWindow(hwnd);
+            if (cleanup.Close is not null) cleanup.Run();
+            else
+            {
+                try { controller?.Close(); } catch { /* already gone */ }
+                if (hwnd != IntPtr.Zero) NativeMethods.DestroyWindow(hwnd);
+            }
         }
     }
 
-    /// <summary>file: is the page itself; data:, blob: and about: never reach a network.</summary>
+    /// <summary>file: is the page itself; data:, blob: and about: never reach a network; file://host/share is a network share and is refused.</summary>
     internal static bool IsLocal(string uri)
     {
         if (!Uri.TryCreate(uri, UriKind.Absolute, out var u)) return false;
-        return u.Scheme is "file" or "data" or "blob" or "about";
+        // A file:// address with a host is a network share (SMB), which must not be touched.
+        if (u.Scheme == "file") return !u.IsUnc && u.Host.Length == 0;
+        return u.Scheme is "data" or "blob" or "about";
     }
 
     private static async Task DeleteFolderAsync(string folder)

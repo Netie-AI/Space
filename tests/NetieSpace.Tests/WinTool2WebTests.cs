@@ -220,6 +220,7 @@ public class WinTool2WebTests
         Assert.False(WebView2Host.IsLocal("ws://example.invalid/x"));
         Assert.False(WebView2Host.IsLocal("ftp://example.invalid/x"));
         Assert.False(WebView2Host.IsLocal("//example.invalid/x"));
+        Assert.False(WebView2Host.IsLocal("file://attacker/share/x.png"));
     }
 }
 #endif
