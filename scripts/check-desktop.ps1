@@ -142,7 +142,13 @@ function Wait-ButtonByText($Win, [string]$Text, [int]$TimeoutSec = 20) {
 # Screenshots are taken first; this answers them with the private choice so the run can continue.
 function Dismiss-Dialogs([string]$Tag) {
     foreach ($label in @("Not now", "Keep local only")) {
-        $b = Find-Button ([System.Windows.Automation.AutomationElement]::RootElement) $label -Exact
+        $b = $null
+        # Only windows of this run's Space process: never another application's button.
+        foreach ($w in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
+            if ($w.Current.ProcessId -ne $space.Id) { continue }
+            $b = Find-Button $w $label -Exact
+            if ($b) { break }
+        }
         if ($b) {
             try { [void](Invoke-Element $b); Write-Host "note: dismissed first-run dialog '$label' ($Tag)"; Start-Sleep -Milliseconds 500 } catch { }
         }

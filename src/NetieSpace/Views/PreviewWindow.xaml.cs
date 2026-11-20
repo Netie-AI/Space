@@ -481,10 +481,10 @@ public partial class PreviewWindow : Window
         if (EditInAppButton is not null)
         {
             EditInAppButton.Visibility = isPdf ? Visibility.Visible : Visibility.Collapsed;
-            EditInAppButton.Content = _pdfSpaceMode ? "Done" : "Edit in app";
+            EditInAppButton.Content = _pdfSpaceMode ? "Done" : "Workbench";
             EditInAppButton.ToolTip = _pdfSpaceMode
-                ? "Leave PDFSpace workbench"
-                : "Full Fill & Sign / Edit PDF workbench";
+                ? "Back to preview"
+                : "Open the PDF workbench";
         }
 
         if (TextEditButton is not null)

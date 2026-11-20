@@ -283,7 +283,7 @@
                 <Grid x:Name="PeekTitleCluster" Margin="22,0,18,0" MinHeight="56">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto" MaxWidth="600"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <DockPanel Grid.Column="0" VerticalAlignment="Center" LastChildFill="True" Margin="0,0,16,0">
@@ -320,7 +320,7 @@
                                    MouseLeftButtonUp="FileNameText_MouseLeftButtonUp"/>
                     </DockPanel>
 
-                    <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,6">
+                    <WrapPanel Grid.Column="1" MaxWidth="560" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,6,0,6">
                         <Button x:Name="EditModeButton" Content="Edit" Visibility="Collapsed"
                                 Style="{StaticResource AccentButton}" Margin="0,0,10,0" Padding="16,8"
                                 FontWeight="SemiBold" FontSize="13"
