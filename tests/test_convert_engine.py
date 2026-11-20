@@ -576,6 +576,52 @@ def test_html_and_markdown_to_pdf_text_in_order() -> None:
         assert "Café crème brûlée" in _pdf_text(apdf)
 
 
+def test_html_to_pdf_tolerates_sloppy_markup_and_wide_tables() -> None:
+    """Misnested / unclosed inline tags and pathological tables still give a PDF with every word."""
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        cases = {
+            "misnest": "<p>Hello <b>bold</p><p><b>one <i>two</b> three</i></p><a href='http://x.y'>link</p></b>tail",
+            "cells": "<table><tr><th>HeadA<td>cellB<tr><td>cellC<td>cellD</table>",
+            "wide": "<table><tr>" + "".join(f"<td>c{i}</td>" for i in range(60)) + "</tr></table>",
+            "longword": "<table><tr><td>" + "x" * 5000 + "</td></tr></table><p>after</p>",
+            "tall": "<table><tr><td>" + "".join(f"<p>para{i}</p>" for i in range(150)) + "</td></tr></table>",
+        }
+        for name, body in cases.items():
+            src = d / f"{name}.html"
+            src.write_text(f"<html><body>{body}</body></html>", encoding="utf-8")
+            pdf = d / f"{name}.pdf"
+            res = run_engine(["export-as", str(src), str(pdf)])
+            assert res.get("success"), (name, res)
+            text = _pdf_text(pdf)
+            squeezed = "".join(text.split())
+            if name == "misnest":
+                for w in ("Hello", "bold", "one", "two", "three", "link", "tail"):
+                    assert w in text, (name, w)
+            elif name == "cells":
+                assert all(w in text for w in ("HeadA", "cellB", "cellC", "cellD")), text
+            elif name == "wide":
+                assert all(f"c{i}" in squeezed for i in range(60)), name
+            elif name == "longword":
+                assert squeezed.count("x") == 5000 and "after" in text
+            else:
+                assert all(f"para{i}" in squeezed for i in range(150)), "tall cell lost paragraphs"
+
+
+def test_pdf_protect_rejects_unusable_password_length() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        d = Path(tmp)
+        src = d / "p.pdf"
+        _make_pdf(src, [(200, 100, ["x"])])
+        out = d / "o.pdf"
+        res = run_engine(["pdf-protect", str(src), str(out), "--password", "y" * 200])
+        assert res.get("success") is False and "127" in (res.get("error") or ""), res
+        assert not out.exists()
+        res = run_engine(["pdf-protect", str(src), str(out), "--password", "y" * 127])
+        assert res.get("success"), res
+        assert run_engine(["pdf-unlock", str(out), str(d / "u.pdf"), "--password", "y" * 127]).get("success")
+
+
 def test_svg_to_pdf_vector_and_png_size() -> None:
     from PIL import Image
 
@@ -8509,6 +8555,8 @@ if __name__ == "__main__":
     test_pdf_watermark_visible_keeps_text_and_sizes()
     test_images_to_pdf_keeps_picture_size_and_colour()
     test_html_and_markdown_to_pdf_text_in_order()
+    test_html_to_pdf_tolerates_sloppy_markup_and_wide_tables()
+    test_pdf_protect_rejects_unusable_password_length()
     test_svg_to_pdf_vector_and_png_size()
     test_missing_pdf_wheel_fails_loud_not_silent()
     test_export_as_docx_from_text_sources()

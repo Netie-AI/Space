@@ -349,7 +349,7 @@ _VOID = {"br", "hr", "img", "meta", "link", "input", "col", "area", "base", "sou
 class _HtmlFlow(HTMLParser):
     """Small HTML -> platypus flowables converter (text, lists, tables, pre, pictures)."""
 
-    def __init__(self, styles, fonts, width):
+    def __init__(self, styles, fonts, width, flat_tables=False):
         super().__init__(convert_charrefs=True)
         self.s = styles
         self.fonts = fonts
@@ -362,10 +362,32 @@ class _HtmlFlow(HTMLParser):
         self.pre = 0
         self.list_stack: list[dict] = []
         self.tables: list[dict] = []
+        self.inl: list[tuple[str, str, str]] = []   # open inline markup: (html tag, open, close)
+        self.flat_tables = flat_tables
+
+    def _open_inline(self, tag, op, cl):
+        self.inl.append((tag, op, cl))
+        self.buf.append(op)
+
+    def _close_inline(self, tag):
+        """Close `tag`, tolerating misnesting: inner tags are closed and reopened; strays ignored."""
+        idx = next((i for i in range(len(self.inl) - 1, -1, -1) if self.inl[i][0] == tag), None)
+        if idx is None:
+            return
+        above = self.inl[idx + 1:]
+        for _t, _o, cl in reversed(above):
+            self.buf.append(cl)
+        self.buf.append(self.inl[idx][2])
+        del self.inl[idx:]
+        for t, o, cl in above:
+            self._open_inline(t, o, cl)
 
     def _flush(self):
+        closers = "".join(cl for _t, _o, cl in reversed(self.inl))
+        if self.buf:
+            self.buf.append(closers)
         raw = "".join(self.buf)
-        self.buf = []
+        self.buf = [o for _t, o, _c in self.inl]       # formatting continues into the next block
         P = _rl("reportlab.platypus")
         if self.pre:
             if raw.strip():
@@ -373,7 +395,8 @@ class _HtmlFlow(HTMLParser):
             return
         raw = re.sub(r"\s+", " ", raw).strip()
         if re.sub(r"(<[^>]*>|\s|&nbsp;)+", "", raw):
-            self.stack[-1].append(P.Paragraph(raw, self.s[self.style_name]))
+            in_cell = bool(self.tables) and self.style_name == "body"
+            self.stack[-1].append(P.Paragraph(raw, self.s["cell" if in_cell else self.style_name]))
 
     def _text(self, t: str) -> str:
         return _html.escape(_fit_text(t, self.fonts[0]), quote=False)
@@ -418,9 +441,11 @@ class _HtmlFlow(HTMLParser):
                 self.tables[-1]["row"] = []
         elif tag in ("td", "th"):
             self._flush()
+            self.inl = []
+            self.buf = []
             self.stack.append([])
             if tag == "th":
-                self.buf.append("<b>")
+                self._open_inline("th", "<b>", "</b>")
         elif tag == "hr":
             self._flush()
             self.stack[-1].append(P.HRFlowable(width="100%", thickness=0.6, color=colors.grey))
@@ -440,15 +465,16 @@ class _HtmlFlow(HTMLParser):
             elif a.get("alt"):
                 self.buf.append(self._text(a["alt"]))
         elif tag in ("code", "tt", "kbd", "samp"):
-            self.buf.append('<font face="Courier">')
+            self._open_inline(tag, '<font face="Courier">', "</font>")
         elif tag == "a":
             href = (a.get("href") or "").strip()
             if re.match(r"(?i)(https?|mailto):", href):
-                self.buf.append(f'<a href="{_html.escape(href, quote=True)}" color="blue">')
+                self._open_inline("a", f'<a href="{_html.escape(href, quote=True)}" color="blue">', "</a>")
             else:
-                self.buf.append("<span>")
+                self._open_inline("a", "<span>", "</span>")
         elif tag in _INLINE_MAP:
-            self.buf.append(f"<{_INLINE_MAP[tag]}>")
+            m = _INLINE_MAP[tag]
+            self._open_inline(tag, f"<{m}>", f"</{m}>")
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -498,8 +524,7 @@ class _HtmlFlow(HTMLParser):
                     ("LEFTPADDING", (0, 0), (-1, -1), 12),
                     ("LINEBEFORE", (0, 0), (0, -1), 2, colors.grey)]))
         elif tag in ("td", "th"):
-            if tag == "th":
-                self.buf.append("</b>")
+            self._close_inline("th")
             self._flush()
             cell = self.stack.pop() if len(self.stack) > 1 else []
             if self.tables and self.tables[-1]["row"] is not None:
@@ -514,20 +539,20 @@ class _HtmlFlow(HTMLParser):
             inner = self.stack.pop() if len(self.stack) > 1 else []
             tbl = self.tables.pop() if self.tables else {"rows": []}
             rows = tbl["rows"]
-            if rows:
+            if rows and self.flat_tables:
+                for r in rows:
+                    for cell in r:
+                        self.stack[-1].extend(cell)
+            elif rows:
                 ncols = max(len(r) for r in rows)
                 rows = [r + [[P.Spacer(1, 1)]] * (ncols - len(r)) for r in rows]
                 colw = (self.width - 4) / ncols
-                self.stack[-1].append(P.Table(rows, colWidths=[colw] * ncols, repeatRows=1, style=[
+                self.stack[-1].append(P.Table(rows, colWidths=[colw] * ncols, repeatRows=1, splitInRow=1, style=[
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.grey), ("VALIGN", (0, 0), (-1, -1), "TOP")]))
                 self.stack[-1].append(P.Spacer(1, 6))
             self.stack[-1].extend(inner)
-        elif tag in ("code", "tt", "kbd", "samp"):
-            self.buf.append("</font>")
-        elif tag == "a":
-            self.buf.append("</a>" if any("<a " in b for b in self.buf) else "</span>")
-        elif tag in _INLINE_MAP:
-            self.buf.append(f"</{_INLINE_MAP[tag]}>")
+        elif tag in ("code", "tt", "kbd", "samp", "a") or tag in _INLINE_MAP:
+            self._close_inline(tag)
 
     def handle_data(self, data):
         if self.skip:
@@ -549,6 +574,7 @@ def _styles(fonts):
     for tag, size in _HEAD.items():
         s[tag] = ParagraphStyle(tag, parent=s["body"], fontName=fonts[1], fontSize=size, leading=size * 1.25,
                                 spaceBefore=8, spaceAfter=6)
+    s["cell"] = ParagraphStyle("cell", parent=s["body"], wordWrap="CJK", spaceAfter=2)
     s["pre"] = ParagraphStyle("pre", parent=s["body"], fontName="Courier", fontSize=9.5, leading=12,
                               backColor=colors.Color(0.95, 0.95, 0.95), leftIndent=4, rightIndent=4)
     return s
@@ -563,17 +589,23 @@ def html_to_pdf(story_html: str, dest: Path) -> None:
     plain = _html.unescape(re.sub(r"<[^>]+>", " ", plain))
     fonts = pick_font(plain)
     width = pagesizes.letter[0] - 72
-    parser = _HtmlFlow(_styles(fonts), fonts, width)
-    parser.feed(story_html)
-    parser.finish()
-    flow = parser.flow or [P.Paragraph("&nbsp;", parser.s["body"])]
-    doc = P.SimpleDocTemplate(str(dest), pagesize=pagesizes.letter, leftMargin=36, rightMargin=36,
-                              topMargin=36, bottomMargin=36)
-    try:
-        doc.build(flow)
-    except Exception as e:
-        dest.unlink(missing_ok=True)
-        raise RuntimeError(f"reportlab could not lay out the HTML: {e}") from e
+    err = None
+    for flat in (False, True):     # second pass: tables as plain paragraphs (still all the text)
+        parser = _HtmlFlow(_styles(fonts), fonts, width, flat_tables=flat)
+        parser.feed(story_html)
+        parser.finish()
+        flow = parser.flow or [P.Paragraph("&nbsp;", parser.s["body"])]
+        doc = P.SimpleDocTemplate(str(dest), pagesize=pagesizes.letter, leftMargin=36, rightMargin=36,
+                                  topMargin=36, bottomMargin=36)
+        try:
+            doc.build(flow)
+            err = None
+            break
+        except Exception as e:
+            err = e
+            dest.unlink(missing_ok=True)
+    if err is not None:
+        raise RuntimeError(f"reportlab could not lay out the HTML: {err}") from err
     if not dest.is_file() or dest.stat().st_size == 0:
         raise RuntimeError("reportlab wrote no PDF")
 
@@ -637,6 +669,9 @@ def watermark(src, dest: Path, text: str, opacity: float, angle: int, selected: 
 def protect(src, dest: Path, password: str, owner: str | None, perms: set[str]) -> None:
     """AES-256 (R6). `perms` is a subset of print, modify, copy, annotate."""
     pikepdf = _pikepdf()
+    for label, pw in (("password", password), ("owner password", owner or "")):
+        if len(pw.encode("utf-8")) > 127:       # AES-256 (R6) limit; longer ones lock the file for good
+            raise RuntimeError(f"{label} must not exceed 127 bytes (UTF-8)")
     dest.parent.mkdir(parents=True, exist_ok=True)
     allow = pikepdf.Permissions(
         print_lowres="print" in perms,
