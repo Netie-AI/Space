@@ -8,6 +8,8 @@ param(
     [switch]$RegisterStartup,
     [switch]$IncludeVenv,
     [switch]$IncludeEnv,
+    # CI / installer builds: do not write the build machine's HKCU Open-with keys.
+    [switch]$NoRegister,
     [ValidateRange(1, 20)]
     [int]$MaxRetries = 5,
     [ValidateRange(1, 60)]
@@ -218,4 +220,8 @@ if ($RegisterStartup) {
 }
 
 # Additive Explorer Open with + Start Menu. Does not steal Word/Excel/PDF defaults.
-& (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
+if ($NoRegister) {
+    Write-Host "[SKIP] register-open-with (-NoRegister)" -ForegroundColor Yellow
+} else {
+    & (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
+}
