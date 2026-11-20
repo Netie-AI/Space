@@ -114,8 +114,19 @@ function Find-Button($Win, [string]$Pattern, [switch]$Exact) {
 }
 
 function Invoke-Element($El) {
-    $p = $El.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
-    $p.Invoke()
+    # Waits up to 10 s for the control to be enabled. Returns $false instead of throwing.
+    $deadline = (Get-Date).AddSeconds(10)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            if ($El.Current.IsEnabled) {
+                $p = $El.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern)
+                $p.Invoke()
+                return $true
+            }
+        } catch { Write-Host "note: invoke retry: $($_.Exception.Message)" }
+        Start-Sleep -Milliseconds 250
+    }
+    return $false
 }
 
 function Wait-Button($Win, [string]$Pattern, [int]$TimeoutSec = 20, [switch]$Exact) {
@@ -133,7 +144,7 @@ function Get-TextLine($Win, [string]$Prefix) {
     foreach ($t in $Win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $cond)) {
         try {
             $n = ([string]$t.Current.Name)
-            if ($n.StartsWith($Prefix)) { return $n }
+            if ($n -like ($Prefix + "*")) { return $n }
         } catch { }
     }
     return $null
@@ -250,14 +261,15 @@ foreach ($name in $fixtures) {
     $png = Save-Screen ("peek-" + $name + ".png")
     $btns = @(Get-Buttons $win)
     $controls[$name] = $btns
-    Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons"
+    Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240) -and ($btns.Count -gt 0)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons (0 buttons means the peek chrome is not exposed or not drawn)"
 
     # Q3_Report: the bridge button, while the peek is open.
     if ($name -eq "Q3_Report.pdf") {
-        $b = Find-Button $win "Open in Netie PDF" -Exact
+        $b = Wait-Button $win "Open in Netie PDF" 15 -Exact
         Check "peek pdf has Open in Netie PDF" ($null -ne $b) ""
         if ($b) {
-            Invoke-Element $b
+            $clicked = Invoke-Element $b
+            Check "Open in Netie PDF invoked" $clicked ""
             $appWin = Wait-Window "Netie PDF" $null 30
             $ownPid = 0
             if ($appWin) { $ownPid = $appWin.Current.ProcessId }
@@ -271,14 +283,16 @@ foreach ($name in $fixtures) {
 
     # Close the peek with Esc; fall back to the window pattern so one stuck peek cannot cascade.
     $peek = Find-Window $title @($space.Id)
-    if ($peek) { Focus-Window $peek }
-    [System.Windows.Forms.SendKeys]::SendWait("{ESC}")
+    if ($peek) {
+        Focus-Window $peek
+        [System.Windows.Forms.SendKeys]::SendWait("{ESC}")
+    } else { Write-Host "note: peek $name was already gone before Esc" }
     $gone = $false
     for ($i = 0; $i -lt 40; $i++) {
         if (-not (Find-Window $title @($space.Id))) { $gone = $true; break }
         Start-Sleep -Milliseconds 150
     }
-    Check "Esc closes peek $name" $gone ""
+    if ($peek) { Check "Esc closes peek $name" $gone "" }
     if (-not $gone) {
         try {
             $left = Find-Window $title @($space.Id)
@@ -308,13 +322,13 @@ if ($pdfWin) {
     $tile = Wait-Button $pdfWin "*Rotate PDF*" 30
     Check "Rotate PDF tile found" ($null -ne $tile) ""
     if ($tile) {
-        Invoke-Element $tile
+        Check "Rotate PDF tile invoked" (Invoke-Element $tile) ""
         Start-Sleep -Seconds 2
         Save-Screen "app-pdf-rotate-page.png" | Out-Null
         $act = Wait-Button $pdfWin "Rotate" 15 -Exact
         Check "Rotate action button found" ($null -ne $act) ""
         if ($act) {
-            Invoke-Element $act
+            Check "Rotate action invoked" (Invoke-Element $act) ""
             $line = $null
             $deadline = (Get-Date).AddSeconds(90)
             while ((Get-Date) -lt $deadline) {
@@ -355,7 +369,7 @@ if ($pdfWin) {
         $fam = Wait-Button $pdfWin "Netie Image" 10 -Exact
         Check "Netie Image family button found" ($null -ne $fam) ""
         if ($fam) {
-            Invoke-Element $fam
+            Check "Netie Image family button invoked" (Invoke-Element $fam) ""
             $imgWin = Wait-Window "Netie Image" $null 40
             $imgPid = 0
             if ($imgWin) { $imgPid = $imgWin.Current.ProcessId }
