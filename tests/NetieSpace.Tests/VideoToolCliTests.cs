@@ -176,7 +176,7 @@ public class VideoToolCliTests
         var bad = Cli("vid-rotate", Out(dir), new[] { silent }, ("angle", "45"));
         Assert.Equal(2, bad.Exit);
         Assert.Contains("angle", bad.Err);
-        var unbuilt = Cli("vid-meme", Out(dir), new[] { silent });
+        var unbuilt = Cli("vid-stickers", Out(dir), new[] { silent });
         Assert.Equal(2, unbuilt.Exit);
         Assert.Contains("not built in this version", unbuilt.Err);
     }

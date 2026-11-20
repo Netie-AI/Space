@@ -118,7 +118,7 @@ public sealed class PptxDeck : IDisposable
         var x = (SlideWidthEmu - cx) / 2;
         var y = (SlideHeightEmu - cy) / 2;
 
-        var label = System.Security.SecurityElement.Escape(new string(name.Where(c => c >= ' ').ToArray())) ?? "";
+        var label = System.Security.SecurityElement.Escape(XmlSafe(name)) ?? "";
         var rel = slide.GetIdOfPart(imagePart);
         slide.Slide = new P.Slide(
             $"<p:sld xmlns:a=\"{NsA}\" xmlns:r=\"{NsR}\" xmlns:p=\"{NsP}\"><p:cSld><p:spTree>"
@@ -129,6 +129,30 @@ public sealed class PptxDeck : IDisposable
             + $"<p:spPr><a:xfrm><a:off x=\"{Inv(x)}\" y=\"{Inv(y)}\"/><a:ext cx=\"{Inv(cx)}\" cy=\"{Inv(cy)}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
             + "</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>");
         _slideRelIds.Add(_presentation.GetIdOfPart(slide));
+    }
+
+    /// <summary>
+    /// Text that is safe inside an XML 1.0 attribute: control characters, lone surrogates and U+FFFE / U+FFFF are
+    /// dropped (a file name can carry any of them on Windows); a proper surrogate pair (an emoji) stays.
+    /// </summary>
+    internal static string XmlSafe(string? name)
+    {
+        if (string.IsNullOrEmpty(name)) return "";
+        var sb = new System.Text.StringBuilder(name.Length);
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (char.IsHighSurrogate(c) && i + 1 < name.Length && char.IsLowSurrogate(name[i + 1]))
+            {
+                sb.Append(c).Append(name[i + 1]);
+                i++;
+            }
+            else if (c >= ' ' && System.Xml.XmlConvert.IsXmlChar(c))
+            {
+                sb.Append(c);
+            }
+        }
+        return sb.ToString();
     }
 
     private static string Inv(long v) => v.ToString(CultureInfo.InvariantCulture);

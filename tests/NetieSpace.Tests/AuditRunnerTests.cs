@@ -131,11 +131,17 @@ public class AuditRunnerTests
         {
             var o = ToolTestSupport.NewTempDir();
             using var cts = new CancellationTokenSource();
-            var run = Task.Run(() => Go(id, new[] { clip }, o, null, cts.Token, opts));
-            await Task.Delay(700);
-            var sw = Stopwatch.StartNew();
-            cts.Cancel();
-            var result = await run.WaitAsync(TimeSpan.FromSeconds(30));
+            // Cancel from the progress stream once ffmpeg is provably mid-encode, not after a fixed delay:
+            // a timer continuation can be starved for seconds by other test classes on a busy runner,
+            // and then the encode finishes before the cancel arrives.
+            var sw = new Stopwatch();
+            var cancelAt = new CancelOnProgress(cts, sw);
+            var run = Task.Run(() => Go(id, new[] { clip }, o, cancelAt, cts.Token, opts));
+            // stop the clock on the thread that completes the run, so an await continuation delay is not counted
+            var stopped = run.ContinueWith(_ => sw.Stop(), TaskContinuationOptions.ExecuteSynchronously);
+            var result = await run.WaitAsync(TimeSpan.FromSeconds(120));
+            await stopped;
+            Assert.True(cancelAt.Fired, id + " finished with no mid-run progress report; make the clip longer");
             Assert.True(sw.Elapsed < TimeSpan.FromSeconds(2), id + " took " + sw.Elapsed.TotalSeconds + " s to stop");
             Assert.False(result.Ok, id + " finished before the cancel; make the clip longer");
             Assert.Equal("cancelled", result.Error);
@@ -175,5 +181,22 @@ public class AuditRunnerTests
         Assert.NotEqual(first.Outputs[0], second.Outputs[0]);
         Assert.NotEqual(clip, first.Outputs[0]);
         Assert.Equal(clipBytes, IoFile.ReadAllBytes(clip));
+    }
+
+    /// <summary>Cancels on the first report that shows the encode underway (1 to 90 percent), on the reporting thread.</summary>
+    private sealed class CancelOnProgress : IProgress<ToolProgress>
+    {
+        private readonly CancellationTokenSource _cts;
+        private readonly Stopwatch _sw;
+        private int _fired;
+        public CancelOnProgress(CancellationTokenSource cts, Stopwatch sw) { _cts = cts; _sw = sw; }
+        public bool Fired => Volatile.Read(ref _fired) == 1;
+        public void Report(ToolProgress value)
+        {
+            if (value.Percent is < 1 or > 90) return;
+            if (Interlocked.Exchange(ref _fired, 1) == 1) return;
+            _sw.Start();
+            _cts.Cancel();
+        }
     }
 }

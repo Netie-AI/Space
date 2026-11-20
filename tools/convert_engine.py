@@ -28,6 +28,12 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import unquote
 
+# Sibling module: the only place PDF libraries (pypdfium2, pikepdf, reportlab, svglib) are imported.
+_TOOLS_DIR = str(Path(__file__).resolve().parent)
+if _TOOLS_DIR not in sys.path:
+    sys.path.insert(0, _TOOLS_DIR)
+import pdf_backend  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Contract helpers
 # ---------------------------------------------------------------------------
@@ -223,9 +229,18 @@ def via_markitdown(src: Path) -> tuple[str, str] | None:
     except Exception:
         return None
     md = MarkItDown()
-    result = md.convert(str(src))
+    try:
+        result = md.convert(str(src))
+    except Exception:
+        # UnsupportedFormat / MissingDependency: not a result, let the next backend try.
+        return None
     text = (getattr(result, "text_content", None) or "").strip()
     if not text:
+        return None
+    # markitdown >= 0.1 dumps the raw parts of an Office zip it cannot parse
+    # (no [Content_Types].xml). That is not a conversion; photo-only decks need
+    # their pictures, not the XML.
+    if text.startswith("Content from the zip file") and src.suffix.lower() in PHOTO_OFFICE_EXTS:
         return None
     return text, "markitdown"
 
@@ -247,34 +262,13 @@ def via_pdfmd(src: Path) -> tuple[str, str] | None:
     return None
 
 
-def via_pymupdf4llm(src: Path) -> tuple[str, str] | None:
-    try:
-        import pymupdf4llm
-    except Exception:
-        return None
-    try:
-        text = pymupdf4llm.to_markdown(str(src))
-    except Exception:
-        return None
-    if text and str(text).strip():
-        return str(text), "pymupdf4llm"
-    return None
-
-
-def via_pymupdf_text(src: Path) -> tuple[str, str] | None:
-    try:
-        import pymupdf
-    except Exception:
-        return None
-    doc = pymupdf.open(str(src))
-    try:
-        parts = [page.get_text() for page in doc]
-    finally:
-        doc.close()
-    text = "\n\n".join(p.strip() for p in parts if p and p.strip())
+def via_pdfium_text(src: Path) -> tuple[str, str] | None:
+    """Plain text layer of every page (pypdfium2). None when the PDF has no text layer."""
+    pages = pdf_backend.page_texts(src)
+    text = "\n\n".join(p.strip() for p in pages if p and p.strip())
     if not text:
         return None
-    return text, "pymupdf"
+    return text, "pdfium"
 
 
 def via_pptx2md(src: Path) -> tuple[str, str] | None:
@@ -549,11 +543,11 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         return _read_markup(src), "copy"
 
     if ext == ".pdf":
-        for fn in (via_pdfmd, via_pymupdf4llm, via_markitdown, via_pymupdf_text):
+        for fn in (via_pdfmd, via_markitdown, via_pdfium_text):
             got = fn(src)
             if got:
                 return got
-        raise RuntimeError("no PDF-to-markdown backend (pdfmd / pymupdf4llm / markitdown / pymupdf)")
+        raise RuntimeError("no PDF-to-markdown backend (pdfmd / markitdown / pypdfium2)")
 
     if ext == ".odp":
         return odp_to_text(src), "odp-zip"
@@ -590,6 +584,13 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         rows = xlsx_to_rows(src)
         return "\n".join(" | ".join(r) for r in rows) + "\n", "xlsx-zip"
 
+    if ext in {".html", ".htm"}:
+        # Photo-only HTML first: markitdown >= 0.1 keeps "![alt]()" with the
+        # data URI stripped, which is non-empty and hid the real picture.
+        raw = _read_markup(src)
+        pngs = html_string_media_pngs(raw, src.parent)
+        if pngs and not html_visible_text(raw):
+            return pngs_to_markdown(pngs, "Page", "html-md-images")
     got = via_markitdown(src)
     if got:
         return got
@@ -598,10 +599,6 @@ def file_to_markdown(src: Path) -> tuple[str, str]:
         return got
     if ext in {".html", ".htm"}:
         raw = _read_markup(src)
-        visible = html_visible_text(raw)
-        pngs = html_string_media_pngs(raw, src.parent)
-        if pngs and not visible:
-            return pngs_to_markdown(pngs, "Page", "html-md-images")
         text = re.sub(r"(?is)<script.*?>.*?</script>", "", raw)
         text = re.sub(r"(?is)<style.*?>.*?</style>", "", text)
         text = re.sub(r"(?s)<[^>]+>", " ", text)
@@ -765,9 +762,16 @@ def markdown_to_html(text: str) -> str:
     mdlib = try_import("markdown")
     if mdlib is not None and hasattr(mdlib, "markdown"):
         try:
-            return mdlib.markdown(text, extensions=["extra", "tables", "fenced_code"])
+            html_out = mdlib.markdown(text, extensions=["extra", "tables", "fenced_code"])
         except Exception:
-            return mdlib.markdown(text)
+            html_out = mdlib.markdown(text)
+        # python-markdown keeps Word smart quotes around a picture dest
+        # (![x](\u201cpic.png\u201d)); the stdlib path and Word both strip them.
+        return re.sub(
+            r'(?i)(<img\b[^>]*?\bsrc=")([^"]*)(")',
+            lambda m: m.group(1) + _md_dest(html.unescape(m.group(2))).replace("&", "&amp;") + m.group(3),
+            html_out,
+        )
     return _markdown_to_html_stdlib(text)
 
 
@@ -898,10 +902,6 @@ def _svg_lower_root(text: str) -> str:
 def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> bytes | None:
     """Pillow cannot open SVG. Photo HTML dest Word/MD used empty / 1-byte files."""
     try:
-        pymupdf = require_pymupdf()
-    except RuntimeError:
-        return None
-    try:
         if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
             text = raw.decode("utf-16")
         elif raw.startswith(b"\xef\xbb\xbf"):
@@ -921,33 +921,20 @@ def _svg_bytes_to_png(raw: bytes, root: Path | None = None, depth: int = 0) -> b
         ):
             return _svg_unused_container_image(text.encode("utf-8"))
         raw = _svg_lower_root(text).encode("utf-8")
-        doc = pymupdf.open(stream=raw, filetype="svg")
-        try:
-            if doc.page_count < 1:
-                return _svg_unused_container_image(raw)
-            pix = doc[0].get_pixmap()
-            # Leftover <use href="#missing"/> / empty <path> still have
-            # paint tags so the skip above misses them. MuPDF writes a
-            # letter-size white page that steals dest Word first.
-            # Leftover <pattern> / feImage is solid black (same steal).
-            samples = pix.samples
-            n = getattr(pix, "n", 3) or 3
-            if samples and n >= 3:
-                white = True
-                black = True
-                for i in range(0, len(samples), n):
-                    r, g, b = samples[i], samples[i + 1], samples[i + 2]
-                    if r < 250 or g < 250 or b < 250:
-                        white = False
-                    if r > 5 or g > 5 or b > 5:
-                        black = False
-                    if not white and not black:
-                        break
-                if white or black:
-                    return _svg_unused_container_image(raw)
-            return pix.tobytes("png")
-        finally:
-            doc.close()
+        png = pdf_backend.svg_to_png(raw)
+        # Leftover <use href="#missing"/> / empty <path> still have
+        # paint tags so the skip above misses them. The rasterizer writes
+        # a letter-size white page that steals dest Word first.
+        # Leftover <pattern> / feImage is solid black (same steal).
+        from PIL import Image
+        import io as _io
+        with Image.open(_io.BytesIO(png)) as im:
+            lo_hi = im.convert("RGB").getextrema()
+        if all(lo >= 250 for lo, _hi in lo_hi) or all(hi <= 5 for _lo, hi in lo_hi):
+            return _svg_unused_container_image(raw)
+        return png
+    except pdf_backend.PdfBackendUnavailable:
+        raise
     except Exception:
         return _svg_unused_container_image(raw)
 
@@ -1276,18 +1263,7 @@ def write_docx_images(dest: Path, pngs: list[bytes]) -> str:
 
 
 def pdf_page_pngs(src: Path, cap: int = 24) -> list[bytes]:
-    pymupdf = require_pymupdf()
-    doc = pymupdf.open(str(src))
-    pngs: list[bytes] = []
-    try:
-        for i, page in enumerate(doc, 1):
-            if i > cap:
-                break
-            pix = page.get_pixmap()
-            pngs.append(pix.tobytes("png"))
-    finally:
-        doc.close()
-    return pngs
+    return [pdf_backend.png_bytes(im) for im in pdf_backend.render_pages(src, 1.0, cap)]
 
 
 def pdf_pages_to_docx(src: Path, dest: Path) -> str:
@@ -1309,7 +1285,7 @@ def pdf_pages_to_html(src: Path, dest: Path) -> str:
     if not parts:
         parts.append("<p></p>")
     write_text(dest, wrap_html("\n".join(parts), src.name))
-    return "pymupdf-html-images"
+    return "pdfium-html-images"
 
 
 def pdf_pages_to_markdown(src: Path) -> tuple[str, str]:
@@ -1323,7 +1299,7 @@ def pdf_pages_to_markdown(src: Path) -> tuple[str, str]:
         chunks.append(f"## Page {i}\n\n![Page {i}](data:image/png;base64,{b64})\n")
     if not chunks:
         chunks.append("\n")
-    return "\n".join(chunks), "pymupdf-md-images"
+    return "\n".join(chunks), "pdfium-md-images"
 
 
 def file_to_docx(src: Path, dest: Path) -> str:
@@ -1343,7 +1319,7 @@ def file_to_docx(src: Path, dest: Path) -> str:
             return write_docx_images(dest, pngs)
         return write_docx(dest, text)
     if src.suffix.lower() == ".pdf":
-        got = via_pymupdf_text(src) or via_pdfmd(src) or via_pymupdf4llm(src) or via_markitdown(src)
+        got = via_pdfium_text(src) or via_pdfmd(src) or via_markitdown(src)
         if got:
             return write_docx(dest, got[0])
         try:
@@ -1648,7 +1624,10 @@ def _rtf_strip_dest_groups(s: str) -> str:
                 r"themedata|colorschememapping|passwordhash|datastore|mmathPr|"
                 r"latentstyles|pgdsctbl|fchars|lchars|protusertbl|userdata|"
                 r"oldcprops|oldpprops|wgrffmtfilter|nonshppict|shppict|pnseclvl|"
-                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate)\b",
+                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate|"
+                r"fldinst|datafield|userprops|docvar|"
+                r"xmlopen|expandedcolortbl|nesttableprops|nonesttables|defchp|defpap|"
+                r"bkmkstart|bkmkend|xe|tc|rxe)\b",
                 rest,
             ):
                 i = _rtf_end_group(s, i)
@@ -1669,7 +1648,12 @@ def rtf_to_text(src: Path) -> str:
     # \\datastore / \\latentstyles stole dest Word the same way.
     # Unstarred \\nonshppict / \\shppict / \\pnseclvl stole dest Word the same way.
     # Unstarred \\annotation / \\atnauthor / \\atrfstart stole dest Word the same way.
+    # Unstarred \\fldinst / \\datafield stole dest Word the same way.
+    # Unstarred \\userprops / \\docvar stole dest Word the same way.
+    # Unstarred \\xmlopen / \\expandedcolortbl stole dest Word the same way.
+    # Unstarred \\bkmkstart / \\xe / \\tc stole dest Word the same way.
     # Header / footer stay. Do not strip \\upr (fallback is page copy).
+    # Do not strip \\fldrslt (field result is page copy).
     s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
@@ -2102,16 +2086,8 @@ def file_to_pptx(src: Path, dest: Path) -> str:
 
 
 # ---------------------------------------------------------------------------
-# PDF write helpers (pymupdf)
+# PDF write helpers (tools/pdf_backend.py: pypdfium2 / pikepdf / reportlab / svglib)
 # ---------------------------------------------------------------------------
-
-def require_pymupdf():
-    try:
-        import pymupdf
-        return pymupdf
-    except Exception as e:
-        raise RuntimeError(f"pymupdf missing: {e}") from e
-
 
 def _local_href(href: str) -> str:
     """Sibling ` pic.png ` / pic.png#x / my%20pic.png / pic&#46;png used empty Word."""
@@ -2489,13 +2465,68 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word custom document properties are not page copy (same class as
+    # RTF \userprops / head <xml> Author).
+    # Leftover "Photo" in <o:CustomDocumentProperties> stole dest Word / dest PDF Story.
+    # (?=<) would stop at nested <o:Name>. Do not strip xml islands outside head (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?CustomDocumentProperties)\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word document variables are not page copy (same class as RTF \docvar).
+    # Leftover "Photo" in <w:docVar> / <w:docVars> stole dest Word / dest PDF Story.
+    # Attribute-only w:val is already empty. Do not strip HTML <del> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:docVars|docVar|DocVar))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word o:DocumentProperties / o:OfficeDocumentSettings are leftover
+    # document metadata (same class as CustomDocumentProperties).
+    # Leftover "Photo" in <o:DocumentProperties> stole dest Word / dest PDF Story.
+    # o:Title was already stripped; o:Author / o:Company were not.
+    # TargetScreenSize 800x600 stole dest the same way.
+    # Do not strip xml islands outside head (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:DocumentProperties|OfficeDocumentSettings))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word HTML leftover settings are not page copy (same class as
+    # OfficeDocumentSettings).
+    # Leftover Print / false / 800x600 in <w:View> / <w:SaveIfXMLInvalid> / <w:BrowserLevel> stole dest Word / dest PDF Story.
+    # Leftover EN-US / JA in <w:LidThemeOther> / <w:LidThemeAsian> stole dest Word / dest PDF Story.
+    # Leftover DontCompress / false in <w:CharacterSpacingControl> / <w:ValidateAgainstSchemas> stole dest Word / dest PDF Story.
+    # Prefix required. Do not strip <w:p> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize|DrawingGridHorizontalSpacing|DrawingGridVerticalSpacing|DisplayHorizontalDrawingGridEvery|DisplayVerticalDrawingGridEvery|LidThemeOther|LidThemeAsian|LidThemeComplexScript|CharacterSpacingControl|ValidateAgainstSchemas|SaveInvalidXML|RelyOnVML|AllowPNG|DoNotRelyOnCSS|DoNotOptimizeForBrowser|UseFELayout|DoNotUseLongFileNames|DoNotEmbedSystemFonts|ValidateAgainstSchema|SavePreviewPicture|DoNotShadeFormData))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # WordML leftover comment paragraphs are the same class as class=MsoCommentText.
+    # Leftover "Photo" in pStyle=CommentText / BalloonText stole dest Word / dest PDF Story.
+    # pStyle comes first on official leftovers so Hello Normal is not swallowed.
+    # Do not strip pStyle=Normal / Header / EndnoteText (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?p)\b[^>]*>\s*<(?:[\w.-]+:)?pPr\b[^>]*>\s*<(?:[\w.-]+:)?pStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentText|BalloonText|CommentSubject|Balloon Text|annotation text|annotation subject)\2[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # WordML leftover comment-reference runs (same class as MsoCommentReference).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?r)\b[^>]*>\s*<(?:[\w.-]+:)?rPr\b[^>]*>\s*<(?:[\w.-]+:)?rStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentReference|annotation reference)\2[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
-    # Do not strip MathML <annotation> (parked). Stop at the next tag so
-    # mixed Hello stays the text path.
+    # Do not strip MathML <annotation> (parked).
+    # (?=<) would stop at nested <aml:content> / <w:p> and leave Photo.
+    # Stop at </aml:annotation> / body / img so nested comment runs strip.
     text = re.sub(
-        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
         "",
         text,
     )
@@ -2514,9 +2545,49 @@ def html_visible_text(text: str) -> str:
     # Leftover "Photo" stole dest Word / dest PDF Story.
     # class=msocomhide / msocomanch / msocomanchor is Office comment-hide
     # chrome (same family as msocomoff). Leftover "Photo" stole dest Word / dest PDF Story.
+    # <a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML).
+    # class=msoChangeDel / msoDeleted is official Word deletion chrome
+    # (same class as msoDel). Leftover "Photo" stole dest Word / dest PDF Story.
+    # class=MsoCommentTextChar is the official comment character style.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor)\b"
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor|msoChangeDel|msoDeleted|msoCommentTextChar|msoCommentSubjectChar|msoBalloonTextChar)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-element:comment / comment-list is Office comment storage.
+    # Leftover "Photo" stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
+    # <a style=mso-comment-reference> / mso-special-character:comment is the
+    # same official comment chrome.
+    # style=mso-comment-continuation is official Word comment-continuation chrome.
+    # Leftover "Photo" in style=mso-comment-continuation stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference|mso-special-character\s*:\s*comment|mso-comment-continuation)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-deletion:yes / mso-deleted:yes is official Word deletion chrome
+    # (same class as class=msoDel). Leftover "Photo" in style=mso-deletion / class=msoChangeDel stole dest Word / dest PDF Story.
+    # Do not strip mso-insertion / msoIns / HTML <del> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-deletion|mso-deleted)\s*:\s*yes\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-style-name:"Comment Text" is official Word comment style chrome
+    # (same class as class=MsoCommentText). Leftover "Photo" in style=mso-style-name:"Comment Text" stole dest Word / dest PDF Story.
+    # Nested quotes in style='mso-style-name:"Comment Text"' need [^>]* (not [^'">]).
+    # Do not strip mso-style-name:Normal / Heading (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^>]*"
+        r"mso-style-name\s*:\s*['\"]?(?:Comment Text|Comment Subject|Comment Reference|Balloon Text|annotation text|annotation subject|annotation reference)(?: Char)?\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
@@ -2710,34 +2781,11 @@ def xml_photo_pngs(src: Path, cap: int = 24) -> list[bytes]:
 
 
 def html_string_to_pdf(story_html: str, dest: Path) -> str:
-    pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
     if "<html" not in story_html.lower():
-        story_html = (
-            "<html><body style=\"font-family:sans-serif;font-size:11pt\">"
-            f"{story_html}</body></html>"
-        )
-    if hasattr(pymupdf, "Story") and hasattr(pymupdf, "DocumentWriter"):
-        try:
-            mediabox = pymupdf.paper_rect("letter")
-            story = pymupdf.Story(story_html)
-            writer = pymupdf.DocumentWriter(str(dest))
-            more = True
-            while more:
-                device = writer.begin_page(mediabox)
-                more, _ = story.place(mediabox + (36, 36, -36, -36))
-                story.draw(device)
-                writer.end_page()
-            writer.close()
-            if dest.is_file() and dest.stat().st_size > 0:
-                return "pymupdf-story-html"
-        except Exception:
-            if dest.exists():
-                try:
-                    dest.unlink()
-                except OSError:
-                    pass
-    raise RuntimeError("pymupdf Story could not write HTML PDF")
+        story_html = f"<html><body>{story_html}</body></html>"
+    pdf_backend.html_to_pdf(story_html, dest)
+    return "reportlab-story-html"
 
 
 def html_to_pdf(src: Path, dest: Path) -> str:
@@ -2747,7 +2795,7 @@ def html_to_pdf(src: Path, dest: Path) -> str:
     pngs = html_media_pngs(src)
     # CSS background-image only: Story writes a 573-byte blank page.
     if pngs and not visible:
-        return images_to_pdf(pngs, dest, tool="pymupdf-html-images")
+        return images_to_pdf(pngs, dest, tool="reportlab-html-images")
     try:
         return html_string_to_pdf(inline_sibling_images(text, src.parent), dest)
     except RuntimeError:
@@ -2756,133 +2804,47 @@ def html_to_pdf(src: Path, dest: Path) -> str:
 
 
 def markdown_to_pdf(text: str, dest: Path) -> str:
-    pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    body = markdown_to_html(text)
-    story_html = (
-        "<html><body style=\"font-family:sans-serif;font-size:11pt\">"
-        f"{body}</body></html>"
-    )
-    if hasattr(pymupdf, "Story") and hasattr(pymupdf, "DocumentWriter"):
-        try:
-            mediabox = pymupdf.paper_rect("letter")
-            story = pymupdf.Story(story_html)
-            writer = pymupdf.DocumentWriter(str(dest))
-            more = True
-            while more:
-                device = writer.begin_page(mediabox)
-                more, _ = story.place(mediabox + (36, 36, -36, -36))
-                story.draw(device)
-                writer.end_page()
-            writer.close()
-            if dest.is_file() and dest.stat().st_size > 0:
-                return "pymupdf-story"
-        except Exception:
-            if dest.exists():
-                try:
-                    dest.unlink()
-                except OSError:
-                    pass
-    doc = pymupdf.open()
-    margin, fontsize, leading = 36, 11, 14
-    words = text.replace("\r\n", "\n").split("\n")
-    page = doc.new_page(width=612, height=792)
-    y = margin + fontsize
-    for line in words:
-        chunk = line if line else " "
-        while chunk:
-            if y > 792 - margin:
-                page = doc.new_page(width=612, height=792)
-                y = margin + fontsize
-            take = chunk[:110]
-            page.insert_text((margin, y), take, fontsize=fontsize)
-            chunk = chunk[110:]
-            y += leading
-    doc.save(str(dest))
-    doc.close()
-    return "pymupdf"
+    pdf_backend.html_to_pdf(f"<html><body>{markdown_to_html(text)}</body></html>", dest)
+    return "reportlab-story"
 
 
-def images_to_pdf(pngs: list[bytes], dest: Path, tool: str = "pymupdf-pptx-images") -> str:
+def images_to_pdf(pngs: list[bytes], dest: Path, tool: str = "reportlab-pptx-images") -> str:
     """Photo / image-only office -> PDF pages. Share default PDF used empty markdown."""
-    pymupdf = require_pymupdf()
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    doc = pymupdf.open()
-    tmp_paths: list[Path] = []
-    try:
-        for blob in pngs:
-            fd, name = tempfile.mkstemp(suffix=".png")
-            os.close(fd)
-            tmp = Path(name)
-            tmp.write_bytes(blob)
-            tmp_paths.append(tmp)
-            img = pymupdf.open(str(tmp))
-            try:
-                rect = img[0].rect
-                page = doc.new_page(width=rect.width, height=rect.height)
-                page.insert_image(page.rect, filename=str(tmp))
-            finally:
-                img.close()
-        doc.save(str(dest))
-    finally:
-        doc.close()
-        for tmp in tmp_paths:
-            tmp.unlink(missing_ok=True)
+    pdf_backend.images_to_pdf(pngs, dest)
     return tool
 
 
 def image_to_pdf(src: Path, dest: Path) -> str:
-    pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    # SVG is a document to MuPDF (insert_image rejects it). Preview already
-    # treats .svg as an image; Share Export as PDF used markitdown.
+    # SVG is a document, not a raster. Preview already treats .svg as an
+    # image; Share Export as PDF used markitdown.
     if src.suffix.lower() == ".svg":
         text = _svg_lower_root(_inline_svg_sibling_images(_read_markup(src), src.parent))
         if "data:image/" not in text:
-            doc = pymupdf.open(stream=text.encode("utf-8"), filetype="svg")
-            try:
-                dest.write_bytes(doc.convert_to_pdf())
-            finally:
-                doc.close()
-            return "pymupdf"
-        # convert_to_pdf still drops sibling <image href> after data-URI rewrite.
+            dest.write_bytes(pdf_backend.svg_to_pdf_bytes(text.encode("utf-8")))
+            return "reportlab"
+        # The vector path drops sibling <image href> after data-URI rewrite.
         png = _svg_bytes_to_png(text.encode("utf-8"))
         if not png:
             raise RuntimeError("cannot rasterize SVG")
+        pdf_backend.images_to_pdf([png], dest)
+        return "reportlab"
+    # .ico / .webp / .heic / .tif etc.: Pillow decodes (HEIC needs optional
+    # pillow_heif, as JPG export already does); reportlab writes the page.
+    im = load_pil_image(src)
+    try:
         fd, name = tempfile.mkstemp(suffix=".png")
         os.close(fd)
         tmp = Path(name)
-        tmp.write_bytes(png)
-        raster = tmp
-    else:
-        raster = src
-        tmp = None
-    if src.suffix.lower() in {".ico", ".webp", ".heic", ".heif"}:
-        # MuPDF insert_image rejects .ico / .webp / .heic. Preview already
-        # treats them as images; Share / drop-on-PDF used to fail. HEIC
-        # needs pillow_heif (optional; JPG export already used this path).
-        im = load_pil_image(src)
         try:
-            fd, name = tempfile.mkstemp(suffix=".png")
-            os.close(fd)
-            tmp = Path(name)
             save_pil(im, tmp, "PNG")
-            raster = tmp
+            pdf_backend.images_to_pdf([tmp.read_bytes()], dest)
         finally:
-            im.close()
-    doc = pymupdf.open()
-    img = pymupdf.open(str(raster))
-    try:
-        rect = img[0].rect
-        page = doc.new_page(width=rect.width, height=rect.height)
-        page.insert_image(page.rect, filename=str(raster))
-    finally:
-        img.close()
-        if tmp is not None:
             tmp.unlink(missing_ok=True)
-    doc.save(str(dest))
-    doc.close()
-    return "pymupdf"
+    finally:
+        im.close()
+    return "reportlab"
 
 
 def copy_file(src: Path, dest: Path) -> str:
@@ -2907,7 +2869,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         pngs = rtf_media_pngs(src)
         text = rtf_to_text(src)
         if pngs and not text.strip():
-            return images_to_pdf(pngs, dest, tool="pymupdf-rtf-images")
+            return images_to_pdf(pngs, dest, tool="reportlab-rtf-images")
         return markdown_to_pdf(text, dest)
     if ext in MD_EXTS or ext in TEXT_EXTS or ext in HTML_EXTS:
         if ext in HTML_EXTS:
@@ -2916,7 +2878,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
         if ext == ".xml":
             pngs = xml_photo_pngs(src)
             if pngs:
-                return images_to_pdf(pngs, dest, tool="pymupdf-xml-images")
+                return images_to_pdf(pngs, dest, tool="reportlab-xml-images")
         if ext in MD_EXTS:
             html = markdown_to_html(text)
             visible = html_visible_text(html)
@@ -2924,7 +2886,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
             # Story drops data-URI <img>. Photo MD dest PDF was a white page
             # while dest Word already embeds the sibling picture.
             if pngs and not visible:
-                return images_to_pdf(pngs, dest, tool="pymupdf-md-images")
+                return images_to_pdf(pngs, dest, tool="reportlab-md-images")
             try:
                 return html_string_to_pdf(inline_sibling_images(html, src.parent), dest)
             except RuntimeError:
@@ -2939,7 +2901,7 @@ def file_to_pdf(src: Path, dest: Path) -> str:
     if ext in PHOTO_OFFICE_EXTS:
         pngs = office_media_pngs(src)
         if pngs:
-            name = "pymupdf-pptx-images" if ext in PPTX_EXTS else "pymupdf-office-images"
+            name = "reportlab-pptx-images" if ext in PPTX_EXTS else "reportlab-office-images"
             return images_to_pdf(pngs, dest, tool=name)
     if ext in OLE_SOFFICE_EXTS and not (text or "").strip():
         tool = via_soffice(src, dest)
@@ -3035,23 +2997,12 @@ def convert_image(src: Path, dest: Path) -> str:
 
 
 def pdf_to_images(src: Path, dest: Path) -> str:
-    pymupdf = require_pymupdf()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    doc = pymupdf.open(str(src))
-    try:
-        if doc.page_count < 1:
-            raise RuntimeError("PDF has no pages")
-        for i, page in enumerate(doc):
-            pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2), alpha=False)
-            if i == 0:
-                out = dest
-            else:
-                out = dest.with_name(f"{dest.stem}_{i + 1}{dest.suffix}")
-            # pixmap.save infers from suffix
-            pix.save(str(out))
-    finally:
-        doc.close()
-    return "pymupdf"
+    for i, im in enumerate(pdf_backend.render_pages(src, 2.0)):
+        out = dest if i == 0 else dest.with_name(f"{dest.stem}_{i + 1}{dest.suffix}")
+        fmt = PIL_FORMAT.get(out.suffix.lower(), "PNG")
+        save_pil(im, out, fmt)
+    return "pdfium"
 
 
 def export_media(src: Path, dest: Path) -> str:
@@ -3123,122 +3074,35 @@ def export_media(src: Path, dest: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def pdf_watermark(src: Path, dest: Path, text: str, opacity: float, angle: int, pages: str) -> str:
-    pymupdf = require_pymupdf()
     if not text:
         raise RuntimeError("watermark --text is required")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    doc = pymupdf.open(str(src))
-    try:
-        selected = parse_page_spec(pages, doc.page_count)
-        for num in selected:
-            page = doc[num - 1]
-            rect = page.rect
-            # insert_text/insert_textbox rotate must be 0/90/180/270.
-            rot = int(angle) if int(angle) in (0, 90, 180, 270) else 0
-            fontsize = max(24, int(min(rect.width, rect.height) / 6))
-            # Text layer (stress test asserts get_text contains the string).
-            page.insert_textbox(
-                rect,
-                text,
-                fontsize=fontsize,
-                fontname="helv",
-                color=(0.55, 0.55, 0.55),
-                align=getattr(pymupdf, "TEXT_ALIGN_CENTER", 1),
-                rotate=rot,
-                overlay=True,
-            )
-            # Optional diagonal stamp when --angle is not a right angle.
-            if int(angle) not in (0, 90, 180, 270):
-                try:
-                    center = rect.center
-                    mat = pymupdf.Matrix(int(angle))
-                    kw = dict(
-                        fontsize=max(18, int(min(rect.width, rect.height) / 8)),
-                        fontname="helv",
-                        color=(0.55, 0.55, 0.55),
-                        overlay=True,
-                        morph=(center, mat),
-                    )
-                    try:
-                        page.insert_text(center, text, fill_opacity=float(opacity), **kw)
-                    except TypeError:
-                        page.insert_text(center, text, **kw)
-                except Exception:
-                    pass
-        doc.save(str(dest))
-    finally:
-        doc.close()
-    return "pymupdf"
+    selected = parse_page_spec(pages, pdf_backend.page_count(src))
+    pdf_backend.watermark(src, dest, text, opacity, angle, selected)
+    return "pikepdf"
 
 
 def pdf_protect(src: Path, dest: Path, password: str, owner: str | None, perm: str | None) -> str:
-    pymupdf = require_pymupdf()
     if not password:
         raise RuntimeError("protect --password is required")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    perm_map = {
-        "print": getattr(pymupdf, "PDF_PERM_PRINT", 4),
-        "modify": getattr(pymupdf, "PDF_PERM_MODIFY", 8),
-        "copy": getattr(pymupdf, "PDF_PERM_COPY", 16),
-        "annotate": getattr(pymupdf, "PDF_PERM_ANNOTATE", 32),
-    }
-    flags = 0
+    known = {"print", "modify", "copy", "annotate"}
     if perm:
-        for part in perm.split(","):
-            key = part.strip().lower()
-            if key in perm_map:
-                flags |= perm_map[key]
+        perms = {part.strip().lower() for part in perm.split(",")} & known
     else:
-        flags = perm_map["print"] | perm_map["copy"]
-    enc = getattr(pymupdf, "PDF_ENCRYPT_AES_256", 5)
-    doc = pymupdf.open(str(src))
-    try:
-        doc.save(
-            str(dest),
-            encryption=enc,
-            user_pw=password,
-            owner_pw=owner or password,
-            permissions=flags,
-        )
-    finally:
-        doc.close()
-    return "pymupdf"
+        perms = {"print", "copy"}
+    pdf_backend.protect(src, dest, password, owner, perms)
+    return "pikepdf"
 
 
 def pdf_unlock(src: Path, dest: Path, password: str) -> dict | str:
-    pymupdf = require_pymupdf()
     if not password:
-        return fail("unlock --password is required", "pymupdf")
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    doc = pymupdf.open(str(src))
-    try:
-        if doc.needs_pass:
-            if not doc.authenticate(password):
-                doc.close()
-                return fail("bad password", "pymupdf")
-        enc_none = getattr(pymupdf, "PDF_ENCRYPT_NONE", 0)
-        try:
-            doc.save(str(dest), encryption=enc_none)
-        except Exception:
-            doc.save(str(dest))
-    finally:
-        try:
-            doc.close()
-        except Exception:
-            pass
-    return "pymupdf"
+        return fail("unlock --password is required", "pikepdf")
+    if not pdf_backend.unlock(src, dest, password):
+        return fail("bad password", "pikepdf")
+    return "pikepdf"
 
 
 def pdf_has_text(src: Path) -> bool:
-    try:
-        pymupdf = require_pymupdf()
-    except RuntimeError:
-        return False
-    doc = pymupdf.open(str(src))
-    try:
-        return any((page.get_text() or "").strip() for page in doc)
-    finally:
-        doc.close()
+    return pdf_backend.has_text(src)
 
 
 def pdf_ocr(src: Path, dest: Path, lang: str, force: bool) -> str:
@@ -3321,6 +3185,12 @@ def mammoth_to_html(src: Path, dest_html: Path) -> str:
             convert_image=mammoth.images.img_element(convert_image),
         )
     body = result.value or "<p></p>"
+    # Picture-only Word (media in the zip, none referenced by the body) came out
+    # as an empty page. Show the pictures, as the PDF / Markdown exports do.
+    if not html_visible_text(body) and "<img" not in body.lower():
+        pngs = office_media_pngs(src)
+        if pngs:
+            return pngs_to_html(pngs, dest_html, src.name)
     write_text(dest_html, wrap_html(body, src.name))
     return "mammoth"
 

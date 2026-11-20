@@ -110,46 +110,82 @@ internal static class PdfTextTools
 
     internal readonly record struct DiffOp(char Kind, int Index);
 
-    /// <summary>Myers O(ND) line diff. Index refers to the list the line came from (a for '-' and '=', b for '+').</summary>
+    /// <summary>Past this many edits the middle of the two texts is reported as replaced instead of diffed.</summary>
+    internal const int MaxEditDistance = 2000;
+
+    /// <summary>
+    /// Myers O(ND) line diff. Index refers to the list the line came from (a for '-' and '=', b for '+'). The common
+    /// head and tail are trimmed first; the trace keeps only the 2d+3 live cells of each step instead of a copy of
+    /// the whole V array, and stops at <see cref="MaxEditDistance"/> edits, where the middle becomes
+    /// "all old lines removed, all new lines added" (memory stays bounded; the report is still true, just coarse).
+    /// </summary>
     internal static List<DiffOp> Diff(List<string> a, List<string> b, CancellationToken ct)
     {
-        int n = a.Count, m = b.Count, max = n + m;
+        int n = a.Count, m = b.Count;
         var ops = new List<DiffOp>();
-        if (max == 0) return ops;
-        var v = new int[2 * max + 2];
+        var head = 0;
+        while (head < n && head < m && a[head] == b[head]) head++;
+        var tail = 0;
+        while (tail < n - head && tail < m - head && a[n - 1 - tail] == b[m - 1 - tail]) tail++;
+
+        for (var i = 0; i < head; i++) ops.Add(new DiffOp('=', i));
+        var middle = Myers(a, head, n - head - tail, b, head, m - head - tail, ct);
+        if (middle is not null) ops.AddRange(middle);
+        else
+        {
+            for (var x = head; x < n - tail; x++) ops.Add(new DiffOp('-', x));
+            for (var y = head; y < m - tail; y++) ops.Add(new DiffOp('+', y));
+        }
+        for (var i = 0; i < tail; i++) ops.Add(new DiffOp('=', n - tail + i));
+        return ops;
+    }
+
+    /// <summary>Diffs a[ao..ao+n) against b[bo..bo+m); null when more than <see cref="MaxEditDistance"/> edits are needed.</summary>
+    private static List<DiffOp>? Myers(List<string> a, int ao, int n, List<string> b, int bo, int m, CancellationToken ct)
+    {
+        var ops = new List<DiffOp>();
+        if (n == 0 && m == 0) return ops;
+        var dMax = Math.Min(n + m, MaxEditDistance);
+        var off = dMax + 1;
+        var v = new int[2 * dMax + 3];
         var trace = new List<int[]>();
         var found = false;
-        for (var d = 0; d <= max && !found; d++)
+        for (var d = 0; d <= dMax && !found; d++)
         {
             ct.ThrowIfCancellationRequested();
-            trace.Add((int[])v.Clone());
+            // Cells -(d+1)..(d+1) are the only ones this step reads: 2d+3 of them.
+            var snap = new int[2 * d + 3];
+            Array.Copy(v, off - (d + 1), snap, 0, snap.Length);
+            trace.Add(snap);
             for (var k = -d; k <= d; k += 2)
             {
                 int x;
-                if (k == -d || (k != d && v[k - 1 + max] < v[k + 1 + max])) x = v[k + 1 + max];
-                else x = v[k - 1 + max] + 1;
+                if (k == -d || (k != d && v[k - 1 + off] < v[k + 1 + off])) x = v[k + 1 + off];
+                else x = v[k - 1 + off] + 1;
                 var y = x - k;
-                while (x < n && y < m && a[x] == b[y]) { x++; y++; }
-                v[k + max] = x;
+                while (x < n && y < m && a[ao + x] == b[bo + y]) { x++; y++; }
+                v[k + off] = x;
                 if (x >= n && y >= m) { found = true; break; }
             }
         }
+        if (!found) return null;
 
         // Backtrack.
         var xx = n; var yy = m;
         for (var d = trace.Count - 1; d >= 0; d--)
         {
             var vv = trace[d];
+            int At(int k) => vv[k + d + 1];
             var k = xx - yy;
             int prevK;
-            if (k == -d || (k != d && vv[k - 1 + max] < vv[k + 1 + max])) prevK = k + 1; else prevK = k - 1;
-            var prevX = vv[prevK + max];
+            if (k == -d || (k != d && At(k - 1) < At(k + 1))) prevK = k + 1; else prevK = k - 1;
+            var prevX = At(prevK);
             var prevY = prevX - prevK;
-            while (xx > prevX && yy > prevY) { xx--; yy--; ops.Add(new DiffOp('=', xx)); }
+            while (xx > prevX && yy > prevY) { xx--; yy--; ops.Add(new DiffOp('=', ao + xx)); }
             if (d > 0)
             {
-                if (xx == prevX) { yy--; ops.Add(new DiffOp('+', yy)); }
-                else { xx--; ops.Add(new DiffOp('-', xx)); }
+                if (xx == prevX) { yy--; ops.Add(new DiffOp('+', bo + yy)); }
+                else { xx--; ops.Add(new DiffOp('-', ao + xx)); }
             }
         }
         ops.Reverse();

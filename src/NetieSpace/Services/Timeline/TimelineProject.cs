@@ -90,7 +90,6 @@ public sealed class TimelineProject
     public static readonly TimeSpan DefaultXfadeDuration = TimeSpan.FromMilliseconds(500);
 
     public TimelineTrack? VideoTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Video);
-    public IEnumerable<TimelineTrack> AudioTracks => Tracks.Where(t => t.Kind == TrackKind.Audio);
     public TimelineTrack? OverlayTrack => Tracks.FirstOrDefault(t => t.Kind == TrackKind.Overlay);
 
     /// <summary>Sentinel V1 source for Leave-black packed holes (lavfi on export).</summary>
@@ -301,8 +300,6 @@ public sealed class TimelineProject
             LutPath = c.LutPath
         };
 
-    public void SelectClip(Guid? id) => SelectedClipId = id;
-
     public void ClearSelection() => SelectedClipId = null;
 
     public TimelineClip? ClipAt(TimeSpan playhead, TrackKind kind = TrackKind.Video)
@@ -367,51 +364,6 @@ public sealed class TimelineProject
         return changed;
     }
 
-    /// <summary>
-    /// Ripple-delete selected clip. If on V1, also remove matching A1 clip
-    /// (same source in/out) and pack remaining V1+A1 left-to-right.
-    /// </summary>
-    public bool DeleteSelected()
-    {
-        if (SelectedClipId is null)
-            return false;
-
-        var id = SelectedClipId.Value;
-        TimelineClip? removed = null;
-        TimelineTrack? removedFrom = null;
-        foreach (var track in Tracks)
-        {
-            var idx = track.Clips.FindIndex(c => c.Id == id);
-            if (idx < 0)
-                continue;
-            removed = track.Clips[idx];
-            removedFrom = track;
-            track.Clips.RemoveAt(idx);
-            break;
-        }
-
-        if (removed is null || removedFrom is null)
-            return false;
-
-        SelectedClipId = null;
-
-        if (removedFrom.Kind == TrackKind.Video)
-        {
-            var a1 = Tracks.FirstOrDefault(t => t.Name == "A1");
-            if (a1 is not null)
-            {
-                a1.Clips.RemoveAll(c =>
-                    c.SourceIn == removed.SourceIn &&
-                    c.SourceOut == removed.SourceOut &&
-                    string.Equals(c.SourcePath, removed.SourcePath, StringComparison.OrdinalIgnoreCase));
-            }
-
-            PackLinkedVideoAudio();
-        }
-
-        return true;
-    }
-
     /// <summary>Pack V1 and linked A1 clips abutting left-to-right (CapCut ripple).</summary>
     public void PackLinkedVideoAudio()
     {
@@ -448,31 +400,6 @@ public sealed class TimelineProject
                 Muted = c.Muted
             });
         }
-    }
-
-    public bool MoveClipToTrack(Guid clipId, TimelineTrack target)
-    {
-        TimelineClip? clip = null;
-        TimelineTrack? from = null;
-        foreach (var track in Tracks)
-        {
-            var found = track.Clips.FirstOrDefault(c => c.Id == clipId);
-            if (found is null)
-                continue;
-            clip = found;
-            from = track;
-            break;
-        }
-
-        if (clip is null || from is null || ReferenceEquals(from, target))
-            return false;
-
-        from.Clips.Remove(clip);
-        if (target.Kind == TrackKind.Audio)
-            clip.Muted = target.Muted;
-        target.Clips.Add(clip);
-        target.Clips.Sort((a, b) => a.TimelineStart.CompareTo(b.TimelineStart));
-        return true;
     }
 
     public void AddOverlay(OverlayKind kind, TimeSpan start, TimeSpan duration, string? text = null)

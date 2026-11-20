@@ -7,7 +7,6 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Markdig;
 using NetieSpace.Helpers;
 using NetieSpace.Models;
 using A = DocumentFormat.OpenXml.Drawing;
@@ -21,10 +20,6 @@ namespace NetieSpace.Services;
 /// </summary>
 public sealed class OfficePreviewService
 {
-    private readonly MarkdownPipeline _pipeline = new MarkdownPipelineBuilder()
-        .UseAdvancedExtensions()
-        .Build();
-
     public PreviewContent? TryParse(string filePath, string fileName, long size)
     {
         var ext = IoPath.GetExtension(filePath).ToLowerInvariant();
@@ -70,21 +65,6 @@ public sealed class OfficePreviewService
             Kind = PreviewKind.Office,
             FileSizeBytes = size,
             RawText = StripTags(htmlBody),
-            RenderedHtml = html
-        };
-    }
-
-    private PreviewContent FromMarkdown(string path, string name, long size, string markdown, string tool)
-    {
-        var body = Markdown.ToHtml(markdown, _pipeline);
-        var html = WrapHtml($"<article class='markdown-body'>{body}</article>");
-        return new PreviewContent
-        {
-            FilePath = path,
-            FileName = name,
-            Kind = PreviewKind.Office,
-            FileSizeBytes = size,
-            RawText = markdown,
             RenderedHtml = html
         };
     }
@@ -465,40 +445,6 @@ public sealed class OfficePreviewService
                 sb.Append($"<p>{System.Net.WebUtility.HtmlEncode(t)}</p>");
 
             sb.Append("</div></section>");
-        }
-
-        return sb.ToString();
-    }
-
-    private static string PptxToMarkdown(string path)
-    {
-        using var doc = PresentationDocument.Open(path, false);
-        var sb = new StringBuilder();
-        sb.AppendLine($"# {IoPath.GetFileNameWithoutExtension(path)}");
-        sb.AppendLine();
-
-        var presentation = doc.PresentationPart;
-        if (presentation?.Presentation?.SlideIdList is null)
-            return "_Empty presentation_";
-
-        var i = 1;
-        foreach (var slideId in presentation.Presentation.SlideIdList.Elements<SlideId>())
-        {
-            if (slideId.RelationshipId?.Value is null)
-                continue;
-
-            var part = (SlidePart)presentation.GetPartById(slideId.RelationshipId.Value);
-            var texts = part.Slide.Descendants<A.Text>()
-                .Select(t => t.Text?.Trim())
-                .Where(t => !string.IsNullOrWhiteSpace(t))
-                .Distinct()
-                .ToList();
-
-            sb.AppendLine($"## Slide {i++}");
-            sb.AppendLine();
-            foreach (var t in texts)
-                sb.AppendLine($"- {t}");
-            sb.AppendLine();
         }
 
         return sb.ToString();

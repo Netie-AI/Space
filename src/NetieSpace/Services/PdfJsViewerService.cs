@@ -21,17 +21,6 @@ public static class PdfJsViewerService
         return candidates.FirstOrDefault(IoFile.Exists);
     }
 
-    public static Uri? BuildViewerUri(string pdfPath)
-    {
-        var viewer = FindViewerHtml();
-        if (viewer is null || !IoFile.Exists(pdfPath))
-            return null;
-
-        var fileUri = new Uri(pdfPath).AbsoluteUri;
-        var viewerUri = new Uri(viewer).AbsoluteUri;
-        return new Uri($"{viewerUri}?file={Uri.EscapeDataString(fileUri)}");
-    }
-
     public static bool TryParseMessage(string? json, out JsonElement root)
     {
         root = default;
@@ -96,9 +85,6 @@ public static class PdfJsViewerService
         highlight = new PdfJsHighlight(id, page, x, yFromBottom, w, h, kind);
         return true;
     }
-
-    public static PdfHighlightItem ToEditItem(PdfJsHighlight h) =>
-        new(h.Page, h.XPt, h.YFromBottom, h.WidthPt, h.HeightPt, h.Kind);
 
     /// <summary>Canvas top-left (px) → PDF points origin bottom-left. Shared with the viewer overlay.</summary>
     public static (double XPt, double YFromBottom, double WPt, double HPt) CanvasToPdfBottomLeft(

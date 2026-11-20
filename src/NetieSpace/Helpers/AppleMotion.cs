@@ -21,9 +21,6 @@ public static class AppleMotion
     /// <summary>Press highlight — must feel instant.</summary>
     public const int PressMs = 90;
 
-    /// <summary>Chip / small chrome with light overshoot only after momentum.</summary>
-    public const int ChipMs = 220;
-
     /// <summary>Windows "Show animations" via SPI — SystemParameters has no ClientAnimation on WPF.</summary>
     public static bool PrefersReducedMotion
     {
@@ -91,49 +88,6 @@ public static class AppleMotion
         if (completed is not null)
             anim.Completed += (_, _) => completed();
         element.BeginAnimation(property, anim);
-    }
-
-    /// <summary>Instant press scale (0.97) — feedback on pointer-down, not release.</summary>
-    public static void AttachPressScale(FrameworkElement element, double pressedScale = 0.97)
-    {
-        if (element.RenderTransform is not ScaleTransform)
-        {
-            element.RenderTransformOrigin = new Point(0.5, 0.5);
-            element.RenderTransform = new ScaleTransform(1, 1);
-        }
-
-        element.PreviewMouseLeftButtonDown += (_, _) =>
-        {
-            if (PrefersReducedMotion) return;
-            AnimateScale(element, pressedScale, PressMs);
-        };
-        element.PreviewMouseLeftButtonUp += (_, _) => AnimateScale(element, 1.0, PressMs + 20);
-        element.MouseLeave += (_, _) =>
-        {
-            if (element.IsMouseCaptured) return;
-            AnimateScale(element, 1.0, PressMs);
-        };
-    }
-
-    public static void AnimateScale(FrameworkElement element, double to, int ms)
-    {
-        if (element.RenderTransform is not ScaleTransform scale)
-        {
-            scale = new ScaleTransform(1, 1);
-            element.RenderTransformOrigin = new Point(0.5, 0.5);
-            element.RenderTransform = scale;
-        }
-
-        // Interruptible: start from current scale
-        var fromX = scale.ScaleX;
-        var fromY = scale.ScaleY;
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        var duration = TimeSpan.FromMilliseconds(ResolveDuration(ms));
-        scale.BeginAnimation(ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(fromX, to, duration) { EasingFunction = UiEase });
-        scale.BeginAnimation(ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(fromY, to, duration) { EasingFunction = UiEase });
     }
 
     /// <summary>Materialize a glass surface: opacity + slight scale together (not fade-only).</summary>

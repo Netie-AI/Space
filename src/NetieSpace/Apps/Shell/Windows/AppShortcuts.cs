@@ -56,15 +56,22 @@ public static class AppShortcuts
         if (!IoFile.Exists(exePath))
             throw new System.IO.FileNotFoundException($"exe not found: {exePath}");
         var exeDirectory = IoPath.GetDirectoryName(exePath)!;
-        IoDirectory.CreateDirectory(programsDirectory);
 
+        // Every icon is checked before the first shortcut is written: a missing one must not leave the first
+        // shortcuts behind on a run that then exits 1.
+        foreach (var identity in AppIdentity.Everything)
+        {
+            var icon = AppRegistration.IconPath(exeDirectory, identity);
+            if (!IoFile.Exists(icon))
+                throw new System.IO.FileNotFoundException(
+                    $"icon not found for {AppRegistration.ForIdentity(identity).DisplayName}: {icon}");
+        }
+
+        IoDirectory.CreateDirectory(programsDirectory);
         foreach (var identity in AppIdentity.Everything)
         {
             var spec = AppRegistration.ForIdentity(identity);
             var icon = AppRegistration.IconPath(exeDirectory, identity);
-            if (!IoFile.Exists(icon))
-                throw new System.IO.FileNotFoundException($"icon not found for {spec.DisplayName}: {icon}");
-
             var path = AppRegistration.ShortcutPath(programsDirectory, spec);
             WriteShortcut(path, exePath, exeDirectory, spec, icon);
             log($"wrote {path}");

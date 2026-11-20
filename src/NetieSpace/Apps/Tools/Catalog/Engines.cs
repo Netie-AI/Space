@@ -16,6 +16,9 @@ public static class Engines
     // Windows platform pieces.
     public static readonly EngineRef Wic = new("Windows imaging (WIC)", EngineLicense.InProcessManaged, false, "windows");
     public static readonly EngineRef WinRt = new("Windows runtime APIs", EngineLicense.WinRT, false, "winrt");
+    // Finer keys: the same Windows runtime, but the thing a tool really needs (see Refinements).
+    public static readonly EngineRef WinRtOcr = new("Windows OCR language pack", EngineLicense.WinRT, false, "winrt-ocr");
+    public static readonly EngineRef WinRtSpeech = new("Windows speech voice", EngineLicense.WinRT, false, "winrt-speech");
     public static readonly EngineRef WebView2 = new("WebView2 runtime", EngineLicense.Proprietary, false, "webview2");
     public static readonly EngineRef OfficeWord = new("Word COM", EngineLicense.OfficeCom, false, "com:Word.Application");
     public static readonly EngineRef OfficeExcel = new("Excel COM", EngineLicense.OfficeCom, false, "com:Excel.Application");
@@ -23,6 +26,9 @@ public static class Engines
 
     // Out-of-process binaries.
     public static readonly EngineRef Ffmpeg = new("FFmpeg", EngineLicense.GPL3OutOfProcess, true, "ffmpeg");
+    public static readonly EngineRef FfmpegVidstab = new("FFmpeg filter vidstabdetect+vidstabtransform or deshake", EngineLicense.GPL3OutOfProcess, true, "ffmpeg-filters:vidstabdetect,vidstabtransform|deshake");
+    public static readonly EngineRef FfmpegDrawtext = new("FFmpeg filter drawtext", EngineLicense.GPL3OutOfProcess, true, "ffmpeg-filters:drawtext");
+    public static readonly EngineRef FfmpegSubtitles = new("FFmpeg filter subtitles", EngineLicense.GPL3OutOfProcess, true, "ffmpeg-filters:subtitles");
     public static readonly EngineRef Tesseract = new("Tesseract", EngineLicense.Apache2, false, "tesseract");
     public static readonly EngineRef Whisper = new("whisper.cpp", EngineLicense.MIT, false, "whisper");
     public static readonly EngineRef VeraPdf = new("veraPDF", EngineLicense.MPL2, false, "path:verapdf");
@@ -47,8 +53,25 @@ public static class Engines
 
     public static IReadOnlyList<EngineRef> All { get; } = new[]
     {
-        PdfSharpCore, PdfPig, OpenXml, Wic, WinRt, WebView2, OfficeWord, OfficeExcel, OfficePowerPoint,
-        Ffmpeg, Tesseract, Whisper, VeraPdf, RealEsrgan, PikePdf, OcrMyPdf, PythonPptx, MarkItDown, Rembg,
+        PdfSharpCore, PdfPig, OpenXml, Wic, WinRt, WinRtOcr, WinRtSpeech, WebView2, OfficeWord, OfficeExcel, OfficePowerPoint,
+        Ffmpeg, FfmpegVidstab, FfmpegDrawtext, FfmpegSubtitles, Tesseract, Whisper, VeraPdf, RealEsrgan, PikePdf, OcrMyPdf, PythonPptx, MarkItDown, Rembg,
         CloudLlm, HostedSigner, PyMuPdf, PyMuPdf4Llm, Ghostscript, OnlyOffice,
     };
+
+    /// <summary>
+    /// Tools whose catalog row names a coarser engine than they really need. The registry uses the finer
+    /// engine for availability, list-tools and the doctor. When a catalog row is edited to name the
+    /// finer engine itself, the entry here is a no-op and can be deleted.
+    /// </summary>
+    public static IReadOnlyDictionary<string, EngineRef> Refinements { get; } = new Dictionary<string, EngineRef>
+    {
+        ["pdf-ocr"] = WinRtOcr,
+        ["vid-tts"] = WinRtSpeech,
+        ["vid-stabilize"] = FfmpegVidstab,
+        ["vid-add-text"] = FfmpegDrawtext,
+        ["vid-subtitles"] = FfmpegSubtitles,
+    };
+
+    public static EngineRef EffectiveFor(ToolEntry entry) =>
+        Refinements.TryGetValue(entry.Id, out var e) ? e : entry.Engine;
 }

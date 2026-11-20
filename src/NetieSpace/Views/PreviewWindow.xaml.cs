@@ -481,10 +481,10 @@ public partial class PreviewWindow : Window
         if (EditInAppButton is not null)
         {
             EditInAppButton.Visibility = isPdf ? Visibility.Visible : Visibility.Collapsed;
-            EditInAppButton.Content = _pdfSpaceMode ? "Done" : "Edit in app";
+            EditInAppButton.Content = _pdfSpaceMode ? "Done" : "Workbench";
             EditInAppButton.ToolTip = _pdfSpaceMode
-                ? "Leave PDFSpace workbench"
-                : "Full Fill & Sign / Edit PDF workbench";
+                ? "Back to preview"
+                : "Open the PDF workbench";
         }
 
         if (TextEditButton is not null)
@@ -560,7 +560,7 @@ public partial class PreviewWindow : Window
         if (VideoEditorChrome is not null)
             VideoEditorChrome.Visibility = isVideo && _editMode ? Visibility.Visible : Visibility.Collapsed;
         if (VideoLightHint is not null)
-            VideoLightHint.Visibility = isVideo && !_editMode ? Visibility.Visible : Visibility.Collapsed;
+            VideoLightHint.Visibility = Visibility.Collapsed;
 
         // PDF zoom/Fit live in the embedded viewer toolbar — hide duplicate WPF strip
         var zoomable = kind is PreviewKind.Image or PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown or PreviewKind.Text;
@@ -1170,7 +1170,7 @@ public partial class PreviewWindow : Window
                 PreviewVideo.Play();
                 PlayPauseButton.Content = "Pause";
                 _videoTimer.Start();
-                SummaryText.Text = "Playing — press Edit for the full Netie video editor.";
+                SummaryText.Text = "Playing";
                 UpdateActionButtons(PreviewKind.Video);
                 UpdateMarkRangeTint();
             }
