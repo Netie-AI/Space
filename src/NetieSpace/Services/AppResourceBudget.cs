@@ -17,9 +17,6 @@ public static class AppResourceBudget
     public static string PdfCache => IoPath.Combine(CacheRoot, "pdf");
     public static string ChatClipsCache => IoPath.Combine(CacheRoot, "chat-clips");
     public static string OfficeCache => IoPath.Combine(CacheRoot, "office");
-    /// <summary>Public cache only — proprietary dual-brain lives in .netie-brain (consent).</summary>
-    public static string EmbeddingPublicMirror => IoPath.Combine(CacheRoot, "embeddings-index");
-
     /// <summary>Keep up to ~8 GB of on-disk caches before pruning oldest files.</summary>
     public const long MaxCacheBytes = 8L * 1024 * 1024 * 1024;
 
