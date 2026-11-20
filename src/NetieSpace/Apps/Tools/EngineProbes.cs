@@ -19,9 +19,37 @@ public interface IEngineProbe
 /// </summary>
 public sealed class EngineProbes : IEngineProbe
 {
-    private const int ProbeTimeoutMs = 8000;
+    /// <summary>A probe that runs longer than this counts as missing.</summary>
+    public const int ProbeTimeoutMs = 2000;
 
+    private readonly IPlatformProbes _platform;
+    private readonly IFfmpegInfo _ffmpeg;
+    private readonly int _budgetMs;
+
+    public EngineProbes() : this(null, null, ProbeTimeoutMs) { }
+
+    public EngineProbes(IPlatformProbes? platform, IFfmpegInfo? ffmpeg, int budgetMs = ProbeTimeoutMs)
+    {
+        _platform = platform ?? new PlatformProbes();
+        _ffmpeg = ffmpeg ?? new FfmpegInfo();
+        _budgetMs = budgetMs;
+    }
+
+    /// <summary>Runs the probe on a worker and gives up after the budget: slow, throwing or hung = missing.</summary>
     public (bool Ok, string Detail) Probe(EngineRef engine)
+    {
+        var key = engine.ProbeKey ?? "inproc";
+        if (key == "inproc") return (true, "");
+        var task = System.Threading.Tasks.Task.Run(() => ProbeCore(engine));
+        try
+        {
+            if (task.Wait(_budgetMs)) return task.Result;
+        }
+        catch (Exception) { return (false, engine.Name); }
+        return (false, engine.Name + " (probe timed out)");
+    }
+
+    private (bool Ok, string Detail) ProbeCore(EngineRef engine)
     {
         try
         {
@@ -30,11 +58,14 @@ public sealed class EngineProbes : IEngineProbe
             if (key == "cloud") return (false, "cloud service");
             if (key == "windows") return Win(engine.Name);
             if (key == "winrt") return WinRt();
-            if (key == "webview2") return WebView2();
+            if (key == "winrt-ocr") return Gated(_platform.Ocr, "Windows OCR language pack");
+            if (key == "winrt-speech") return Gated(_platform.Speech, "Windows speech voice");
+            if (key == "webview2") return Gated(_platform.WebView2, "WebView2 runtime");
             if (key == "ffmpeg") return Ffmpeg();
+            if (key.StartsWith("ffmpeg-filters:", StringComparison.Ordinal)) return FfmpegFilters(key.Substring(15));
             if (key == "tesseract") return Tesseract();
             if (key == "whisper") return Whisper();
-            if (key.StartsWith("com:", StringComparison.Ordinal)) return Com(key.Substring(4), engine.Name);
+            if (key.StartsWith("com:", StringComparison.Ordinal)) return _platform.ProgId(key.Substring(4), engine.Name);
             if (key.StartsWith("python:", StringComparison.Ordinal)) return PythonWheel(key.Substring(7));
             if (key.StartsWith("path:", StringComparison.Ordinal)) return OnPath(key.Substring(5), engine.Name);
             if (key.StartsWith("file:", StringComparison.Ordinal)) return FileProbe(key.Substring(5), engine.Name);
@@ -55,31 +86,11 @@ public sealed class EngineProbes : IEngineProbe
             ? (true, "")
             : (false, "Windows 10 1809 or later");
 
-    private static (bool, string) WebView2()
+    /// <summary>The injected probe (which answers missing off Windows); a probe answering "no" with no detail gets the default name.</summary>
+    private static (bool, string) Gated(Func<(bool Ok, string Detail)> probe, string name)
     {
-        if (!OperatingSystem.IsWindows()) return (false, "WebView2 runtime");
-        const string clientKey = @"SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-        const string clientKey32 = @"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}";
-        foreach (var (hive, path) in new[]
-                 {
-                     (Microsoft.Win32.Registry.LocalMachine, clientKey32),
-                     (Microsoft.Win32.Registry.LocalMachine, clientKey),
-                     (Microsoft.Win32.Registry.CurrentUser, clientKey),
-                 })
-        {
-            using var k = hive.OpenSubKey(path);
-            var pv = k?.GetValue("pv") as string;
-            if (!string.IsNullOrWhiteSpace(pv) && pv != "0.0.0.0")
-                return (true, "");
-        }
-        return (false, "WebView2 runtime");
-    }
-
-    private static (bool, string) Com(string progId, string name)
-    {
-        if (!OperatingSystem.IsWindows()) return (false, name);
-        using var k = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey(progId + @"\CLSID");
-        return k is not null ? (true, "") : (false, name);
+        var (ok, detail) = probe();
+        return ok ? (true, "") : (false, string.IsNullOrWhiteSpace(detail) ? name : detail);
     }
 
     private static IEnumerable<string> Roots()
@@ -89,7 +100,7 @@ public sealed class EngineProbes : IEngineProbe
         return list.Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static (bool, string) Ffmpeg()
+    internal static string? LocateFfmpeg()
     {
         var exe = new List<string>();
         foreach (var root in Roots())
@@ -97,9 +108,30 @@ public sealed class EngineProbes : IEngineProbe
             exe.Add(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg.exe"));
             exe.Add(IoPath.Combine(root, "tools", "ffmpeg", "ffmpeg"));
         }
-        var path = exe.FirstOrDefault(IoFile.Exists) ?? FindOnPath("ffmpeg");
+        return exe.FirstOrDefault(IoFile.Exists) ?? FindOnPath("ffmpeg");
+    }
+
+    private (bool, string) Ffmpeg()
+    {
+        var path = _ffmpeg.Locate();
         if (path is null) return (false, "FFmpeg");
-        return RunVersion(path, "-version", "ffmpeg") ? (true, "") : (false, "FFmpeg");
+        return _ffmpeg.Runs(path) ? (true, "") : (false, "FFmpeg");
+    }
+
+    /// <summary>
+    /// Key spec: alternatives split by '|', each a comma list of filters that must all exist, e.g.
+    /// <c>vidstabdetect,vidstabtransform|deshake</c>. The reason names the first alternative's filters.
+    /// </summary>
+    private (bool, string) FfmpegFilters(string spec)
+    {
+        var path = _ffmpeg.Locate();
+        if (path is null || !_ffmpeg.Runs(path)) return (false, "FFmpeg");
+        var have = _ffmpeg.Filters(path);
+        var alts = spec.Split('|', StringSplitOptions.RemoveEmptyEntries)
+            .Select(a => a.Split(',', StringSplitOptions.RemoveEmptyEntries)).ToList();
+        var label = "FFmpeg filter " + string.Join(" or ", alts.Select(a => string.Join("+", a)));
+        if (have is null) return (false, label);
+        return alts.Any(a => a.All(have.Contains)) ? (true, "") : (false, label);
     }
 
     private static (bool, string) Tesseract()
@@ -135,7 +167,7 @@ public sealed class EngineProbes : IEngineProbe
     {
         var py = FindPython();
         if (py is null) return (false, "python runtime");
-        var ok = RunExitsZero(py, "-c \"import " + module + "\"", ProbeTimeoutMs * 2);
+        var ok = RunExitsZero(py, "-c \"import " + module + "\"", ProbeTimeoutMs);
         return ok ? (true, "") : (false, module == "fitz" ? "PyMuPDF" : module);
     }
 
@@ -188,7 +220,7 @@ public sealed class EngineProbes : IEngineProbe
         return null;
     }
 
-    private static bool RunVersion(string exe, string flag, string expectInOutput)
+    internal static bool RunVersion(string exe, string flag, string expectInOutput)
     {
         var psi = new ProcessStartInfo(exe, flag)
         {
@@ -229,5 +261,27 @@ public sealed class EngineProbes : IEngineProbe
             return false;
         }
         return p.ExitCode == 0;
+    }
+
+    /// <summary>Stdout plus stderr of a short process, or null when it fails, is slow or cannot start.</summary>
+    internal static string? RunCapture(string exe, string args, int timeoutMs)
+    {
+        var psi = new ProcessStartInfo(exe, args)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        using var p = Process.Start(psi);
+        if (p is null) return null;
+        var stdout = p.StandardOutput.ReadToEndAsync();
+        var stderr = p.StandardError.ReadToEndAsync();
+        if (!p.WaitForExit(timeoutMs))
+        {
+            try { p.Kill(true); } catch { /* gone */ }
+            return null;
+        }
+        return p.ExitCode == 0 ? stdout.Result + stderr.Result : null;
     }
 }

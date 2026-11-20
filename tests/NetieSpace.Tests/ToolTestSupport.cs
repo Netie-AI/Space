@@ -6,9 +6,10 @@ namespace NetieSpace.Tests;
 internal sealed class FuncProbe : IEngineProbe
 {
     private readonly Func<EngineRef, (bool, string)> _f;
-    public int Calls;
+    private int _calls;
+    public int Calls => _calls;
     public FuncProbe(Func<EngineRef, (bool, string)> f) { _f = f; }
-    public (bool Ok, string Detail) Probe(EngineRef engine) { Calls++; return _f(engine); }
+    public (bool Ok, string Detail) Probe(EngineRef engine) { System.Threading.Interlocked.Increment(ref _calls); return _f(engine); }
     public static FuncProbe AlwaysPresent() => new(_ => (true, ""));
 }
 
