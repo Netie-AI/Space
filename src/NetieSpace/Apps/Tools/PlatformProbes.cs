@@ -149,18 +149,17 @@ public sealed class FfmpegInfo : IFfmpegInfo
         return text is null ? null : ParseFilters(text);
     }
 
+    private static readonly System.Text.RegularExpressions.Regex FilterLine =
+        new(@"^[ \t]*\S+[ \t]+(\S+)[ \t]+\S+->\S+", System.Text.RegularExpressions.RegexOptions.Multiline);
+
     /// <summary>Filter names from <c>ffmpeg -filters</c> text (LF or CRLF); null when none could be read.</summary>
     public static IReadOnlySet<string>? ParseFilters(string text)
     {
+        // The flags column differs between FFmpeg versions (three characters in 6.x, other widths later), so
+        // match "flags name inputs->outputs" without assuming its shape; legend lines never have "->".
         var set = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var raw in text.Split('\n'))
-        {
-            // " T.. drawtext   V->V   Draw text on top of video frames"
-            var line = raw.TrimEnd('\r');
-            if (line.Length < 6 || line[0] != ' ' || line[4] != ' ') continue;
-            var parts = line.Substring(5).Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2 && parts[1].Contains("->")) set.Add(parts[0]);
-        }
+        foreach (System.Text.RegularExpressions.Match m in FilterLine.Matches(text))
+            set.Add(m.Groups[1].Value);
         return set.Count == 0 ? null : set;
     }
 }

@@ -224,6 +224,10 @@ public class ToolProbeTests
             Assert.DoesNotContain("Timeline", set);
             Assert.DoesNotContain("A", set);
         }
+        // A different flags column width (newer FFmpeg) still parses.
+        var wide = FfmpegInfo.ParseFilters("Filters:\n TSC. drawtext          V->V       Draw text.\n .... subtitles        V->V       Render.\n")!;
+        Assert.Contains("drawtext", wide);
+        Assert.Contains("subtitles", wide);
         Assert.Null(FfmpegInfo.ParseFilters("garbage"));
     }
 
