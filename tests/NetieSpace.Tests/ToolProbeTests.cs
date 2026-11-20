@@ -142,6 +142,24 @@ public class ToolProbeTests
     }
 
     [Fact]
+    public void A_timed_out_answer_is_asked_again_after_the_retry_window_but_a_definite_one_never_is()
+    {
+        var calls = 0;
+        var probe = new FuncProbe(e => e.Name == "rembg"
+            ? (Interlocked.Increment(ref calls) == 1 ? (false, "rembg (probe timed out)") : (true, ""))
+            : (true, ""));
+        var reg = ToolRegistry.Load(probe: probe);
+        Assert.Equal("engine missing: rembg (probe timed out)", reg.Find("img-remove-bg")!.Availability.Text);
+        Assert.Equal("engine missing: rembg (probe timed out)", reg.Find("img-remove-bg")!.Availability.Text);
+        Assert.Equal(1, calls);                       // inside the window it is not re-run
+        Thread.Sleep(ToolRegistry.TimeoutRetryMs + 500);
+        Assert.True(reg.Find("img-remove-bg")!.Availability.Available || reg.Find("img-remove-bg")!.Availability.Reason == UnavailableReason.NotBuilt);
+        Assert.Equal(2, calls);
+        reg.Find("img-remove-bg"); reg.All();
+        Assert.Equal(2, calls);                       // a definite answer stays cached
+    }
+
+    [Fact]
     public void The_default_budget_is_two_seconds() => Assert.Equal(2000, EngineProbes.ProbeTimeoutMs);
 
     [Fact]

@@ -21,7 +21,7 @@ public sealed class ToolRegistry
     private readonly List<ToolEntry> _entries;
     private readonly Dictionary<string, ToolRunnerDelegate> _runners;
     private readonly IEngineProbe _probe;
-    private readonly ConcurrentDictionary<string, Lazy<(bool, string)>> _probeCache = new();
+    private readonly ConcurrentDictionary<string, ProbeEntry> _probeCache = new();
     private readonly ConcurrentDictionary<string, ToolAvailability> _availCache = new(StringComparer.Ordinal);
     private readonly CachingProbe _cachingProbe;
     private int _warmed;
@@ -169,23 +169,45 @@ public sealed class ToolRegistry
         if (_availCache.TryGetValue(entry.Id, out var cached)) return cached;
         var judged = entry with { Engine = Engines.EffectiveFor(entry) };
         var a = ToolAvailabilityRules.Compute(judged, hasRunner, _cachingProbe);
-        return _availCache.GetOrAdd(entry.Id, a);
+        // A timed-out answer is recomputed later (the engine probe retries it), never kept for the process.
+        return IsTimeout(a.Text) ? a : _availCache.GetOrAdd(entry.Id, a);
     }
+
+    /// <summary>A timed-out answer is not a definite one: it is kept this long, then asked again.</summary>
+    public const int TimeoutRetryMs = 10_000;
+
+    private sealed record ProbeEntry(Lazy<(bool, string)> Result, long CreatedMs);
+
+    private static long NowMs() => Environment.TickCount64;
+
+    internal static bool IsTimeout(string text) => text.Contains("(probe timed out)", StringComparison.Ordinal);
 
     private sealed class CachingProbe : IEngineProbe
     {
         private readonly IEngineProbe _inner;
-        private readonly ConcurrentDictionary<string, Lazy<(bool, string)>> _cache;
-        public CachingProbe(IEngineProbe inner, ConcurrentDictionary<string, Lazy<(bool, string)>> cache) { _inner = inner; _cache = cache; }
+        private readonly ConcurrentDictionary<string, ProbeEntry> _cache;
+        public CachingProbe(IEngineProbe inner, ConcurrentDictionary<string, ProbeEntry> cache) { _inner = inner; _cache = cache; }
         public static string KeyOf(EngineRef e) => e.Name + "|" + e.ProbeKey;
         public (bool Ok, string Detail) Probe(EngineRef engine)
         {
-            var lazy = _cache.GetOrAdd(KeyOf(engine), _ => new Lazy<(bool, string)>(() =>
+            var key = KeyOf(engine);
+            while (true)
             {
-                try { return _inner.Probe(engine); }
-                catch (Exception) { return (false, engine.Name); }
-            }, LazyThreadSafetyMode.ExecutionAndPublication));
-            return lazy.Value;
+                var entry = _cache.GetOrAdd(key, _ => New(engine));
+                var r = entry.Result.Value;
+                if (!r.Item1 && IsTimeout(r.Item2) && NowMs() - entry.CreatedMs > TimeoutRetryMs)
+                {
+                    if (_cache.TryUpdate(key, New(engine), entry)) continue;
+                    continue;
+                }
+                return r;
+            }
         }
+
+        private ProbeEntry New(EngineRef engine) => new(new Lazy<(bool, string)>(() =>
+        {
+            try { return _inner.Probe(engine); }
+            catch (Exception) { return (false, engine.Name); }
+        }, LazyThreadSafetyMode.ExecutionAndPublication), NowMs());
     }
 }
