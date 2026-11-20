@@ -41,6 +41,10 @@ public static class AppEntry
                 app.Shutdown(RunToolCli(args));
                 return true;
 
+            case AppLaunchKind.Bridge:
+                app.Shutdown(RunBridgeCli(args));
+                return true;
+
             case AppLaunchKind.Invalid:
                 Console.Error.WriteLine(launch.Error);
                 app.Shutdown(ExitInvalidArgs);
@@ -120,6 +124,25 @@ public static class AppEntry
         catch (Exception ex)
         {
             return $"(unavailable: {ex.Message})";
+        }
+    }
+
+    /// <summary>
+    /// --send-to-phone: nothing leaves the PC without --yes (BridgeCli prints the disclosure and exits 2).
+    /// Runs off the dispatcher thread so the HTTP send can never deadlock on the WPF context.
+    /// </summary>
+    private static int RunBridgeCli(string[] args)
+    {
+        try { Win32Api.AttachConsole(Win32Api.AttachParentProcess); } catch { /* no parent console */ }
+        try
+        {
+            return Task.Run(() => NetieSpace.Apps.Bridge.BridgeCli.Run(args, Console.Out, Console.Error)).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error(ex, "Bridge CLI");
+            Console.Error.WriteLine($"BRIDGE_CLI_FAILED {ex.GetType().Name}: {ex.Message}");
+            return NetieSpace.Apps.Bridge.BridgeCli.ExitFailed;
         }
     }
 

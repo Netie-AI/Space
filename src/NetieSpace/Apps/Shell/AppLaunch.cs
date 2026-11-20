@@ -8,6 +8,8 @@ public enum AppLaunchKind
     App,
     /// <summary>--tool ... / --list-tools / --doctor: headless tool CLI (S50-E2-a).</summary>
     ToolCli,
+    /// <summary>--send-to-phone FILE [--yes] [--json FILE]: copy one file to AirGPT on this PC (Space #3: --yes is the consent).</summary>
+    Bridge,
     /// <summary>--app with a missing or unknown value.</summary>
     Invalid,
 }
@@ -24,6 +26,8 @@ public sealed record AppLaunch(AppLaunchKind Kind, AppIdentity? Identity = null,
         var appIndex = IndexOf(args, "--app");
         if (appIndex < 0)
         {
+            if (NetieSpace.Apps.Bridge.BridgeCli.Handles(args))
+                return new AppLaunch(AppLaunchKind.Bridge);
             return IndexOf(args, "--tool") >= 0 || IndexOf(args, "--list-tools") >= 0 || IndexOf(args, "--doctor") >= 0
                 ? new AppLaunch(AppLaunchKind.ToolCli)
                 : new AppLaunch(AppLaunchKind.Space);

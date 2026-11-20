@@ -118,4 +118,28 @@ public class AppLaunchTests
         Assert.Equal("Local\\Netie.Pdf.Activate.v1", AppIdentity.Pdf.ActivateEventName);
         Assert.EndsWith(IoPath.Combine("NetieSpace", "apps", "pdf", "pending-open.txt"), AppIdentity.Pdf.PendingOpenPath);
     }
+
+    [Theory]
+    [InlineData("--send-to-phone", "report.pdf")]
+    [InlineData("--send-to-phone", "report.pdf", "--yes")]
+    [InlineData("--send-to-phone", "report.pdf", "--yes", "--json", "out.json")]
+    [InlineData("--send-to-phone")]
+    public void Send_to_phone_is_the_bridge_path_not_the_tray(params string[] args)
+    {
+        // Routed to BridgeCli even with a missing file: BridgeCli answers bad arguments with exit 2, never the tray.
+        Assert.Equal(AppLaunchKind.Bridge, AppLaunch.Parse(args).Kind);
+    }
+
+    [Fact]
+    public void Send_to_phone_inside_an_app_launch_stays_an_app_launch()
+    {
+        Assert.Equal(AppLaunchKind.App, AppLaunch.Parse(new[] { "--app", "pdf", "--send-to-phone" }).Kind);
+    }
+
+    [Fact]
+    public void Plain_space_args_are_not_the_bridge()
+    {
+        Assert.Equal(AppLaunchKind.Space, AppLaunch.Parse(new[] { "--send-to-phonex" }).Kind);
+        Assert.Equal(AppLaunchKind.Space, AppLaunch.Parse(System.Array.Empty<string>()).Kind);
+    }
 }
