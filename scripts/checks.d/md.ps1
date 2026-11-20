@@ -2,8 +2,11 @@
 # Everything it writes lands under $Out\md so the CI artifact carries the document, the snapshot and the PDF.
 
 Add-Type -AssemblyName System.Drawing
+# Windows PowerShell 5.1 and PowerShell 7 resolve System.Drawing differently: reference the assemblies that hold the types.
+$drawRefs = @([System.Drawing.Bitmap], [System.Drawing.Rectangle], [System.Drawing.Imaging.BitmapData]) |
+    ForEach-Object { $_.Assembly.Location } | Sort-Object -Unique
 if (-not ('MdCheck.Pixels' -as [type])) {
-    Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+    Add-Type -ReferencedAssemblies $drawRefs -TypeDefinition @'
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
