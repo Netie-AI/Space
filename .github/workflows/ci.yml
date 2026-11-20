@@ -72,7 +72,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg tesseract-ocr
+      - name: convert engine dependencies (no PyMuPDF; every convert test runs, none skips)
+        run: python -m pip install -q "markitdown[pdf]" mammoth pptx2md markdown pillow pypdfium2 pikepdf reportlab svglib pdfminer.six pillow-heif ocrmypdf
       - name: compileall
         run: python -m compileall -q -f tests scripts
       - name: contract tests
@@ -82,7 +84,9 @@ jobs:
           failed=""
           for f in tests/test_*.py; do
             echo "== $f"
-            python "$f" || failed="$failed $f"
+            python "$f" 2>&1 | tee /tmp/contract.log || failed="$failed $f"
+            # A skipped test is a failing test: a SKIP line means a dependency is missing here.
+            if grep -q '^SKIP ' /tmp/contract.log; then failed="$failed $f(skips)"; fi
           done
           if [ -n "$failed" ]; then
             echo "FAILED:$failed"
