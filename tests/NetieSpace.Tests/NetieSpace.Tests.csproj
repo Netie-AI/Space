@@ -80,6 +80,8 @@
     <Compile Include="..\..\src\NetieSpace\Apps\Pdf\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Pdf\Windows\**" Link="Linked\Apps\Pdf\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\NetieSpace\Apps\Image\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Image\Windows\**" Link="Linked\Apps\Image\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\NetieSpace\Apps\Video\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Video\Windows\**" Link="Linked\Apps\Video\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Bridge\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Bridge\Windows\**" Link="Linked\Apps\Bridge\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Md\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Md\Windows\**" Link="Linked\Apps\Md\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Condition="'$(NetieWindowsTests)' == 'true'" Include="..\..\src\NetieSpace\Apps\*\Windows\**\*.cs" Link="Linked\Apps\Windows\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>

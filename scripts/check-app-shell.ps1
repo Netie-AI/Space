@@ -180,5 +180,16 @@ if (-not $ffmpeg) {
     Invoke-Tool "vid-subtitles" @($clip, $srt)
 }
 
+# Lane checks: every scripts/checks.d/*.ps1 is dot-sourced here, so it can call Invoke-App,
+# Invoke-Tool and Check and read $Exe, $Out, $root, $pdfIn, $icon. One file per lane keeps
+# parallel work from editing this script.
+$laneDir = Join-Path $PSScriptRoot "checks.d"
+if (Test-Path $laneDir) {
+    foreach ($lane in (Get-ChildItem -Path $laneDir -Filter *.ps1 | Sort-Object Name)) {
+        Write-Host "== lane check $($lane.Name)"
+        . $lane.FullName
+    }
+}
+
 if ($script:failed -gt 0) { Write-Host "FAILED $($script:failed) check(s)"; exit 1 }
 Write-Host "PASS scripts/check-app-shell.ps1"
