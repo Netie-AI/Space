@@ -41,9 +41,9 @@ public sealed class EngineProbes : IEngineProbe
         var key = engine.ProbeKey ?? "inproc";
         if (key == "inproc") return (true, "");
         // A dedicated thread, not the pool: pool workers blocked waiting on a queued probe would eat the budget.
-        // Engines that start a process get one more attempt: the first start of a big exe on a cold Windows
+        // Engines that start a process get two more attempts: the first start of a big exe on a cold Windows
         // machine (virus scan, cold disk) can exceed the budget while the second, warm start takes milliseconds.
-        var attempts = StartsProcess(key) ? 2 : 1;
+        var attempts = StartsProcess(key) ? 3 : 1;
         for (var i = 0; i < attempts; i++)
         {
             (bool Ok, string Detail) result = (false, engine.Name);
@@ -135,12 +135,13 @@ public sealed class EngineProbes : IEngineProbe
     private (bool, string) FfmpegFilters(string spec)
     {
         var path = _ffmpeg.Locate();
-        if (path is null || !_ffmpeg.Runs(path)) return (false, "FFmpeg");
+        if (path is null) return (false, "FFmpeg");
+        // One launch answers both questions: a readable filter list proves the binary runs.
         var have = _ffmpeg.Filters(path);
+        if (have is null) return (false, "FFmpeg");
         var alts = spec.Split('|', StringSplitOptions.RemoveEmptyEntries)
             .Select(a => a.Split(',', StringSplitOptions.RemoveEmptyEntries)).ToList();
         var label = "FFmpeg filter " + string.Join(" or ", alts.Select(a => string.Join("+", a)));
-        if (have is null) return (false, label);
         return alts.Any(a => a.All(have.Contains)) ? (true, "") : (false, label);
     }
 

@@ -25,7 +25,7 @@ internal sealed class FakeFfmpeg : IFfmpegInfo
     public HashSet<string>? FilterSet = new() { "scale", "crop" };
     public string? Locate() => Exe;
     public bool Runs(string exe) => Runnable;
-    public IReadOnlySet<string>? Filters(string exe) => FilterSet;
+    public IReadOnlySet<string>? Filters(string exe) => Runnable ? FilterSet : null;
 }
 
 internal sealed class FakeFfmpegSlowFirst : IFfmpegInfo
@@ -194,10 +194,26 @@ public class ToolProbeTests
     }
 
     [Fact]
+    public void Filter_list_parser_reads_lf_and_crlf_output_and_skips_the_legend()
+    {
+        var lf = "Filters:\n  T.. = Timeline support\n  A = Audio input/output\n ... acopy             A->A       Copy.\n T.C drawtext          V->V       Draw text.\n ... vidstabdetect     V->V       Extract.\n ..C |sink  |->V  x\n";
+        foreach (var text in new[] { lf, lf.Replace("\n", "\r\n") })
+        {
+            var set = FfmpegInfo.ParseFilters(text)!;
+            Assert.Contains("drawtext", set);
+            Assert.Contains("vidstabdetect", set);
+            Assert.Contains("acopy", set);
+            Assert.DoesNotContain("Timeline", set);
+            Assert.DoesNotContain("A", set);
+        }
+        Assert.Null(FfmpegInfo.ParseFilters("garbage"));
+    }
+
+    [Fact]
     public void Unreadable_filter_list_is_missing_not_assumed_present()
     {
         var f = new FakeFfmpeg { FilterSet = null };
-        Assert.False(Real(f: f, e: Engines.FfmpegSubtitles).Ok);
+        Assert.Equal((false, "FFmpeg"), Real(f: f, e: Engines.FfmpegSubtitles));
     }
 
     // ---- the catalog joins the finer keys -----------------------------------------------------------

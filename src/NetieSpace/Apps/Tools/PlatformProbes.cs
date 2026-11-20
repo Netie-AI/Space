@@ -134,10 +134,11 @@ public sealed class FfmpegInfo : IFfmpegInfo
     {
         lock (_gate)
         {
-            if (_filtersRead && string.Equals(_exe, exe, StringComparison.OrdinalIgnoreCase)) return _filters;
+            if (_filtersRead && _filters is not null && string.Equals(_exe, exe, StringComparison.OrdinalIgnoreCase)) return _filters;
             _exe = exe;
-            _filtersRead = true;
+            // A failed or slow read is not remembered: it may be a cold first start, and the next ask retries.
             _filters = Read(exe);
+            _filtersRead = _filters is not null;
             return _filters;
         }
     }
@@ -145,7 +146,12 @@ public sealed class FfmpegInfo : IFfmpegInfo
     private static IReadOnlySet<string>? Read(string exe)
     {
         var text = EngineProbes.RunCapture(exe, "-hide_banner -filters", EngineProbes.ProbeTimeoutMs);
-        if (text is null) return null;
+        return text is null ? null : ParseFilters(text);
+    }
+
+    /// <summary>Filter names from <c>ffmpeg -filters</c> text (LF or CRLF); null when none could be read.</summary>
+    public static IReadOnlySet<string>? ParseFilters(string text)
+    {
         var set = new HashSet<string>(StringComparer.Ordinal);
         foreach (var raw in text.Split('\n'))
         {
