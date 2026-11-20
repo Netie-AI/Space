@@ -88,7 +88,7 @@ if (Test-Path -LiteralPath $exe) {
         $total = @($doc.tools).Count
         $avail = @($doc.tools | Where-Object { $_.available }).Count
         Check ($total -eq 91) "tool rows $total (want 91)"
-        Check ($avail -ge 60) "tools available $avail (want >= 60)"
+        Check ($avail -ge 65) "tools available $avail (want >= 65)"
     } else { Fail 'list-tools.json not written' }
 
     # 3. one real tool
