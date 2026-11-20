@@ -19,8 +19,8 @@ public sealed class BridgeDropTests : IDisposable
     [Fact]
     public async Task Multipart_shape_names_filename_and_identical_bytes()
     {
-        // spaces, a quote, and non-ASCII (e-acute, CJK) in the name
-        var name = "my \"report\" \u00e9\u4e2d.bin";
+        // spaces and non-ASCII (e-acute, CJK) in the name; quotes are covered by SafeFileName tests (illegal in Windows names)
+        var name = "my report \u00e9\u4e2d.bin";
         var content = AllBytes(300_000);
         var path = _dir.File(name, content);
         var stub = StubHandler.Replying(HttpStatusCode.OK, "{\"id\":\"m-42\"}");
@@ -39,36 +39,47 @@ public sealed class BridgeDropTests : IDisposable
         Assert.Equal("Netie Space", seen.Parts[1].Text);
         Assert.Equal("true", seen.Parts[2].Text);
         var file = seen.Parts[3];
-        Assert.Contains("filename=\"my %22report%22 \u00e9\u4e2d.bin\"", file.Headers);
+        Assert.Contains("filename=\"my report \u00e9\u4e2d.bin\"", file.Headers);
         Assert.Equal(content, file.Body);
     }
 
-    [Fact]
-    public async Task Header_injection_through_file_name_is_neutralised()
+    [Theory]
+    [InlineData("a\r\nX-Evil: 1\r\n\r\nGOTCHA.txt", "a%0D%0AX-Evil: 1%0D%0A%0D%0AGOTCHA.txt")]
+    [InlineData("my \"report\".bin", "my %22report%22.bin")]
+    [InlineData("a\u0001b\u001bc.txt", "a_b_c.txt")]
+    [InlineData("..%2f..\\evil.txt", "evil.txt")]
+    [InlineData("dir/sub/x.txt", "x.txt")]
+    [InlineData("C:\\Users\\me\\y.pdf", "y.pdf")]
+    [InlineData("   ", "file")]
+    [InlineData("", "file")]
+    public void SafeFileName_neutralises_header_injection_quotes_and_paths(string raw, string want)
     {
+        var got = AirGptDrop.MultipartBody.SafeFileName(raw);
+        Assert.Equal(want, got);
+        Assert.DoesNotContain('\r', got);
+        Assert.DoesNotContain('\n', got);
+        Assert.DoesNotContain('"', got);
+    }
+
+    [Fact]
+    public async Task Hostile_names_on_disk_never_add_headers_or_path_segments()
+    {
+        if (OperatingSystem.IsWindows()) return; // such names cannot exist on NTFS; SafeFileName tests above cover the logic
         var path = _dir.File("a\r\nX-Evil: 1\r\n\r\nGOTCHA.txt");
         var stub = StubHandler.Replying(HttpStatusCode.OK, "{\"id\":1}");
         using var drop = new AirGptDrop(handler: stub);
-
         await drop.SendAsync(path);
-
         var file = stub.Seen.Single().Parts.Single(p => p.Name == "file");
         var lines = file.Headers.Split("\r\n");
         Assert.Equal(2, lines.Length); // Content-Disposition + Content-Type only
         Assert.DoesNotContain(lines, l => l.StartsWith("X-Evil"));
         Assert.Contains("%0D%0A", lines[0]);
         Assert.Equal("hello phone", file.Text);
-    }
 
-    [Fact]
-    public async Task Path_segments_never_reach_the_server()
-    {
-        var path = _dir.File("..%2f..\\evil.txt");
-        var stub = StubHandler.Replying(HttpStatusCode.OK, "{}");
-        using var drop = new AirGptDrop(handler: stub);
-        await drop.SendAsync(path);
-        var h = stub.Seen.Single().Parts.Single(p => p.Name == "file").Headers;
-        Assert.Contains("filename=\"evil.txt\"", h);
+        var stub2 = StubHandler.Replying(HttpStatusCode.OK, "{}");
+        using var drop2 = new AirGptDrop(handler: stub2);
+        await drop2.SendAsync(_dir.File("..%2f..\\evil.txt"));
+        Assert.Contains("filename=\"evil.txt\"", stub2.Seen.Single().Parts.Single(p => p.Name == "file").Headers);
     }
 
     [Fact]
