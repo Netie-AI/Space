@@ -299,20 +299,36 @@ function Get-ButtonRects($Win) {
     return ,$rows
 }
 
-# Waits until the peek has finished loading: no "Loading preview..." text left in the window.
-# Returns the milliseconds it took, or -1 when the overlay never went away.
-function Wait-PeekRendered($Win, [int]$TimeoutSec = 30) {
+# The visible "Loading..." text of a window, or $null. Only text that is on screen counts.
+function Get-LoadingText($Win) {
+    $tcond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Text)
+    foreach ($t in $Win.FindAll([System.Windows.Automation.TreeScope]::Descendants, $tcond)) {
+        try {
+            $n = [string]$t.Current.Name
+            if ($n -notlike "Loading*") { continue }
+            $r = $t.Current.BoundingRectangle
+            if ($t.Current.IsOffscreen -or $r.IsEmpty -or $r.Width -le 0) { continue }
+            return ("'{0}' at {1},{2} {3}x{4} class={5} id={6}" -f $n, [int]$r.X, [int]$r.Y, [int]$r.Width, [int]$r.Height, $t.Current.ClassName, $t.Current.AutomationId)
+        } catch { }
+    }
+    return $null
+}
+
+# Waits until the peek has finished loading: no visible "Loading..." text left in the window.
+# Returns @{ Ms = elapsed or -1; Stuck = the text that never went away }.
+function Wait-PeekRendered($Win, [int]$TimeoutSec = 15) {
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     Start-Sleep -Milliseconds 700   # the overlay itself only appears after 180 ms
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     $quiet = 0
+    $last = $null
     while ((Get-Date) -lt $deadline) {
-        $loading = Get-TextLine $Win "Loading"
-        if ($loading) { $quiet = 0 } else { $quiet++ }
-        if ($quiet -ge 3) { Start-Sleep -Milliseconds 1200; return $clock.ElapsedMilliseconds }  # 3 clean looks, then one paint
+        $last = Get-LoadingText $Win
+        if ($last) { $quiet = 0 } else { $quiet++ }
+        if ($quiet -ge 3) { Start-Sleep -Milliseconds 1200; return @{ Ms = $clock.ElapsedMilliseconds; Stuck = "" } }  # 3 clean looks, then one paint
         Start-Sleep -Milliseconds 300
     }
-    return -1
+    return @{ Ms = -1; Stuck = $last }
 }
 
 # Fixtures -----------------------------------------------------------------------------------
@@ -410,19 +426,19 @@ foreach ($name in $fixtures) {
     }
     $timings[$name] = $clock.ElapsedMilliseconds
     # Wait for the content, not a fixed time: no "Loading preview..." left, then one paint.
-    $renderMs = Wait-PeekRendered $win 30
-    Check "peek $name finished loading" ($renderMs -ge 0) "after $renderMs ms (-1 means 'Loading preview...' never went away)"
+    $rendered = Wait-PeekRendered $win 15
+    Check "peek $name finished loading" ($rendered.Ms -ge 0) "after $($rendered.Ms) ms stuck=$($rendered.Stuck) (-1 means a visible 'Loading...' never went away)"
     Start-Sleep -Milliseconds 1500   # WebView2 paint
     [void](Focus-Window $win)
     $png = Save-Screen ("peek-" + $name + ".png")
     Dismiss-Dialogs $name
-    $btns = @(Get-Buttons $win)
+    $btns = Get-Buttons $win
     $controls[$name] = $btns
     Check "peek $name" ((Test-Path $png) -and ((Get-Item $png).Length -gt 10240) -and ($btns.Count -gt 0)) "window in $($clock.ElapsedMilliseconds) ms, $($btns.Count) buttons (0 buttons means the peek chrome is not exposed or not drawn)"
 
     # Header: one row. Every header button shares one Y band; a wrapped header spreads over 2-3 bands.
     $winRect = $win.Current.BoundingRectangle
-    $rects = @(Get-ButtonRects $win)
+    $rects = Get-ButtonRects $win
     $top = [int]$winRect.Y
     # Only the names the peek header has ever held (so the viewer's own toolbar inside WebView2 never counts),
     # in the top 150 px: a wrapped header spreads these over 2-3 rows, one row keeps them in a single Y band.
@@ -464,7 +480,7 @@ foreach ($name in $fixtures) {
             $all = @()
             foreach ($w2 in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, [System.Windows.Automation.Condition]::TrueCondition)) {
                 if ($w2.Current.ProcessId -ne $space.Id) { continue }
-                $all += @(Get-Buttons $w2)
+                $all += Get-Buttons $w2
             }
             $need = @("Summary", "Chat", "Remove BG", "OCR", "Copy", "Compress", "Rotate 90", "Send to Comfy...", "Windows AI...")
             $missing = @($need | Where-Object { $all -notcontains $_ })
