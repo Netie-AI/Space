@@ -114,7 +114,21 @@ public sealed class FfmpegInfo : IFfmpegInfo
 
     public string? Locate() => EngineProbes.LocateFfmpeg();
 
-    public bool Runs(string exe) => EngineProbes.RunVersion(exe, "-version", "ffmpeg");
+    private readonly HashSet<string> _runs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly object _runGate = new();
+
+    // One launch at a time per process: the filter engines all ask at once, and four concurrent cold starts of a
+    // large exe are slower than one. Only a definite "runs" is kept; a failed or slow start is tried again.
+    public bool Runs(string exe)
+    {
+        lock (_runGate)
+        {
+            if (_runs.Contains(exe)) return true;
+            if (!EngineProbes.RunVersion(exe, "-version", "ffmpeg")) return false;
+            _runs.Add(exe);
+            return true;
+        }
+    }
 
     public IReadOnlySet<string>? Filters(string exe)
     {

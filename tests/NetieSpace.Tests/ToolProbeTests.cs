@@ -28,12 +28,21 @@ internal sealed class FakeFfmpeg : IFfmpegInfo
     public IReadOnlySet<string>? Filters(string exe) => FilterSet;
 }
 
+internal sealed class FakeFfmpegSlowFirst : IFfmpegInfo
+{
+    private readonly Func<int> _onRun;
+    public FakeFfmpegSlowFirst(Func<int> onRun) { _onRun = onRun; }
+    public string? Locate() => "/fake/ffmpeg";
+    public bool Runs(string exe) { if (_onRun() == 1) Thread.Sleep(1500); return true; }
+    public IReadOnlySet<string>? Filters(string exe) => null;
+}
+
 public class ToolProbeTests
 {
     private readonly ITestOutputHelper _out;
     public ToolProbeTests(ITestOutputHelper output) { _out = output; }
 
-    private static (bool Ok, string Detail) Real(FakePlatform? p = null, FakeFfmpeg? f = null, EngineRef? e = null, int budget = 2000)
+    private static (bool Ok, string Detail) Real(FakePlatform? p = null, IFfmpegInfo? f = null, EngineRef? e = null, int budget = 2000)
         => new EngineProbes(p ?? new FakePlatform(), f ?? new FakeFfmpeg(), budget).Probe(e!);
 
     // ---- OCR / speech / WebView2 / Office: the reason names what to install --------------------
@@ -116,6 +125,20 @@ public class ToolProbeTests
         var p = new FakePlatform { OcrF = () => { onPool = Thread.CurrentThread.IsThreadPoolThread; return (true, ""); } };
         Assert.True(Real(p, e: Engines.WinRtOcr).Ok);
         Assert.False(onPool);
+    }
+
+    [Fact]
+    public void A_process_probe_gets_a_second_attempt_after_a_cold_first_start_but_others_do_not()
+    {
+        var starts = 0;
+        var f = new FakeFfmpegSlowFirst(() => Interlocked.Increment(ref starts));
+        Assert.True(Real(f: f, e: Engines.Ffmpeg, budget: 300).Ok);
+        Assert.Equal(2, starts);
+
+        var polls = 0;
+        var p = new FakePlatform { OcrF = () => { Interlocked.Increment(ref polls); Thread.Sleep(1500); return (true, ""); } };
+        Assert.False(Real(p, e: Engines.WinRtOcr, budget: 200).Ok);
+        Assert.Equal(1, polls);
     }
 
     [Fact]

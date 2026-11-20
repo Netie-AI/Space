@@ -41,12 +41,23 @@ public sealed class EngineProbes : IEngineProbe
         var key = engine.ProbeKey ?? "inproc";
         if (key == "inproc") return (true, "");
         // A dedicated thread, not the pool: pool workers blocked waiting on a queued probe would eat the budget.
-        (bool Ok, string Detail) result = (false, engine.Name);
-        var worker = new System.Threading.Thread(() => result = ProbeCore(engine)) { IsBackground = true, Name = "engine-probe" };
-        worker.Start();
-        if (worker.Join(_budgetMs)) return result;
+        // Engines that start a process get one more attempt: the first start of a big exe on a cold Windows
+        // machine (virus scan, cold disk) can exceed the budget while the second, warm start takes milliseconds.
+        var attempts = StartsProcess(key) ? 2 : 1;
+        for (var i = 0; i < attempts; i++)
+        {
+            (bool Ok, string Detail) result = (false, engine.Name);
+            var worker = new System.Threading.Thread(() => result = ProbeCore(engine)) { IsBackground = true, Name = "engine-probe" };
+            worker.Start();
+            if (worker.Join(_budgetMs)) return result;
+        }
         return (false, engine.Name + " (probe timed out)");
     }
+
+    private static bool StartsProcess(string key) =>
+        key == "ffmpeg" || key == "tesseract" || key == "whisper"
+        || key.StartsWith("ffmpeg-filters:", StringComparison.Ordinal)
+        || key.StartsWith("python:", StringComparison.Ordinal);
 
     private (bool Ok, string Detail) ProbeCore(EngineRef engine)
     {
