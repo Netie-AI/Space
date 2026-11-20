@@ -48,7 +48,8 @@ public sealed class PdfToolProvider : IToolProvider
             if (sb.ToString().Trim().Length == 0)
                 throw new InvalidOperationException("no extractable text layer in " + input + " (scanned PDF? use pdf-ocr)");
 
-            var outPath = IoPath.Combine(request.OutDir, IoPath.GetFileNameWithoutExtension(input) + ".txt");
+            // Never the path of an existing file: a .txt the user already has next to the output is not ours to overwrite.
+            var outPath = new PdfToolSupport.OutputNamer(request.OutDir).Next(IoPath.GetFileNameWithoutExtension(input), ".txt");
             IoFile.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(false));
             return new[] { outPath };
         }, ct);
