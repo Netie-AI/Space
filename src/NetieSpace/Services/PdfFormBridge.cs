@@ -44,36 +44,6 @@ public static class PdfFormBridge
         }
     }
 
-    public static string? TryFill(string inPdf, string outPdf, IReadOnlyList<(string Name, string Value)> fields)
-    {
-        try
-        {
-            var exe = FindExe();
-            if (exe is null)
-                return "go sidecar missing";
-            var payload = JsonSerializer.Serialize(new
-            {
-                job = "form-fill",
-                @in = inPdf,
-                @out = outPdf,
-                needAppearances = true,
-                fields = fields.Select(f => new { name = f.Name, value = f.Value }).ToList()
-            });
-            var stdout = Run(exe, "form-fill", payload, 8000);
-            if (stdout is null)
-                return "form-fill timed out";
-            using var doc = JsonDocument.Parse(stdout);
-            var root = doc.RootElement;
-            if (root.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True)
-                return null;
-            return root.TryGetProperty("error", out var e) ? e.GetString() ?? "form-fill failed" : "form-fill failed";
-        }
-        catch (Exception ex)
-        {
-            return ex.Message;
-        }
-    }
-
     public static bool ExeAvailable => FindExe() is not null;
 
     private static string? Run(string exe, string args, string stdin, int timeoutMs)

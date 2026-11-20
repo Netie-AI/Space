@@ -38,28 +38,6 @@ public static class ShellThumbnail
         return TryExtractAssociatedIcon(path);
     }
 
-    public static string? TryWritePng(string path, string destPng, int size = 512)
-    {
-        try
-        {
-            var bmp = TryGetBitmapSource(path, size);
-            if (bmp is null)
-                return null;
-
-            var encoder = new PngBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(bmp));
-            IoDirectory.CreateDirectory(IoPath.GetDirectoryName(destPng)!);
-            using var fs = IoFile.Create(destPng);
-            encoder.Save(fs);
-            return destPng;
-        }
-        catch (Exception ex)
-        {
-            AppLogger.Warn($"Shell thumbnail PNG write failed: {ex.Message}");
-            return null;
-        }
-    }
-
     private static BitmapSource? TryExtractAssociatedIcon(string path)
     {
         try
