@@ -94,7 +94,8 @@ $icon3 = Join-Path $root "src\NetieSpace\Assets\netie-icon.png"
 $memeOut = V3-Run "vid-meme" @($icon3) @("--opt", "top=Top line", "--opt", "bottom=Bottom line")
 Check "vid-meme still gives a png" ($memeOut -like "*.png") $memeOut
 $blank = Invoke-App @("--tool", "vid-meme", "--in", $clip, "--out", (Join-Path $Out "meme-blank"), "--opt", "top=   ")
-Check "vid-meme blank caption refused" (($blank.Code -eq 2) -and -not (Test-Path (Join-Path $Out "meme-blank"))) "exit=$($blank.Code) $($blank.Err)"
+$blankFiles = @(Get-ChildItem (Join-Path $Out "meme-blank") -File -ErrorAction SilentlyContinue).Count
+Check "vid-meme blank caption refused" (($blank.Code -ne 0) -and ($blank.Err -match "'top'") -and ($blankFiles -eq 0)) "exit=$($blank.Code) files=$blankFiles $($blank.Err)"
 
 # ---- 2. vid-stop-motion: length kept, fewer distinct pictures (mpdecimate) ----
 $sm = V3-Run "vid-stop-motion" @($clip) @("--opt", "fps=5")
@@ -156,13 +157,18 @@ if ($got) {
         $avf = [regex]::Match($verText, 'libavformat\s+(\d+)\.\s*(\d+)\.\s*(\d+)')
         $lavf = "Lavf" + $avf.Groups[1].Value + "." + $avf.Groups[2].Value + "." + $avf.Groups[3].Value
 
-        $bundled = V3-Battery "bundled" $bfp $clip
+        # Proof that the exe takes tools\ffmpeg first: run the battery with every PATH folder that holds ffmpeg removed.
+        # If the exe fell back to PATH, every tool would fail with "FFmpeg was not found".
+        $savedPath = $env:PATH
+        $env:PATH = (($env:PATH -split ';') | Where-Object { $_ -and -not (Test-Path (Join-Path $_ "ffmpeg.exe")) -and -not (Test-Path (Join-Path $_ "ffprobe.exe")) }) -join ';'
+        Check "video3 PATH has no ffmpeg for the bundled run" ($null -eq (Get-Command ffmpeg -ErrorAction SilentlyContinue)) "ffmpeg still on PATH"
+        try { $bundled = V3-Battery "bundled" $bfp $clip } finally { $env:PATH = $savedPath }
         # The exe used the bundled build when the muxer tag in its outputs is the bundled libavformat, not the PATH one.
         $pathVer = (& $pathFfmpeg.Source -version | Out-String)
         $pathAvf = [regex]::Match($pathVer, 'libavformat\s+(\d+)\.\s*(\d+)\.\s*(\d+)')
         $pathLavf = "Lavf" + $pathAvf.Groups[1].Value + "." + $pathAvf.Groups[2].Value + "." + $pathAvf.Groups[3].Value
         Write-Host "muxer tags: bundled=$lavf path=$pathLavf"
-        Check "exe uses the bundled build" (($lavf -ne $pathLavf) -and ($bundled["trim"].Tag -eq $lavf) -and ($base["trim"].Tag -eq $pathLavf)) "trim tag on bundled run=$($bundled['trim'].Tag) want $lavf; on PATH run=$($base['trim'].Tag) want $pathLavf"
+        Check "exe uses the bundled build" ($bundled["trim"].Tag -eq $lavf) "trim tag on bundled run=$($bundled['trim'].Tag) want $lavf (PATH build is $pathLavf; equal when both are the same release)"
         foreach ($k in $bundled.Keys) {
             $a = $base[$k]; $b = $bundled[$k]
             $same = ([math]::Abs($a.Dur - $b.Dur) -le 0.1) -and ([math]::Abs($a.Fps - $b.Fps) -le 0.05) -and ($a.W -eq $b.W) -and ($a.H -eq $b.H)
