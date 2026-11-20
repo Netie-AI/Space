@@ -49,6 +49,10 @@ Loop gates: **Grok 4.5 + Composer**. State: [`docs/LOOP_STATE.md`](docs/LOOP_STA
 - [x] Token savings — see `docs/TOKEN_SAVINGS.md`
 - [x] Port AirGPT `ditch_context` tiers into Netie conversation cache (`DitchContext.cs`)
 
+## CI
+
+- [ ] Path-split CI (stack commit `07d9fbc`: python / windows / license-api as sibling workflows with `paths:` filters) was not adopted. Unlock: decide how required checks behave when a path filter skips them (branch protection waits forever on a check that never reports), then add the Windows exe-level steps to the split workflow before moving the job out of `ci.yml`.
+
 ## P2 — API product
 
 - [ ] Buy API flow (Setup + login gate call `/v1/checkout`; register is `pending` until pay; live after Stripe secrets)

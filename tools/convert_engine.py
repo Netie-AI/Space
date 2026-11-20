@@ -1648,7 +1648,10 @@ def _rtf_strip_dest_groups(s: str) -> str:
                 r"themedata|colorschememapping|passwordhash|datastore|mmathPr|"
                 r"latentstyles|pgdsctbl|fchars|lchars|protusertbl|userdata|"
                 r"oldcprops|oldpprops|wgrffmtfilter|nonshppict|shppict|pnseclvl|"
-                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate)\b",
+                r"annotation|atnauthor|atrfstart|atrfend|atnid|atnref|atnicn|atntime|atndate|"
+                r"fldinst|datafield|userprops|docvar|"
+                r"xmlopen|expandedcolortbl|nesttableprops|nonesttables|defchp|defpap|"
+                r"bkmkstart|bkmkend|xe|tc|rxe)\b",
                 rest,
             ):
                 i = _rtf_end_group(s, i)
@@ -1669,7 +1672,12 @@ def rtf_to_text(src: Path) -> str:
     # \\datastore / \\latentstyles stole dest Word the same way.
     # Unstarred \\nonshppict / \\shppict / \\pnseclvl stole dest Word the same way.
     # Unstarred \\annotation / \\atnauthor / \\atrfstart stole dest Word the same way.
+    # Unstarred \\fldinst / \\datafield stole dest Word the same way.
+    # Unstarred \\userprops / \\docvar stole dest Word the same way.
+    # Unstarred \\xmlopen / \\expandedcolortbl stole dest Word the same way.
+    # Unstarred \\bkmkstart / \\xe / \\tc stole dest Word the same way.
     # Header / footer stay. Do not strip \\upr (fallback is page copy).
+    # Do not strip \\fldrslt (field result is page copy).
     s = _rtf_strip_dest_groups(s)
     s = re.sub(
         r"\\'([0-9a-fA-F]{2})",
@@ -2489,13 +2497,68 @@ def html_visible_text(text: str) -> str:
         "",
         text,
     )
+    # Word custom document properties are not page copy (same class as
+    # RTF \userprops / head <xml> Author).
+    # Leftover "Photo" in <o:CustomDocumentProperties> stole dest Word / dest PDF Story.
+    # (?=<) would stop at nested <o:Name>. Do not strip xml islands outside head (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?CustomDocumentProperties)\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word document variables are not page copy (same class as RTF \docvar).
+    # Leftover "Photo" in <w:docVar> / <w:docVars> stole dest Word / dest PDF Story.
+    # Attribute-only w:val is already empty. Do not strip HTML <del> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:docVars|docVar|DocVar))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word o:DocumentProperties / o:OfficeDocumentSettings are leftover
+    # document metadata (same class as CustomDocumentProperties).
+    # Leftover "Photo" in <o:DocumentProperties> stole dest Word / dest PDF Story.
+    # o:Title was already stripped; o:Author / o:Company were not.
+    # TargetScreenSize 800x600 stole dest the same way.
+    # Do not strip xml islands outside head (parked).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:DocumentProperties|OfficeDocumentSettings))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # Word HTML leftover settings are not page copy (same class as
+    # OfficeDocumentSettings).
+    # Leftover Print / false / 800x600 in <w:View> / <w:SaveIfXMLInvalid> / <w:BrowserLevel> stole dest Word / dest PDF Story.
+    # Leftover EN-US / JA in <w:LidThemeOther> / <w:LidThemeAsian> stole dest Word / dest PDF Story.
+    # Leftover DontCompress / false in <w:CharacterSpacingControl> / <w:ValidateAgainstSchemas> stole dest Word / dest PDF Story.
+    # Prefix required. Do not strip <w:p> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)(?:View|Zoom|SaveIfXMLInvalid|IgnoreMixedContent|AlwaysShowPlaceholderText|BrowserLevel|PixelsPerInch|TargetScreenSize|DrawingGridHorizontalSpacing|DrawingGridVerticalSpacing|DisplayHorizontalDrawingGridEvery|DisplayVerticalDrawingGridEvery|LidThemeOther|LidThemeAsian|LidThemeComplexScript|CharacterSpacingControl|ValidateAgainstSchemas|SaveInvalidXML|RelyOnVML|AllowPNG|DoNotRelyOnCSS|DoNotOptimizeForBrowser|UseFELayout|DoNotUseLongFileNames|DoNotEmbedSystemFonts|ValidateAgainstSchema|SavePreviewPicture|DoNotShadeFormData))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # WordML leftover comment paragraphs are the same class as class=MsoCommentText.
+    # Leftover "Photo" in pStyle=CommentText / BalloonText stole dest Word / dest PDF Story.
+    # pStyle comes first on official leftovers so Hello Normal is not swallowed.
+    # Do not strip pStyle=Normal / Header / EndnoteText (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?p)\b[^>]*>\s*<(?:[\w.-]+:)?pPr\b[^>]*>\s*<(?:[\w.-]+:)?pStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentText|BalloonText|CommentSubject|Balloon Text|annotation text|annotation subject)\2[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
+    # WordML leftover comment-reference runs (same class as MsoCommentReference).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?r)\b[^>]*>\s*<(?:[\w.-]+:)?rPr\b[^>]*>\s*<(?:[\w.-]+:)?rStyle\b[^>]*\b(?:[\w.-]+:)?val\s*=\s*(['\"]?)(?:CommentReference|annotation reference)\2[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
+        "",
+        text,
+    )
     # Word 2003 HTML comments / move-from leftovers are not page copy.
     # Leftover "Photo" in <aml:annotation> / <w:comment> / <w:moveFromText>
     # stole dest Word on photo Word-HTML and leftover binData XML.
-    # Do not strip MathML <annotation> (parked). Stop at the next tag so
-    # mixed Hello stays the text path.
+    # Do not strip MathML <annotation> (parked).
+    # (?=<) would stop at nested <aml:content> / <w:p> and leave Photo.
+    # Stop at </aml:annotation> / body / img so nested comment runs strip.
     text = re.sub(
-        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        r"(?is)<((?:aml:annotation|w:annotation|(?:[\w.-]+:)?(?:comment|moveFromText)))\b[^>]*>.*?(?:</\1\s*>|(?=<(?:body|img|p|div|h[1-6]|table)\b)|$)",
         "",
         text,
     )
@@ -2514,9 +2577,49 @@ def html_visible_text(text: str) -> str:
     # Leftover "Photo" stole dest Word / dest PDF Story.
     # class=msocomhide / msocomanch / msocomanchor is Office comment-hide
     # chrome (same family as msocomoff). Leftover "Photo" stole dest Word / dest PDF Story.
+    # <a class=msocomoff> is official Word comment-anchor leftover (Save-as-HTML).
+    # class=msoChangeDel / msoDeleted is official Word deletion chrome
+    # (same class as msoDel). Leftover "Photo" stole dest Word / dest PDF Story.
+    # class=MsoCommentTextChar is the official comment character style.
     text = re.sub(
-        r"(?is)<((?:[\w.-]+:)?(?:span|div|p))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
-        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor)\b"
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bclass\s*=\s*(['\"]?)[^'\">]*"
+        r"\b(?:msoDel|msocomtxt|msocomoff|msoCommentText|msoCommentReference|msoCommentSubject|msoAcetate|msoCommentReply|msoCommentList|msoBalloonText|msoAnnotation|msocomhide|msocomanch|msocomanchor|msoChangeDel|msoDeleted|msoCommentTextChar|msoCommentSubjectChar|msoBalloonTextChar)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-element:comment / comment-list is Office comment storage.
+    # Leftover "Photo" stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
+    # <a style=mso-comment-reference> / mso-special-character:comment is the
+    # same official comment chrome.
+    # style=mso-comment-continuation is official Word comment-continuation chrome.
+    # Leftover "Photo" in style=mso-comment-continuation stole dest Word / dest PDF Story.
+    # Do not strip mso-element:header / footnote (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-element\s*:\s*comment(?:-list)?|mso-comment-reference|mso-special-character\s*:\s*comment|mso-comment-continuation)\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-deletion:yes / mso-deleted:yes is official Word deletion chrome
+    # (same class as class=msoDel). Leftover "Photo" in style=mso-deletion / class=msoChangeDel stole dest Word / dest PDF Story.
+    # Do not strip mso-insertion / msoIns / HTML <del> (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^'\">]*"
+        r"(?:mso-deletion|mso-deleted)\s*:\s*yes\b"
+        r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
+        "",
+        text,
+    )
+    # style=mso-style-name:"Comment Text" is official Word comment style chrome
+    # (same class as class=MsoCommentText). Leftover "Photo" in style=mso-style-name:"Comment Text" stole dest Word / dest PDF Story.
+    # Nested quotes in style='mso-style-name:"Comment Text"' need [^>]* (not [^'">]).
+    # Do not strip mso-style-name:Normal / Heading (page copy).
+    text = re.sub(
+        r"(?is)<((?:[\w.-]+:)?(?:span|div|p|a))\b[^>]*\bstyle\s*=\s*(['\"]?)[^>]*"
+        r"mso-style-name\s*:\s*['\"]?(?:Comment Text|Comment Subject|Comment Reference|Balloon Text|annotation text|annotation subject|annotation reference)(?: Char)?\b"
         r"[^>]*>.*?(?:</\1\s*>|(?=<)|$)",
         "",
         text,
