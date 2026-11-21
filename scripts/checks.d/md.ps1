@@ -559,10 +559,17 @@ try {
         Invoke-Uia $openBtn
         $procCond = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ProcessIdProperty), $real2.Id
         $dlg = $null
-        for ($i = 0; $i -lt 40 -and $null -eq $dlg; $i++) {
+        $nameOpen = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::NameProperty), "Open"
+        $isWindow = New-Object System.Windows.Automation.PropertyCondition ([System.Windows.Automation.AutomationElement]::ControlTypeProperty), ([System.Windows.Automation.ControlType]::Window)
+        $dialogCond = New-Object System.Windows.Automation.AndCondition($nameOpen, $isWindow)
+        for ($i = 0; $i -lt 120 -and $null -eq $dlg; $i++) {
             Start-Sleep -Milliseconds 250
-            foreach ($w in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $procCond)) {
-                if ($w.Current.Name -eq "Open") { $dlg = $w }
+            # an owned dialog can be listed under the desktop or under its owner window: look in both
+            $dlg = $uiRoot.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $dialogCond)
+            if ($null -eq $dlg) {
+                foreach ($w in [System.Windows.Automation.AutomationElement]::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children, $procCond)) {
+                    if ($w.Current.Name -eq "Open") { $dlg = $w }
+                }
             }
         }
         if ($null -ne $dlg) {

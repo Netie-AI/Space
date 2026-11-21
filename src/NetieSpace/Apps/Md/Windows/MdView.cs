@@ -371,6 +371,8 @@ public sealed class MdView : Grid
             AppLogger.Warn("[app:md] colour choice not saved");
         ApplyChrome();
         UpdateThemeButton();
+        if (_shutdown)
+            return; // a toolbar press that arrives while the window closes
         if (_web.CoreWebView2 is { } core)
         {
             var attr = MdColorModes.Attribute(mode);
@@ -859,7 +861,7 @@ public sealed class MdView : Grid
     /// <summary>+1 and -1 step the zoom, 0 resets it to 100%.</summary>
     public void Zoom(int direction)
     {
-        if (_web.CoreWebView2 is null)
+        if (_shutdown || _web.CoreWebView2 is null)
             return;
         _web.ZoomFactor = direction == 0 ? 1.0 : MdZoom.Step(_web.ZoomFactor, direction);
         _zoomLabel.Text = MdZoom.Label(_web.ZoomFactor);

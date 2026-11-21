@@ -193,7 +193,10 @@ public sealed class MdDriver
                 _view.SetColorMode(mode);
                 return null;
             case "expect-theme":
-                return Equal("mode", arg, MdColorModes.Label(_view.ColorMode).ToLowerInvariant());
+            {
+                var ok = await WaitAsync(() => Task.FromResult(MdColorModes.Label(_view.ColorMode).ToLowerInvariant() == arg), 3);
+                return ok ? null : $"mode is '{MdColorModes.Label(_view.ColorMode).ToLowerInvariant()}', wanted '{arg}'";
+            }
             case "emulate-media":
                 await core.CallDevToolsProtocolMethodAsync("Emulation.setEmulatedMedia", JsonSerializer.Serialize(new { media = arg == "none" ? "" : arg }));
                 return null;
