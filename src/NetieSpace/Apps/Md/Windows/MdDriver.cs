@@ -219,11 +219,13 @@ public sealed class MdDriver
             case "answer-external":
                 _allowExternal = arg.Equals("yes", StringComparison.OrdinalIgnoreCase);
                 return null;
+            // UI Automation Invoke and page messages reach the view a moment later: poll, do not read once.
             case "expect-asked":
-                return _asked.Any(a => a.Contains(arg, StringComparison.Ordinal)) ? null : $"asked: [{string.Join(", ", _asked)}]";
+                return await WaitAsync(() => Task.FromResult(_asked.Any(a => a.Contains(arg, StringComparison.Ordinal))), 3) ? null : $"asked: [{string.Join(", ", _asked)}]";
             case "expect-launched":
-                return _launched.Any(a => a.Contains(arg, StringComparison.Ordinal)) ? null : $"launched: [{string.Join(", ", _launched)}]";
+                return await WaitAsync(() => Task.FromResult(_launched.Any(a => a.Contains(arg, StringComparison.Ordinal))), 3) ? null : $"launched: [{string.Join(", ", _launched)}]";
             case "expect-not-launched":
+                await Task.Delay(500);
                 return _launched.Count == 0 ? null : $"launched: [{string.Join(", ", _launched)}]";
             case "expect-clipboard":
                 return Clipboard.ContainsText() && Clipboard.GetText().Contains(arg, StringComparison.Ordinal) ? null : "clipboard does not hold the text";

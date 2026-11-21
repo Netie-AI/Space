@@ -174,6 +174,9 @@ Check "md shortcut AUMID read-back" (($readCode -eq 0) -and ($readOut -match "Ne
 $r = Invoke-App @("--unregister-apps")
 Check "md unregister-apps removes the shortcut" (($r.Code -eq 0) -and (-not (Test-Path $mdLnk))) "exit=$($r.Code) $($r.Out) $($r.Err)"
 
+# Sections 7 and 8 run in their own scope: this file is dot-sourced, and a variable such as $root or $r
+# set here would leak into the lanes that run after it (video3 and win2 read $root as the repository).
+& {
 # ====================================================================================================
 # 7. The real use case: a developer opens README.md in a cloned repo. A fixture repo (README, docs/img,
 #    second.md) is driven through the real WebView2 by `--app md --steps` (real mouse clicks and keys through
@@ -527,9 +530,9 @@ try {
     $t = Wait-Title $real2 "second.md - Netie MD" 20
     Check "md second launch shows its file in the open window" ($t -eq "second.md - Netie MD") "title='$t'"
 
-    $root = [System.Windows.Automation.AutomationElement]::FromHandle($real2.MainWindowHandle)
+    $uiRoot = [System.Windows.Automation.AutomationElement]::FromHandle($real2.MainWindowHandle)
     # UI Automation: the Back button (what a screen reader or a test tool presses)
-    $backBtn = Get-UiaButton $root "md-back"
+    $backBtn = Get-UiaButton $uiRoot "md-back"
     Check "md real window has an enabled Back button after a second launch" (($null -ne $backBtn) -and $backBtn.Current.IsEnabled) "found=$($null -ne $backBtn)"
     if ($null -ne $backBtn) {
         Invoke-Uia $backBtn
@@ -537,8 +540,8 @@ try {
         Check "md real window Back returns to the first file" ($t -eq "README.md - Netie MD") "title='$t'"
     }
     # UI Automation: the zoom button changes the label the window shows
-    $zin = Get-UiaButton $root "md-zoom-in"
-    $zlabel = Get-UiaButton $root "md-zoom-label"
+    $zin = Get-UiaButton $uiRoot "md-zoom-in"
+    $zlabel = Get-UiaButton $uiRoot "md-zoom-label"
     if (($null -ne $zin) -and ($null -ne $zlabel)) {
         Invoke-Uia $zin
         Start-Sleep -Milliseconds 700
@@ -548,7 +551,7 @@ try {
     }
 
     # the real Open dialog: press Open, type a path, accept
-    $openBtn = Get-UiaButton $root "md-open"
+    $openBtn = Get-UiaButton $uiRoot "md-open"
     $dialogOk = $false
     $dialogNote = "open button not found"
     if ($null -ne $openBtn) {
@@ -599,4 +602,5 @@ try {
     } catch { Write-Host "md forwarded window screenshot not taken: $($_.Exception.Message)" }
 } finally {
     try { if (-not $real2.HasExited) { $real2.Kill() } } catch { }
+}
 }
