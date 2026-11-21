@@ -138,10 +138,13 @@ public class VideoTool2OverlayTests
         Assert.NotEmpty(progress.Reports);
         Assert.Equal(100, progress.Reports[^1].Percent);
 
+        // The cancel half needs an encode that outlives ffmpeg's 0.5 s progress cadence even on a fast,
+        // idle machine: a flat 6 s clip can finish before the first report, so it gets its own 90 s clip.
         var outDir2 = IoPath.Combine(dir, "out2");
+        var longInput = MakeFlat(dir, "long.mp4", seconds: 90, size: "1280x720", rate: 30, audio: false);
         using var cts = new CancellationTokenSource();
         var cancelAt = new CancelOnProgress(cts);
-        var r = await ToolRunner.RunAsync(tool, req with { OutDir = outDir2 }, cancelAt, cts.Token);
+        var r = await ToolRunner.RunAsync(tool, req with { Files = new[] { longInput }, OutDir = outDir2 }, cancelAt, cts.Token);
         Assert.True(cancelAt.Fired, "vid-add-text finished with no mid-run progress report; make the clip longer");
         Assert.False(r.Ok);
         Assert.Equal("cancelled", r.Error);
