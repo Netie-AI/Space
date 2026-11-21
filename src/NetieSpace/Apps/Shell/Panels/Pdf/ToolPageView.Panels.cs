@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using NetieSpace.Apps.Shell.Panels.Pdf;
 using NetieSpace.Apps.Tools;
+using NetieSpace.Helpers;
 
 namespace NetieSpace.Apps.Shell;
 
@@ -139,15 +140,22 @@ public partial class ToolPageView
 /// <summary>Runs the snapshot's panel step on the UI thread, pumping the dispatcher until it settles or times out.</summary>
 internal static class PanelSnapshot
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+    private static extern bool TerminateProcess(IntPtr process, uint exitCode);
+
     /// <summary>
-    /// Releases the page renderer's WinRT objects while the runtime is still up, so process teardown does not find
-    /// them half alive (the exe exited with 0xC000000D after drawing several pages, though the PNG was written).
+    /// Ends the process now, after the PNG and the PANEL line are written. A snapshot that drew page pictures with
+    /// Windows.Data.Pdf exited with 0xC000000D during normal teardown on CI (a GC and finalizer pass before the exit
+    /// did not change that), although every output was complete. The cause is in that native renderer's shutdown and
+    /// is not found; this skips the teardown so the exit code tells the truth about the snapshot. Only the snapshot
+    /// path calls it, and only on success.
     /// </summary>
-    public static void ReleaseNative()
+    public static void ExitNow(int code)
     {
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        Console.Out.Flush();
+        Console.Error.Flush();
+        AppLogger.Info("[snapshot] panel snapshot done; ending the process without runtime teardown");
+        TerminateProcess(System.Diagnostics.Process.GetCurrentProcess().Handle, (uint)code);
     }
 
     public static string? Run(ToolPageView page, IReadOnlyList<string> files, string? state, TimeSpan timeout)
