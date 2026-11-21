@@ -68,6 +68,95 @@ public static class ImageGeometry
         if ((long)y + h > srcH) throw new ArgumentException($"crop reaches y={(long)y + h} but the image is {srcH} high (option 'height')");
     }
 
+    /// <summary>The ratio width / height of a shape choice ("1:1", "4:5", "16:9"); null for "free" or nothing.</summary>
+    public static double? ParseAspect(string? aspect)
+    {
+        if (string.IsNullOrWhiteSpace(aspect) || string.Equals(aspect.Trim(), "free", StringComparison.OrdinalIgnoreCase))
+            return null;
+        var parts = aspect.Trim().Split(':');
+        if (parts.Length != 2
+            || !double.TryParse(parts[0], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var a)
+            || !double.TryParse(parts[1], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var b)
+            || a <= 0 || b <= 0)
+            throw new ArgumentException($"option 'aspect': '{aspect}' is not free, or a ratio like 1:1");
+        return a / b;
+    }
+
+    /// <summary>Reads "fx,fy,fw,fh": a crop box as fractions (0 to 1) of the picture, left, top, width, height.</summary>
+    public static (double X, double Y, double W, double H) ParseBox(string box)
+    {
+        var parts = box.Split(',');
+        var v = new double[4];
+        if (parts.Length != 4)
+            throw new ArgumentException($"option 'box': '{box}' must be four numbers: left,top,width,height as fractions of the picture");
+        for (var i = 0; i < 4; i++)
+            if (!double.TryParse(parts[i].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v[i])
+                || double.IsNaN(v[i]) || double.IsInfinity(v[i]))
+                throw new ArgumentException($"option 'box': '{parts[i].Trim()}' is not a number");
+        if (v[0] < 0 || v[1] < 0 || v[2] <= 0 || v[3] <= 0 || v[0] + v[2] > 1.0001 || v[1] + v[3] > 1.0001)
+            throw new ArgumentException($"option 'box': '{box}' must lie inside the picture (every number from 0 to 1)");
+        return (v[0], v[1], v[2], v[3]);
+    }
+
+    /// <summary>
+    /// A drawn box (fractions of the picture) as a pixel rectangle on a picture of this size. With a fixed shape the box is
+    /// re-fitted to it: the same width share, the same centre, kept inside the picture, so one box drawn on the first photo
+    /// gives every other photo the same shape (a square stays a square on a portrait and on a landscape).
+    /// </summary>
+    public static (int X, int Y, int W, int H) CropFromBox(int srcW, int srcH, double fx, double fy, double fw, double fh, double? ratio)
+    {
+        if (srcW < 1 || srcH < 1) throw new ArgumentException("source image has no pixels");
+        double w = fw * srcW, h = fh * srcH;
+        var cx = (fx + fw / 2) * srcW;
+        var cy = (fy + fh / 2) * srcH;
+        if (ratio is { } r)
+        {
+            h = w / r;
+            if (h > srcH) { h = srcH; w = h * r; }
+            if (w > srcW) { w = srcW; h = w / r; }
+        }
+        var pw = (int)Math.Clamp(Math.Round(w), 1, srcW);
+        var ph = (int)Math.Clamp(Math.Round(ratio is { } rr ? pw / rr : h), 1, srcH);
+        if (ratio is { } r2 && ph == srcH && Math.Abs((double)pw / ph - r2) > 0.5 / ph)
+            pw = (int)Math.Clamp(Math.Round(ph * r2), 1, srcW);
+        var px = (int)Math.Clamp(Math.Round(cx - pw / 2.0), 0, srcW - pw);
+        var py = (int)Math.Clamp(Math.Round(cy - ph / 2.0), 0, srcH - ph);
+        return (px, py, pw, ph);
+    }
+
+    /// <summary>
+    /// Reads "cx,cy,zoom" for a fixed shape: the box centre as fractions of the picture, and how much of the largest box of
+    /// that shape it is (1 is the largest). The same three numbers fit any photo, whatever its proportions.
+    /// </summary>
+    public static (double Cx, double Cy, double Zoom) ParseZoomBox(string box)
+    {
+        var parts = box.Split(',');
+        var v = new double[3];
+        if (parts.Length != 3)
+            throw new ArgumentException($"option 'box': '{box}' must be three numbers: centre x, centre y, zoom");
+        for (var i = 0; i < 3; i++)
+            if (!double.TryParse(parts[i].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v[i])
+                || double.IsNaN(v[i]) || double.IsInfinity(v[i]))
+                throw new ArgumentException($"option 'box': '{parts[i].Trim()}' is not a number");
+        if (v[0] < 0 || v[0] > 1 || v[1] < 0 || v[1] > 1 || v[2] <= 0 || v[2] > 1.0001)
+            throw new ArgumentException($"option 'box': '{box}' needs a centre inside the picture (0 to 1) and a zoom above 0 up to 1");
+        return (v[0], v[1], Math.Min(1.0, v[2]));
+    }
+
+    /// <summary>The pixel rectangle of a fixed-shape box given as a centre and a zoom of the largest box of that shape.</summary>
+    public static (int X, int Y, int W, int H) CropFromZoom(int srcW, int srcH, double cx, double cy, double zoom, double ratio)
+    {
+        if (srcW < 1 || srcH < 1) throw new ArgumentException("source image has no pixels");
+        var largestW = Math.Min((double)srcW, srcH * ratio);
+        var pw = (int)Math.Clamp(Math.Round(largestW * zoom), 1, srcW);
+        var ph = (int)Math.Clamp(Math.Round(pw / ratio), 1, srcH);
+        if (ph == srcH && Math.Abs((double)pw / ph - ratio) > 0.5 / ph)
+            pw = (int)Math.Clamp(Math.Round(ph * ratio), 1, srcW);
+        var px = (int)Math.Clamp(Math.Round(cx * srcW - pw / 2.0), 0, srcW - pw);
+        var py = (int)Math.Clamp(Math.Round(cy * srcH - ph / 2.0), 0, srcH - ph);
+        return (px, py, pw, ph);
+    }
+
     /// <summary>Rotation in degrees clockwise for a direction choice.</summary>
     public static int RotationDegrees(string direction) => direction.ToLowerInvariant() switch
     {
