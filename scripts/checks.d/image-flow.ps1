@@ -7,7 +7,11 @@ $fl = Join-Path $Out "image-flow"
 $flIn = Join-Path $fl "photos in"
 New-Item -ItemType Directory -Force -Path $flIn | Out-Null
 
-Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @'
+# Windows PowerShell keeps these types in System.Drawing; PowerShell 7 (CI) splits them over System.Drawing.Common and
+# System.Drawing.Primitives. Reference whichever assemblies hold the types in this session.
+Add-Type -AssemblyName System.Drawing
+$drawRefs = @([System.Drawing.Bitmap].Assembly.Location, [System.Drawing.Color].Assembly.Location, [System.Drawing.Imaging.ImageFormat].Assembly.Location) | Select-Object -Unique
+Add-Type -ReferencedAssemblies $drawRefs -TypeDefinition @'
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
