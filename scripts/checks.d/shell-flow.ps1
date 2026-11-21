@@ -39,6 +39,11 @@ $h = Invoke-Shot "shell-home-file" @("--app", "pdf", "--with-file", $sfPdf)
 Check "shell suggested heading names the file" ($h.Text -match 'text "Suggested for Q3_Report.pdf"') ""
 Check "shell suggested tiles are named by the tool" ((Has-Named $h.Text "Button" "Rotate PDF") -or (Has-Named $h.Text "Button" "Merge PDF")) ""
 
+# The tools that suit the file come before the recent sections (the first look at the picture showed them below).
+$iSug = $h.Text.IndexOf('text "Suggested for Q3_Report.pdf"')
+$iRec = $h.Text.IndexOf('text "Recent tools"')
+Check "shell suggestions lead the page" (($iSug -ge 0) -and ($iRec -gt $iSug)) "suggested at $iSug, recent tools at $iRec"
+
 # 2. Recent files and recent tools come from a throw-away folder (never this PC's own history).
 $r1 = Invoke-Shot "shell-home-recents" @("--app", "pdf", "--seed-recents", "$sfPdf;$sfPdf2")
 Check "shell recent files section" (($r1.Text -match 'text "Recent files"') -and ($r1.Text -match 'text "Recent tools"')) ""

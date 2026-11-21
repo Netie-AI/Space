@@ -54,6 +54,9 @@
                 </StackPanel>
             </Border>
 
+            <!-- A file in hand: the tools that suit it come before everything else. -->
+            <StackPanel x:Name="SuggestedHost" Margin="0,4,0,0"/>
+
             <StackPanel x:Name="RecentToolsSection" Margin="0,28,0,0" Visibility="Collapsed">
                 <TextBlock Text="Recent tools" Style="{StaticResource ShellSection}"/>
                 <TextBlock x:Name="RecentToolsEmpty" Style="{StaticResource ShellMutedText}" Margin="0,6,0,0"

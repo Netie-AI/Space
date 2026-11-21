@@ -47,6 +47,7 @@ public partial class HomeView : UserControl
         RecentToolsSection.Visibility = Visibility.Collapsed;
         StartCard.Visibility = Visibility.Collapsed;
         ToolsHost.Children.Clear();
+        SuggestedHost.Children.Clear();
         _tiles.Clear();
     }
 
@@ -99,6 +100,7 @@ public partial class HomeView : UserControl
             RecentRows.Children.Add(RecentRow(r, now, cts.Token));
 
         ToolsHost.Children.Clear();
+        SuggestedHost.Children.Clear();
         _tiles.Clear();
         var emptyLine = grid.EmptyLine is null
             ? null
@@ -108,21 +110,21 @@ public partial class HomeView : UserControl
         ClearSearchButton.Visibility = searching ? Visibility.Visible : Visibility.Collapsed;
 
         if (grid.OpenWithTitle is not null)
-            AddGroup(grid.OpenWithTitle, grid.OpenWith);
+            AddGroup(SuggestedHost, grid.OpenWithTitle, grid.OpenWith);
         foreach (var cat in grid.Categories)
-            AddGroup(cat.Name, cat.Tiles);
+            AddGroup(ToolsHost, cat.Name, cat.Tiles);
     }
 
-    private void AddGroup(string name, IReadOnlyList<HomeTile> tiles)
+    private void AddGroup(Panel host, string name, IReadOnlyList<HomeTile> tiles)
     {
         var header = new TextBlock { Text = name, Margin = new Thickness(0, 20, 0, 10) };
         header.Style = (Style)FindResource("ShellSection");
-        ToolsHost.Children.Add(header);
+        host.Children.Add(header);
 
         var wrap = new WrapPanel { Orientation = Orientation.Horizontal };
         foreach (var tile in tiles)
             wrap.Children.Add(TileButton(tile));
-        ToolsHost.Children.Add(wrap);
+        host.Children.Add(wrap);
     }
 
     private Button RecentRow(RecentEntry r, DateTime now, CancellationToken ct)
