@@ -82,9 +82,11 @@ public partial class ToolPageView : UserControl
 
         BuildOptions();
         OptionsCard.Visibility = _model.Options.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ImageFlow.Attach(_model, OptionsHost, PreviewPanel, files => SetFiles(files)); // hook 1 of 5: image panel
         SetFiles(pendingFile is not null && _model.Accepts(pendingFile)
             ? new[] { pendingFile }
             : Array.Empty<string>());
+        ImageFlow.LoadSnapshot(); // hook 2 of 5: only --snapshot with --flow-files does anything
     }
 
     private void BuildOptions()
@@ -251,6 +253,7 @@ public partial class ToolPageView : UserControl
             FileRows.Children.Add(row);
         }
 
+        ImageFlow.SetFiles(files); // hook 3 of 5
         RefreshPreview();
         NoFilesText.Visibility = files.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         BrowseButton.HorizontalAlignment = files.Count == 0 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
@@ -467,6 +470,7 @@ public partial class ToolPageView : UserControl
     private async void RefreshPreview()
     {
         _previewCts?.Cancel();
+        if (ImageFlow.Active) return; // hook 4 of 5: image tools draw their own preview
         PreviewStrip.Children.Clear();
         PreviewMore.Visibility = Visibility.Collapsed;
         if (_files.Count == 0)
@@ -574,6 +578,7 @@ public partial class ToolPageView : UserControl
     /// <summary>Per-file state under the progress bar; only drawn when more than one file is queued.</summary>
     private void DrawQueue(RunQueue queue)
     {
+        ImageFlow.ShowQueue(queue); // hook 5 of 5
         QueueRows.Children.Clear();
         QueueRows.Visibility = queue.ShowsList ? Visibility.Visible : Visibility.Collapsed;
         if (!queue.ShowsList)
