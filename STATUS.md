@@ -36,16 +36,16 @@
    (Space#3). Proven on CI with AirGPT absent; never run against a live AirGPT.
 11. **No AGPL** -- PyMuPDF/pymupdf4llm removed (pypdfium2, pikepdf, reportlab, svglib LGPL).
    CI python job installs them and fails on any SKIP line. Dev stress scripts still import it.
-13. **PDF flow panels (S50 wave 6, lane W6-2, PR into the integration branch)** -- Merge strip, page grid
+12. **PDF flow panels (S50 wave 6, lane W6-2, PR into the integration branch)** -- Merge strip, page grid
    (Organize / Remove / Rotate) and click-to-place Sign in `Apps/Shell/Panels/Pdf/`; engine pieces are pure and
    under xunit (`PdfFlowTests`). `--snapshot --files --state` renders them; `checks.d/pdf-flow.ps1` asserts the
    page order and the drawn counts. Drag from Explorer, Preview launch, and the look are verified only by CI PNGs.
-12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
+13. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
-13. **Shell UX (S50 wave 6, lane W6-5)** -- drop a file anywhere: "Suggested for <file>" first; Ctrl+K/Ctrl+P quick search, Ctrl+O, Alt+Left, F1; recent files with thumbnails and recent tools per app; human error sentences with one button and a Details fold; window size remembered; light/dark follows Windows. Verified by the CI snapshot pictures and `shell-flow.ps1`; a real drag and theme switch are unverified.
-13. **Video quick edit (S50 wave 6, W6-4)** -- Trim / Video to GIF / Change speed / Mute / Compress open a filmstrip (drag in/out handles, mute and speed sections, caption, presets with a size estimate: WhatsApp under 16 MB, Reel, YouTube 1080p, GIF 480 px 12 fps). Runs as `vid-flow` (not a catalog row; `--tool vid-flow` headless). `--flow-file/--flow-state` snapshots. Unseen by a person until the CI PNGs are read.
-13. **Peek flow (S50 wave 6, PR into the integration branch)** -- Left/Right step files (wrap, "3 of 12"),
+14. **Shell UX (S50 wave 6, lane W6-5)** -- drop a file anywhere: "Suggested for <file>" first; Ctrl+K/Ctrl+P quick search, Ctrl+O, Alt+Left, F1; recent files with thumbnails and recent tools per app; human error sentences with one button and a Details fold; window size remembered; light/dark follows Windows. Verified by the CI snapshot pictures and `shell-flow.ps1`; a real drag and theme switch are unverified.
+15. **Video quick edit (S50 wave 6, W6-4)** -- Trim / Video to GIF / Change speed / Mute / Compress open a filmstrip (drag in/out handles, mute and speed sections, caption, presets with a size estimate: WhatsApp under 16 MB, Reel, YouTube 1080p, GIF 480 px 12 fps). Runs as `vid-flow` (not a catalog row; `--tool vid-flow` headless). `--flow-file/--flow-state` snapshots. Unseen by a person until the CI PNGs are read.
+16. **Peek flow (S50 wave 6, PR into the integration branch)** -- Left/Right step files (wrap, "3 of 12"),
    Ctrl+F find with count, Ctrl+C, Ctrl +/-/0, PDF "Page 7 / 40" and Home/End, "?" cheat sheet, skeleton,
    `[peek] open-to-content` log line. Order is natural name order, not the Explorer view sort. Judged only by
    `check-desktop.ps1` (flow-*.png, open-to-content.json).

@@ -25,6 +25,12 @@ public static class MdHtml
     private static readonly Regex Tag = new(@"<[^>]*>", RegexOptions.CultureInvariant);
     private static readonly Regex SafeId = new(@"^[A-Za-z0-9:_-]{1,64}$", RegexOptions.CultureInvariant);
     private static readonly Regex Space = new(@"\s+", RegexOptions.CultureInvariant);
+    private static readonly Regex CodeBlock = new(
+        @"<pre><code(?: class=""language-([^""]*)"")?>(.*?)</code></pre>", RegexOptions.Singleline | RegexOptions.CultureInvariant);
+    private static readonly Regex SafeLanguage = new(@"^[A-Za-z0-9_+#.-]{1,24}$", RegexOptions.CultureInvariant);
+
+    /// <summary>The label of a ```mermaid block: no renderer is bundled, so the source is shown and says so.</summary>
+    public const string MermaidNote = "Diagram not rendered (no bundled renderer)";
 
     public static MdBody Process(string engineHtml, string documentFolder, Func<string, bool> fileExists)
     {
@@ -44,8 +50,9 @@ public static class MdHtml
                 levels.RemoveAt(levels.Count - 1);
             outline.Add(new MdHeading(id, title, level, levels.Count));
             levels.Add(level);
-            return $"<h{level} id=\"{id}\">{inner}</h{level}>";
+            return $"<h{level} id=\"{id}\">{inner}<a class=\"md-anchor\" href=\"#{id}\" aria-label=\"Link to this section\">#</a></h{level}>";
         });
+        html = CodeBlock.Replace(html, m => WrapCode(m.Groups[1].Success ? m.Groups[1].Value : "", m.Groups[2].Value));
         return new MdBody(html, outline);
     }
 
@@ -56,24 +63,23 @@ public static class MdHtml
         return text.Length == 0 ? "Untitled heading" : text;
     }
 
-    /// <summary>Letters and digits lower-cased, runs of anything else become one "-". Never empty.</summary>
+    /// <summary>
+    /// The anchor GitHub gives a heading, so links written for GitHub ("#whats-new") land here too: lower-case,
+    /// letters, digits, "_" and "-" kept, every space becomes "-", other punctuation is dropped. Never empty.
+    /// </summary>
     public static string Slug(string title)
     {
         var sb = new StringBuilder();
-        var dash = false;
-        foreach (var c in title)
+        foreach (var c in title.Trim())
         {
             if (char.IsLetterOrDigit(c))
-            {
-                if (dash && sb.Length > 0)
-                    sb.Append('-');
-                dash = false;
                 sb.Append(char.ToLowerInvariant(c));
-            }
-            else
-            {
-                dash = true;
-            }
+            else if (c == '_' || c == '-')
+                sb.Append(c);
+            else if (char.IsWhiteSpace(c))
+                sb.Append('-');
+            else if (char.GetUnicodeCategory(c) is System.Globalization.UnicodeCategory.NonSpacingMark or System.Globalization.UnicodeCategory.SpacingCombiningMark)
+                sb.Append(c);
         }
         return sb.Length == 0 ? "section" : sb.ToString();
     }
@@ -89,6 +95,23 @@ public static class MdHtml
             id = slug + "-" + n++;
         next[slug] = n;
         return id;
+    }
+
+    /// <summary>
+    /// A code block with its language label and a Copy button (the page script wires the button). The
+    /// code is the engine's already escaped text; only a plain language name is kept as a class.
+    /// </summary>
+    private static string WrapCode(string language, string escapedCode)
+    {
+        var lang = SafeLanguage.IsMatch(language) ? language : "";
+        var mermaid = string.Equals(lang, "mermaid", StringComparison.OrdinalIgnoreCase);
+        var cls = lang.Length == 0 ? "" : mermaid ? " class=\"language-mermaid nohighlight\"" : $" class=\"language-{lang}\"";
+        var label = lang.Length == 0 ? "" : $"<span class=\"md-lang\">{WebUtility.HtmlEncode(lang)}</span>";
+        var note = mermaid ? $"<span class=\"md-note\">{MermaidNote}</span>" : "";
+        var box = mermaid ? "md-code md-mermaid" : "md-code";
+        return $"<div class=\"{box}\"><div class=\"md-code-bar\">{label}{note}" +
+               "<button type=\"button\" class=\"md-copy\" aria-label=\"Copy code\">Copy</button></div>" +
+               $"<pre><code{cls}>{escapedCode}</code></pre></div>";
     }
 
     private static string RewriteImage(string attrs, string documentFolder, Func<string, bool> fileExists)
