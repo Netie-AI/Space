@@ -17,11 +17,6 @@ public sealed class ConversationMemoryCache
     private readonly ConcurrentDictionary<string, string> _lookupAnswers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> _chatAnswers = new(StringComparer.Ordinal);
 
-    /// <summary>True if this document fingerprint was already included in a chat system prompt.</summary>
-    public bool IsDocumentPrimed(string documentFingerprint) =>
-        !string.IsNullOrEmpty(documentFingerprint) &&
-        _primedDocuments.ContainsKey(documentFingerprint);
-
     public void MarkDocumentPrimed(string documentFingerprint)
     {
         if (string.IsNullOrEmpty(documentFingerprint))

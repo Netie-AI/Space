@@ -1,0 +1,51 @@
+<UserControl x:Class="NetieSpace.Apps.Shell.HomeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="AppTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                  Background="{StaticResource ShellPaper}">
+        <StackPanel Margin="32,28,32,32">
+            <TextBlock x:Name="HomeTitle" Style="{StaticResource ShellTitle}"/>
+            <TextBlock x:Name="LoadingText" Text="Loading" Style="{StaticResource ShellMutedText}"
+                       Margin="0,16,0,0" Visibility="Collapsed"/>
+
+            <Border x:Name="PendingBar" Visibility="Collapsed" Margin="0,16,0,0" Padding="12,6"
+                    Background="{DynamicResource ShellAccentTint}" CornerRadius="{StaticResource ShellRadiusControl}">
+                <DockPanel>
+                    <Button x:Name="ClearPendingButton" Content="Clear" DockPanel.Dock="Right" MinHeight="28"
+                            Padding="10,4" Margin="12,0,0,0"/>
+                    <TextBlock x:Name="PendingText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+            </Border>
+
+            <!-- A fixed width: MaxWidth with a left alignment collapses a TextBox to its minimum. -->
+            <Grid Margin="0,18,0,0" Width="440" HorizontalAlignment="Left">
+                <TextBox x:Name="SearchBox" MinHeight="36" Padding="34,4,10,4"
+                         VerticalContentAlignment="Center" ToolTip="Search"/>
+                <Path Data="M10.5 10.5 L14 14 M11.5 6.75 A4.75 4.75 0 1 1 2 6.75 A4.75 4.75 0 1 1 11.5 6.75"
+                      Stroke="{StaticResource ShellMuted}" StrokeThickness="1.5"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      Width="16" Height="16" Margin="11,0,0,0" HorizontalAlignment="Left"
+                      VerticalAlignment="Center" IsHitTestVisible="False"/>
+                <TextBlock x:Name="SearchHint" Text="Search" Style="{StaticResource ShellMutedText}"
+                           FontSize="13" Margin="35,0,0,0" VerticalAlignment="Center"
+                           IsHitTestVisible="False"/>
+            </Grid>
+
+            <StackPanel x:Name="RecentSection" Margin="0,28,0,0">
+                <TextBlock Text="Recent" Style="{StaticResource ShellSection}"/>
+                <StackPanel x:Name="RecentRows" Margin="0,8,0,0"/>
+            </StackPanel>
+
+            <StackPanel x:Name="ToolsHost" Margin="0,8,0,0"/>
+            <TextBlock x:Name="NoToolsText" Text="No tools" Style="{StaticResource ShellMutedText}"
+                       Margin="0,20,0,0" Visibility="Collapsed"/>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

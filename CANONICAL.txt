@@ -1,6 +1,6 @@
-﻿CANONICAL TREE = D:\Netie Space  (from 2026-07-24 onwards)
+﻿CANONICAL TREE = D:\Space  (from 2026-09-04)
 
 Do NOT edit C:\Users\OoiJianHong\Netie Space for Netie work.
-Claude / Cursor agents: open folder D:\Netie Space only.
-If you wrote to C by mistake: robocopy "D:\Netie Space" "C:\Users\OoiJianHong\Netie Space" /MIR /XD .cursor bin obj
-OR pull the other way only when intentionally promoting.
+D:\Netie Space does not exist on this PC.
+Claude / Cursor agents: open folder D:\Space only.
+C:\Users\OoiJianHong\Netie Space is a stale clone (same git HEAD as July, plus uncommitted Sept patches already migrating here).

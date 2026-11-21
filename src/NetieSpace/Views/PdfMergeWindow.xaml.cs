@@ -36,7 +36,6 @@ public partial class PdfMergeWindow : Window
     private Point _dragStart;
     private MergeRow? _dragItem;
 
-    public IReadOnlyList<string> OrderedPaths => _files.Select(f => f.Path).ToList();
 
     /// <summary>Resolved PDF paths after conversion (set when DialogResult=true).</summary>
     public IReadOnlyList<string> ResolvedPdfPaths { get; private set; } = Array.Empty<string>();

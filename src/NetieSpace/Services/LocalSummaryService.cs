@@ -8,17 +8,21 @@ namespace NetieSpace.Services;
 /// Free offline extractive summary — no API. Used before / instead of paid models.
 /// Ponytail-inspired ladder: prefer local / skip AI when the document is already small enough.
 /// </summary>
-public static class LocalSummaryService
+public static partial class LocalSummaryService
 {
     /// <summary>Below this size, a solid local extract is usually enough — skip the API.</summary>
     public const int SmallDocChars = 2_500;
 
     public static string Build(PreviewContent content, int maxBullets = 5)
     {
-        var text = content.RawText ?? string.Empty;
+        var text = ReadableText(content);
         if (string.IsNullOrWhiteSpace(text) || text.Length < 40)
         {
-            return $"• {content.FileName}\n• Type: {content.Kind}\n• Size: {FormatSize(content.FileSizeBytes)}\n• Open the preview to read the full document.";
+            var meta = $"• {content.FileName}\n• Type: {content.Kind}\n• Size: {FormatSize(content.FileSizeBytes)}";
+            // Only a document has a "full document" to open. A picture or a clip does not.
+            return IsDocumentKind(content.Kind)
+                ? meta + "\n• Open the preview to read the full document."
+                : meta;
         }
 
         var lines = text
@@ -53,6 +57,56 @@ public static class LocalSummaryService
         return string.Join("\n", sentences.Select(s => $"• {s}"));
     }
 
+    /// <summary>Kinds that have a readable document behind the peek, as opposed to a picture or a clip.</summary>
+    private static bool IsDocumentKind(PreviewKind kind) =>
+        kind is PreviewKind.Pdf or PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown or PreviewKind.Text;
+
+    /// <summary>
+    /// The text a person would read in this document. RawText is that text for most kinds, but the
+    /// Office paths that render through the engine, PowerPoint or LibreOffice put a LABEL there
+    /// ("DOCX preview") and keep the words in RenderedHtml. A label is not text: read the page.
+    /// </summary>
+    public static string ReadableText(PreviewContent content)
+    {
+        var raw = content.RawText ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(content.RenderedHtml))
+            return raw;
+        if (!string.IsNullOrWhiteSpace(raw) && raw.Trim().Length >= 40 && !IsPreviewLabel(raw))
+            return raw;
+
+        var fromHtml = HtmlToText(content.RenderedHtml!);
+        return fromHtml.Length > raw.Trim().Length ? fromHtml : raw;
+    }
+
+    /// <summary>"DOCX preview", "PPTX preview", "XLSX preview": a tag for the kind, not content.</summary>
+    private static bool IsPreviewLabel(string raw) =>
+        Regex.IsMatch(raw.Trim(), @"^[A-Za-z]{3,5} preview$", RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Visible text of an HTML page, one line per block (paragraph, heading, list item, table row).
+    /// Scripts, styles and the head are dropped, entities are decoded.
+    /// </summary>
+    public static string HtmlToText(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+            return string.Empty;
+
+        var s = Regex.Replace(html, @"<!--.*?-->", " ", RegexOptions.Singleline);
+        s = Regex.Replace(s, @"<(script|style|head|svg|noscript)\b.*?</\1\s*>", " ",
+            RegexOptions.Singleline | RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"<br\s*/?>|</(p|div|li|ul|ol|h[1-6]|tr|table|section|article|blockquote|pre|details|summary|figure|figcaption)\s*>",
+            "\n", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"</t[dh]\s*>", " ", RegexOptions.IgnoreCase);
+        s = Regex.Replace(s, @"<[^>]+>", string.Empty);
+        s = System.Net.WebUtility.HtmlDecode(s);
+
+        var lines = s.Replace("\r\n", "\n")
+            .Split('\n')
+            .Select(l => Regex.Replace(l, @"[ \t\u00A0]+", " ").Trim())
+            .Where(l => l.Length > 0);
+        return string.Join("\n", lines);
+    }
+
     /// <summary>
     /// True when calling a remote model would add little value (small text, metadata-only,
     /// or a local extract that already has usable bullets). Images always need the API for vision.
@@ -62,7 +116,7 @@ public static class LocalSummaryService
         if (content.Kind == PreviewKind.Image)
             return false;
 
-        var rawLen = content.RawText?.Length ?? 0;
+        var rawLen = ReadableText(content).Length;
         if (rawLen == 0)
             return true;
 
@@ -109,69 +163,6 @@ public static class LocalSummaryService
             return true;
 
         return raw.Contains('{') && raw.Contains("error", StringComparison.OrdinalIgnoreCase) && raw.Length > 80;
-    }
-
-    public static string SanitizeError(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return "Summary unavailable.";
-
-        // Prefer parsed API message when the payload looks like JSON
-        if (raw.Contains('{') || raw.Contains("\"error\"", StringComparison.OrdinalIgnoreCase))
-        {
-            var parsed = AiService.ParseApiErrorMessage(raw);
-            if (!string.IsNullOrWhiteSpace(parsed) &&
-                !parsed.Contains('{') &&
-                parsed.Length < 160)
-                return parsed + " Showing local free summary.";
-        }
-
-        // Never show raw JSON / huge dumps in the summary strip
-        if (raw.Contains("All AI providers failed", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("AI providers unavailable", StringComparison.OrdinalIgnoreCase))
-            return "AI summary skipped (quota/size). Showing local free summary instead.";
-
-        if (raw.Contains("rate_limit", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("Request too large", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("token limit", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("TPM", StringComparison.OrdinalIgnoreCase))
-            return "Provider limit reached — switched to a smaller free summary.";
-
-        if (raw.Contains("key not allowed", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("cannot access this model", StringComparison.OrdinalIgnoreCase))
-            return "SEA-LION model not allowed for this key — using local free summary.";
-
-        if (raw.Contains("402", StringComparison.OrdinalIgnoreCase) ||
-            raw.Contains("credits", StringComparison.OrdinalIgnoreCase))
-            return "Provider needs credits — using free local / Gemini summary.";
-
-        if (raw.Length > 160 || raw.Contains('{') || raw.Contains("\"error\""))
-            return "AI summary unavailable. Showing local free summary.";
-
-        return raw.Length > 180 ? raw[..177] + "…" : raw;
-    }
-
-    /// <summary>Short user-facing message for chat/lookup failures (not the summary strip).</summary>
-    public static string FriendlyChatFailure(string? raw)
-    {
-        if (string.IsNullOrWhiteSpace(raw))
-            return "AI request failed.";
-
-        if (raw.Contains('{') || raw.Contains("\"error\"", StringComparison.OrdinalIgnoreCase))
-        {
-            var parsed = AiService.ParseApiErrorMessage(raw);
-            if (!string.IsNullOrWhiteSpace(parsed) && !parsed.Contains('{'))
-                return parsed;
-        }
-
-        if (LooksLikeProviderFailure(raw))
-            return "AI providers unavailable (quota, size, model access, or credits). Try Switch AI, or add another key.";
-
-        // Never dump long / JSON-looking text into chat
-        if (raw.Length > 180 || raw.Contains('{'))
-            return "AI request failed. Try Switch AI or check API Keys.";
-
-        return raw;
     }
 
     private static bool IsLikelyHeading(string line) =>

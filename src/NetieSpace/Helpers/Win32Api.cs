@@ -21,6 +21,20 @@ internal static class Win32Api
 
     public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+    // Taskbar identity for the Netie app processes (Apps/Shell). HRESULT: 0 = S_OK.
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
+    public const uint AttachParentProcess = 0xFFFFFFFF;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AttachConsole(uint dwProcessId);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetCurrentProcessExplicitAppUserModelID(
+        [MarshalAs(UnmanagedType.LPWStr)] out string appId);
+
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
@@ -39,6 +53,48 @@ internal static class Win32Api
 
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    public static readonly IntPtr HwndTopmost = new(-1);
+    public const uint SwpNomove = 0x0002;
+    public const uint SwpNosize = 0x0001;
+    public const uint SwpNoactivate = 0x0010;
+    public const int GwlExstyle = -20;
+    public const int WsExTopmost = 0x00000008;
+    public const int WmWindowposchanged = 0x0047;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    [DllImport("user32.dll")]
+    public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    /// <summary>Keep HWND_TOPMOST without stealing focus (acrylic/WebView2 often drops it).</summary>
+    public static void EnsureTopmostNoActivate(IntPtr hwnd)
+    {
+        if (hwnd == IntPtr.Zero)
+            return;
+        try
+        {
+            var ex = GetWindowLong(hwnd, GwlExstyle);
+            if ((ex & WsExTopmost) != 0)
+                return;
+            SetWindowPos(hwnd, HwndTopmost, 0, 0, 0, 0, SwpNomove | SwpNosize | SwpNoactivate);
+        }
+        catch { /* ignore */ }
+    }
+
+    /// <summary>True when the foreground window belongs to this process (preview / owned dialogs).</summary>
+    public static bool IsOurProcessForeground()
+    {
+        var fg = GetForegroundWindow();
+        if (fg == IntPtr.Zero)
+            return false;
+        GetWindowThreadProcessId(fg, out var pid);
+        if (pid == 0)
+            return false;
+        return pid == (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+    }
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
     public static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
@@ -138,6 +194,64 @@ internal static class Win32Api
 
     public static bool IsDesktopClass(string className) =>
         className is "Progman" or "WorkerW";
+
+    /// <summary>
+    /// True when Explorer/Desktop F2 rename (or in-place label edit) owns the caret.
+    /// Space must type a space, not open/close preview.
+    /// </summary>
+    public static bool IsExplorerLabelEdit()
+    {
+        try
+        {
+            var info = new GuiThreadInfo { cbSize = Marshal.SizeOf<GuiThreadInfo>() };
+            if (!GetGUIThreadInfo(0, ref info))
+                return false;
+
+            foreach (var hwnd in new[] { info.hwndFocus, info.hwndCaret })
+            {
+                if (hwnd == IntPtr.Zero)
+                    continue;
+                if (!IsEditClass(GetWindowClass(hwnd)))
+                    continue;
+                if (HasExplorerListAncestor(hwnd))
+                    return true;
+            }
+        }
+        catch { /* fail closed = not editing */ }
+
+        return false;
+    }
+
+    private static bool IsEditClass(string cls) =>
+        cls is "Edit" or "RichEdit20W" or "RichEdit20A" or "RichEdit50W" ||
+        cls.StartsWith("RichEdit", StringComparison.OrdinalIgnoreCase);
+
+    private static bool HasExplorerListAncestor(IntPtr hwnd)
+    {
+        var current = hwnd;
+        for (var i = 0; i < 16 && current != IntPtr.Zero; i++)
+        {
+            var cls = GetWindowClass(current);
+            if (cls is "SysListView32" or "DirectUIHWND" or "SHELLDLL_DefView"
+                or "Progman" or "WorkerW" or "CabinetWClass" or "ExploreWClass")
+                return true;
+
+            var parent = GetParent(current);
+            if (parent == IntPtr.Zero || parent == current)
+            {
+                var root = GetRootWindow(current);
+                if (root != IntPtr.Zero && root != current)
+                {
+                    var rootCls = GetWindowClass(root);
+                    if (rootCls is "Progman" or "WorkerW" or "CabinetWClass" or "ExploreWClass")
+                        return true;
+                }
+                break;
+            }
+            current = parent;
+        }
+        return false;
+    }
 
     /// <summary>Work-area rect for the monitor that owns hwnd (falls back to primary work area).</summary>
     public static bool TryGetMonitorWorkArea(IntPtr hwnd, out RECT work)
@@ -276,7 +390,6 @@ internal static class Win32Api
     public static extern int StrCmpLogicalW(string psz1, string psz2);
 
     public const int WmKeyup = 0x0101;
-    public const int WmChar = 0x0102;
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -413,12 +526,12 @@ internal static class Win32Api
         }
     }
 
+    [DllImport("user32.dll")]
+    public static extern uint GetDoubleClickTime();
+
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern int RegisterApplicationRestart(string? pwzCommandLine, int dwFlags);
 
-    public const int RestartNoCrash = 1;
-    public const int RestartNoHang = 2;
-    public const int RestartNoPatch = 4;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct KbdLlHookStruct

@@ -1,0 +1,8 @@
+﻿marked — MIT License
+https://github.com/markedjs/marked
+Downloaded for offline Netie Space Markdown dual-pane edit.
+
+KaTeX — MIT License
+https://github.com/KaTeX/KaTeX
+v0.16.11 js/css + subset of woff2 fonts (Main, Math-Italic, Size1/2/4).
+Offline LaTeX in md-editor.html (themarkdowneditor.app DISTILL: render math, do not clone the paid app).

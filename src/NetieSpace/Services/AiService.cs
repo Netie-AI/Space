@@ -99,11 +99,13 @@ public sealed class AiService
             AppLogger.Warn($"Local brain prepare: {ex.Message}");
         }
 
-        var rawLen = content.RawText?.Length ?? 0;
+        // RawText can be a label ("DOCX preview") for Office kinds; summarize the words, not the tag.
+        var readable = LocalSummaryService.ReadableText(content);
+        var rawLen = readable.Length;
         var huge = rawLen > HugeDocChars;
         // Free-tier friendly: truncate hard + always prefer smaller summary model
         var excerpt = LocalSummaryService.TruncateForAi(
-            content.RawText,
+            readable,
             huge ? SummaryCharsHuge : SummaryCharsNormal);
 
         var userPayload = string.IsNullOrWhiteSpace(brainDigest)

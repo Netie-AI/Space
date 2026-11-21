@@ -32,6 +32,19 @@ public static class UserPrefs
         set => Write("StartupHudSeen", value ? "1" : "0");
     }
 
+    /// <summary>Last PDF viewer zoom percent. 0 = Fit mode.</summary>
+    public static int PdfZoomPercent
+    {
+        get
+        {
+            var raw = Read("PdfZoomPercent");
+            if (string.IsNullOrWhiteSpace(raw) || !int.TryParse(raw, out var n))
+                return 0;
+            return Math.Clamp(n, 0, 400);
+        }
+        set => Write("PdfZoomPercent", Math.Clamp(value, 0, 400).ToString());
+    }
+
     /// <summary>User opted in to proprietary local dual-brain embeddings (never uploaded).</summary>
     public static bool EmbeddingConsentAccepted
     {
@@ -44,6 +57,27 @@ public static class UserPrefs
     {
         get => ReadBool("EmbeddingConsentPrompted", defaultValue: false);
         set => Write("EmbeddingConsentPrompted", value ? "1" : "0");
+    }
+
+    /// <summary>User answered "Never ask" to the Save-time Autofill harvest. Default is to ask.</summary>
+    public static bool ProfileHarvestOptOut
+    {
+        get => ReadBool("ProfileHarvestOptOut", defaultValue: false);
+        set => Write("ProfileHarvestOptOut", value ? "1" : "0");
+    }
+
+    /// <summary>User allowed chat/summary text to leave this PC (SEC-01 disclose).</summary>
+    public static bool CloudPathAcknowledged
+    {
+        get => ReadBool("CloudPathAcknowledged", defaultValue: false);
+        set => Write("CloudPathAcknowledged", value ? "1" : "0");
+    }
+
+    /// <summary>Cloud-path dialog already shown once (allow or keep-local).</summary>
+    public static bool CloudPathPrompted
+    {
+        get => ReadBool("CloudPathPrompted", defaultValue: false);
+        set => Write("CloudPathPrompted", value ? "1" : "0");
     }
 
     public static bool ReadBool(string key, bool defaultValue)

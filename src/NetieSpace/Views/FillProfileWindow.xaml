@@ -1,0 +1,67 @@
+<Window x:Class="NetieSpace.Views.FillProfileWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="My details - NETIE SPACE"
+        Width="460"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        SizeToContent="Height">
+    <Border x:Name="RootBorder" Margin="0" Background="Transparent">
+        <Border CornerRadius="16" BorderThickness="1" BorderBrush="{StaticResource GlassBorder}"
+                Padding="20" ClipToBounds="True">
+            <Border.Background>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1" Opacity="0.92">
+                    <GradientStop Color="#E8181C28" Offset="0"/>
+                    <GradientStop Color="#D0101420" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.Background>
+            <StackPanel>
+                <TextBlock Text="My details" FontSize="15" FontWeight="SemiBold"
+                           Foreground="{StaticResource TextBrush}" Margin="0,0,0,4"/>
+                <TextBlock TextWrapping="Wrap" Margin="0,0,0,14" FontSize="12"
+                           Foreground="{StaticResource MutedBrush}"
+                           Text="Stored on this PC only (Windows DPAPI). Autofill matches field type - dates keep Jun vs June from the form. Nothing is uploaded."/>
+
+                <TextBlock Text="Full name" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="NameBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Email" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="EmailBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Phone" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="PhoneBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Address" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="AddressBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"
+                         AcceptsReturn="True" TextWrapping="Wrap" Height="56" VerticalScrollBarVisibility="Auto"/>
+
+                <TextBlock Text="Date of birth" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="DobBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"
+                         ToolTip="Any common date. Autofill reformats to the field (27-Jun-2003 vs 27/06/2003)."/>
+
+                <TextBlock Text="Nationality" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <TextBox x:Name="NationalityBox" Style="{StaticResource GlassTextBox}" Margin="0,0,0,10"/>
+
+                <TextBlock Text="Preferred date format" Foreground="{StaticResource TextBrush}" FontSize="12" Margin="0,0,0,4"/>
+                <ComboBox x:Name="DateFormatBox" Margin="0,0,0,16" Height="32">
+                    <ComboBoxItem Content="27-Jun-2003" Tag="dd-MMM-yyyy"/>
+                    <ComboBoxItem Content="27/06/2003" Tag="dd/MM/yyyy"/>
+                    <ComboBoxItem Content="2003-06-27" Tag="yyyy-MM-dd"/>
+                    <ComboBoxItem Content="June 27, 2003" Tag="MMMM d, yyyy"/>
+                    <ComboBoxItem Content="27/Jun/2003" Tag="dd/MMM/yyyy"/>
+                </ComboBox>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Cancel" Style="{StaticResource EditorChip}" Margin="0,0,8,0"
+                            IsCancel="True" Click="Cancel_Click"/>
+                    <Button Content="Save" Style="{StaticResource EditorChipPrimary}"
+                            IsDefault="True" Click="Ok_Click"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Border>
+</Window>

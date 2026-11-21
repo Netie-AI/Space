@@ -46,22 +46,6 @@ public sealed class DocumentChatStore
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    /// <summary>Display title for AirGPT / UI — the file name, not the full path.</summary>
-    public static string TitleForPath(string filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath))
-            return "Notes & chat";
-        try
-        {
-            var name = IoPath.GetFileName(filePath.Trim());
-            return string.IsNullOrWhiteSpace(name) ? "Notes & chat" : name;
-        }
-        catch
-        {
-            return "Notes & chat";
-        }
-    }
-
     public DocumentChatThread Load(string filePath)
     {
         var key = KeyForPath(filePath);

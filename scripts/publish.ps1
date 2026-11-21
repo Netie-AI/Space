@@ -8,6 +8,8 @@ param(
     [switch]$RegisterStartup,
     [switch]$IncludeVenv,
     [switch]$IncludeEnv,
+    # CI / installer builds: do not write the build machine's HKCU Open-with keys.
+    [switch]$NoRegister,
     [ValidateRange(1, 20)]
     [int]$MaxRetries = 5,
     [ValidateRange(1, 60)]
@@ -140,6 +142,18 @@ if (Test-Path $codeSrc) {
     Write-Host "[OK] Copied Assets/code-viewer/" -ForegroundColor Green
 }
 
+# Per-app icons (Netie PDF / Image / Video). Start Menu shortcuts and --register-apps read them
+# from <exe folder>\Assets\apps; single-file publish does not place Content items there.
+$appsSrc = Join-Path $root 'src\NetieSpace\Assets\apps'
+$appsDst = Join-Path $dist 'Assets\apps'
+if (Test-Path $appsSrc) {
+    Invoke-WithRetry -Description 'Copying app icons' -Operation {
+        New-Item -ItemType Directory -Force -Path $appsDst | Out-Null
+        Copy-Item (Join-Path $appsSrc '*') $appsDst -Recurse -Force
+    }
+    Write-Host "[OK] Copied Assets/apps/" -ForegroundColor Green
+}
+
 # Bundle icon next to portable exe
 $icoSrc = Join-Path $root 'src\NetieSpace\Assets\netie.ico'
 if (Test-Path $icoSrc) {
@@ -148,6 +162,15 @@ if (Test-Path $icoSrc) {
     Copy-Item $icoSrc (Join-Path $icoDst 'netie.ico') -Force
     Write-Host "[OK] Copied Assets/netie.ico" -ForegroundColor Green
 }
+
+# Third-party licence notice (FFmpeg GPLv3 and the managed packages). The engine gate below
+# fails the package when ffmpeg.exe ships without it.
+$noticeSrc = Join-Path $root 'THIRD-PARTY-NOTICES.txt'
+if (-not (Test-Path $noticeSrc)) {
+    throw "THIRD-PARTY-NOTICES.txt is missing from the repo root; a package must not ship without it."
+}
+Copy-Item $noticeSrc (Join-Path $dist 'THIRD-PARTY-NOTICES.txt') -Force
+Write-Host "[OK] Copied THIRD-PARTY-NOTICES.txt" -ForegroundColor Green
 
 $envSrc = Join-Path $root '.env'
 # Dev-only: customer releases must NOT ship API keys. Use -IncludeEnv for local portable testing.
@@ -171,6 +194,12 @@ if ($IncludeVenv -and (Test-Path $venvSrc)) {
     }
     Write-Host "[OK] Copied .venv" -ForegroundColor Green
 }
+
+# Shipping gate: no AGPL engine (PyMuPDF, pymupdf4llm, Ghostscript, OnlyOffice) in the package.
+# Runs on the final dist, after everything is copied and before the package is finished.
+# There is no override: a dev build that needs PyMuPDF runs from the repo and is not a package.
+& (Join-Path $PSScriptRoot 'check-tool-engines.ps1') -Dist $dist
+if ($LASTEXITCODE -ne 0) { throw "Shipping gate failed - see check-tool-engines output" }
 
 # Launcher
 Invoke-WithRetry -Description 'Writing launcher' -Operation {
@@ -200,4 +229,11 @@ if (Test-Path $pluginSrc) {
 
 if ($RegisterStartup) {
     & (Join-Path $PSScriptRoot 'register-startup.ps1') -ExePath $exe
+}
+
+# Additive Explorer Open with + Start Menu. Does not steal Word/Excel/PDF defaults.
+if ($NoRegister) {
+    Write-Host "[SKIP] register-open-with (-NoRegister)" -ForegroundColor Yellow
+} else {
+    & (Join-Path $PSScriptRoot 'register-open-with.ps1') -ExePath $exe
 }

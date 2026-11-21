@@ -1,23 +1,48 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      Windows: the WinRT TFM plus WPF, so engine code under Apps/Tools is tested against
+      the same surface the WinExe ships (WinRtSmokeTests proves the TFM move is real).
+      Linux (scripts/ci-cursor.sh): plain net8.0, WinRT tests compile out under #if WINDOWS.
+    -->
+    <!-- -p:NetieWindowsTests=true compile-checks the Windows shape from Linux (no run). -->
+    <NetieWindowsTests Condition="'$(NetieWindowsTests)' == ''">$([MSBuild]::IsOSPlatform('Windows'))</NetieWindowsTests>
+    <TargetFramework Condition="'$(NetieWindowsTests)' == 'true'">net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework Condition="'$(NetieWindowsTests)' != 'true'">net8.0</TargetFramework>
+    <UseWPF Condition="'$(NetieWindowsTests)' == 'true'">true</UseWPF>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>NetieSpace.Tests</RootNamespace>
+    <!-- Linked DPAPI sources are Windows-only; this suite only ever runs on Windows. -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="8.0.1" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
     <PackageReference Include="PdfSharpCore" Version="1.3.65" />
+    <PackageReference Include="PdfPig" Version="0.1.9" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.2.0" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+
+  <!-- Windows-only tool and app code under Apps\*\Windows may host WebView2 (HTML to PDF, Netie MD). -->
+  <ItemGroup Condition="'$(NetieWindowsTests)' == 'true'">
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+  </ItemGroup>
+
+  <!-- UseWPF drops these two from the implicit usings; the suite is written against them. -->
+  <ItemGroup Condition="'$(NetieWindowsTests)' == 'true'">
+    <Using Include="System.IO" />
+    <Using Include="System.Net.Http" />
   </ItemGroup>
 
   <!--
@@ -29,6 +54,10 @@
     <Compile Include="..\..\src\NetieSpace\Services\VideoEditSession.cs" Link="Linked\VideoEditSession.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\Timeline\TimelineProject.cs" Link="Linked\TimelineProject.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\CortexWasmPolicy.cs" Link="Linked\CortexWasmPolicy.cs" />
+    <!-- Peek summary: pure extractive half (LocalSummaryErrors.cs reads AiService and stays out). -->
+    <Compile Include="..\..\src\NetieSpace\Models\AppModels.cs" Link="Linked\Models\AppModels.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\LocalSummaryService.cs" Link="Linked\LocalSummaryService.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\PeekChromeRules.cs" Link="Linked\PeekChromeRules.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegExportGraph.cs" Link="Linked\FfmpegExportGraph.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegService.cs" Link="Linked\FfmpegService.cs" />
     <Compile Include="..\..\src\NetieSpace\Helpers\AppLogger.cs" Link="Linked\AppLogger.cs" />
@@ -38,6 +67,38 @@
     <Compile Include="..\..\src\NetieSpace\Services\PdfCmsSigner.cs" Link="Linked\PdfCmsSigner.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\PdfClassicXref.cs" Link="Linked\PdfClassicXref.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\Licensing\LicenseOffline.cs" Link="Linked\LicenseOffline.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\EnvLoader.cs" Link="Linked\EnvLoader.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\FillProfileStore.cs" Link="Linked\FillProfileStore.cs" />
+    <Compile Include="..\..\src\NetieSpace\Services\FillProfileHarvest.cs" Link="Linked\FillProfileHarvest.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppIdentity.cs" Link="Linked\Apps\Shell\AppIdentity.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppLaunch.cs" Link="Linked\Apps\Shell\AppLaunch.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\PeekBridge.cs" Link="Linked\Apps\Shell\PeekBridge.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\RecentFiles.cs" Link="Linked\Apps\Shell\RecentFiles.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolPageModel.cs" Link="Linked\Apps\Shell\ToolPageModel.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\HomeModel.cs" Link="Linked\Apps\Shell\HomeModel.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\SnapshotArgs.cs" Link="Linked\Apps\Shell\SnapshotArgs.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\TileGlyphs.cs" Link="Linked\Apps\Shell\TileGlyphs.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolGlyphs.cs" Link="Linked\Apps\Shell\ToolGlyphs.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\OptionLabels.cs" Link="Linked\Apps\Shell\OptionLabels.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppPalette.cs" Link="Linked\Apps\Shell\AppPalette.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\PreviewPlan.cs" Link="Linked\Apps\Shell\PreviewPlan.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolSearch.cs" Link="Linked\Apps\Shell\ToolSearch.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\OpenWith.cs" Link="Linked\Apps\Shell\OpenWith.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\ToolState.cs" Link="Linked\Apps\Shell\ToolState.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\OutputFolder.cs" Link="Linked\Apps\Shell\OutputFolder.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\RunQueue.cs" Link="Linked\Apps\Shell\RunQueue.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Shell\AppRegistration.cs" Link="Linked\Apps\Shell\AppRegistration.cs" />
+    <!-- Tool providers (S50-E3 / E4 / E5). Code that needs WPF, WIC or WinRT lives under a
+         Windows\ subfolder: it is linked only in the Windows shape, never on the Linux gate. -->
+    <Compile Include="..\..\src\NetieSpace\Apps\Pdf\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Pdf\Windows\**" Link="Linked\Apps\Pdf\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Image\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Image\Windows\**" Link="Linked\Apps\Image\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Video\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Video\Windows\**" Link="Linked\Apps\Video\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Bridge\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Bridge\Windows\**" Link="Linked\Apps\Bridge\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Md\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Md\Windows\**" Link="Linked\Apps\Md\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Condition="'$(NetieWindowsTests)' == 'true'" Include="..\..\src\NetieSpace\Apps\*\Windows\**\*.cs" Link="Linked\Apps\Windows\%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- PptxDeck is pure Open XML (no WinRT), so the Linux gate compiles it too and can run its tests. -->
+    <Compile Condition="'$(NetieWindowsTests)' != 'true'" Include="..\..\src\NetieSpace\Apps\Pdf\Windows\PptxDeck.cs" Link="Linked\Apps\Windows\Pdf\PptxDeck.cs" />
+    <Compile Include="..\..\src\NetieSpace\Apps\Tools\**\*.cs" Exclude="..\..\src\NetieSpace\Apps\Tools\Windows\**" Link="Linked\Apps\Tools\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

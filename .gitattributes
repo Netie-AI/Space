@@ -1,0 +1,6 @@
+# PDFs, images, fonts and models are bytes: never rewrite line endings (an ASCII PDF breaks its xref offsets)
+*.pdf binary
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.ico binary

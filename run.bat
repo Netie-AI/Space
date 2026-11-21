@@ -4,8 +4,8 @@ set "PATH=%LOCALAPPDATA%\Microsoft\dotnet;%PATH%"
 cd /d "%~dp0"
 
 set "DIST_EXE=%~dp0dist\NetieSpace\NetieSpace.exe"
-set "DEV_DLL=%~dp0src\NetieSpace\bin\Release\net8.0-windows\win-x64\NetieSpace.dll"
-set "DEV_DLL2=%~dp0src\NetieSpace\bin\Release\net8.0-windows\NetieSpace.dll"
+set "DEV_DLL=%~dp0src\NetieSpace\bin\Release\net8.0-windows10.0.19041.0\win-x64\NetieSpace.dll"
+set "DEV_DLL2=%~dp0src\NetieSpace\bin\Release\net8.0-windows10.0.19041.0\NetieSpace.dll"
 
 REM Prefer self-contained portable build - no .NET runtime popup
 if exist "%DIST_EXE%" (

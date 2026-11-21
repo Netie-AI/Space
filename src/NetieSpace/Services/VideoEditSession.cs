@@ -403,38 +403,6 @@ public sealed class VideoEditSession
         return true;
     }
 
-    /// <summary>Ripple-delete source range [from,to) from all kept segments (Premiere lift/extract light).</summary>
-    public bool DeleteRange(TimeSpan from, TimeSpan to)
-    {
-        if (to <= from)
-            return false;
-
-        var next = new List<KeptClip>();
-        var changed = false;
-        foreach (var c in _kept)
-        {
-            if (c.End <= from || c.Start >= to)
-            {
-                next.Add(c);
-                continue;
-            }
-
-            changed = true;
-            if (c.Start < from)
-                next.Add(c with { End = from });
-            if (c.End > to)
-                next.Add(c with { Start = to });
-        }
-
-        if (!changed)
-            return false;
-
-        _kept.Clear();
-        _kept.AddRange(next.Where(s => s.End - s.Start >= TimeSpan.FromMilliseconds(80)));
-        SelectedIndex = -1;
-        return true;
-    }
-
     /// <summary>
     /// Packed timeline start of a kept clip. <see cref="KeptClip.Start"/> is the
     /// source in-point (often 0 on + Clip), so a black title card must not use it.

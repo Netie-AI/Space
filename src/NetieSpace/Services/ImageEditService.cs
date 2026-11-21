@@ -2,7 +2,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Microsoft.Win32;
 using NetieSpace.Helpers;
 using NetieSpace.Views;
 
@@ -82,6 +81,46 @@ public static class ImageEditService
         using (var fs = IoFile.Create(dest))
             encoder.Save(fs);
 
+        return dest;
+    }
+
+    /// <summary>Write a 90-degree clockwise copy beside the source (does not overwrite).</summary>
+    public static string Rotate90Cw(string sourcePath)
+    {
+        if (!IoFile.Exists(sourcePath))
+            throw new FileNotFoundException("Image not found", sourcePath);
+        if (IsAnimatedGif(sourcePath))
+            throw new InvalidOperationException("Animated GIFs cannot be rotated here — frames would flatten.");
+
+        var source = LoadBitmap(sourcePath);
+        var rotated = new TransformedBitmap(source, new RotateTransform(90));
+        rotated.Freeze();
+        var ext = IoPath.GetExtension(sourcePath).ToLowerInvariant();
+        BitmapEncoder encoder = ext switch
+        {
+            ".jpg" or ".jpeg" => new JpegBitmapEncoder { QualityLevel = 92 },
+            ".png" => new PngBitmapEncoder(),
+            ".bmp" => new BmpBitmapEncoder(),
+            ".tif" or ".tiff" => new TiffBitmapEncoder { Compression = TiffCompressOption.Zip },
+            ".gif" => new GifBitmapEncoder(),
+            _ => new PngBitmapEncoder()
+        };
+        var outExt = ext is ".jpg" or ".jpeg" or ".png" or ".bmp" or ".tif" or ".tiff" or ".gif"
+            ? ext
+            : ".png";
+        encoder.Frames.Add(BitmapFrame.Create(rotated));
+
+        var dir = IoPath.GetDirectoryName(sourcePath) ?? ".";
+        var name = IoPath.GetFileNameWithoutExtension(sourcePath);
+        var dest = IoPath.Combine(dir, name + "_r90" + outExt);
+        var i = 1;
+        while (IoFile.Exists(dest))
+        {
+            dest = IoPath.Combine(dir, $"{name}_r90_{i}{outExt}");
+            i++;
+        }
+        using (var fs = IoFile.Create(dest))
+            encoder.Save(fs);
         return dest;
     }
 
@@ -171,25 +210,6 @@ public static class ImageEditService
         if (choice is null or "cancel") return null;
         var q = choice switch { "q60" => 60, "q85" => 85, _ => 75 };
         return Compress(sourcePath, q, overwrite: false);
-    }
-
-    public static string? PromptSaveAs(Window owner, string sourcePath)
-    {
-        var dlg = new SaveFileDialog
-        {
-            Title = "Save compressed JPEG",
-            Filter = "JPEG|*.jpg;*.jpeg",
-            FileName = IoPath.GetFileNameWithoutExtension(sourcePath) + "_compressed.jpg",
-            InitialDirectory = IoPath.GetDirectoryName(sourcePath)
-        };
-        if (dlg.ShowDialog(owner) != true) return null;
-
-        var bmp = LoadBitmap(sourcePath);
-        var encoder = new JpegBitmapEncoder { QualityLevel = 75 };
-        encoder.Frames.Add(BitmapFrame.Create(bmp));
-        using var fs = IoFile.Create(dlg.FileName);
-        encoder.Save(fs);
-        return dlg.FileName;
     }
 
     /// <summary>True when a GIF has more than one frame (animation would be lost on re-encode).</summary>

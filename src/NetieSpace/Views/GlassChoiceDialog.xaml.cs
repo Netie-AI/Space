@@ -78,13 +78,4 @@ public partial class GlassChoiceDialog : Window
         var dlg = new GlassChoiceDialog(title, body, choices, null) { Owner = owner };
         return dlg.ShowDialog() == true ? dlg.SelectedId : null;
     }
-
-    public static (string? Id, string? ExtraText) ShowWithText(
-        Window owner, string title, string body,
-        IReadOnlyList<(string Id, string Label, bool Primary)> choices,
-        string extraPlaceholder)
-    {
-        var dlg = new GlassChoiceDialog(title, body, choices, extraPlaceholder) { Owner = owner };
-        return dlg.ShowDialog() == true ? (dlg.SelectedId, dlg.ExtraText) : (null, null);
-    }
 }

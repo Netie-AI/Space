@@ -79,6 +79,19 @@ without a WinAppSDK package. Down -> toast/status + `{file}.winai-input.json`.
 Up (WinML present) -> toast only, no sidecar. rembg / Copy still work.
 Live enhance / Copilot+ GPU is still human.
 
+## GitHub Actions hosted runners
+
+Status 2026-11-20: unlocked. Hosted runs start and execute steps again (run
+`43334963084`, 2026-11-13: 964 xunit passed on Windows). The text below is the 2026-08
+lock, kept for the day it returns.
+
+Private-repo jobs never start. Annotation:
+
+> The job was not started because recent account payments have failed or
+> your spending limit needs to be increased.
+
+Unlock: `docs/HUMAN_GHA_BILLING.md`. Do not merge while `CI` is red.
+
 ## P7 — do not start
 
 - Rust/Go rewrite

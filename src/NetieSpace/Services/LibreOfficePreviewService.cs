@@ -109,6 +109,31 @@ public static class LibreOfficePreviewService
         return null;
     }
 
+    /// <summary>Open PPTX/ODP in the installed LibreOffice GUI (not headless). OnlyOffice AGPL stays banned.</summary>
+    public static bool TryOpenForEdit(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !IoFile.Exists(path))
+            return false;
+        var soffice = FindSoffice();
+        if (soffice is null)
+            return false;
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = soffice,
+                Arguments = "\"" + path.Replace("\"", "") + "\"",
+                UseShellExecute = false
+            });
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"LibreOffice edit launch failed: {ex.Message}");
+            return false;
+        }
+    }
+
     private static bool TryConvert(string soffice, string pptxPath, string outDir, string format)
     {
         try

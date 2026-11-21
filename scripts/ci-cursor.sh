@@ -36,6 +36,11 @@ fi
 export CI=1
 dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo --blame-hang-timeout 2m
 
+echo "== xunit windows shape (compile only; WinRtSmokeTests RUNS ONLY ON WINDOWS CI, not here)"
+dotnet build tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo -p:NetieWindowsTests=true -p:EnableWindowsTargeting=true
+# Put the Linux-shape restore back so a later `dotnet test` in this checkout does not need one.
+dotnet restore tests/NetieSpace.Tests/NetieSpace.Tests.csproj --nologo >/dev/null
+
 echo "== winexe (EnableWindowsTargeting; no run)"
 dotnet build src/NetieSpace/NetieSpace.csproj -c Debug --nologo -p:EnableWindowsTargeting=true
 

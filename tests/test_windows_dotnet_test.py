@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CI = ROOT / ".github/workflows/ci.yml"
 SLN = ROOT / "NetieSpace.sln"
+
 CSPROJ = ROOT / "tests/NetieSpace.Tests/NetieSpace.Tests.csproj"
 NLE = ROOT / "tests/NetieSpace.Tests/VideoNleSessionTests.cs"
 
@@ -79,6 +80,10 @@ def test_windows_ci_runs_dotnet_test():
     assert "encode-pillar1-wipe.sh" in cursor_ci
     assert "encode-pillar1-wipe.ps1" in yml
     assert "encode-pillar1-wipe.sh" in yml
+    win = CI.read_text(encoding="utf-8")
+    assert "runs-on: windows-latest" in win
+    assert "check-app-shell.ps1" in win
+    assert "check-tool-engines.ps1 -SelfTest" in win
     install = (ROOT / "scripts/ci-cursor-install.sh").read_text(encoding="utf-8")
     assert "dotnet-install.sh" in install
     assert "--channel 8.0" in install

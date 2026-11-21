@@ -22,6 +22,7 @@ scripts/sfpro-extract/
 tools/
 !tools/
 !tools/convert_engine.py
+native/**/target/
 video-assets/
 installer/
 optional/
@@ -38,3 +39,9 @@ optional/
 *.dll
 *.pdb
 *.nupkg
+
+# Local EP FORM copy for glue tests (4MB; do not vendor)
+src/NetieSpace/Assets/pdfjs/__stress/ep-form.pdf
+
+# Local whisper.cpp install (474MB model; fetched per machine, never vendored)
+tools/whisper/

@@ -421,4 +421,9 @@ public partial class ApiSetupWindow : Window
             StatusText.Text = $"Local vault: {ex.Message}";
         }
     }
+
+    private void MyDetails_Click(object sender, RoutedEventArgs e)
+    {
+        FillProfileWindow.ShowDialogFor(this);
+    }
 }

@@ -23,6 +23,8 @@ python -m http.server 8517 --directory ../../src/NetieSpace/Assets/pdfjs
 
 # 3. in another terminal
 node stress.mjs all        # or phase1 / fill / highlight
+# Live AcroForm+fill glue (needs server + npm i):
+#   NETIE_VIEWER_BASE=http://127.0.0.1:8519 node glue-live.mjs
 ```
 
 Outputs: console PASS/FAIL, `stress_results.json`, `shot_*.png` next to the script.

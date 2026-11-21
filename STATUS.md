@@ -4,57 +4,46 @@
 
 ## Now
 
-1. **Cursor-origin CI** -- `scripts/ci-cursor.sh` (python + license-api + net8 xunit + WinExe `-p:EnableWindowsTargeting=true`). Ignore GHA billing.
-   Live wipe 2.8..3.4s. `ci-cursor.sh` runs wipe + `ExportTimelineAsync`
-   (Leave-black / caption / Mom's clips / Export range / LUT). Windows CI runs encode-pillar1-wipe.ps1.
-2. **Ready PRs #4-#280 landed**. Draft #1 stays draft.
-   Marks are packed seconds. + Clip Video filter lists mpeg / 3gp / flv / ts.
-   WebP/HEIC/ICO Space as Image (WebView2). WebP/TIF/HEIC drop and WebP/HEIC OCR/Copy/Compress/Comfy rasterize via Pillow, not XImage.
-   Play after + Clip advances the packed slider. Clip/fade/caption drag
-   skips the 200ms canvas rebuild (Clear used to abort the drag).
-   Speed 2x shrinks packed width. Order... and Leave-black use that
-   packed length. OV lane and the preview picture show the title card.
-   Leave black seeks, pauses, keeps a V1 hole, and Export pads past V1.
-   Captions after + Clip / Speed / drag / Order use packed time. Wipe
-   Export shifts those times (UI ruler stays pre-wipe). Ctrl+Z
-   restores the sidecar (remap used to stick). Export range slices cues. CI
-   encodes clip-2 (~2.0s) and the full packed window (wipe 2.8..3.4s). Concat
-   lists use file names; LUT `lut3d` copies the cube to %TEMP% so
-   Mom's clips does not open as Moms.
-   Cert sign gates in-app MuPDF compact `/Kids[` / `/Type/Page` (sample.pdf).
-   `install.bat` / `publish.ps1` download gitignored `tools/ffmpeg`.
-   Pillar clip/check scripts use that bundle, not PATH-only.
-   Fade / Wipe / drag / Auto captions / LUT / CC cue push undo so extra Ctrl+Z keeps + Clip.
-   Failed Split / + Clip / cancel Delete / no-op fade-handle / fade-handle
-   or clip-drag capture-loss / second Wipe discard that undo.
-   Ctrl+Z after Leave black restores the title card and fill-gaps flag.
-   A2 uses packed start (preview-only, no amix).
-   Share Export as Word / Excel writes real .docx / .xlsx. Opening those
-   plus .xlsm / SVG / ODT / .ppsx / scan-PDF Word+HTML+MD / photo office PDF+Space HTML (ODF+XLSX) / photo ODS Excel + photo ODP PPTX pictures / HTML Story PDF + MD dest 1 + photo HTML MD + SVG HTML Word+MD + CSS bg/@import+image-set+amp-img+PDF / MD title+ref / wrap dest / pct href / src not data-src / &#46; href / HEIC sibling / data-URI charset / HTML title strip / base href / UTF-8 BOM / UTF-16 HTML / curly src / MD curly dest / UTF-16 MD / UTF-16 CSV / UTF-16 CSS / meta charset / xml encoding / CSS @charset / CJK charset / IANA charset / svg href / svg use / svg prefix / svg close / svg upper / svg preamble / unsized image / utf16 svg sib / svg switch/a / svg desc / html nbsp / html shy / amp-nbsp md / office svg media / rtf pict / rtf fonttbl / rtf dest group / odf objrep / md img pdf / html lrm / svg empty / html vs16 / svg white / svg black / html unclosed style/desc/comment / md yaml/toml fm / html head xml / html bindata / xml bindata / html noframes / html deltext / html delinstr / html msocomsubj / html flddata / html mailmerge / html msoacetate / html msoballoon / html msocomhide / html aml comment / html msodel / html wdel / docx del-t / odf ann / odf chg / ods ann / svg unused defs / rtf filetbl / rtf themedata / rtf nonshppict / rtf annotation / OLE no-blank / silent MP3.
-3. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
-   Register is `pending` until pay. Sign-in, Setup, and vault activate all
-   persist Worker `license_key` via `LicenseActivation`. Gate exception exits
-   (no unlicensed continue). WMI board-UUID is capped at 3s and saved on
-   the entitlement (later `unknown-board` cannot unlicense). Download URLs
-   use the request host. Dead Worker DNS is `worker_unreachable` (Buy still
-   opens netie.space). Sign-in on that miss still shows Buy so
-   `SkipGate: false` is not a deadlock. After the Worker is up, Buy
-   without a session is `register_first` even if the email box matches D1.
-   You still put secrets.
-4. **ComfyUI / Windows AI** -- code-ready local client; sidecar only on fail
-   (WinAI sidecar only when WinML is down). Probe `/api/` then unprefixed.
-   Poll `/api/jobs` then `/history`; SVG/ICO Copy/OCR/Compress/Comfy rasterize. Live GPU still human.
-5. **Cert sign** -- rewrite+sign proven in xunit (`PdfClassicXref`). Object id
-   match is not a substring (`12` != `2`). Indirect `/Kids` and `/Annots`
-   plus compact MuPDF `/Kids[4 0 R]` resolve so the first-page box lands.
-   `make-test-pfx.ps1` uses Windows PKI (no openssl). UI `LoadPfx` tries
-   EphemeralKeySet then PersistKeySet (Windows CNG PFX). Adobe still human.
+1. **PDFSpace workbench (Edit in app)** -- same `NetieSpace.exe`. Space once = Quick Look
+   peek. Double-tap Space on a PDF = workbench. Space in the editor does **not** leave
+   or close (Esc closes, Done leaves). Peek: no Look Up/Add-to-Chat strip. Light Edit:
+   equal chips, no teaching. Workbench: docked Acrobat-like WPF chrome, 120px WPF thumbs
+   (HTML thumbs hidden), min 1100x720 (row 45 restored; row 48 overlay superceded).
+   Chrome glue 8522 = light doc-app. `--edit PATH` opens
+   the editor. Open with stays `--preview`. P7 PARK. FILL_ONLY.
+2. **Open with Netie Space** -- additive HKCU right-click + Start Menu. Does not
+   steal Word/Excel/PDF defaults. `scripts/register-open-with.ps1` from publish.
+3. **Native hot paths (not a rewrite)** -- Rust `native/netie-pdf-detect` snap-cell
+   (JS `detectCellAt` fallback). Go `native/netie-pdf-form` pdfcpu form-list/fill
+   (`tools/netie-pdf-form/` when built). P7 whole-app rewrite stays parked.
+4. **Stripe pay-first** -- Product `netie_space` / Price `price_1U8ckCFV5wcFod2faXiUCsaV`.
+   Register `pending` until pay. Worker miss is `worker_unreachable`. You still
+   put secrets.
+5. **Cert sign** -- xunit `PdfClassicXref`. UI `LoadPfx` EphemeralKeySet then
+   PersistKeySet. Adobe Reader check still human.
+6. **S50 integration branch (#311, wave 4 consolidated)** -- 12 lanes merged, every lane
+   branch proven an ancestor. Windows CI green at 762860f: xunit 1365 passed 0 skipped,
+   exe checks PASS, desktop (real windows, UI Automation) PASS, installer PASS. Linux 1275.
+7. **Tools** -- 91 catalog rows, **68 available on the Windows runner** (floor enforced in
+   `scripts/check-app-shell.ps1` and `check-installer.ps1`). New: pdf-repair, pdf-sign-self,
+   pdf-redact, pdf-from-html, img-html-to-image, vid-meme, vid-stop-motion, vid-screen-record.
+   `--doctor [--json]` gives every engine a definite state (13 of 31 present on the runner).
+8. **Apps** -- Netie PDF / Image / Video / MD (`--app md`, local pictures only, print to PDF).
+   Four Start Menu shortcuts; every icon checked before any shortcut is written.
+9. **Install** -- per-user Inno Setup (`installer/NetieSpace.iss`, package.yml): silent
+   install, tools, shortcuts, uninstall green on CI. Clean machine and upgrade unverified.
+10. **Send to phone** -- `--send-to-phone FILE [--yes]`: no --yes = disclosure, nothing sent
+   (Space#3). Proven on CI with AirGPT absent; never run against a live AirGPT.
+11. **No AGPL** -- PyMuPDF/pymupdf4llm removed (pypdfium2, pikepdf, reportlab, svglib LGPL).
+   CI python job installs them and fails on any SKIP line. Dev stress scripts still import it.
+12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
+   actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
+   clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
 
 ## Next
 
-- Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Wipe on either side of the join.
-  Export clones the timeline (Space-close cannot mutate the encode). Caption
-  status matches that snapshot. Ribbon / context-menu / handle Fade all write
-  the session. Toast uses bundled ffprobe. Fresh clone: install downloads ffmpeg.
-- Human: Stripe restricted key + webhook + test card `4242`; Adobe Reader on a cert-signed PDF (hybrid rewrite + Sign refuse leftover hybrid).
-- Parked: Comfy GPU, P7 (`docs/HUMAN_PARKED.md`). Product identity later.
+- EP FORM in pdf.js: widgets are on **page 2** (page 1 empty). 37 widgets glued Fit/scroll/zoom 2 (wrap-rel x~0.05865). Copy gitignored. Still open: other pages, WPF host, PPTX (no soffice), Rotate90 not process-tested. P7 PARK.
+- Space#3 OPEN: disclose-first shipped (tray Cloud AI notice + Cloud: chip). Do not silent-ungate; do not close by deleting the four paths. ChatPanel widget API still waits #3. FILL_ONLY this wave.
+- Space stays PDF-local. Markdown PRD-001: outline/annotate/system-theme/`mdAsk` live in `md-editor.html`. Click Edit on a `.md` (auto-open waits row 45). Host is AirGPT. JSON peek tree (row 51) is `Assets/code-viewer/json-viewer.html` via `ContentParserService` - PreviewWindow frozen. Self-checks: `scripts/check-pdf-bbox-glue.ps1`, `check-widget-align.ps1`, `check-multieditor-assets.ps1`, `check-acrobat-chrome.ps1`, `check-json-viewer.ps1`.
+- Human Windows Export (`docs/HUMAN_PILLAR1_TEST.md`). Stripe `4242`. Adobe on cert PDF.
+- Parked: Comfy GPU (code-ready local client; live GPU still human), P7 rewrite (`docs/HUMAN_PARKED.md`). Hex editors. Object memory (22-24). Chatspace widget fill (25/31/34/38/39) waits Space#3. Suite packing (35) PARK. iLove cloud (29-30) PARK. Compress/page-numbers/crop PARK this wave (41). OnlyOffice AGPL BAN. DeepSeek Harness BAN as orchestrator.

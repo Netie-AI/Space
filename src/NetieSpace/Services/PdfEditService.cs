@@ -266,36 +266,6 @@ public sealed class PdfEditService
     }
 
     /// <summary>
-    /// Convert an image to a single PDF page and insert at a 0-based index (or append when null / past end).
-    /// </summary>
-    public string InsertImageAsPage(string pdfPath, string imagePath, int? insertAtZeroBased = null)
-    {
-        if (!IoFile.Exists(imagePath))
-            throw new FileNotFoundException("Image not found.", imagePath);
-
-        using var input = PdfReader.Open(pdfPath, PdfDocumentOpenMode.Import);
-        var insertAt = insertAtZeroBased ?? input.PageCount;
-        insertAt = Math.Clamp(insertAt, 0, input.PageCount);
-
-        var output = SiblingPath(pdfPath, "imgpage");
-        using var outDoc = new PdfDocument();
-
-        for (var i = 0; i < input.PageCount; i++)
-        {
-            if (i == insertAt)
-                AddImagePage(outDoc, imagePath);
-            outDoc.AddPage(input.Pages[i]);
-        }
-
-        if (insertAt == input.PageCount)
-            AddImagePage(outDoc, imagePath);
-
-        outDoc.Save(output);
-        AppLogger.Info($"Inserted image page at index {insertAt} → {output}");
-        return output;
-    }
-
-    /// <summary>
     /// Stamp an image signature on the bottom-right of the last page (or a 1-based page).
     /// Visual stamp only — not a cryptographic / PKCS#7 digital signature.
     /// </summary>
@@ -446,6 +416,24 @@ public sealed class PdfEditService
     /// XGraphics' top-left space here. Prefers vector text, falls back to a
     /// supersampled transparent PNG when the font cannot be resolved.
     /// </summary>
+    /// <summary>Create an empty Letter-size PDF (Create PDF / blank page).</summary>
+    public string CreateBlankPdf(string path, int pages = 1)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            throw new ArgumentException("Path required.", nameof(path));
+        var n = Math.Clamp(pages, 1, 50);
+        var dir = IoPath.GetDirectoryName(path);
+        if (!string.IsNullOrWhiteSpace(dir))
+            Directory.CreateDirectory(dir);
+
+        using var doc = new PdfDocument();
+        for (var i = 0; i < n; i++)
+            doc.AddPage();
+        doc.Save(path);
+        AppLogger.Info($"Created blank PDF ({n} page(s)) → {path}");
+        return path;
+    }
+
     public string DrawFillTexts(string pdfPath, IReadOnlyList<PdfFillTextItem> items)
     {
         var valid = (items ?? []).Where(t => !string.IsNullOrWhiteSpace(t.Text)).ToList();

@@ -45,7 +45,6 @@ public partial class ChatPanel : UserControl
     public event Action<string>? LookupRequested;
     public event Action<string>? AddToChatRequested;
     public event Action? CloseRequested;
-    public event Action? HistoryChanged;
 
     public ChatPanel()
     {
@@ -63,7 +62,6 @@ public partial class ChatPanel : UserControl
 
     public IReadOnlyList<ChatMessage> GetHistory() => _history;
     public bool NotesOnlyMode => _notesOnly;
-    public int StagedAssetCount => _assets.Count;
 
     /// <summary>Swap history when the preview file changes. Persists the previous file first.</summary>
     public void BindToDocument(string? filePath)
@@ -129,7 +127,6 @@ public partial class ChatPanel : UserControl
             }).ToList()
         };
         _store.Save(_boundFilePath!, thread);
-        HistoryChanged?.Invoke();
     }
 
     private void SchedulePersist()
@@ -153,18 +150,6 @@ public partial class ChatPanel : UserControl
             Title = "Selection",
             Detail = $"{trimmed.Length:N0} chars",
             Text = trimmed
-        });
-    }
-
-    public void StageDocumentContext(string fileName, string parsedText, PreviewKind kind = PreviewKind.Text)
-    {
-        var pack = DocumentContextPacker.PackRaw(parsedText, kind);
-        AddAsset(new ChatAsset
-        {
-            Kind = ChatAssetKind.File,
-            Title = fileName,
-            Detail = pack.Detail,
-            Text = pack.Text
         });
     }
 
@@ -976,8 +961,6 @@ public partial class ChatPanel : UserControl
         LookupRequested?.Invoke(text.Length > 600 ? text[..600] : text);
     }
 
-    /// <summary>Lets the host push a selection through the same path the viewer uses.</summary>
-    public void RequestAddToChat(string text) => AddToChatRequested?.Invoke(text);
 
     private void CloseButton_Click(object sender, RoutedEventArgs e)
     {
