@@ -321,8 +321,16 @@
                                  CaretBrush="{StaticResource AccentBrush}"
                                  KeyDown="FileNameEditBox_KeyDown"
                                  LostKeyboardFocus="FileNameEditBox_LostFocus"/>
+                        <!-- "3 of 12": where this file sits among the files of its folder (Left/Right step through them). -->
+                        <Border x:Name="PeekCounterChip" DockPanel.Dock="Right" Visibility="Collapsed"
+                                Style="{StaticResource PeekChip}" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="PeekCounterText" Text="" FontSize="11.5" FontWeight="SemiBold"
+                                       Foreground="{StaticResource MutedBrush}"
+                                       AutomationProperties.AutomationId="PeekCounter"/>
+                        </Border>
                         <!-- Fill child: takes the leftover width and ellipsises. Full name shows only on rename. -->
                         <TextBlock x:Name="FileNameText" Text="Preview"
+                                   AutomationProperties.AutomationId="PeekFileName"
                                    FontFamily="{StaticResource BodyFont}"
                                    Foreground="{StaticResource MutedBrush}"
                                    FontSize="13" FontWeight="Medium"
@@ -734,6 +742,29 @@
                     </Border>
                     <!-- Content toolbar: compact zoom on the right. Only zoomable kinds show it. -->
                     <Border x:Name="PeekToolbar" DockPanel.Dock="Top" Visibility="Collapsed" Padding="22,2,18,2">
+                      <Grid>
+                        <!-- Ctrl+F. Lives in this row, not over the page: a WebView2 HWND paints over WPF content. -->
+                        <StackPanel x:Name="PeekFindBar" Orientation="Horizontal" HorizontalAlignment="Left"
+                                    VerticalAlignment="Center" Visibility="Collapsed">
+                            <TextBox x:Name="PeekFindBox" Style="{StaticResource PeekFindBoxStyle}" Width="210"
+                                     AutomationProperties.Name="Find in this file"
+                                     AutomationProperties.AutomationId="PeekFindBox"
+                                     TextChanged="PeekFindBox_TextChanged" KeyDown="PeekFindBox_KeyDown"/>
+                            <TextBlock x:Name="PeekFindCount" Text="" MinWidth="70" Margin="10,0,6,0" VerticalAlignment="Center"
+                                       Foreground="{StaticResource MutedBrush}" FontSize="11.5"
+                                       AutomationProperties.AutomationId="PeekFindCount"/>
+                            <Button x:Name="PeekFindPrevButton" Content="Prev" Style="{StaticResource PeekQuietBtn}" Padding="8,0"
+                                    Click="PeekFindPrev_Click" AutomationProperties.Name="Previous match"/>
+                            <Button x:Name="PeekFindNextButton" Content="Next" Style="{StaticResource PeekQuietBtn}" Padding="8,0"
+                                    Click="PeekFindNext_Click" AutomationProperties.Name="Next match"/>
+                            <Button x:Name="PeekFindCloseButton" Content="Done" Style="{StaticResource PeekQuietBtn}" Padding="8,0"
+                                    Click="PeekFindClose_Click" AutomationProperties.Name="Close find"/>
+                        </StackPanel>
+                        <!-- PDF: "Page 7 / 40", updated while the page scrolls. -->
+                        <TextBlock x:Name="PeekPageText" Text="" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Visibility="Collapsed" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{StaticResource TextBrush}"
+                                   AutomationProperties.AutomationId="PeekPage"/>
                         <StackPanel x:Name="ZoomStrip" Orientation="Horizontal" HorizontalAlignment="Right" Visibility="Collapsed">
                             <Button x:Name="ZoomOutButton" Content="-" Style="{StaticResource PeekZoomBtn}"
                                     Click="ZoomOutButton_Click" ToolTip="Zoom out" AutomationProperties.Name="Zoom out"/>
@@ -744,6 +775,7 @@
                             <Button x:Name="ZoomFitButton" Content="Fit" Style="{StaticResource PeekQuietBtn}"
                                     Padding="8,0" Click="ZoomFitButton_Click" ToolTip="Fit to window" AutomationProperties.Name="Fit"/>
                         </StackPanel>
+                      </Grid>
                     </Border>
                     <Grid x:Name="PeekActionStrip" DockPanel.Dock="Bottom" Visibility="Collapsed">
                         <Border Padding="22,6,22,10" Background="Transparent">
@@ -1413,6 +1445,22 @@
                         </Border>
                     </Grid>
 
+                    <!-- Skeleton: shown the moment a file is asked for, before any parsing, so the frame never sits empty. -->
+                    <Border x:Name="PeekSkeleton" Visibility="Collapsed" Padding="48,36" IsHitTestVisible="False"
+                            AutomationProperties.AutomationId="PeekSkeleton">
+                        <StackPanel MaxWidth="640" HorizontalAlignment="Center">
+                            <Border Style="{StaticResource PeekSkeletonBar}" Width="260" Height="22" HorizontalAlignment="Left" Margin="0,0,0,22"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Margin="0,0,0,12"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Margin="0,0,0,12"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Width="520" HorizontalAlignment="Left" Margin="0,0,0,26"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Margin="0,0,0,12"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Margin="0,0,0,12"/>
+                            <Border Style="{StaticResource PeekSkeletonBar}" Height="12" Width="380" HorizontalAlignment="Left"/>
+                            <TextBlock Text="Loading..." FontSize="12" Margin="0,22,0,0"
+                                       Foreground="{StaticResource MutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+
                     <Border x:Name="LoadingOverlay" Visibility="Collapsed">
                         <Border.Background>
                             <SolidColorBrush Color="#10141C" Opacity="0.72"/>
@@ -1444,6 +1492,26 @@
                     </Border>
                 </Grid>
                 </Border>
+
+                <!-- "?" cheat sheet. Own HWND, so it draws over WebView2. Rows are filled from PeekFlowRules.CheatSheet. -->
+                <Popup x:Name="PeekHelpPopup" Grid.Column="2" PlacementTarget="{Binding ElementName=ContentWellBorder}"
+                       Placement="Center" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+                       Focusable="False">
+                    <Border CornerRadius="16" Padding="22,18" Margin="14"
+                            Background="#F51A1E28" BorderBrush="#3AFFFFFF" BorderThickness="1"
+                            AutomationProperties.AutomationId="PeekHelp">
+                        <Border.Effect>
+                            <DropShadowEffect BlurRadius="26" ShadowDepth="6" Direction="270" Color="#000000" Opacity="0.5"/>
+                        </Border.Effect>
+                        <StackPanel>
+                            <TextBlock x:Name="PeekHelpTitle" Text="Keyboard shortcuts" FontSize="15" FontWeight="SemiBold"
+                                       Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                            <Grid x:Name="PeekHelpRows"/>
+                            <TextBlock Text="Press ? or Esc to close" FontSize="11.5" Margin="0,14,0,0"
+                                       Foreground="{StaticResource MutedBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
 
                 <!-- Popup HWND so tools/zoom paint over WebView2 (same trick as Share). -->
                 <Popup x:Name="DocToolFloat" Grid.Column="2"

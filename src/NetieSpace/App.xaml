@@ -479,6 +479,30 @@
             <Setter Property="FontSize" Value="15"/>
         </Style>
 
+        <!-- Wave 6 peek flow: "3 of 12" chip, Ctrl+F field, loading skeleton. -->
+        <Style x:Key="PeekChip" TargetType="Border">
+            <Setter Property="Background" Value="#22FFFFFF"/>
+            <Setter Property="CornerRadius" Value="9"/>
+            <Setter Property="Padding" Value="8,2"/>
+        </Style>
+
+        <Style x:Key="PeekFindBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="Padding" Value="8,2"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#33101820"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+
+        <Style x:Key="PeekSkeletonBar" TargetType="Border">
+            <Setter Property="Background" Value="#26FFFFFF"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+
         <Style x:Key="IconCloseButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
             <Setter Property="Width" Value="34"/>
             <Setter Property="Height" Value="34"/>

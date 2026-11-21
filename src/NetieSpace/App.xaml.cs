@@ -552,6 +552,10 @@ public partial class App : Application
         if (!ShouldSwallowPreviewKeys())
             return false;
 
+        // Peek focused, document open: Up/Down belong to the page (scroll). From Explorer they still step files.
+        if (Win32Api.IsOurProcessForeground() && !window.StepsFilesForKey(vk))
+            return false;
+
         var delta = vk is Win32Api.VkDown or Win32Api.VkRight ? 1 : -1;
         Dispatcher.BeginInvoke(() =>
         {
@@ -586,6 +590,10 @@ public partial class App : Application
             return false;
 
         if (!ShouldSwallowPreviewKeys())
+            return false;
+
+        // Peek focused, document open: Home/End go to the top/bottom of the page, not to another file.
+        if (Win32Api.IsOurProcessForeground() && !window.HomeEndStepsFiles())
             return false;
 
         var toEnd = vk == Win32Api.VkEnd;
