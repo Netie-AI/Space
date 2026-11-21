@@ -39,6 +39,10 @@
 12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
+13. **Peek flow (S50 wave 6, PR into the integration branch)** -- Left/Right step files (wrap, "3 of 12"),
+   Ctrl+F find with count, Ctrl+C, Ctrl +/-/0, PDF "Page 7 / 40" and Home/End, "?" cheat sheet, skeleton,
+   `[peek] open-to-content` log line. Order is natural name order, not the Explorer view sort. Judged only by
+   `check-desktop.ps1` (flow-*.png, open-to-content.json).
 
 ## Next
 

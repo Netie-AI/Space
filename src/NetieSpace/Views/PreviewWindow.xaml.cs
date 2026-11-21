@@ -120,6 +120,19 @@ public partial class PreviewWindow : Window
     /// <summary>Serializes arrow/Home/End travel so LoadFileAsync never stacks.</summary>
     private int _travelGeneration;
     private bool _travelInFlight;
+
+    // ---- Wave 6 peek flow: folder stepping, find, page readout, open timing ----
+    private IReadOnlyList<string> _siblings = Array.Empty<string>();
+    private string? _siblingsDir;
+    private long _siblingsAtTick;
+    private string? _selectPending;
+    private int _selectRunning;
+    private readonly Stopwatch _openClock = new();
+    private bool _openLogged;
+    private bool _openWarm;
+    private bool _findOpen;
+    private int _findGen;
+    private DispatcherTimer? _findDebounce;
     private DispatcherTimer? _seekResumeTimer;
     /// <summary>Summary strip hidden by the user (distinct from _summaryBarEnabled, which also stops AI calls).</summary>
     private bool _summaryCollapsed;
@@ -361,7 +374,17 @@ public partial class PreviewWindow : Window
                 : "Preview ready — add an API key for AI summary (tray → API Keys…).";
         ConvertStatusText.Text = "";
         OpenExternallyButton.Visibility = Visibility.Collapsed;
-        SetLoading(true, "Loading preview...");
+        // Open-to-content clock + skeleton: the frame shows structure the moment a file is asked for.
+        _openClock.Restart();
+        _openLogged = false;
+        _openWarm = PreviewWebView.CoreWebView2 is not null;
+        PeekHelpPopup.IsOpen = false;
+        // The previous PDF's page count must not label the next file while its viewer starts.
+        _pdfViewPage = 1;
+        _pdfViewPages = 0;
+        UpdatePageIndicator();
+        ShowSkeleton();
+        _ = UpdateCounterAsync(filePath);
 
         try
         {
@@ -377,8 +400,14 @@ public partial class PreviewWindow : Window
                 return;
 
             await RenderContentAsync(_content);
+            HideSkeleton();
             UpdateActionButtons(_content.Kind);
             ApplySummaryBarVisibility();
+            // Pictures, clips and shell handlers have no page to wait for; web content reports from the page.
+            // A clip is ready when MediaElement opens it (or the still frame shows), not when Play() was called.
+            if (PreviewWebView.Visibility != Visibility.Visible && _content.Kind != PreviewKind.Video)
+                MarkContentReady(_content.Kind);
+            FocusContentForKeys();
             if (_wantPdfWorkbench && _content.Kind == PreviewKind.Pdf)
                 await SetPdfWorkbenchAsync(true);
 
@@ -418,7 +447,10 @@ public partial class PreviewWindow : Window
         {
             // A superseded load must not tear down the newer load's overlay.
             if (!ct.IsCancellationRequested)
+            {
                 SetLoading(false);
+                HideSkeleton();
+            }
         }
     }
 
@@ -436,6 +468,7 @@ public partial class PreviewWindow : Window
             PreviewImage.Source = thumb;
             StatusText.Text = "Loading slides…";
             ConvertStatusText.Text = "Shell thumbnail";
+            HideSkeleton();
             SetLoading(false);
         }
         catch (Exception ex)
@@ -657,15 +690,21 @@ public partial class PreviewWindow : Window
             VideoLightHint.Visibility = Visibility.Collapsed;
 
         // PDF zoom/Fit live in the embedded viewer toolbar — hide duplicate WPF strip
-        var zoomable = kind is PreviewKind.Image or PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown or PreviewKind.Text;
+        // In peek the viewer's own toolbar is hidden (slim chrome), so the PDF gets this strip too; the workbench keeps its own.
+        var zoomable = kind is PreviewKind.Image or PreviewKind.Office or PreviewKind.Html or PreviewKind.Markdown or PreviewKind.Text
+                       || (kind == PreviewKind.Pdf && !_pdfSpaceMode);
         if (ZoomStrip is not null)
             ZoomStrip.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomInButton.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomOutButton.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomFitButton.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
         ZoomLabel.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
+        if (_findOpen && !PeekFlowRules.FindSupported(kind))
+            CloseFind();
+        UpdatePageIndicator();
         if (PeekToolbar is not null)
-            PeekToolbar.Visibility = zoomable ? Visibility.Visible : Visibility.Collapsed;
+            PeekToolbar.Visibility = zoomable || _findOpen || PeekPageText.Visibility == Visibility.Visible
+                ? Visibility.Visible : Visibility.Collapsed;
         PlacePeekActions();
 
         // Let the WebView own trackpad/Ctrl+wheel zoom for reflowable content; keep it OFF for PDF
@@ -1021,6 +1060,10 @@ public partial class PreviewWindow : Window
         if (DocPageTotal is not null)
             DocPageTotal.Text = "/ " + Math.Max(1, _pdfViewPages);
         var zoom = Math.Round(_pdfViewScale * 100) + "%";
+        UpdatePageIndicator();
+        UpdatePeekToolbar();
+        if (_content?.Kind == PreviewKind.Pdf && !_pdfSpaceMode && ZoomLabel is not null)
+            ZoomLabel.Text = zoom;
         if (DocZoomLabel is not null)
             DocZoomLabel.Text = zoom;
         if (DocZoomHudText is not null)
@@ -2208,6 +2251,7 @@ public partial class PreviewWindow : Window
             bmp.Freeze();
             VideoPoster.Source = bmp;
             VideoPoster.Visibility = Visibility.Visible;
+            MarkContentReady(PreviewKind.Video);
             ConvertStatusText.Text = "Showing a still frame: this PC cannot play the video picture. Sound and Open in Netie Video still work.";
         }
         catch (Exception ex)
@@ -2221,6 +2265,7 @@ public partial class PreviewWindow : Window
     {
         _videoOpened = true;
         LogVideoProbe("opened");
+        MarkContentReady(PreviewKind.Video);
         // The pipeline can be slower than the watchdog (3.7 s on the CI runner): once it really has a
         // picture, the still frame stands down.
         if (PreviewVideo.NaturalVideoWidth > 0 && VideoPoster is not null && VideoPoster.Visibility == Visibility.Visible)
@@ -2610,8 +2655,32 @@ public partial class PreviewWindow : Window
             _ffmpeg.TrimAsync(_currentFilePath!, a, b, output));
     }
 
+    /// <summary>Keys the page reported while it held focus (browser accelerators are off, so it forwards them).</summary>
+    private void HandlePeekKey(string? key)
+    {
+        switch (key)
+        {
+            case "find": OpenFind(); break;
+            case "findNext": StepFind(1); break;
+            case "findPrev": StepFind(-1); break;
+            case "zoomIn": AdjustZoom(0.15); break;
+            case "zoomOut": AdjustZoom(-0.15); break;
+            case "zoomReset": FitContent(); break;
+            case "help": if (!IsTypingOrEditCapture) ToggleHelp(); break;
+        }
+    }
+
     private void PreviewWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
     {
+        if (e.IsSuccess && _content is { } done && done.Kind != PreviewKind.Pdf && PreviewWebView.Visibility == Visibility.Visible)
+            MarkContentReady(done.Kind);
+        if (e.IsSuccess)
+        {
+            try { _ = PreviewWebView.CoreWebView2?.ExecuteScriptAsync(PeekScripts.KeyBridge); } catch { /* tearing down */ }
+            // A find that was open stays open across files: the same words are looked for in the next file.
+            if (_findOpen && _content is { Kind: not PreviewKind.Pdf } && !string.IsNullOrWhiteSpace(PeekFindBox.Text))
+                _ = RunFindAsync();
+        }
         if (_content?.Kind != PreviewKind.Pdf)
             return;
 
@@ -2873,6 +2942,32 @@ public partial class PreviewWindow : Window
             if (type == "netieTyping")
             {
                 _webViewTyping = root.TryGetProperty("typing", out var ty) && ty.ValueKind == System.Text.Json.JsonValueKind.True;
+                return;
+            }
+
+            if (type == "peekKey")
+            {
+                var key = root.TryGetProperty("key", out var kEl) ? kEl.GetString() : null;
+                HandlePeekKey(key);
+                return;
+            }
+
+            if (type == "findResult")
+            {
+                var fc = root.TryGetProperty("count", out var fcEl) && fcEl.TryGetInt32(out var fcv) ? fcv : 0;
+                var fi = root.TryGetProperty("index", out var fiEl) && fiEl.TryGetInt32(out var fiv) ? fiv : -1;
+                if (_findOpen)
+                    ShowFindCount(PeekFindBox.Text, fc, fi);
+                return;
+            }
+
+            if (type == "zoom")
+            {
+                if (_content?.Kind == PreviewKind.Pdf && root.TryGetProperty("scale", out var zEl) && zEl.TryGetDouble(out var zv))
+                {
+                    _pdfViewScale = Math.Clamp(zv, 0.25, 4.0);
+                    ZoomLabel.Text = PeekChromeRules.ZoomText(_pdfViewScale);
+                }
                 return;
             }
 
@@ -3149,7 +3244,14 @@ public partial class PreviewWindow : Window
                     DocThumbsMoreBtn.Visibility = Visibility.Collapsed;
                 SyncDocNavLabels();
                 if (_content?.Kind == PreviewKind.Pdf)
+                {
                     PostDocChrome();
+                    MarkContentReady(PreviewKind.Pdf);
+                    UpdatePeekToolbar();
+                    if (_findOpen && !string.IsNullOrWhiteSpace(PeekFindBox.Text))
+                        _ = RunFindAsync();
+                    FocusContentForKeys();
+                }
             }
             else if (type == "page")
             {
@@ -8954,7 +9056,7 @@ public partial class PreviewWindow : Window
         else if (ctrl && (e.Key == Key.D0 || e.Key == Key.NumPad0))
         {
             e.Handled = true;
-            ResetZoom();
+            FitContent();
         }
         else if (ctrl && e.Key == Key.Z)
         {
@@ -8962,10 +9064,24 @@ public partial class PreviewWindow : Window
             if (_content?.Kind == PreviewKind.Video && _editMode)
                 UndoVideoEdit();
         }
-        else if (ctrl && e.Key == Key.F && _pdfSpaceMode)
+        else if (ctrl && e.Key == Key.F)
         {
             e.Handled = true;
-            DocMenuFind_Click(sender, e);
+            OpenFind();
+        }
+        else if (e.Key == Key.F3 && _findOpen)
+        {
+            e.Handled = true;
+            StepFind(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+        }
+        else if (e.Key == Key.OemQuestion && (Keyboard.Modifiers & ModifierKeys.Control) == 0 && !IsTypingOrEditCapture)
+        {
+            e.Handled = true;
+            ToggleHelp();
+        }
+        else if (!ctrl && !IsTypingOrEditCapture && IsContentScrollKey(e.Key) && ScrollContentByKey(e.Key))
+        {
+            e.Handled = true;
         }
         else if (ctrl && e.Key == Key.S && _pdfSpaceMode)
         {
@@ -8981,16 +9097,339 @@ public partial class PreviewWindow : Window
                 CutMiddleButton_Click(sender, e);
             }
         }
-        else if (e.Key == Key.Home)
+        else if (e.Key == Key.Home && HomeEndStepsFiles())
         {
             e.Handled = true;
             _ = NavigateExtremeAsync(toEnd: false);
         }
-        else if (e.Key == Key.End)
+        else if (e.Key == Key.End && HomeEndStepsFiles())
         {
             e.Handled = true;
             _ = NavigateExtremeAsync(toEnd: true);
         }
+    }
+
+    // ---- Wave 6 peek flow ----
+
+    private static bool IsContentScrollKey(Key k) =>
+        k is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End;
+
+    /// <summary>
+    /// Scroll keys when WPF (not the page) holds focus. The page handles them itself when it has focus;
+    /// this covers the moment right after a file loads. Returns false when the content is not a scrolling one.
+    /// </summary>
+    private bool ScrollContentByKey(Key k)
+    {
+        if (_content is null || !PeekFlowRules.Scrolls(_content.Kind) || PreviewWebView.Visibility != Visibility.Visible)
+            return false;
+        var name = k.ToString();
+        if (_content.Kind == PreviewKind.Pdf)
+        {
+            PostViewer(new { type = "scrollKey", key = name });
+            return true;
+        }
+        var js = k switch
+        {
+            Key.Up => "window.scrollBy({top:-70,behavior:'smooth'})",
+            Key.Down => "window.scrollBy({top:70,behavior:'smooth'})",
+            Key.PageUp => "window.scrollBy({top:-innerHeight*0.9,behavior:'smooth'})",
+            Key.PageDown => "window.scrollBy({top:innerHeight*0.9,behavior:'smooth'})",
+            Key.Home => "window.scrollTo({top:0,behavior:'smooth'})",
+            _ => "window.scrollTo({top:document.documentElement.scrollHeight,behavior:'smooth'})",
+        };
+        try { _ = PreviewWebView.CoreWebView2?.ExecuteScriptAsync(js); } catch { /* page tearing down */ }
+        return true;
+    }
+
+    /// <summary>Documents take keyboard focus after loading so Page Down, Ctrl+C and the arrows reach the page.</summary>
+    private void FocusContentForKeys(bool afterFind = false)
+    {
+        if (_content is null || !PeekFlowRules.Scrolls(_content.Kind) || _findOpen || _pdfSpaceMode)
+            return;
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            try
+            {
+                // Closing find hands the keyboard back to the page; the box that just collapsed must not keep it.
+                if (afterFind)
+                    Keyboard.ClearFocus();
+                if (IsActive && PreviewWebView.IsVisible && !_findOpen && (afterFind || !IsTypingOrEditCapture))
+                    PreviewWebView.Focus();
+            }
+            catch { /* control tearing down */ }
+        }));
+    }
+
+    // ---- skeleton and open-to-content timing ----
+
+    private void ShowSkeleton()
+    {
+        // The pane that is still showing the previous file must not sit under the skeleton.
+        ImageScroll.Visibility = Visibility.Collapsed;
+        PreviewWebView.Visibility = Visibility.Collapsed;
+        VideoPanel.Visibility = Visibility.Collapsed;
+        PeekSkeleton.Visibility = Visibility.Visible;
+        PeekSkeleton.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(0.55, 1.0,
+            TimeSpan.FromMilliseconds(700))
+        {
+            AutoReverse = true,
+            RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+        });
+    }
+
+    private void HideSkeleton()
+    {
+        if (PeekSkeleton.Visibility != Visibility.Visible)
+            return;
+        PeekSkeleton.BeginAnimation(OpacityProperty, null);
+        PeekSkeleton.Visibility = Visibility.Collapsed;
+    }
+
+    /// <summary>One line per open in app.log; scripts/check-desktop.ps1 reads it and holds the 600 ms budget.</summary>
+    private void MarkContentReady(PreviewKind kind)
+    {
+        if (_openLogged)
+            return;
+        _openLogged = true;
+        var ms = _openClock.ElapsedMilliseconds;
+        AppLogger.Info(PeekFlowRules.TimingLine(kind, ms, _openWarm));
+    }
+
+    // ---- page readout (PDF) ----
+
+    private void UpdatePageIndicator()
+    {
+        if (PeekPageText is null)
+            return;
+        var show = _content?.Kind == PreviewKind.Pdf && !_pdfSpaceMode && _pdfViewPages >= 1;
+        var text = show ? PeekFlowRules.PageText(_pdfViewPage, _pdfViewPages) : "";
+        PeekPageText.Text = text;
+        System.Windows.Automation.AutomationProperties.SetName(PeekPageText, text);
+        PeekPageText.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    // ---- find (Ctrl+F) ----
+
+    private bool FindAvailable =>
+        _content is { } c && PeekFlowRules.FindSupported(c.Kind) && !_pdfSpaceMode && !_textEditMode && !_editMode;
+
+    private void OpenFind()
+    {
+        if (_pdfSpaceMode)
+        {
+            DocMenuFind_Click(this, new RoutedEventArgs());
+            return;
+        }
+        if (!FindAvailable)
+        {
+            ConvertStatusText.Text = "Nothing to search in this file";
+            return;
+        }
+        _findOpen = true;
+        PeekHelpPopup.IsOpen = false;
+        PeekToolbar.Visibility = Visibility.Visible;
+        PeekFindBar.Visibility = Visibility.Visible;
+        PeekFindBox.Focus();
+        PeekFindBox.SelectAll();
+        // The page may hold the Win32 focus: ask again once layout has run so typing lands in the box.
+        _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            if (_findOpen && !PeekFindBox.IsKeyboardFocusWithin)
+            {
+                Keyboard.Focus(PeekFindBox);
+                PeekFindBox.SelectAll();
+            }
+        }));
+        if (!string.IsNullOrWhiteSpace(PeekFindBox.Text))
+            _ = RunFindAsync();
+    }
+
+    private void CloseFind()
+    {
+        if (!_findOpen)
+            return;
+        _findOpen = false;
+        _findGen++;
+        PeekFindBar.Visibility = Visibility.Collapsed;
+        PeekFindCount.Text = "";
+        try
+        {
+            if (_content?.Kind == PreviewKind.Pdf)
+                PostViewer(new { type = "find", query = "" });
+            else
+                _ = PreviewWebView.CoreWebView2?.ExecuteScriptAsync("window.__netieFind&&window.__netieFind.clear()");
+        }
+        catch { /* page tearing down */ }
+        UpdatePeekToolbar();
+        FocusContentForKeys(afterFind: true);
+    }
+
+    private void UpdatePeekToolbar()
+    {
+        var kind = _content?.Kind ?? PreviewKind.Unknown;
+        var zoomable = ZoomStrip?.Visibility == Visibility.Visible;
+        var page = PeekPageText?.Visibility == Visibility.Visible;
+        PeekToolbar.Visibility = zoomable || page || _findOpen ? Visibility.Visible : Visibility.Collapsed;
+        _ = kind;
+    }
+
+    private void PeekFindBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!_findOpen)
+            return;
+        _findDebounce ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _findDebounce.Tick -= FindDebounce_Tick;
+        _findDebounce.Tick += FindDebounce_Tick;
+        _findDebounce.Stop();
+        _findDebounce.Start();
+    }
+
+    private void FindDebounce_Tick(object? sender, EventArgs e)
+    {
+        _findDebounce?.Stop();
+        _ = RunFindAsync();
+    }
+
+    private void PeekFindBox_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            CloseFind();
+        }
+        else if (e.Key is Key.Enter or Key.F3)
+        {
+            e.Handled = true;
+            if (_findDebounce is { IsEnabled: true })
+            {
+                _findDebounce.Stop();
+                _ = RunFindAsync();
+            }
+            else
+                StepFind(Keyboard.Modifiers == ModifierKeys.Shift ? -1 : 1);
+        }
+    }
+
+    private void PeekFindPrev_Click(object sender, RoutedEventArgs e) => StepFind(-1);
+    private void PeekFindNext_Click(object sender, RoutedEventArgs e) => StepFind(1);
+    private void PeekFindClose_Click(object sender, RoutedEventArgs e) => CloseFind();
+
+    private async Task RunFindAsync()
+    {
+        var q = PeekFindBox.Text ?? "";
+        var gen = ++_findGen;
+        if (_content is null)
+            return;
+        if (_content.Kind == PreviewKind.Pdf)
+        {
+            PeekFindCount.Text = string.IsNullOrWhiteSpace(q) ? "" : "Searching...";
+            PostViewer(new { type = "find", query = q });
+            return;
+        }
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null)
+            return;
+        try
+        {
+            await core.ExecuteScriptAsync(PeekScripts.Find);
+            var raw = await core.ExecuteScriptAsync(
+                "window.__netieFind.run(" + System.Text.Json.JsonSerializer.Serialize(q) + ")");
+            if (gen == _findGen)
+                ApplyFindResult(q, raw);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"peek find failed: {ex.Message}");
+        }
+    }
+
+    private void StepFind(int dir)
+    {
+        if (!_findOpen || _content is null)
+            return;
+        if (_content.Kind == PreviewKind.Pdf)
+        {
+            PostViewer(new { type = "findNext", dir });
+            return;
+        }
+        _ = StepWebFindAsync(dir);
+    }
+
+    private async Task StepWebFindAsync(int dir)
+    {
+        var core = PreviewWebView.CoreWebView2;
+        if (core is null)
+            return;
+        try
+        {
+            await core.ExecuteScriptAsync(PeekScripts.Find);
+            var raw = await core.ExecuteScriptAsync($"window.__netieFind.step({dir})");
+            ApplyFindResult(PeekFindBox.Text, raw);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"peek find step failed: {ex.Message}");
+        }
+    }
+
+    private void ApplyFindResult(string? query, string json)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var count = doc.RootElement.TryGetProperty("count", out var c) ? c.GetInt32() : 0;
+            var index = doc.RootElement.TryGetProperty("index", out var i) ? i.GetInt32() : -1;
+            ShowFindCount(query, count, index);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"peek find result unreadable: {ex.Message}");
+        }
+    }
+
+    private void ShowFindCount(string? query, int count, int index)
+    {
+        var text = PeekFlowRules.FindText(query, count, index);
+        PeekFindCount.Text = text;
+        System.Windows.Automation.AutomationProperties.SetName(PeekFindCount, text);
+    }
+
+    // ---- "?" cheat sheet ----
+
+    private void ToggleHelp()
+    {
+        if (PeekHelpPopup.IsOpen)
+        {
+            PeekHelpPopup.IsOpen = false;
+            return;
+        }
+        if (PeekHelpRows.Children.Count == 0)
+        {
+            PeekHelpRows.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            PeekHelpRows.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var row = 0;
+            foreach (var (keys, what) in PeekFlowRules.CheatSheet)
+            {
+                PeekHelpRows.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                var k = new TextBlock
+                {
+                    Text = keys, FontSize = 12.5, FontWeight = FontWeights.SemiBold,
+                    Foreground = (Brush)FindResource("AccentBrush"), Margin = new Thickness(0, 3, 22, 3),
+                };
+                var w = new TextBlock
+                {
+                    Text = what, FontSize = 12.5, Foreground = (Brush)FindResource("TextBrush"),
+                    Margin = new Thickness(0, 3, 0, 3),
+                };
+                Grid.SetRow(k, row);
+                Grid.SetRow(w, row);
+                Grid.SetColumn(w, 1);
+                PeekHelpRows.Children.Add(k);
+                PeekHelpRows.Children.Add(w);
+                row++;
+            }
+        }
+        PeekHelpPopup.IsOpen = true;
     }
 
     /// <summary>True when Space/Esc must not steal keys (chat, WPF text boxes, WebView inputs).</summary>
@@ -9046,63 +9485,52 @@ public partial class PreviewWindow : Window
         }
     }
 
-    /// <summary>Called from global hook — works even when WebView2 has focus.</summary>
+    /// <summary>
+    /// Left/Right (and Up/Down where nothing scrolls) step to the neighbouring file of the same folder.
+    /// Called from the global hook, so it works even when WebView2 has focus. The order is Explorer's
+    /// natural name order, folders and hidden files are skipped, and the ends wrap ("12 of 12" to "1 of 12").
+    /// </summary>
     public async Task NavigateAdjacentAsync(int delta, uint vk = 0)
     {
-        if (_busy || _travelInFlight || string.IsNullOrWhiteSpace(_currentFilePath))
+        if (_busy || string.IsNullOrWhiteSpace(_currentFilePath))
             return;
 
         // Edit workbench owns keys — no sibling travel (macOS QL vs Acrobat).
         if (_editMode || IsTypingOrEditCapture)
             return;
 
+        // One folder read at a time; a load that is still running is superseded (LoadFileAsync cancels it),
+        // so holding the key never queues behind the previous file.
+        if (_travelInFlight)
+            return;
         var gen = ++_travelGeneration;
         _travelInFlight = true;
+        string? next;
         try
         {
-            if (vk == 0)
-                vk = delta > 0 ? (uint)Win32Api.VkDown : (uint)Win32Api.VkUp;
-
-            string? next = null;
-            var shell = _explorer.TryPostArrowToExplorer(_currentFilePath, _ownerHwnd, vk);
-            if (shell != IntPtr.Zero)
-            {
-                for (var i = 0; i < 16; i++)
-                {
-                    if (gen != _travelGeneration)
-                        return;
-                    await Task.Delay(30);
-                    next = _explorer.ReadSelectionNear(shell, _currentFilePath);
-                    if (!string.IsNullOrWhiteSpace(next))
-                        break;
-                }
-            }
-
+            var files = await GetSiblingsAsync(_currentFilePath, force: true);
             if (gen != _travelGeneration)
                 return;
-
-            next ??= _explorer.NavigateAdjacent(_currentFilePath, delta, _ownerHwnd, vk);
-
+            next = PeekFlowRules.Step(files, _currentFilePath, delta);
             if (string.IsNullOrWhiteSpace(next))
             {
-                ConvertStatusText.Text = delta > 0 ? "End of folder" : "Start of folder";
-                Activate();
+                ConvertStatusText.Text = "Only file in this folder";
                 return;
             }
-
-            ConvertStatusText.Text = IoPath.GetFileName(next);
-            Activate();
-            ClearPreviewStack();
-            await LoadFileAsync(next);
         }
         finally
         {
             if (gen == _travelGeneration)
                 _travelInFlight = false;
         }
+
+        ConvertStatusText.Text = "";
+        SyncExplorerSelection(next);
+        ClearPreviewStack();
+        _ = LoadFileAsync(next);
     }
 
-    /// <summary>Home / End → first / last sibling in folder (Mac QL-ish).</summary>
+    /// <summary>Home / End: first / last file of the folder (pictures and clips; documents scroll instead).</summary>
     public async Task NavigateExtremeAsync(bool toEnd)
     {
         if (_busy || _travelInFlight || string.IsNullOrWhiteSpace(_currentFilePath))
@@ -9113,29 +9541,104 @@ public partial class PreviewWindow : Window
 
         var gen = ++_travelGeneration;
         _travelInFlight = true;
+        string? next;
         try
         {
-            var next = _explorer.GetExtremePath(_currentFilePath, toEnd);
+            var files = await GetSiblingsAsync(_currentFilePath, force: true);
+            next = PeekFlowRules.Extreme(files, toEnd);
             if (string.IsNullOrWhiteSpace(next) ||
                 string.Equals(next, _currentFilePath, StringComparison.OrdinalIgnoreCase))
             {
                 ConvertStatusText.Text = toEnd ? "End of folder" : "Start of folder";
-                Activate();
                 return;
             }
-
-            _explorer.TrySelectPath(_ownerHwnd, next);
-            ConvertStatusText.Text = IoPath.GetFileName(next);
-            Activate();
-            ClearPreviewStack();
-            await LoadFileAsync(next);
         }
         finally
         {
             if (gen == _travelGeneration)
                 _travelInFlight = false;
         }
+
+        ConvertStatusText.Text = "";
+        SyncExplorerSelection(next);
+        ClearPreviewStack();
+        _ = LoadFileAsync(next);
     }
+
+    /// <summary>Files of the current folder, cached for 3 s so a held key does not re-read the folder every frame.</summary>
+    private async Task<IReadOnlyList<string>> GetSiblingsAsync(string path, bool force = false)
+    {
+        var dir = IoPath.GetDirectoryName(path);
+        var fresh = Environment.TickCount64 - _siblingsAtTick < 3000;
+        if (!force && fresh && string.Equals(dir, _siblingsDir, StringComparison.OrdinalIgnoreCase) &&
+            PeekFlowRules.IndexOf(_siblings, path) >= 0)
+            return _siblings;
+        var list = await Task.Run(() => PeekFlowRules.SiblingFiles(path));
+        _siblings = list;
+        _siblingsDir = dir;
+        _siblingsAtTick = Environment.TickCount64;
+        return list;
+    }
+
+    /// <summary>"3 of 12" in the header. Blank for a folder with one file.</summary>
+    private async Task UpdateCounterAsync(string path)
+    {
+        try
+        {
+            var files = await GetSiblingsAsync(path);
+            if (!string.Equals(path, _currentFilePath, StringComparison.OrdinalIgnoreCase))
+                return;
+            var text = PeekFlowRules.CounterText(files, path);
+            PeekCounterText.Text = text;
+            PeekCounterChip.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+            System.Windows.Automation.AutomationProperties.SetName(PeekCounterText, text);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"peek counter failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Move Explorer's highlight to the file now shown. Best effort on a worker thread: the Shell call walks
+    /// every item of the window, so it must never sit between a key press and the next file.
+    /// </summary>
+    private void SyncExplorerSelection(string path)
+    {
+        _selectPending = path;
+        if (Interlocked.Exchange(ref _selectRunning, 1) == 1)
+            return;
+        var owner = _ownerHwnd;
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                while (true)
+                {
+                    var target = Interlocked.Exchange(ref _selectPending, null);
+                    if (target is null)
+                        break;
+                    try { _explorer.TrySelectPath(owner, target); } catch { /* best effort */ }
+                }
+            }
+            finally
+            {
+                Volatile.Write(ref _selectRunning, 0);
+            }
+        });
+    }
+
+    /// <summary>The hook asks before it swallows Up/Down/Home/End: documents keep those keys to scroll.</summary>
+    public bool StepsFilesForKey(uint vk)
+    {
+        if (vk is Win32Api.VkLeft or Win32Api.VkRight)
+            return true;
+        if (_content is null)
+            return true;
+        return PeekFlowRules.ArrowStepsFile(_content.Kind, vertical: true);
+    }
+
+    public bool HomeEndStepsFiles() => _content is null || PeekFlowRules.HomeEndStepsFile(_content.Kind);
 
     private double _lastMaskW = -1;
     private double _lastMaskH = -1;
@@ -9210,7 +9713,16 @@ public partial class PreviewWindow : Window
 
     private void ZoomInButton_Click(object sender, RoutedEventArgs e) => AdjustZoom(0.15);
     private void ZoomOutButton_Click(object sender, RoutedEventArgs e) => AdjustZoom(-0.15);
-    private void ZoomFitButton_Click(object sender, RoutedEventArgs e) => FitImageToViewport(resetUserZoom: true);
+    private void ZoomFitButton_Click(object sender, RoutedEventArgs e) => FitContent();
+
+    /// <summary>Ctrl+0 and the Fit button: a PDF refits through the viewer, everything else through the picture path.</summary>
+    private void FitContent()
+    {
+        if (_content?.Kind == PreviewKind.Pdf && PreviewWebView.Visibility == Visibility.Visible)
+            PostViewer(new { type = "fitPage" });
+        else
+            FitImageToViewport(resetUserZoom: true);
+    }
 
     private void ImageScroll_SizeChanged(object sender, SizeChangedEventArgs e)
     {
@@ -9274,6 +9786,13 @@ public partial class PreviewWindow : Window
 
     private void AdjustZoom(double delta)
     {
+        // The PDF canvas is scaled by the viewer; its own scale is the truth, not the WPF zoom field.
+        if (_content?.Kind == PreviewKind.Pdf && PreviewWebView.Visibility == Visibility.Visible && !_pdfSpaceMode)
+        {
+            var target = Math.Clamp(_pdfViewScale + (delta >= 0 ? 0.15 : -0.15), 0.25, 4.0);
+            PostViewer(new { type = "setZoom", scale = target });
+            return;
+        }
         var minZ = Math.Min(0.05, _fitZoom * 0.25);
         var maxZ = Math.Max(4.0, _fitZoom * 8);
         _zoom = Math.Clamp(_zoom + delta, minZ, maxZ);
@@ -9411,6 +9930,17 @@ public partial class PreviewWindow : Window
     /// <summary>Pop nested preview. Returns true if a parent was restored; false if stack empty.</summary>
     public bool TryPopPreviewStack()
     {
+        // Esc peels one layer at a time: the cheat sheet, then the find bar, then a nested preview, then the peek.
+        if (PeekHelpPopup.IsOpen)
+        {
+            PeekHelpPopup.IsOpen = false;
+            return true;
+        }
+        if (_findOpen)
+        {
+            CloseFind();
+            return true;
+        }
         if (_previewStack.Count == 0)
             return false;
         var parent = _previewStack.Pop();

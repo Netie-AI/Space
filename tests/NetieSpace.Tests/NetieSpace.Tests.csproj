@@ -58,6 +58,8 @@
     <Compile Include="..\..\src\NetieSpace\Models\AppModels.cs" Link="Linked\Models\AppModels.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\LocalSummaryService.cs" Link="Linked\LocalSummaryService.cs" />
     <Compile Include="..\..\src\NetieSpace\Helpers\PeekChromeRules.cs" Link="Linked\PeekChromeRules.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\PeekFlowRules.cs" Link="Linked\PeekFlowRules.cs" />
+    <Compile Include="..\..\src\NetieSpace\Helpers\PeekScripts.cs" Link="Linked\PeekScripts.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegExportGraph.cs" Link="Linked\FfmpegExportGraph.cs" />
     <Compile Include="..\..\src\NetieSpace\Services\FfmpegService.cs" Link="Linked\FfmpegService.cs" />
     <Compile Include="..\..\src\NetieSpace\Helpers\AppLogger.cs" Link="Linked\AppLogger.cs" />

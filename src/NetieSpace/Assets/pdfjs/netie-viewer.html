@@ -145,6 +145,16 @@
     html.canvas-only #main { flex: 1; height: 100%; min-height: 0; }
     html.canvas-only, html.canvas-only body { background: #E8E8E8; }
     .page-wrap canvas { display: block; }
+    /* Selectable text (Ctrl+C in the peek). Transparent glyphs over the canvas, same geometry as pdf.js. */
+    .textLayer { position: absolute; left: 0; top: 0; right: 0; bottom: 0; overflow: clip; opacity: 1;
+      line-height: 1; text-align: initial; text-size-adjust: none; forced-color-adjust: none;
+      transform-origin: 0 0; z-index: 2; pointer-events: none; }
+    html.slim-chrome .textLayer { pointer-events: auto; }
+    #viewer.fill-mode .textLayer, #viewer.stamp-mode .textLayer { pointer-events: none; }
+    .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre;
+      cursor: text; transform-origin: 0% 0%; }
+    .textLayer ::selection { background: rgba(0, 100, 255, 0.35); }
+    .textLayer .markedContent { top: 0; height: 0; }
     .annotationLayer {
       position: absolute; left: 0; top: 0; right: auto; bottom: auto;
       pointer-events: none; transform-origin: 0 0; z-index: 18;
@@ -664,10 +674,13 @@
             canvas.style.width = cssW + 'px';
             canvas.style.height = cssH + 'px';
             wrap.appendChild(canvas);
+            const textDiv = document.createElement('div');
+            textDiv.className = 'textLayer';
+            wrap.appendChild(textDiv);
             const annotDiv = document.createElement('div');
             annotDiv.className = 'annotationLayer';
             wrap.appendChild(annotDiv);
-            return { n, wrap, canvas, annotDiv, widthPt: baseVp.width, heightPt: baseVp.height };
+            return { n, wrap, canvas, textDiv, annotDiv, widthPt: baseVp.width, heightPt: baseVp.height };
           })(i));
         }
         const chunk = await Promise.all(jobs);
@@ -675,7 +688,7 @@
         for (const item of chunk) {
           pagesEl.appendChild(item.wrap);
           pageMap.set(item.n, {
-            wrap: item.wrap, canvas: item.canvas, annotDiv: item.annotDiv,
+            wrap: item.wrap, canvas: item.canvas, textDiv: item.textDiv, annotDiv: item.annotDiv,
             widthPt: item.widthPt, heightPt: item.heightPt, rendered: false
           });
         }
@@ -732,12 +745,30 @@
       if (entry.renderTask === task) entry.renderTask = null;
       if (myGen !== entry.gen || myLoad !== loadGen) return;
       entry.rendered = true;
+      renderSelectableText(entry, page, cssVp, myGen);
       await renderAnnotLayer(entry, page, cssVp);
 
       layoutHighlightsForPage(n);
       layoutOverlaysForPage(n);
       layoutFillFieldsForPage(n);
       paintSearchHitsForPage(n);
+    }
+
+    // Text layer: not awaited, so selecting text never delays the picture or the page indicator.
+    async function renderSelectableText(entry, page, cssVp, gen) {
+      if (!entry?.textDiv || typeof pdfjsLib.TextLayer !== 'function') return;
+      try {
+        entry.textDiv.replaceChildren();
+        entry.wrap.style.setProperty('--scale-factor', String(cssVp.scale || 1));
+        entry.textDiv.style.setProperty('--scale-factor', String(cssVp.scale || 1));
+        const layer = new pdfjsLib.TextLayer({
+          textContentSource: page.streamTextContent(),
+          container: entry.textDiv,
+          viewport: cssVp
+        });
+        await layer.render();
+        if (gen !== entry.gen) entry.textDiv.replaceChildren();
+      } catch (_) { /* a page without text simply has nothing to select */ }
     }
 
     async function renderAnnotLayer(entry, page, cssVp) {
@@ -1062,25 +1093,40 @@
       return hits;
     }
 
+    let searchRun = 0;
     async function runSearch(q) {
+      const myRun = ++searchRun;
       clearSearchHitEls();
       searchHits = [];
       searchIdx = -1;
       searchQuery = (q || '').trim();
-      if (!searchQuery || !pdf) { status.textContent = 'Search cleared'; return; }
+      if (!searchQuery || !pdf) {
+        status.textContent = 'Search cleared';
+        post({ type: 'findResult', count: 0, index: -1, done: true });
+        return;
+      }
       status.textContent = 'Searching…';
       for (let i = 1; i <= pdf.numPages; i++) {
         const pageHits = await findHitsOnPage(i, searchQuery);
-        if (pageHits.length) searchHits.push(...pageHits);
+        if (myRun !== searchRun) return;   // a newer query took over
+        if (pageHits.length) {
+          searchHits.push(...pageHits);
+          if (searchIdx < 0) {             // first match: go there now, count keeps growing
+            searchIdx = 0;
+            goToPage(searchHits[0].page, true);
+          }
+          post({ type: 'findResult', count: searchHits.length, index: searchIdx, done: false });
+        }
       }
       if (searchHits.length === 0) {
         status.textContent = 'No matches';
+        post({ type: 'findResult', count: 0, index: -1, done: true });
         return;
       }
-      searchIdx = 0;
-      goToPage(searchHits[0].page, true);
       paintAllSearchHits();
-      status.textContent = 'Match 1/' + searchHits.length + ' · page ' + searchHits[0].page;
+      status.textContent = 'Match ' + (searchIdx + 1) + '/' + searchHits.length +
+        ' · page ' + searchHits[searchIdx].page;
+      post({ type: 'findResult', count: searchHits.length, index: searchIdx, done: true });
     }
 
     function jumpSearch(dir) {
@@ -1095,6 +1141,7 @@
       paintAllSearchHits();
       status.textContent = 'Match ' + (searchIdx + 1) + '/' + searchHits.length +
         ' · page ' + hit.page;
+      post({ type: 'findResult', count: searchHits.length, index: searchIdx, done: true });
     }
 
     function computeFitScale() {
@@ -2589,6 +2636,28 @@
         status.textContent = '';
       }
     };
+    // Peek reading keys: smooth scroll, one screen per Page key, Home/End to the ends. The host forwards the
+    // same names (Up, Down, PageUp, PageDown, Home, End) when WPF rather than this page holds the keyboard.
+    function scrollKey(key) {
+      const screen = Math.max(120, viewer.clientHeight * 0.9);
+      switch (key) {
+        case 'PageDown': viewer.scrollBy({ top: screen, behavior: 'smooth' }); return true;
+        case 'PageUp': viewer.scrollBy({ top: -screen, behavior: 'smooth' }); return true;
+        case 'ArrowDown': case 'Down': viewer.scrollBy({ top: 80, behavior: 'smooth' }); return true;
+        case 'ArrowUp': case 'Up': viewer.scrollBy({ top: -80, behavior: 'smooth' }); return true;
+        case 'Home': viewer.scrollTo({ top: 0, behavior: 'smooth' }); return true;
+        case 'End': viewer.scrollTo({ top: viewer.scrollHeight, behavior: 'smooth' }); return true;
+      }
+      return false;
+    }
+    window.addEventListener('keydown', (ev) => {
+      if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
+      if (!document.documentElement.classList.contains('slim-chrome')) return;   // peek only
+      const tag = (ev.target && ev.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || ev.target?.isContentEditable) return;
+      if (scrollKey(ev.key)) ev.preventDefault();
+    });
+
     searchBox.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
         if (ev.shiftKey) jumpSearch(-1);
@@ -2682,17 +2751,22 @@
         searchBox.value = q;
         if (q.trim()) runSearch(q);
         else {
+          searchRun++;                 // stop a scan that is still walking the pages
           clearSearchHitEls();
           searchHits = [];
           searchIdx = -1;
+          post({ type: 'findResult', count: 0, index: -1, done: true });
         }
       }
+      if (msg?.type === 'scrollKey') scrollKey(String(msg.key || ''));
       if (msg?.type === 'findNext') jumpSearch(msg.dir < 0 ? -1 : 1);
       if (msg?.type === 'gotoPage' && pdf) goToPage(msg.page | 0, true);
       if (msg?.type === 'setZoom' && msg.scale) {
         fitMode = false;
         viewer.classList.remove('fit-mode');
         scale = Math.min(4, Math.max(0.25, Number(msg.scale) || 1.25));
+        document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+        post({ type: 'zoom', scale, fit: false });
         for (const e of pageMap.values()) e.rendered = false;
         renderVisiblePages(true).then(() => { layoutAllOverlays(); layoutAllFillFields(); layoutAllHighlights(); paintAllSearchHits(); });
       }
