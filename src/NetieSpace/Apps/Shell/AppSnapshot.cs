@@ -37,6 +37,12 @@ public static class AppSnapshot
             shell.SetTools(tools);
             if (args.ToolId is not null)
                 shell.ShowTool(args.ToolId);
+            if (args.Files is { Count: > 0 })
+            {
+                // A PDF panel draws its pictures asynchronously: wait for them, and say what was drawn.
+                var drawn = PanelSnapshot.Run(shell.ToolPage, args.Files, args.State, TimeSpan.FromSeconds(60));
+                Console.Out.WriteLine(drawn ?? "PANEL none (this tool has no panel)");
+            }
 
             Render(shell, args.OutPath!);
             return 0;

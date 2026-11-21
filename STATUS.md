@@ -36,6 +36,10 @@
    (Space#3). Proven on CI with AirGPT absent; never run against a live AirGPT.
 11. **No AGPL** -- PyMuPDF/pymupdf4llm removed (pypdfium2, pikepdf, reportlab, svglib LGPL).
    CI python job installs them and fails on any SKIP line. Dev stress scripts still import it.
+13. **PDF flow panels (S50 wave 6, lane W6-2, PR into the integration branch)** -- Merge strip, page grid
+   (Organize / Remove / Rotate) and click-to-place Sign in `Apps/Shell/Panels/Pdf/`; engine pieces are pure and
+   under xunit (`PdfFlowTests`). `--snapshot --files --state` renders them; `checks.d/pdf-flow.ps1` asserts the
+   page order and the drawn counts. Drag from Explorer, Preview launch, and the look are verified only by CI PNGs.
 12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.

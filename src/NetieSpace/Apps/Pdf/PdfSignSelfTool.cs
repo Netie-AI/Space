@@ -37,6 +37,14 @@ internal static class PdfSignSelfTool
             var widthFraction = sizeName switch { "small" => 0.16, "large" => 0.36, _ => 0.25 };
             var withDate = OptBool(req, "date", false);
             var spec = Opt(req, "pages", "end");
+            (double X, double Y)? at = null;
+            var atText = Opt(req, "at").Trim();
+            if (atText.Length > 0)
+            {
+                if (!PdfSignPlacement.TryParse(atText, out var ax, out var ay))
+                    throw new ArgumentException("option 'at': give the centre of the mark as x,y percent of the page, for example 62.5,88 (0,0 is the top left)");
+                at = (ax, ay);
+            }
 
             var name = Opt(req, "name").Trim();
             if (mode == "name" && name.Length == 0)
@@ -97,7 +105,7 @@ internal static class PdfSignSelfTool
                         {
                             ct.ThrowIfCancellationRequested();
                             using var gfx = OpenVisualGraphics(doc.Pages[p - 1], append: true, out var vw, out var vh);
-                            DrawMark(gfx, vw, vh, mode, name, imageBytes, dateText, widthFraction, vert, horiz);
+                            DrawMark(gfx, vw, vh, mode, name, imageBytes, dateText, widthFraction, vert, horiz, at);
                             Report(progress, ++done, targets.Count, "signed page " + p);
                         }
                         path = names.Next(Stem(input) + "_signed", ".pdf");
@@ -124,7 +132,7 @@ internal static class PdfSignSelfTool
         });
 
     private static void DrawMark(XGraphics gfx, double vw, double vh, string mode, string name, byte[]? imageBytes,
-        string dateText, double widthFraction, string vert, string horiz)
+        string dateText, double widthFraction, string vert, string horiz, (double X, double Y)? at)
     {
         var maxW = vw * widthFraction;
         XFont? nameFont = null, dateFont = null;
@@ -174,6 +182,12 @@ internal static class PdfSignSelfTool
             var blockH = imgH + nameH + dateH;
             var left = horiz switch { "left" => Edge, "right" => vw - Edge - blockW, _ => (vw - blockW) / 2 };
             var top = vert switch { "top" => Edge, "bottom" => vh - Edge - blockH, _ => (vh - blockH) / 2 };
+            if (at is { } pt)
+            {
+                // A click on the page preview: the mark is centred on it, whatever "position" says.
+                horiz = "center";
+                (left, top) = PdfSignPlacement.BlockOrigin(pt.X, pt.Y, vw, vh, blockW, blockH, Edge);
+            }
             double X(double w) => horiz switch { "left" => left, "right" => left + blockW - w, _ => left + (blockW - w) / 2 };
 
             var y = top;

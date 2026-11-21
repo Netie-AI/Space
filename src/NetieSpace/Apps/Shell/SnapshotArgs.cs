@@ -3,9 +3,12 @@ using NetieSpace.Apps.Tools;
 namespace NetieSpace.Apps.Shell;
 
 /// <summary>
-/// <c>--snapshot &lt;png&gt; [--view &lt;tool-id&gt;]</c>. Pure argv reading: the WPF side only renders.
+/// <c>--snapshot &lt;png&gt; [--view &lt;tool-id&gt;] [--files a.pdf|b.pdf] [--state text]</c>. Pure argv reading: the WPF side only renders.
+/// <c>--files</c> (separated by '|', which no Windows file name holds) puts files on the tool page's panel first, and
+/// <c>--state</c> is the panel's own text for what a person's clicks would have done (select, rotate, delete ...).
 /// </summary>
-public sealed record SnapshotArgs(bool Requested, string? OutPath, string? ToolId, string? Error)
+public sealed record SnapshotArgs(bool Requested, string? OutPath, string? ToolId, string? Error,
+    IReadOnlyList<string>? Files = null, string? State = null)
 {
     public const int ExitInvalid = 2;
 
@@ -31,7 +34,26 @@ public sealed record SnapshotArgs(bool Requested, string? OutPath, string? ToolI
             if (toolId is null)
                 return new SnapshotArgs(true, outPath, null, "--view needs a tool id");
         }
-        return new SnapshotArgs(true, outPath, toolId, null);
+        IReadOnlyList<string>? files = null;
+        var filesAt = IndexOf(args, "--files");
+        if (filesAt >= 0)
+        {
+            var raw = Value(args, filesAt);
+            if (raw is null)
+                return new SnapshotArgs(true, outPath, toolId, "--files needs file paths separated by |");
+            if (toolId is null)
+                return new SnapshotArgs(true, outPath, toolId, "--files needs --view <tool-id>");
+            files = raw.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        }
+        string? state = null;
+        var stateAt = IndexOf(args, "--state");
+        if (stateAt >= 0)
+        {
+            state = Value(args, stateAt);
+            if (state is null)
+                return new SnapshotArgs(true, outPath, toolId, "--state needs a text");
+        }
+        return new SnapshotArgs(true, outPath, toolId, null, files, state);
     }
 
     /// <summary>Null when the id is empty or belongs to this app; otherwise the text naming the id.</summary>
