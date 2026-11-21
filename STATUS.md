@@ -40,6 +40,7 @@
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
 13. **Shell UX (S50 wave 6, lane W6-5)** -- drop a file anywhere: "Suggested for <file>" first; Ctrl+K/Ctrl+P quick search, Ctrl+O, Alt+Left, F1; recent files with thumbnails and recent tools per app; human error sentences with one button and a Details fold; window size remembered; light/dark follows Windows. Verified by the CI snapshot pictures and `shell-flow.ps1`; a real drag and theme switch are unverified.
+13. **Video quick edit (S50 wave 6, W6-4)** -- Trim / Video to GIF / Change speed / Mute / Compress open a filmstrip (drag in/out handles, mute and speed sections, caption, presets with a size estimate: WhatsApp under 16 MB, Reel, YouTube 1080p, GIF 480 px 12 fps). Runs as `vid-flow` (not a catalog row; `--tool vid-flow` headless). `--flow-file/--flow-state` snapshots. Unseen by a person until the CI PNGs are read.
 
 ## Next
 

@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
+using NetieSpace.Apps.Shell.Panels.Video;
 using NetieSpace.Apps.Tools;
 using NetieSpace.Helpers;
 
@@ -28,6 +29,7 @@ public partial class ToolPageView : UserControl
     private bool _running;
     private CancellationTokenSource? _previewCts;
     private CancellationTokenSource? _resultCts;
+    private VideoFlowSession? _flow; // W6-4 video flow hook
 
     public ToolPageView()
     {
@@ -69,6 +71,7 @@ public partial class ToolPageView : UserControl
         ActionButton.Content = _model.ActionLabel;
         RunPanel.Visibility = Visibility.Collapsed;
         ResultPanel.Visibility = Visibility.Collapsed;
+        VideoFlowHook.ShowResult(ResultPlayHost, null); // W6-4 video flow hook
 
         var reason = _model.UnavailableLine;
         UnavailableBox.Visibility = reason is null ? Visibility.Collapsed : Visibility.Visible;
@@ -252,9 +255,18 @@ public partial class ToolPageView : UserControl
         }
 
         RefreshPreview();
+        if (_model is not null) _flow = VideoFlowHook.Sync(FlowHost, _model, files, OnFlowActive); // W6-4 video flow hook
         NoFilesText.Visibility = files.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         BrowseButton.HorizontalAlignment = files.Count == 0 ? HorizontalAlignment.Center : HorizontalAlignment.Left;
         RefreshAction();
+    }
+
+    /// <summary>W6-4 video flow hook: while the filmstrip has a clip it stands in for the option boxes, and the button says Export.</summary>
+    private void OnFlowActive(bool on)
+    {
+        if (_model is null) return;
+        OptionsCard.Visibility = !on && _model.Options.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        ActionButton.Content = on ? VideoFlowSession.Label : _model.ActionLabel;
     }
 
     private void RefreshAction()
@@ -347,6 +359,7 @@ public partial class ToolPageView : UserControl
         CancelButton.IsEnabled = true;
         DrawQueue(queue);
 
+        var flow = _flow is { Active: true } ? _flow : null; // W6-4 video flow hook
         var progress = new Progress<ToolProgress>(p =>
         {
             if (!ReferenceEquals(queue, _queue)) return;
@@ -354,7 +367,7 @@ public partial class ToolPageView : UserControl
             Bar.Value = queue.PerFile
                 ? (queue.DoneCount + queue.FailedCount) * 100.0 / Math.Max(1, queue.Items.Count) + p.Percent / (double)Math.Max(1, queue.Items.Count)
                 : p.Percent;
-            ProgressText.Text = p.Message;
+            ProgressText.Text = flow?.ProgressLine(p) ?? p.Message; // W6-4 video flow hook
         });
 
         IReadOnlyList<ToolResult> results;
@@ -364,8 +377,8 @@ public partial class ToolPageView : UserControl
             results = await queue.RunAsync(
                 (batch, ct) =>
                 {
-                    var request = model.BuildRequest(batch, folder.Folder, values);
-                    return Task.Run(() => ToolRunner.RunAsync(model.Tool, request, progress, ct));
+                    var request = flow?.Request(batch, folder.Folder) ?? model.BuildRequest(batch, folder.Folder, values); // W6-4 video flow hook
+                    return Task.Run(() => ToolRunner.RunAsync(flow?.Tool ?? model.Tool, request, progress, ct));
                 },
                 () => DrawQueue(queue));
         }
@@ -437,6 +450,7 @@ public partial class ToolPageView : UserControl
         }
 
         ResultPanel.Visibility = Visibility.Visible;
+        VideoFlowHook.ShowResult(ResultPlayHost, summary.Ok ? summary.Primary : null); // W6-4 video flow hook
         ResultPanel.BringIntoView();
         RefreshAction();
     }
