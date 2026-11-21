@@ -9,7 +9,7 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                  Background="{StaticResource ShellPaper}">
+                  Background="{DynamicResource ShellPaper}">
         <!-- Two columns: the work (options, files, action) up to 640 wide, and the document preview beside it.
              A star column with a MaxWidth keeps the work left aligned; a StackPanel with MaxWidth would shrink. -->
         <Grid Margin="32,20,32,32">
@@ -24,9 +24,9 @@
 
             <StackPanel Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2">
                 <Button x:Name="BackButton" Style="{StaticResource ShellNavItem}" HorizontalAlignment="Left"
-                        Margin="-10,0,0,10">
+                        Margin="-10,0,0,10" AutomationProperties.Name="Back to all tools" ToolTip="Back to all tools (Alt+Left)">
                     <StackPanel Orientation="Horizontal">
-                        <Path Data="M7 2 L3 6 L7 10" Stroke="{StaticResource ShellInk}" StrokeThickness="1.6"
+                        <Path Data="M7 2 L3 6 L7 10" Stroke="{DynamicResource ShellInk}" StrokeThickness="1.6"
                               StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
                               Width="10" Height="12" VerticalAlignment="Center"/>
                         <TextBlock Text="All tools" Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -51,12 +51,19 @@
 
             <StackPanel Grid.Row="1" Grid.Column="0">
                 <Border x:Name="UnavailableBox" Visibility="Collapsed" Margin="0,24,0,0"
-                        Style="{StaticResource ShellCard}" Background="{StaticResource ShellSidebar}">
+                        Style="{StaticResource ShellCard}" Background="{DynamicResource ShellSidebar}">
                     <StackPanel>
                         <TextBlock Text="Not available" Style="{StaticResource ShellSection}" Margin="0,0,0,8"/>
                         <TextBlock x:Name="ReasonText" TextWrapping="Wrap"/>
                         <TextBlock x:Name="OfferText" Style="{StaticResource ShellMutedText}" Margin="0,8,0,0"
                                    Visibility="Collapsed"/>
+                        <Button x:Name="UnavailableActionButton" HorizontalAlignment="Left" Margin="0,14,0,0"
+                                Visibility="Collapsed"/>
+                        <Expander x:Name="UnavailableDetails" Header="Details" Margin="0,12,0,0" Visibility="Collapsed"
+                                  AutomationProperties.Name="Details of why this tool is unavailable">
+                            <TextBox x:Name="UnavailableDetailsText" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,0"
+                                     AutomationProperties.Name="Technical details"/>
+                        </Expander>
                     </StackPanel>
                 </Border>
 
@@ -71,7 +78,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Border x:Name="ResultThumbBox" Grid.Column="0" Width="84" Height="108" VerticalAlignment="Top"
-                                        Background="{StaticResource ShellSidebar}" BorderBrush="{StaticResource ShellLine}"
+                                        Background="{DynamicResource ShellSidebar}" BorderBrush="{DynamicResource ShellLine}"
                                         BorderThickness="1" CornerRadius="{StaticResource ShellRadiusControl}" ClipToBounds="True">
                                     <Grid>
                                         <Image x:Name="ResultThumb" Stretch="Uniform" Margin="4"
@@ -92,6 +99,13 @@
                                     </StackPanel>
                                     <TextBlock x:Name="ResultDetail" Style="{StaticResource ShellMutedText}" Margin="32,4,0,0"/>
                                     <TextBlock x:Name="ResultText" Style="{StaticResource ShellCaption}" TextWrapping="Wrap" Margin="32,6,0,0"/>
+                                    <Expander x:Name="ResultDetails" Header="Details" Margin="32,10,0,0" Visibility="Collapsed"
+                                              AutomationProperties.Name="Technical details of what went wrong">
+                                        <TextBox x:Name="ResultDetailsText" IsReadOnly="True" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                 AutomationProperties.Name="Technical details"/>
+                                    </Expander>
+                                    <Button x:Name="FixButton" Style="{StaticResource ShellActionButton}" MinHeight="32" Padding="16,6"
+                                            HorizontalAlignment="Left" Margin="32,14,0,0" Visibility="Collapsed"/>
                                     <StackPanel x:Name="ResultButtons" Orientation="Horizontal" Margin="32,14,0,0">
                                         <Button x:Name="OpenButton" Content="Open" Style="{StaticResource ShellActionButton}"
                                                 MinHeight="32" Padding="16,6" Margin="0,0,8,0"/>
@@ -104,7 +118,7 @@
 
                     <TextBlock Text="Files" Style="{StaticResource ShellSection}"/>
                     <Grid x:Name="DropZone" AllowDrop="True" Margin="0,8,0,0" MinHeight="132" Background="Transparent">
-                        <Rectangle Fill="{StaticResource ShellSidebar}" Stroke="{StaticResource ShellThumb}"
+                        <Rectangle Fill="{DynamicResource ShellSidebar}" Stroke="{DynamicResource ShellThumb}"
                                    StrokeThickness="1.5" StrokeDashArray="4 3" RadiusX="10" RadiusY="10"/>
                         <StackPanel Margin="16" VerticalAlignment="Center">
                             <StackPanel x:Name="FileRows"/>
@@ -115,7 +129,7 @@
                         </StackPanel>
                     </Grid>
                     <TextBlock x:Name="FilesMessage" Style="{StaticResource ShellMutedText}"
-                               Foreground="{StaticResource ShellDanger}" Margin="0,8,0,0" Visibility="Collapsed"/>
+                               Foreground="{DynamicResource ShellDanger}" Margin="0,8,0,0" Visibility="Collapsed"/>
 
                     <StackPanel x:Name="OptionsCard" Margin="0,24,0,0">
                         <TextBlock Text="Options" Style="{StaticResource ShellSection}"/>
@@ -125,8 +139,9 @@
                     <TextBlock Text="Save to" Style="{StaticResource ShellSection}" Margin="0,24,0,0"/>
                     <DockPanel Margin="0,8,0,0">
                         <Button x:Name="ChangeFolderButton" Content="Change" DockPanel.Dock="Right" MinHeight="32"
+                                AutomationProperties.Name="Change the save folder"
                                 Padding="12,4" Margin="8,0,0,0"/>
-                        <Border Background="{StaticResource ShellSidebar}" BorderBrush="{StaticResource ShellLine}"
+                        <Border Background="{DynamicResource ShellSidebar}" BorderBrush="{DynamicResource ShellLine}"
                                 BorderThickness="1" CornerRadius="{StaticResource ShellRadiusControl}" Padding="10,0" MinHeight="32">
                             <TextBlock x:Name="OutFolderText" VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"/>
@@ -137,7 +152,7 @@
                             HorizontalAlignment="Left" Margin="0,24,0,0" MaxWidth="560"/>
 
                     <StackPanel x:Name="RunPanel" Margin="0,18,0,0" Visibility="Collapsed">
-                        <ProgressBar x:Name="Bar" Minimum="0" Maximum="100"/>
+                        <ProgressBar x:Name="Bar" Minimum="0" Maximum="100" AutomationProperties.Name="Progress"/>
                         <TextBlock x:Name="ProgressText" Style="{StaticResource ShellMutedText}" Margin="0,6,0,0"/>
                         <StackPanel x:Name="QueueRows" Margin="0,10,0,0"/>
                         <Button x:Name="CancelButton" Content="Cancel" HorizontalAlignment="Left" Margin="0,10,0,0"
@@ -157,7 +172,7 @@
                                   VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <WrapPanel x:Name="PreviewStrip"/>
                     </ScrollViewer>
-                    <Border x:Name="PreviewPictureBox" Margin="0,12,0,0" Background="{StaticResource ShellSidebar}"
+                    <Border x:Name="PreviewPictureBox" Margin="0,12,0,0" Background="{DynamicResource ShellSidebar}"
                             CornerRadius="{StaticResource ShellRadiusControl}" Visibility="Collapsed">
                         <Image x:Name="PreviewPicture" MaxHeight="320" Stretch="Uniform" Margin="6"
                                RenderOptions.BitmapScalingMode="HighQuality"/>

@@ -112,7 +112,7 @@ public class AppShell2HomeTests
     public void Grid_puts_the_open_with_group_first_and_keeps_the_rest()
     {
         var grid = HomeGrid.Build(Cats(), null, null, "a.docx");
-        Assert.Equal("Open with", grid.OpenWithTitle);
+        Assert.Equal("Suggested for a.docx", grid.OpenWithTitle);
         Assert.Equal(new[] { "pdf-from-word" }, grid.OpenWith.Select(t => t.ToolId));
         Assert.Equal(4, grid.Categories.Count); // the full grid is still there below
         Assert.Null(HomeGrid.Build(Cats(), null, null, null).OpenWithTitle);
