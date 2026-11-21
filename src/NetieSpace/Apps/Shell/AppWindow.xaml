@@ -4,7 +4,7 @@
         xmlns:local="clr-namespace:NetieSpace.Apps.Shell"
         Width="1100" Height="720" MinWidth="720" MinHeight="480"
         WindowStartupLocation="CenterScreen"
-        Background="White">
-    <!-- The light theme lives in AppTheme.xaml and is merged by AppShell and its views, not here and not in App.xaml. -->
+        Background="{DynamicResource ShellPaper}">
+    <!-- The chrome lives in AppTheme.xaml (merged by AppShell and its views, not here and not in App.xaml); the light or dark colours come from ShellTheme. -->
     <local:AppShell x:Name="Shell"/>
 </Window>

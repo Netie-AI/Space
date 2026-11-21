@@ -39,6 +39,7 @@
 12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
+13. **Shell UX (S50 wave 6, lane W6-5)** -- drop a file anywhere: "Suggested for <file>" first; Ctrl+K/Ctrl+P quick search, Ctrl+O, Alt+Left, F1; recent files with thumbnails and recent tools per app; human error sentences with one button and a Details fold; window size remembered; light/dark follows Windows. Verified by the CI snapshot pictures and `shell-flow.ps1`; a real drag and theme switch are unverified.
 
 ## Next
 

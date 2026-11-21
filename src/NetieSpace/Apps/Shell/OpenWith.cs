@@ -3,6 +3,12 @@ namespace NetieSpace.Apps.Shell;
 /// <summary>Which tools can take a file, best first. Pure.</summary>
 public static class OpenWithRanking
 {
+    /// <summary>A dropped file shows this many tools first: enough to choose from, few enough to take in at a glance.</summary>
+    public const int SuggestionCount = 6;
+
+    /// <summary>"Suggested for report.pdf".</summary>
+    public static string Heading(string path) => "Suggested for " + IoPath.GetFileName(path.Trim().Trim('"'));
+
     /// <summary>
     /// Available tiles whose accepted types include the file's extension. A tool that names
     /// fewer types is more specific and ranks first; ties keep catalog order. A tool that

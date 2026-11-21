@@ -9,43 +9,73 @@
         </ResourceDictionary>
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                  Background="{StaticResource ShellPaper}">
+                  Background="{DynamicResource ShellPaper}" Focusable="False">
         <StackPanel Margin="32,28,32,32">
             <TextBlock x:Name="HomeTitle" Style="{StaticResource ShellTitle}"/>
-            <TextBlock x:Name="LoadingText" Text="Loading" Style="{StaticResource ShellMutedText}"
+            <TextBlock x:Name="LoadingText" Text="Getting your tools ready" Style="{StaticResource ShellMutedText}"
                        Margin="0,16,0,0" Visibility="Collapsed"/>
 
             <Border x:Name="PendingBar" Visibility="Collapsed" Margin="0,16,0,0" Padding="12,6"
                     Background="{DynamicResource ShellAccentTint}" CornerRadius="{StaticResource ShellRadiusControl}">
                 <DockPanel>
                     <Button x:Name="ClearPendingButton" Content="Clear" DockPanel.Dock="Right" MinHeight="28"
+                            AutomationProperties.Name="Clear the chosen file"
                             Padding="10,4" Margin="12,0,0,0"/>
-                    <TextBlock x:Name="PendingText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock x:Name="PendingText" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                               Foreground="{DynamicResource ShellInk}"/>
                 </DockPanel>
             </Border>
 
             <!-- A fixed width: MaxWidth with a left alignment collapses a TextBox to its minimum. -->
             <Grid Margin="0,18,0,0" Width="440" HorizontalAlignment="Left">
                 <TextBox x:Name="SearchBox" MinHeight="36" Padding="34,4,10,4"
-                         VerticalContentAlignment="Center" ToolTip="Search"/>
+                         VerticalContentAlignment="Center" ToolTip="Search tools. Ctrl+K searches recent files too."
+                         AutomationProperties.Name="Search tools"/>
                 <Path Data="M10.5 10.5 L14 14 M11.5 6.75 A4.75 4.75 0 1 1 2 6.75 A4.75 4.75 0 1 1 11.5 6.75"
-                      Stroke="{StaticResource ShellMuted}" StrokeThickness="1.5"
+                      Stroke="{DynamicResource ShellMuted}" StrokeThickness="1.5"
                       StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                       Width="16" Height="16" Margin="11,0,0,0" HorizontalAlignment="Left"
                       VerticalAlignment="Center" IsHitTestVisible="False"/>
-                <TextBlock x:Name="SearchHint" Text="Search" Style="{StaticResource ShellMutedText}"
+                <TextBlock x:Name="SearchHint" Text="Search tools" Style="{StaticResource ShellMutedText}"
                            FontSize="13" Margin="35,0,0,0" VerticalAlignment="Center"
                            IsHitTestVisible="False"/>
             </Grid>
 
-            <StackPanel x:Name="RecentSection" Margin="0,28,0,0">
-                <TextBlock Text="Recent" Style="{StaticResource ShellSection}"/>
+            <!-- First run, or a clean machine: say what to do instead of showing an empty list. -->
+            <Border x:Name="StartCard" Style="{StaticResource ShellCard}" Margin="0,24,0,0" Visibility="Collapsed"
+                    Background="{DynamicResource ShellAccentTint}" BorderThickness="0">
+                <StackPanel>
+                    <TextBlock Text="Start with a file" Style="{StaticResource ShellSection}"/>
+                    <TextBlock x:Name="StartText" Margin="0,6,0,0" TextWrapping="Wrap"
+                               Text="Drop a file anywhere in this window. Netie shows the tools that suit it."/>
+                    <Button x:Name="OpenFileButton" Content="Open a file" Style="{StaticResource ShellActionButton}"
+                            AutomationProperties.Name="Open a file" ToolTip="Ctrl+O"
+                            HorizontalAlignment="Left" Margin="0,14,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- A file in hand: the tools that suit it come before everything else. -->
+            <StackPanel x:Name="SuggestedHost" Margin="0,4,0,0"/>
+
+            <StackPanel x:Name="RecentToolsSection" Margin="0,28,0,0" Visibility="Collapsed">
+                <TextBlock Text="Recent tools" Style="{StaticResource ShellSection}"/>
+                <TextBlock x:Name="RecentToolsEmpty" Style="{StaticResource ShellMutedText}" Margin="0,6,0,0"
+                           Text="The tools you use show up here, so tomorrow they are one click away."/>
+                <WrapPanel x:Name="RecentToolRows" Margin="0,10,0,0"/>
+            </StackPanel>
+
+            <StackPanel x:Name="RecentSection" Margin="0,24,0,0">
+                <TextBlock Text="Recent files" Style="{StaticResource ShellSection}"/>
                 <StackPanel x:Name="RecentRows" Margin="0,8,0,0"/>
             </StackPanel>
 
             <StackPanel x:Name="ToolsHost" Margin="0,8,0,0"/>
-            <TextBlock x:Name="NoToolsText" Text="No tools" Style="{StaticResource ShellMutedText}"
-                       Margin="0,20,0,0" Visibility="Collapsed"/>
+
+            <StackPanel x:Name="NoToolsPanel" Margin="0,20,0,0" Visibility="Collapsed">
+                <TextBlock x:Name="NoToolsText" Text="No tools" Style="{StaticResource ShellMutedText}" FontSize="13"/>
+                <Button x:Name="ClearSearchButton" Content="Clear the search" HorizontalAlignment="Left" Margin="0,10,0,0"
+                        AutomationProperties.Name="Clear the search"/>
+            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

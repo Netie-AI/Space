@@ -43,8 +43,6 @@ public sealed record HomeGrid(
     IReadOnlyList<HomeCategory> Categories,
     string? EmptyLine)
 {
-    public const string OpenWithHeading = "Open with";
-
     /// <summary>
     /// A typed query searches every category (the sidebar choice is ignored while searching).
     /// With <paramref name="openPath"/> set, the tools that accept the file come first.
@@ -61,10 +59,11 @@ public sealed record HomeGrid(
             ? new List<HomeTile>()
             : OpenWithRanking.Rank(categories.SelectMany(c => c.Tiles), openPath)
                 .Where(t => ToolSearch.Matches(t, query))
+                .Take(OpenWithRanking.SuggestionCount)
                 .ToList();
 
         var shown = ToolSearch.Filter(scope, query);
         var empty = shown.Count == 0 && openWith.Count == 0 ? ToolSearch.NoToolsLine : null;
-        return new HomeGrid(openWith.Count > 0 ? OpenWithHeading : null, openWith, shown, empty);
+        return new HomeGrid(openWith.Count > 0 && openPath is not null ? OpenWithRanking.Heading(openPath) : null, openWith, shown, empty);
     }
 }

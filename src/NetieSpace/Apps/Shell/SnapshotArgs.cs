@@ -3,10 +3,19 @@ using NetieSpace.Apps.Tools;
 namespace NetieSpace.Apps.Shell;
 
 /// <summary>
-/// <c>--snapshot &lt;png&gt; [--view &lt;tool-id&gt;]</c>. Pure argv reading: the WPF side only renders.
+/// <c>--snapshot &lt;png&gt; [--view &lt;tool-id&gt;]</c>, plus the shell-flow extras: <c>--theme dark|light</c>,
+/// <c>--with-file &lt;path&gt;</c> (a file in hand: the home page leads with the tools that suit it),
+/// <c>--overlay palette|help|drop</c> with <c>--query &lt;text&gt;</c> for the palette, <c>--seed-recents &lt;path;path&gt;</c>
+/// (recent files and tools drawn from a throw-away folder, never from this PC) and <c>--audit &lt;txt&gt;</c> (the names UI
+/// Automation would read for every control on screen). Pure argv reading: the WPF side only renders.
 /// </summary>
-public sealed record SnapshotArgs(bool Requested, string? OutPath, string? ToolId, string? Error)
+public sealed record SnapshotArgs(
+    bool Requested, string? OutPath, string? ToolId, string? Error,
+    string? Theme = null, string? WithFile = null, string? Overlay = null, string? Query = null,
+    string? SeedRecents = null, string? AuditPath = null)
 {
+    public static readonly string[] Overlays = { "palette", "help", "drop" };
+
     public const int ExitInvalid = 2;
 
     public static readonly SnapshotArgs None = new(false, null, null, null);
@@ -31,7 +40,24 @@ public sealed record SnapshotArgs(bool Requested, string? OutPath, string? ToolI
             if (toolId is null)
                 return new SnapshotArgs(true, outPath, null, "--view needs a tool id");
         }
-        return new SnapshotArgs(true, outPath, toolId, null);
+
+        var theme = Optional(args, "--theme");
+        if (theme is not null && ShellPalette.Forced(theme) is null)
+            return new SnapshotArgs(true, outPath, toolId, "--theme must be dark or light");
+        var overlay = Optional(args, "--overlay")?.ToLowerInvariant();
+        if (overlay is not null && !Overlays.Contains(overlay))
+            return new SnapshotArgs(true, outPath, toolId, "--overlay must be palette, help or drop");
+        if (IndexOf(args, "--overlay") >= 0 && overlay is null)
+            return new SnapshotArgs(true, outPath, toolId, "--overlay must be palette, help or drop");
+        return new SnapshotArgs(true, outPath, toolId, null,
+            theme?.ToLowerInvariant(), Optional(args, "--with-file"), overlay, Optional(args, "--query"),
+            Optional(args, "--seed-recents"), Optional(args, "--audit"));
+    }
+
+    private static string? Optional(string[] args, string flag)
+    {
+        var i = IndexOf(args, flag);
+        return i < 0 ? null : Value(args, i);
     }
 
     /// <summary>Null when the id is empty or belongs to this app; otherwise the text naming the id.</summary>

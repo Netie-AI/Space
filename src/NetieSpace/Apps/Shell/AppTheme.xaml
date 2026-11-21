@@ -11,13 +11,9 @@
     <FontFamily x:Key="ShellBodyFont">Bahnschrift, Segoe UI Variable Text, Segoe UI Variable, Helvetica Neue, Segoe UI</FontFamily>
     <FontFamily x:Key="ShellDisplayFont">Bahnschrift, Segoe UI Variable Display, Segoe UI Variable, Helvetica Neue, Segoe UI</FontFamily>
 
-    <SolidColorBrush x:Key="ShellPaper" Color="#FFFFFF"/>
-    <SolidColorBrush x:Key="ShellSidebar" Color="#F4F5F7"/>
-    <SolidColorBrush x:Key="ShellInk" Color="#2C2C2C"/>
-    <SolidColorBrush x:Key="ShellMuted" Color="#6E6E6E"/>
-    <SolidColorBrush x:Key="ShellLine" Color="#D6D6D6"/>
-    <SolidColorBrush x:Key="ShellHover" Color="#EEEEEE"/>
-    <SolidColorBrush x:Key="ShellPress" Color="#E2E2E2"/>
+    <!-- ShellPaper, ShellSidebar, ShellSurface, ShellInk, ShellMuted, ShellLine, ShellHover, ShellPress, ShellDanger, ShellThumb,
+         ShellThumbHover and ShellFocus are not defined here either: ShellThemeInstaller puts the light or the dark set (ShellPalette)
+         in Application.Resources, and everything reads them with DynamicResource, so the window repaints when Windows switches theme. -->
     <!-- ShellAccent, ShellAccentHover, ShellAccentPress, ShellAccentTint, ShellAccentStrong and ShellAccentInk are
          not defined here: each app process installs its own (PDF red, Image teal, Video violet, MD slate) in
          Application.Resources through AppAccents, and everything below reads them with DynamicResource. -->
@@ -26,20 +22,29 @@
          type 24 title / 15 section / 13 body / 12 label / 11.5 caption. -->
     <CornerRadius x:Key="ShellRadiusControl">6</CornerRadius>
     <CornerRadius x:Key="ShellRadiusCard">10</CornerRadius>
-    <SolidColorBrush x:Key="ShellDanger" Color="#B3261E"/>
-    <SolidColorBrush x:Key="ShellThumb" Color="#C4C8CE"/>
-    <SolidColorBrush x:Key="ShellThumbHover" Color="#9EA4AD"/>
+
+    <!-- The keyboard focus ring: 2 px, 3 px outside the control, the same on every control that takes focus. -->
+    <Style x:Key="ShellFocusVisual">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Rectangle Margin="-3" Stroke="{DynamicResource ShellFocus}" StrokeThickness="2" RadiusX="8" RadiusY="8"
+                               SnapsToDevicePixels="True" IsHitTestVisible="False"/>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
 
     <!-- Text -->
     <Style TargetType="TextBlock">
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
         <Setter Property="TextOptions.TextRenderingMode" Value="ClearType"/>
     </Style>
     <Style x:Key="ShellMutedText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-        <Setter Property="Foreground" Value="{StaticResource ShellMuted}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellMuted}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="TextWrapping" Value="Wrap"/>
     </Style>
@@ -57,12 +62,13 @@
 
     <!-- Buttons -->
     <Style x:Key="ShellButton" TargetType="Button">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource ShellFocusVisual}"/>
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
-        <Setter Property="Background" Value="#FFFFFF"/>
-        <Setter Property="BorderBrush" Value="{StaticResource ShellLine}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellSurface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellLine}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="12,7"/>
         <Setter Property="MinHeight" Value="32"/>
@@ -79,10 +85,10 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellHover}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellHover}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellPress}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellPress}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -163,10 +169,10 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ShellAccent}"/>
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellSidebar}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellSidebar}"/>
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
-                            <Setter TargetName="bd" Property="Background" Value="{StaticResource ShellPress}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource ShellPress}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -179,8 +185,8 @@
 
     <!-- Card: the one container for the preview, the result and the unavailable notice -->
     <Style x:Key="ShellCard" TargetType="Border">
-        <Setter Property="Background" Value="#FFFFFF"/>
-        <Setter Property="BorderBrush" Value="{StaticResource ShellLine}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellSurface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellLine}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="{StaticResource ShellRadiusCard}"/>
         <Setter Property="Padding" Value="16"/>
@@ -203,10 +209,10 @@
     <Style TargetType="TextBox">
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
-        <Setter Property="CaretBrush" Value="{StaticResource ShellInk}"/>
-        <Setter Property="Background" Value="#FFFFFF"/>
-        <Setter Property="BorderBrush" Value="{StaticResource ShellLine}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource ShellInk}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellSurface}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellLine}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="Padding" Value="9,6"/>
         <Setter Property="MinHeight" Value="32"/>
@@ -224,7 +230,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ShellAccentPress}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ShellFocus}"/>
+                            <Setter TargetName="bd" Property="BorderThickness" Value="2"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
@@ -238,8 +245,8 @@
     <!-- Drop-down -->
     <Style TargetType="ComboBoxItem">
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
-        <Setter Property="Background" Value="#FFFFFF"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellSurface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
         <Setter Property="Padding" Value="10,6"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
@@ -264,11 +271,12 @@
         </Setter>
     </Style>
     <Style TargetType="ComboBox">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource ShellFocusVisual}"/>
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Background" Value="#FFFFFF"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
-        <Setter Property="BorderBrush" Value="{StaticResource ShellLine}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellSurface}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
+        <Setter Property="BorderBrush" Value="{DynamicResource ShellLine}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="MinHeight" Value="32"/>
         <Setter Property="Template">
@@ -291,14 +299,14 @@
                                                 <ColumnDefinition Width="*"/>
                                                 <ColumnDefinition Width="28"/>
                                             </Grid.ColumnDefinitions>
-                                            <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" Stroke="#2C2C2C"
+                                            <Path Grid.Column="1" Data="M0,0 L4,4 L8,0" Stroke="{DynamicResource ShellInk}"
                                                   StrokeThickness="1.5" HorizontalAlignment="Center"
                                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
                                         </Grid>
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter TargetName="Chrome" Property="Background" Value="#F4F5F7"/>
+                                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ShellSidebar}"/>
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -315,7 +323,7 @@
                                PopupAnimation="None">
                             <Border MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
                                     MaxHeight="{TemplateBinding MaxDropDownHeight}"
-                                    Background="#FFFFFF" BorderBrush="{StaticResource ShellLine}" BorderThickness="1"
+                                    Background="{DynamicResource ShellSurface}" BorderBrush="{DynamicResource ShellLine}" BorderThickness="1"
                                     CornerRadius="{StaticResource ShellRadiusControl}" Margin="0,2,0,0" Padding="2">
                                 <ScrollViewer CanContentScroll="True">
                                     <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
@@ -333,20 +341,62 @@
         </Setter>
     </Style>
 
+    <!-- Expander: the "Details" fold under an error. A flat header with an arrow, the same focus ring as every control. -->
+    <Style TargetType="Expander">
+        <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellMuted}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <DockPanel>
+                        <ToggleButton x:Name="HeaderSite" DockPanel.Dock="Top" Cursor="Hand" HorizontalAlignment="Left"
+                                      FocusVisualStyle="{StaticResource ShellFocusVisual}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      Content="{TemplateBinding Header}"
+                                      IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                                        <Path x:Name="Arrow" Data="M0,0 L4,4 L0,8" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.5"
+                                              VerticalAlignment="Center" Margin="2,0,8,0"/>
+                                        <ContentPresenter VerticalAlignment="Center" TextElement.FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Arrow" Property="Data" Value="M0,0 L4,4 L8,0"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter x:Name="ExpandSite" DockPanel.Dock="Bottom" Visibility="Collapsed"/>
+                    </DockPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Check box -->
     <Style TargetType="CheckBox">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource ShellFocusVisual}"/>
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
         <Setter Property="FontSize" Value="13"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
         <Setter Property="Cursor" Value="Hand"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
                     <StackPanel Orientation="Horizontal" Background="Transparent">
                         <Border x:Name="box" Width="18" Height="18" CornerRadius="3"
-                                Background="#FFFFFF" BorderBrush="{StaticResource ShellLine}" BorderThickness="1"
+                                Background="{DynamicResource ShellSurface}" BorderBrush="{DynamicResource ShellLine}" BorderThickness="1"
                                 VerticalAlignment="Center">
-                            <Path x:Name="tick" Data="M3,9 L7,13 L14,4" Stroke="#10141C" StrokeThickness="2"
+                            <Path x:Name="tick" Data="M3,9 L7,13 L14,4" Stroke="{DynamicResource ShellAccentInk}" StrokeThickness="2"
                                   Visibility="Collapsed" Margin="0"/>
                         </Border>
                         <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -368,8 +418,9 @@
 
     <!-- List -->
     <Style TargetType="ListBoxItem">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource ShellFocusVisual}"/>
         <Setter Property="FontFamily" Value="{StaticResource ShellBodyFont}"/>
-        <Setter Property="Foreground" Value="{StaticResource ShellInk}"/>
+        <Setter Property="Foreground" Value="{DynamicResource ShellInk}"/>
         <Setter Property="Padding" Value="10,8"/>
         <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
         <Setter Property="Cursor" Value="Hand"/>
@@ -383,7 +434,7 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource ShellHover}"/>
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ShellHover}"/>
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource ShellAccentTint}"/>
@@ -405,10 +456,10 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Thumb">
-                    <Border x:Name="th" Background="{StaticResource ShellThumb}" CornerRadius="{StaticResource ShellRadiusControl}" Margin="2"/>
+                    <Border x:Name="th" Background="{DynamicResource ShellThumb}" CornerRadius="{StaticResource ShellRadiusControl}" Margin="2"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="th" Property="Background" Value="{StaticResource ShellThumbHover}"/>
+                            <Setter TargetName="th" Property="Background" Value="{DynamicResource ShellThumbHover}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -476,7 +527,7 @@
     <Style TargetType="ProgressBar">
         <Setter Property="Height" Value="6"/>
         <Setter Property="Foreground" Value="{DynamicResource ShellAccent}"/>
-        <Setter Property="Background" Value="{StaticResource ShellHover}"/>
+        <Setter Property="Background" Value="{DynamicResource ShellHover}"/>
         <Setter Property="BorderThickness" Value="0"/>
     </Style>
 </ResourceDictionary>

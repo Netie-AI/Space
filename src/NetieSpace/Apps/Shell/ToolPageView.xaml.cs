@@ -261,7 +261,7 @@ public partial class ToolPageView : UserControl
     {
         if (_model is null) return;
         var check = _model.ValidateFiles(_files);
-        FilesMessage.Text = check.Message ?? "";
+        FilesMessage.Text = check.Message is null ? "" : FriendlyError.ForText(check.Message, _model.ToolId).Sentence;
         FilesMessage.Visibility = !check.Ok && _files.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         // Before a file is chosen the folder is not known yet; show the name it will carry.
         var folder = OutputFolder.Resolve(_app!, _files, _chosenOut);
@@ -269,6 +269,7 @@ public partial class ToolPageView : UserControl
         OutFolderText.Text = string.IsNullOrWhiteSpace(folder) ? _app!.DisplayName : folder;
         OutFolderText.ToolTip = OutFolderText.Text;
         ActionButton.IsEnabled = _model.ActionEnabled(_files) && !_running;
+        NameControls();
     }
 
     private void ChangeFolder()
@@ -410,6 +411,7 @@ public partial class ToolPageView : UserControl
         ResultDetail.Text = summary.Detail;
         ResultDetail.Visibility = summary.Detail.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         ResultText.Text = summary.Line;
+        ApplyFriendly(result, summary);
         var danger = (Brush)FindResource("ShellDanger");
         ResultTitle.Foreground = summary.Ok ? (Brush)FindResource("ShellInk") : danger;
         ResultText.Foreground = summary.Ok ? (Brush)FindResource("ShellMuted") : danger;
@@ -582,7 +584,7 @@ public partial class ToolPageView : UserControl
         {
             var state = new TextBlock
             {
-                Text = RunQueue.Label(item.State) + (item.State == QueueState.Failed && item.Message is not null ? ": " + item.Message : ""),
+                Text = RunQueue.Label(item.State) + (item.State == QueueState.Failed && item.Message is not null ? ": " + FriendlyError.ForText(item.Message, _model?.ToolId).Sentence : ""),
                 Style = (Style)FindResource("ShellMutedText"),
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Margin = new Thickness(12, 0, 0, 0),
@@ -609,7 +611,7 @@ public partial class ToolPageView : UserControl
         catch (Exception ex)
         {
             AppLogger.Warn($"open output failed ({_output}): {ex.Message}");
-            ResultText.Text = ex.Message;
+            ResultText.Text = "Windows could not open that file. Use Show in folder to find it.";
         }
     }
 
@@ -623,7 +625,7 @@ public partial class ToolPageView : UserControl
         catch (Exception ex)
         {
             AppLogger.Warn($"show in folder failed ({_output}): {ex.Message}");
-            ResultText.Text = ex.Message;
+            ResultText.Text = "Windows could not open the folder. The file is at " + _output;
         }
     }
 }
