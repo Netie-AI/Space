@@ -7,6 +7,8 @@ using UglyToad.PdfPig;
 
 namespace NetieSpace.Tests;
 
+// Reads WebView2Host.LastUserDataFolder, process-wide state that a parallel HTML run (audit tests) would overwrite.
+[Collection(IsolatedMeasurementCollection.Name)]
 public class WinTool2WebTests
 {
     private const string Marker = "NetieHtmlProof";
