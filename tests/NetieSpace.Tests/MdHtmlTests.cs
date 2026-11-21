@@ -24,8 +24,8 @@ public class MdHtmlTests : IDisposable
         Assert.Equal(
             new[] { ("title", 1, 0), ("setup", 2, 1), ("install", 3, 2), ("usage", 2, 1), ("appendix", 1, 0), ("skip", 3, 1) },
             body.Outline.Select(h => (h.Id, h.Level, h.Depth)));
-        Assert.Contains("<h2 id=\"setup\">Setup</h2>", body.Html);
-        Assert.Contains("<h1 id=\"appendix\">Appendix</h1>", body.Html);
+        Assert.Contains("<h2 id=\"setup\">Setup<a class=\"md-anchor\" href=\"#setup\"", body.Html);
+        Assert.Contains("<h1 id=\"appendix\">Appendix<a class=\"md-anchor\" href=\"#appendix\"", body.Html);
     }
 
     [Fact]
@@ -70,7 +70,7 @@ public class MdHtmlTests : IDisposable
     {
         var body = Process("<h2>A <code>b</code> &amp; <em>c</em>: d</h2><h2>&lt;script&gt;alert(1)&lt;/script&gt;</h2><h2>!!!</h2><h2><img src=\"a.png\" alt=\"\"></h2>");
         Assert.Equal("A b & c: d", body.Outline[0].Title);
-        Assert.Equal("a-b-c-d", body.Outline[0].Id);
+        Assert.Equal("a-b--c-d", body.Outline[0].Id); // GitHub: punctuation dropped, every space a hyphen
         Assert.Equal("<script>alert(1)</script>", body.Outline[1].Title);
         Assert.All(body.Outline, h => Assert.Matches("^[a-z0-9-]+$", h.Id));
         Assert.Equal("section", body.Outline[2].Id);
@@ -83,7 +83,7 @@ public class MdHtmlTests : IDisposable
         var body = Process("<h2 onclick=\"x()\" id=\"evil\">Hi</h2>");
         Assert.DoesNotContain("onclick", body.Html);
         Assert.DoesNotContain("evil", body.Html);
-        Assert.Contains("<h2 id=\"hi\">Hi</h2>", body.Html);
+        Assert.Contains("<h2 id=\"hi\">Hi<a class=\"md-anchor\"", body.Html);
     }
 
     [Fact]
@@ -158,7 +158,8 @@ public class MdHtmlTests : IDisposable
         Assert.DoesNotContain("connect-src", page);
         Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, "<script"));
         Assert.Contains("<script nonce=\"ABC123\">", page);
-        Assert.Contains("border:1px solid #bdbdbd", page); // table borders
+        Assert.Contains("border:1px solid var(--border)", page); // table borders
+        Assert.Contains("--border:#bdbdbd", page);
     }
 
     [Fact]
@@ -251,5 +252,121 @@ public class MdHtmlTests : IDisposable
     private sealed class Fat : IMdEngine
     {
         public string ToHtml(string markdown) => "<p>" + new string('x', MdDocument.MaxPageBytes) + "</p>";
+    }
+
+    // ---- GitHub-style anchors, code blocks, mermaid ----
+
+    [Theory]
+    [InlineData("Getting started", "getting-started")]
+    [InlineData("What's new?", "whats-new")]
+    [InlineData("API & Usage", "api--usage")]
+    [InlineData("C# 12 / .NET 8", "c-12--net-8")]
+    [InlineData("snake_case and kebab-case", "snake_case-and-kebab-case")]
+    [InlineData("Uber Caf\u00e9", "uber-caf\u00e9")]
+    [InlineData("!!!", "section")]
+    public void Heading_anchors_match_what_GitHub_writes_in_a_table_of_contents(string title, string id) =>
+        Assert.Equal(id, MdHtml.Slug(title));
+
+    [Fact]
+    public void Every_heading_gets_a_link_to_itself_that_the_outline_title_does_not_include()
+    {
+        var body = Process("<h2>Setup</h2>");
+        Assert.Contains("<a class=\"md-anchor\" href=\"#setup\" aria-label=\"Link to this section\">#</a>", body.Html);
+        Assert.Equal("Setup", body.Outline[0].Title);
+    }
+
+    [Fact]
+    public void A_code_block_gets_its_language_label_and_a_copy_button_and_keeps_its_escaped_text()
+    {
+        var body = Process("<pre><code class=\"language-csharp\">var a = 1 &lt; 2;\n</code></pre>");
+        Assert.Contains("<span class=\"md-lang\">csharp</span>", body.Html);
+        Assert.Contains("class=\"md-copy\"", body.Html);
+        Assert.Contains("<pre><code class=\"language-csharp\">var a = 1 &lt; 2;\n</code></pre>", body.Html);
+        Assert.DoesNotContain("not rendered", body.Html);
+    }
+
+    [Fact]
+    public void A_code_block_without_a_language_still_gets_a_copy_button()
+    {
+        var body = Process("<pre><code>plain\n</code></pre>");
+        Assert.Contains("class=\"md-copy\"", body.Html);
+        Assert.DoesNotContain("md-lang", body.Html);
+    }
+
+    [Fact]
+    public void A_language_name_that_could_carry_markup_is_dropped()
+    {
+        var body = Process("<pre><code class=\"language-x&quot; onclick=&quot;evil()\">a</code></pre>");
+        Assert.DoesNotContain("onclick", body.Html);
+        Assert.DoesNotContain("language-x", body.Html);
+    }
+
+    [Fact]
+    public void A_mermaid_block_shows_its_source_and_says_it_was_not_drawn()
+    {
+        var body = Process("<pre><code class=\"language-mermaid\">graph TD; A--&gt;B\n</code></pre>");
+        Assert.Contains(MdHtml.MermaidNote, body.Html);
+        Assert.Contains("md-mermaid", body.Html);
+        Assert.Contains("graph TD; A--&gt;B", body.Html);
+        Assert.Contains("nohighlight", body.Html);
+    }
+
+    [Fact]
+    public void Alerts_keep_their_classes_and_the_picture_and_link_rules_still_apply_inside_them()
+    {
+        var body = Process("<div class=\"markdown-alert markdown-alert-note\"><p class=\"markdown-alert-title\">Note</p><p><a href=\"javascript:1\">x</a></p></div>");
+        Assert.Contains("markdown-alert markdown-alert-note", body.Html);
+        Assert.DoesNotContain("javascript:", body.Html);
+    }
+
+    // ---- the page: theme, highlighter, find ----
+
+    [Fact]
+    public void A_fixed_colour_mode_is_written_on_the_page_and_system_writes_nothing()
+    {
+        Assert.Contains("<html lang=\"en\" data-theme=\"dark\">", MdShell.Page("t", "", "N", new MdPageOptions(MdColorMode.Dark)));
+        Assert.Contains("<html lang=\"en\" data-theme=\"light\">", MdShell.Page("t", "", "N", new MdPageOptions(MdColorMode.Light)));
+        Assert.DoesNotContain("data-theme=\"", MdShell.Page("t", "", "N").Split("<style>")[0]);
+    }
+
+    [Fact]
+    public void Dark_colours_exist_for_the_system_setting_and_for_the_toggle_and_print_is_always_light()
+    {
+        Assert.Contains("@media (prefers-color-scheme:dark){:root:not([data-theme=light])", MdShell.Css);
+        Assert.Contains(":root[data-theme=dark]{", MdShell.Css);
+        var print = MdShell.Css[MdShell.Css.IndexOf("@media print", StringComparison.Ordinal)..];
+        Assert.Contains("--bg:#fff", print);
+        Assert.Contains(".md-copy", print);
+        Assert.DoesNotContain("--bg:#16181c", print);
+    }
+
+    [Fact]
+    public void The_highlighter_is_inlined_once_under_the_same_nonce_and_a_page_without_it_still_works()
+    {
+        var with = MdShell.Page("t", "<p>x</p>", "ABC", new MdPageOptions(MdColorMode.System, "var hljs={};"));
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(with, "<script"));
+        Assert.Contains("var hljs={};", with);
+        Assert.Contains("window.hljs", with);
+        Assert.Contains("default-src 'none'", with);
+        Assert.DoesNotContain("var hljs", MdShell.Page("t", "", "A"));
+    }
+
+    [Fact]
+    public void The_page_has_a_find_bar_and_the_script_reports_what_the_host_listens_for()
+    {
+        var page = MdShell.Page("t", "", "N");
+        Assert.Contains("id=\"md-find\"", page);
+        Assert.Contains("id=\"md-find-q\"", page);
+        foreach (var message in new[] { "'link:'", "'copy:'", "'section:'", "'nav:back'", "'nav:forward'", "'zoom:in'", "'ui:open'", "'ui:print'" })
+            Assert.Contains(message, MdShell.Script);
+        Assert.DoesNotContain("fetch(", MdShell.Script);
+        Assert.DoesNotContain("XMLHttpRequest", MdShell.Script);
+        Assert.DoesNotContain("eval(", MdShell.Script);
+    }
+
+    [Fact]
+    public void The_page_text_is_ascii_only()
+    {
+        Assert.All(MdShell.Css + MdShell.Script + MdShell.FindBar, c => Assert.True(c < 128, "non-ASCII char " + (int)c));
     }
 }

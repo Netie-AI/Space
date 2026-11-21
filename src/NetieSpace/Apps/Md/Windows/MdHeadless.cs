@@ -5,7 +5,7 @@ using NetieSpace.Helpers;
 namespace NetieSpace.Apps.Md.WinRt;
 
 /// <summary>
-/// <c>--app md --open FILE --snapshot OUT.png [--pdf OUT.pdf]</c>: loads the file in an off-screen
+/// <c>--app md --open FILE [--snapshot OUT.png] [--pdf OUT.pdf] [--theme light|dark] [--steps FILE]</c>: loads the file in an off-screen
 /// window on its own STA thread and dispatcher, saves CoreWebView2.CapturePreviewAsync as a PNG
 /// (and the PDF when asked) and returns the exit code. No dialog is ever shown.
 /// </summary>
@@ -70,7 +70,7 @@ public static class MdHeadless
             Left = -12000,
             Top = 0,
         };
-        var view = new MdView(engine, MdTheme.Load());
+        var view = new MdView(engine, MdTheme.Load(), args.Theme);
         window.Content = view;
         window.Show();
         try
@@ -80,6 +80,16 @@ public static class MdHeadless
                 return view.Document?.Error ?? "document did not load";
             if (!await view.WaitRenderedAsync())
                 return "document did not render";
+
+            var steps = true;
+            if (args.StepsPath is not null)
+            {
+                if (!System.IO.File.Exists(args.StepsPath))
+                    return "steps file not found";
+                steps = await new MdDriver(view, Console.Out).RunAsync(System.IO.File.ReadAllLines(args.StepsPath));
+                if (!steps)
+                    return "a step failed";
+            }
 
             // The window is wider than the page column: capture the web view as it is.
             if (args.PngPath is not null)

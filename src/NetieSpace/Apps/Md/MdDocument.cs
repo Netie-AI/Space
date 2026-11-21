@@ -11,7 +11,7 @@ public sealed record MdDocument(
     public static readonly TimeSpan RenderLimit = TimeSpan.FromSeconds(5);
 
     /// <summary>Reads, renders and wraps the file. Never throws: a failure becomes a notice page with Error set.</summary>
-    public static MdDocument Load(string path, IMdEngine engine, string? nonce = null, Func<string, bool>? fileExists = null)
+    public static MdDocument Load(string path, IMdEngine engine, string? nonce = null, Func<string, bool>? fileExists = null, MdPageOptions? options = null)
     {
         nonce ??= MdShell.NewNonce();
         var full = IoPath.GetFullPath(path);
@@ -21,7 +21,7 @@ public sealed record MdDocument(
         if (read.Text is null)
         {
             var why = read.Error ?? "File could not be read";
-            return new MdDocument(full, folder, title, MdShell.Notice(title, why, nonce), Array.Empty<MdHeading>(), why, false, read.Stamp);
+            return new MdDocument(full, folder, title, MdShell.Notice(title, why, nonce, options), Array.Empty<MdHeading>(), why, false, read.Stamp);
         }
 
         try
@@ -31,14 +31,14 @@ public sealed record MdDocument(
             if (!render.Wait(RenderLimit))
             {
                 const string slow = "Document too complex to show";
-                return new MdDocument(full, folder, title, MdShell.Notice(title, slow, nonce), Array.Empty<MdHeading>(), slow, false, read.Stamp);
+                return new MdDocument(full, folder, title, MdShell.Notice(title, slow, nonce, options), Array.Empty<MdHeading>(), slow, false, read.Stamp);
             }
             var body = MdHtml.Process(render.Result, folder, probe);
-            var page = MdShell.Page(title, body.Html, nonce);
+            var page = MdShell.Page(title, body.Html, nonce, options);
             if (System.Text.Encoding.UTF8.GetByteCount(page) > MaxPageBytes)
             {
                 const string big = "Document too large to show";
-                return new MdDocument(full, folder, title, MdShell.Notice(title, big, nonce), Array.Empty<MdHeading>(), big, false, read.Stamp);
+                return new MdDocument(full, folder, title, MdShell.Notice(title, big, nonce, options), Array.Empty<MdHeading>(), big, false, read.Stamp);
             }
             return new MdDocument(full, folder, title, page, body.Outline, null, read.Unstable, read.Stamp);
         }
@@ -46,7 +46,7 @@ public sealed record MdDocument(
         {
             var cause = ex is AggregateException { InnerException: { } inner } ? inner : ex;
             const string failed = "Document could not be rendered";
-            return new MdDocument(full, folder, title, MdShell.Notice(title, failed + ": " + cause.GetType().Name, nonce),
+            return new MdDocument(full, folder, title, MdShell.Notice(title, failed + ": " + cause.GetType().Name, nonce, options),
                 Array.Empty<MdHeading>(), failed, false, read.Stamp);
         }
     }
