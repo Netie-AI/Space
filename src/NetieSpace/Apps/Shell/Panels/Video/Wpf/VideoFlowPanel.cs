@@ -27,6 +27,8 @@ internal sealed class TimeBox : TextBox
         _say = say;
         Width = 96;
         HorizontalContentAlignment = HorizontalAlignment.Center;
+        VerticalAlignment = VerticalAlignment.Center; // a row with a combo box must not stretch the boxes
+        VerticalContentAlignment = VerticalAlignment.Center;
         AutomationProperties.SetName(this, name);
         ToolTip = "mm:ss.f, or seconds";
         KeyDown += (_, e) =>
