@@ -118,10 +118,18 @@ internal sealed class PageGridPanel : PanelBase, IToolPanel
     public override RegisteredTool? RunTool =>
         _rules.CanReorder || _rules.CanDelete ? null : _runTool ??= ToolRegistry.Default.Find("pdf-organize");
 
-    public IReadOnlyDictionary<string, string> Options() =>
-        _rules.CanReorder || !_rules.CanDelete
-            ? new Dictionary<string, string> { ["plan"] = _model.PlanString() }
-            : new Dictionary<string, string> { ["pages"] = _model.RemovedSpec() };
+    public IReadOnlyDictionary<string, string> Options()
+    {
+        if (_rules.CanReorder || !_rules.CanDelete)
+        {
+            // Rotate with nothing turned yet does what the tool always did: every page a quarter turn right.
+            var plan = !_rules.CanReorder && !_model.IsChanged
+                ? PdfPagePlan.ToPlanString(_model.Pages.Select(p => p with { Rotation = 90 }).ToList())
+                : _model.PlanString();
+            return new Dictionary<string, string> { ["plan"] = plan };
+        }
+        return new Dictionary<string, string> { ["pages"] = _model.RemovedSpec() };
+    }
 
     public bool Ready(out string? why)
     {
@@ -134,9 +142,9 @@ internal sealed class PageGridPanel : PanelBase, IToolPanel
             if (_model.RemovedSpec().Length == 0) { why = "Select the pages to remove, then press Delete."; return false; }
             return true;
         }
-        if (!_model.IsChanged && _files.Count < 2)
+        if (!_model.IsChanged && _files.Count < 2 && _rules.CanReorder)
         {
-            why = _rules.CanReorder ? "Rotate, delete or drag some pages first." : "Select pages and rotate them first.";
+            why = "Rotate, delete or drag some pages first.";
             return false;
         }
         return true;
@@ -336,7 +344,7 @@ internal sealed class PageGridPanel : PanelBase, IToolPanel
         if (_model.IsChanged && !_rules.CanReorder && _rules.CanDelete) parts.Add($"{_model.FileLengths.FirstOrDefault() - n} to remove");
         var hint = _rules.CanReorder
             ? "Click to select, Shift or Ctrl for more, drag to reorder."
-            : _rules.CanDelete ? "Click to select, then Delete." : "Click to select, then rotate.";
+            : _rules.CanDelete ? "Click to select, then Delete." : "Click to select, then rotate. With nothing turned, Rotate turns every page right.";
         _summary.Text = string.Join(" - ", parts) + (n > 0 ? ". " + hint : "");
     }
 

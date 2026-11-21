@@ -45,6 +45,8 @@ public static class AppSnapshot
             }
 
             Render(shell, args.OutPath!);
+            if (args.Files is { Count: > 0 })
+                PanelSnapshot.ReleaseNative();
             return 0;
         }
         catch (Exception ex)

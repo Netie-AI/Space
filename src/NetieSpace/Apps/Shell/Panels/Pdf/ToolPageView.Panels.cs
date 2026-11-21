@@ -139,6 +139,17 @@ public partial class ToolPageView
 /// <summary>Runs the snapshot's panel step on the UI thread, pumping the dispatcher until it settles or times out.</summary>
 internal static class PanelSnapshot
 {
+    /// <summary>
+    /// Releases the page renderer's WinRT objects while the runtime is still up, so process teardown does not find
+    /// them half alive (the exe exited with 0xC000000D after drawing several pages, though the PNG was written).
+    /// </summary>
+    public static void ReleaseNative()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+    }
+
     public static string? Run(ToolPageView page, IReadOnlyList<string> files, string? state, TimeSpan timeout)
     {
         var dispatcher = Dispatcher.CurrentDispatcher;
