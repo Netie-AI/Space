@@ -53,10 +53,18 @@ public static class AppSnapshot
                 case "drop": shell.ShowDropPreview(); break;
             }
             flow?.Apply(shell); // W6-4 video flow hook
+            if (args.Files is { Count: > 0 })
+            {
+                // A PDF panel draws its pictures asynchronously: wait for them, and say what was drawn.
+                var drawn = PanelSnapshot.Run(shell.ToolPage, args.Files, args.State, TimeSpan.FromSeconds(60));
+                Console.Out.WriteLine(drawn ?? "PANEL none (this tool has no panel)");
+            }
 
             Render(shell, args.OutPath!);
             if (args.AuditPath is not null)
                 WriteAudit(shell, args.AuditPath);
+            if (args.Files is { Count: > 0 })
+                PanelSnapshot.ExitNow(0);
             return 0;
         }
         catch (Exception ex)

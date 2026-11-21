@@ -7,12 +7,15 @@ namespace NetieSpace.Apps.Shell;
 /// <c>--with-file &lt;path&gt;</c> (a file in hand: the home page leads with the tools that suit it),
 /// <c>--overlay palette|help|drop</c> with <c>--query &lt;text&gt;</c> for the palette, <c>--seed-recents &lt;path;path&gt;</c>
 /// (recent files and tools drawn from a throw-away folder, never from this PC) and <c>--audit &lt;txt&gt;</c> (the names UI
-/// Automation would read for every control on screen). Pure argv reading: the WPF side only renders.
+/// Automation would read for every control on screen), and the panel extras <c>--files a.pdf|b.pdf</c> (separated by
+/// '|', which no Windows file name holds; puts files on the tool page's panel first) and <c>--state text</c> (the panel's
+/// own text for what a person's clicks would have done). Pure argv reading: the WPF side only renders.
 /// </summary>
 public sealed record SnapshotArgs(
     bool Requested, string? OutPath, string? ToolId, string? Error,
     string? Theme = null, string? WithFile = null, string? Overlay = null, string? Query = null,
-    string? SeedRecents = null, string? AuditPath = null)
+    string? SeedRecents = null, string? AuditPath = null,
+    IReadOnlyList<string>? Files = null, string? State = null)
 {
     public static readonly string[] Overlays = { "palette", "help", "drop" };
 
@@ -40,6 +43,25 @@ public sealed record SnapshotArgs(
             if (toolId is null)
                 return new SnapshotArgs(true, outPath, null, "--view needs a tool id");
         }
+        IReadOnlyList<string>? files = null;
+        var filesAt = IndexOf(args, "--files");
+        if (filesAt >= 0)
+        {
+            var raw = Value(args, filesAt);
+            if (raw is null)
+                return new SnapshotArgs(true, outPath, toolId, "--files needs file paths separated by |");
+            if (toolId is null)
+                return new SnapshotArgs(true, outPath, toolId, "--files needs --view <tool-id>");
+            files = raw.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        }
+        string? state = null;
+        var stateAt = IndexOf(args, "--state");
+        if (stateAt >= 0)
+        {
+            state = Value(args, stateAt);
+            if (state is null)
+                return new SnapshotArgs(true, outPath, toolId, "--state needs a text");
+        }
 
         var theme = Optional(args, "--theme");
         if (theme is not null && ShellPalette.Forced(theme) is null)
@@ -51,7 +73,7 @@ public sealed record SnapshotArgs(
             return new SnapshotArgs(true, outPath, toolId, "--overlay must be palette, help or drop");
         return new SnapshotArgs(true, outPath, toolId, null,
             theme?.ToLowerInvariant(), Optional(args, "--with-file"), overlay, Optional(args, "--query"),
-            Optional(args, "--seed-recents"), Optional(args, "--audit"));
+            Optional(args, "--seed-recents"), Optional(args, "--audit"), Files: files, State: state);
     }
 
     private static string? Optional(string[] args, string flag)

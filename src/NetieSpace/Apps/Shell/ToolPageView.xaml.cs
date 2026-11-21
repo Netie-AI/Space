@@ -83,8 +83,9 @@ public partial class ToolPageView : UserControl
         // An unavailable tool shows its reason and offer, and no controls that cannot act.
         WorkPanel.Visibility = _model.Available ? Visibility.Visible : Visibility.Collapsed;
 
+        AttachPanel(tool);
         BuildOptions();
-        OptionsCard.Visibility = _model.Options.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+        OptionsCard.Visibility = _model.Options.Any(o => !PanelHides(o.Key)) ? Visibility.Visible : Visibility.Collapsed;
         SetFiles(pendingFile is not null && _model.Accepts(pendingFile)
             ? new[] { pendingFile }
             : Array.Empty<string>());
@@ -96,6 +97,7 @@ public partial class ToolPageView : UserControl
         foreach (var d0 in _model!.Options)
         {
             // The last used value, when the store still holds a valid one, replaces the entry default.
+            if (PanelHides(d0.Key)) continue;
             var d = _memory.Options.TryGetValue(d0.Key, out var remembered) ? d0 with { Default = remembered } : d0;
             var block = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
             FrameworkElement control;
@@ -221,6 +223,7 @@ public partial class ToolPageView : UserControl
     private void SetFiles(IReadOnlyList<string> files)
     {
         _files = files;
+        PanelShow(files);
         FileRows.Children.Clear();
         foreach (var f in files)
         {
@@ -280,7 +283,7 @@ public partial class ToolPageView : UserControl
         _outFolder = folder;
         OutFolderText.Text = string.IsNullOrWhiteSpace(folder) ? _app!.DisplayName : folder;
         OutFolderText.ToolTip = OutFolderText.Text;
-        ActionButton.IsEnabled = _model.ActionEnabled(_files) && !_running;
+        ActionButton.IsEnabled = _model.ActionEnabled(_files) && !_running && PanelReady();
         NameControls();
     }
 
@@ -308,6 +311,7 @@ public partial class ToolPageView : UserControl
     private void AddFiles(IEnumerable<string> incoming)
     {
         if (_model is null) return;
+        if (_panel is not null) { _panel.AddFiles(incoming); return; }
         var accepted = incoming.Where(f => IoFile.Exists(f)).ToList();
         SetFiles(_model.MaxFiles <= 1 && accepted.Count > 0
             ? new[] { accepted[0] }
@@ -354,6 +358,8 @@ public partial class ToolPageView : UserControl
 
         var values = _values.ToDictionary(kv => kv.Key, kv => kv.Value(), StringComparer.Ordinal);
         _state?.Save(model.Tool.Entry, values, _chosenOut);
+        PanelOverrides(values);
+        var runModel = PanelModel(model);
         var queue = RunQueue.For(model.Tool.Entry, files);
         _queue = queue;
         CancelButton.IsEnabled = true;
@@ -377,8 +383,8 @@ public partial class ToolPageView : UserControl
             results = await queue.RunAsync(
                 (batch, ct) =>
                 {
-                    var request = flow?.Request(batch, folder.Folder) ?? model.BuildRequest(batch, folder.Folder, values); // W6-4 video flow hook
-                    return Task.Run(() => ToolRunner.RunAsync(flow?.Tool ?? model.Tool, request, progress, ct));
+                    var request = flow?.Request(batch, folder.Folder) ?? runModel.BuildRequest(batch, folder.Folder, values); // W6-4 video flow hook
+                    return Task.Run(() => ToolRunner.RunAsync(flow?.Tool ?? runModel.Tool, request, progress, ct));
                 },
                 () => DrawQueue(queue));
         }
@@ -434,6 +440,7 @@ public partial class ToolPageView : UserControl
         // Check mark / cross in the icon font; plain letters if no icon font exists.
         ResultMarkGlyph.Text = IconFont.Available ? (summary.Ok ? "\uE73E" : "\uE711") : (summary.Ok ? "+" : "x");
         ResultButtons.Visibility = _output is null ? Visibility.Collapsed : Visibility.Visible;
+        PanelDecorateResult();
 
         ResultThumb.Source = null;
         ResultThumbBadge.Text = "";
@@ -482,6 +489,7 @@ public partial class ToolPageView : UserControl
     /// </summary>
     private async void RefreshPreview()
     {
+        if (PanelCoversPreview()) return;
         _previewCts?.Cancel();
         PreviewStrip.Children.Clear();
         PreviewMore.Visibility = Visibility.Collapsed;

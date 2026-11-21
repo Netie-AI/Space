@@ -14,7 +14,7 @@
              A star column with a MaxWidth keeps the work left aligned; a StackPanel with MaxWidth would shrink. -->
         <Grid Margin="32,20,32,32">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MaxWidth="640"/>
+                <ColumnDefinition x:Name="WorkColumn" Width="*" MaxWidth="640"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -118,7 +118,8 @@
                         <ContentControl x:Name="ResultPlayHost" IsTabStop="False"/>
                     </StackPanel>
 
-                    <TextBlock Text="Files" Style="{StaticResource ShellSection}"/>
+                    <TextBlock x:Name="FilesLabel" Text="Files" Style="{StaticResource ShellSection}"/>
+                    <ContentPresenter x:Name="PanelHost" Margin="0,8,0,0"/>
                     <Grid x:Name="DropZone" AllowDrop="True" Margin="0,8,0,0" MinHeight="132" Background="Transparent">
                         <Rectangle Fill="{DynamicResource ShellSidebar}" Stroke="{DynamicResource ShellThumb}"
                                    StrokeThickness="1.5" StrokeDashArray="4 3" RadiusX="10" RadiusY="10"/>
