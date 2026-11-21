@@ -7,10 +7,20 @@ $fl = Join-Path $Out "image-flow"
 $flIn = Join-Path $fl "photos in"
 New-Item -ItemType Directory -Force -Path $flIn | Out-Null
 
-# Windows PowerShell keeps these types in System.Drawing; PowerShell 7 (CI) splits them over System.Drawing.Common and
-# System.Drawing.Primitives. Reference whichever assemblies hold the types in this session.
+# Where System.Drawing's types live depends on the runtime: System.Drawing.dll (Windows PowerShell), or System.Drawing.Common,
+# System.Drawing.Primitives and System.Private.Windows.* (PowerShell 7 on newer .NET). Reference every one that is loaded, plus
+# its neighbours in the same folder, so the compiler finds whatever the types forward to.
 Add-Type -AssemblyName System.Drawing
-$drawRefs = @([System.Drawing.Bitmap].Assembly.Location, [System.Drawing.Color].Assembly.Location, [System.Drawing.Imaging.ImageFormat].Assembly.Location) | Select-Object -Unique
+$drawRefs = @()
+foreach ($t in @([System.Drawing.Bitmap], [System.Drawing.Color], [System.Drawing.Imaging.ImageFormat], [System.Drawing.Image])) {
+    $drawRefs += $t.Assembly.Location
+    $dir = Split-Path -Parent $t.Assembly.Location
+    $drawRefs += @(Get-ChildItem -Path $dir -Filter "System.Private.Windows*.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+    $drawRefs += @(Get-ChildItem -Path $dir -Filter "System.Drawing*.dll" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+}
+$drawRefs += @([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { -not $_.IsDynamic -and $_.Location -and ($_.GetName().Name -like "System.Drawing*" -or $_.GetName().Name -like "System.Private.Windows*") } | ForEach-Object { $_.Location })
+$drawRefs = @($drawRefs | Where-Object { $_ } | Select-Object -Unique)
+Write-Host "image-flow: System.Drawing references: $($drawRefs -join '; ')"
 Add-Type -ReferencedAssemblies $drawRefs -TypeDefinition @'
 using System;
 using System.Drawing;
