@@ -21,6 +21,20 @@ internal static class Win32Api
 
     public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
 
+    // Taskbar identity for the Netie app processes (Apps/Shell). HRESULT: 0 = S_OK.
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
+    public const uint AttachParentProcess = 0xFFFFFFFF;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AttachConsole(uint dwProcessId);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetCurrentProcessExplicitAppUserModelID(
+        [MarshalAs(UnmanagedType.LPWStr)] out string appId);
+
     [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
     public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc lpfn, IntPtr hMod, uint dwThreadId);
 
@@ -376,7 +390,6 @@ internal static class Win32Api
     public static extern int StrCmpLogicalW(string psz1, string psz2);
 
     public const int WmKeyup = 0x0101;
-    public const int WmChar = 0x0102;
 
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -519,9 +532,6 @@ internal static class Win32Api
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern int RegisterApplicationRestart(string? pwzCommandLine, int dwFlags);
 
-    public const int RestartNoCrash = 1;
-    public const int RestartNoHang = 2;
-    public const int RestartNoPatch = 4;
 
     [StructLayout(LayoutKind.Sequential)]
     public struct KbdLlHookStruct

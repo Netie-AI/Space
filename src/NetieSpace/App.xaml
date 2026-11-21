@@ -418,6 +418,67 @@
             </Style.Triggers>
         </Style>
 
+        <!-- Peek chrome (S50): one calm header row. Secondary actions are rows in the More popup. -->
+        <Style x:Key="PeekMenuRow" TargetType="Button">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="12,0"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" CornerRadius="8" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#26FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="bd" Property="Background" Value="#14FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Quiet text button for the header (More) and the compact zoom controls. -->
+        <Style x:Key="PeekQuietBtn" TargetType="Button" BasedOn="{StaticResource GlassButton}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+
+        <!-- The single primary action in the peek header ("Open in Netie ..." or Edit). -->
+        <Style x:Key="PeekPrimaryBtn" TargetType="Button" BasedOn="{StaticResource AccentButton}">
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Padding" Value="16,0"/>
+            <Setter Property="Margin" Value="0,0,10,0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <Style x:Key="PeekZoomBtn" TargetType="Button" BasedOn="{StaticResource PeekQuietBtn}">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="FontSize" Value="15"/>
+        </Style>
+
         <Style x:Key="IconCloseButton" TargetType="Button" BasedOn="{StaticResource GlassButton}">
             <Setter Property="Width" Value="34"/>
             <Setter Property="Height" Value="34"/>
@@ -431,8 +492,26 @@
             <Setter Property="Height" Value="34"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="FontSize" Value="15"/>
-            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <!-- IconGhostButton whose content is a glyph string from the icon font (not a Path) -->
+        <Style x:Key="IconGlyphButton" TargetType="Button" BasedOn="{StaticResource IconGhostButton}">
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons, Segoe MDL2 Assets, Segoe UI Symbol, Segoe UI"/>
+            <!-- Glyph text (&#xE721;) is drawn by the TextBlock a Button generates for string content.
+                 The app-wide implicit TextBlock styles (BodyFont, ShellBodyFont) set FontFamily on
+                 that TextBlock and beat the font inherited from the Button, so the glyph drew as an
+                 empty box (desktop job: drawn='Bahnschrift...' with both icon fonts installed). A
+                 Style.Resources shield did not reach it. A local FontFamily on the TextBlock does.
+                 String content only: a ContentTemplate would also wrap Path / UIElement content. -->
+            <Setter Property="ContentTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding}" TextAlignment="Center"
+                                   FontFamily="{Binding FontFamily, RelativeSource={RelativeSource AncestorType=Button}}"/>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <!-- Small, quiet affordance for chrome corners (dock / collapse handles) -->

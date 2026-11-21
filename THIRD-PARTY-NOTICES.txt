@@ -1,0 +1,89 @@
+NETIE SPACE - THIRD-PARTY NOTICES
+=================================
+
+Netie Space (Netie PDF, Netie Image, Netie Video) ships or calls the components below.
+Licences for NuGet packages are the ones each package declares in its own metadata
+(the .nuspec of the exact version in NetieSpace.csproj). Nothing here changes the licence
+of any component.
+
+Netie Space never ships PyMuPDF, pymupdf4llm, Ghostscript or OnlyOffice. The package
+build refuses to finish if any of them is present (scripts/check-tool-engines.ps1).
+
+
+1. FFmpeg - GNU General Public License v3 (GPLv3)
+-------------------------------------------------
+Files: tools\ffmpeg\ffmpeg.exe and tools\ffmpeg\ffprobe.exe
+Build: FFmpeg 8.1.2, "release-essentials" build by gyan.dev, configured with --enable-gpl
+and --enable-version3, so the whole build is licensed under the GPL version 3.
+
+FFmpeg is run as a separate process (command line); it is not linked into Netie Space.
+It is a separate work and is distributed here in unmodified binary form.
+
+Corresponding source and build information:
+  https://ffmpeg.org/                      (FFmpeg source and releases)
+  https://www.gyan.dev/ffmpeg/builds/      (the build shipped here and its configuration)
+
+The text of the GPL v3 is at https://www.gnu.org/licenses/gpl-3.0.txt . You may replace the
+bundled ffmpeg.exe and ffprobe.exe with your own build of FFmpeg in the same folder.
+
+
+2. whisper.cpp - MIT (optional, when present)
+---------------------------------------------
+Files: tools\whisper (copied into a package only when it exists on the build machine).
+Source: https://github.com/ggml-org/whisper.cpp
+Licence: MIT, as published by the project. Run as a separate process.
+The model file is fetched by scripts/download-whisper.ps1 and is not part of this repository;
+its own licence is the one published with the model by its author.
+
+
+3. Managed packages used by NetieSpace.exe
+------------------------------------------
+Licence = the value the package declares (license element in its .nuspec); where the package
+declares a licence file instead of an SPDX expression, the first lines of that file are named.
+
+  DocumentFormat.OpenXml 3.2.0 (and DocumentFormat.OpenXml.Framework 3.2.0)   MIT
+      https://github.com/dotnet/Open-XML-SDK
+  Markdig 0.38.0                                                              BSD-2-Clause
+      https://github.com/lunet-io/markdig
+  Microsoft.Extensions.Configuration.Json 8.0.1                               MIT
+  Microsoft.Extensions.Configuration.Binder 8.0.2                             MIT
+  Microsoft.Extensions.Configuration.EnvironmentVariables 8.0.0               MIT
+      https://dot.net/
+  Microsoft.Web.WebView2 1.0.2903.40                                          Microsoft BSD-style licence (file LICENSE.txt in the package)
+      https://aka.ms/webview
+      Copyright (C) Microsoft Corporation. All rights reserved. Redistribution and use in source
+      and binary forms, with or without modification, are permitted under the conditions in that
+      file (retain the notice and disclaimer; reproduce them in the documentation for binaries).
+  PdfPig 0.1.9                                                                Apache-2.0
+      https://github.com/UglyToad/PdfPig
+  PdfSharpCore 1.3.65                                                         MIT (file LICENSE.md in the package)
+      https://github.com/ststeiger/PdfSharpCore
+      Copyright (c) 2005-2007 empira Software GmbH, Cologne (Germany)
+      Modified work Copyright (c) 2016 David Dunscombe
+  Hardcodet.NotifyIcon.Wpf 1.1.0                                              The Code Project Open License (CPOL) 1.02 (file LICENSE in the package)
+      https://github.com/hardcodet/wpf-notifyicon
+  System.Drawing.Common 8.0.10                                                MIT
+      https://github.com/dotnet/winforms
+  System.Management 8.0.0                                                     MIT
+  System.Security.Cryptography.Pkcs 8.0.1                                     MIT
+  System.Security.Cryptography.ProtectedData 8.0.0                            MIT
+  System.IO.Packaging 8.0.1 (via DocumentFormat.OpenXml)                      MIT
+      https://dot.net/
+
+Brought in by PdfSharpCore 1.3.65 and used by the image tools:
+  SixLabors.ImageSharp 1.0.4                                                  Apache-2.0
+      https://github.com/SixLabors/ImageSharp
+  SixLabors.Fonts 1.0.0-beta17                                                Apache-2.0
+      https://github.com/SixLabors/Fonts
+  SharpZipLib 1.4.2                                                           MIT
+      https://github.com/icsharpcode/SharpZipLib
+
+Apache-2.0 text: https://www.apache.org/licenses/LICENSE-2.0
+MIT text:        https://opensource.org/license/mit
+
+
+4. Runtime
+----------
+The self-contained build includes the .NET 8 runtime and the Windows Desktop runtime
+(MIT, Microsoft). Tesseract OCR, when used, is a separate system installation (Apache-2.0)
+and is not part of the package.

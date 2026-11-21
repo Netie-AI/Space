@@ -6,6 +6,15 @@ What exists in this repo and where. Update when structure changes, not when stat
 | Path | Role |
 |---|---|
 | `src/NetieSpace/` | WPF host (Space Quick Look + Edit-in-app document chrome, video NLE) |
+| `src/NetieSpace/Apps/Shell/` | Netie PDF / Image / Video app processes: pre-mutex `AppEntry`, `AppIdentity` (AUMID table), `AppInstance` (per-app mutex + activation), `AppWindow` hosting `AppShell` (`HomeView`, `ToolPageView`, `AppTheme.xaml`), pure models, `AppSnapshot` (S50-E1) |
+| `src/NetieSpace/Apps/Shell/Windows/` | `AppShortcuts` (Start Menu .lnk with AUMID), `AppRelaunch` (pin relaunch properties) |
+| `scripts/check-tool-engines.ps1` | Shipping gate: fails a package that holds an AGPL engine; called by `publish.ps1` |
+| `scripts/check-app-shortcuts.ps1`, `scripts/make-app-icons.py` | Independent shortcut reader; deterministic app icon generator |
+| `THIRD-PARTY-NOTICES.txt` | Engine licences shipped with the package |
+| `src/NetieSpace/Apps/Shell/PeekBridge.cs` | Peek to app hand-off: which app for a preview kind, and the argv |
+| `scripts/check-app-shell.ps1` | Exe-level check on Windows: app snapshots, `--list-tools`, one real tool run (CI job `build (windows)`) |
+| `src/NetieSpace/Apps/Tools/` | Tool contract: 91-entry catalog, `EngineProbes`, licence gate, `ToolRegistry` (reflection), `ToolRunner`, headless `ToolCli` (S50-E2) |
+| `src/NetieSpace/Apps/Pdf/`, `Apps/Image/`, `Apps/Video/` | Tool providers found by reflection: 21 PDF, 11 image, 28 video runners. Code needing WPF / WIC / WinRT goes under a `Windows/` subfolder (PDF to JPG, OCR, PDF to PowerPoint, blur face, text to speech) |
 | `src/NetieSpace/Views/PreviewWindow.xaml` | Peek glass vs light Edit chips vs `_pdfSpaceMode` docked document chrome (header/nav/ribbon/rail) |
 | `src/NetieSpace/Assets/pdfjs/netie-viewer.html` | pdf.js page canvas + Fill overlays (HTML toolbar hidden in workbench) |
 | `src/NetieSpace/Assets/markdown/md-editor.html` | Local markdown workbench (marked+KaTeX, outline, annotate). Edit click until auto-open (MD-1) |

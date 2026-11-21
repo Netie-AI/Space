@@ -13,9 +13,6 @@ public static class AnimationHelper
     /// <summary>Apple-ish decelerate — the default for anything that opens or grows.</summary>
     public static IEasingFunction Decel => new CubicEase { EasingMode = EasingMode.EaseOut };
 
-    /// <summary>Symmetric ease for morphs where neither end should feel like the "arrival".</summary>
-    public static IEasingFunction Smooth => new CubicEase { EasingMode = EasingMode.EaseInOut };
-
     /// <summary>Slight overshoot — only for small chrome (chips, pills), never for layout-heavy panels.</summary>
     public static IEasingFunction Spring => new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.22 };
 
@@ -207,24 +204,6 @@ public static class AnimationHelper
         };
 
         column.BeginAnimation(ColumnDefinition.WidthProperty, animation);
-    }
-
-    /// <summary>Cross-fade one piece of chrome into another (ribbon ⇄ summary morph).</summary>
-    public static async Task MorphSwapAsync(UIElement? outgoing, UIElement? incoming, int durationMs = 220)
-    {
-        if (outgoing is not null && outgoing.Visibility == Visibility.Visible)
-        {
-            await AnimateCloseFadeOnlyAsync(outgoing, durationMs / 2);
-            outgoing.Visibility = Visibility.Collapsed;
-            outgoing.BeginAnimation(UIElement.OpacityProperty, null);
-            outgoing.Opacity = 1;
-        }
-
-        if (incoming is null)
-            return;
-
-        incoming.Visibility = Visibility.Visible;
-        AnimateOpenFadeOnly(incoming, durationMs);
     }
 
     /// <summary>Pill / chip entrance. Only safe on small chrome that is not an ancestor of a WebView2 HWND.</summary>

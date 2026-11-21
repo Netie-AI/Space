@@ -1,8 +1,14 @@
 mammoth>=1.8.0
-markitdown>=0.0.2
+markitdown[pdf]>=0.1.0  # MIT; [pdf] adds pdfminer.six + pdfplumber (both MIT) for PDF text
 pdfmd>=1.6.0
-pymupdf>=1.24
-pymupdf4llm>=1.28.0
+# PDF engines below replace PyMuPDF / pymupdf4llm (AGPL, must never ship).
+# Licences read from the installed package metadata (pip show / importlib.metadata).
+pdfminer.six>=20231228   # MIT; text extraction markitdown uses for PDF
+pypdfium2>=4.30          # BSD-3-Clause or Apache-2.0 (PDFium); render pages, page sizes, text layer
+pikepdf>=9.0             # MPL-2.0; encrypt, decrypt, watermark overlay, page structure
+reportlab>=4.2           # BSD-3-Clause; draw overlays, build PDFs from pictures / HTML / text
+svglib>=1.5              # LGPL-3.0-or-later; SVG -> reportlab drawing (pure python, imported at runtime)
+Pillow>=10.0             # MIT-CMU (HPND); picture decode and re-encode
 # ocrmypdf>=16  # optional — pdf-ocr; requires system Tesseract
 pptx2md>=2.0.6
 openai>=2.0.0
