@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using NetieSpace.Apps.Shell.Panels.Video;
 using NetieSpace.Apps.Tools;
 using NetieSpace.Helpers;
 
@@ -32,11 +33,13 @@ public static class AppSnapshot
 
             // Before the shell exists: an element outside a window does not repaint when a resource appears later.
             AppAccents.Apply(identity);
+            var flow = VideoFlowSnapshot.FromCommandLine(); // W6-4 video flow hook: --flow-file / --flow-state
             var shell = new AppShell();
-            shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), null);
+            shell.Initialize(identity, new RecentFiles(RecentFiles.DefaultPath(identity)), flow?.File);
             shell.SetTools(tools);
             if (args.ToolId is not null)
                 shell.ShowTool(args.ToolId);
+            flow?.Apply(shell); // W6-4 video flow hook
 
             Render(shell, args.OutPath!);
             return 0;

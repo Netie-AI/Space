@@ -100,6 +100,8 @@
                                 </StackPanel>
                             </Grid>
                         </Border>
+                        <!-- W6-4 video flow hook: plays the finished video under the card. -->
+                        <ContentControl x:Name="ResultPlayHost" IsTabStop="False"/>
                     </StackPanel>
 
                     <TextBlock Text="Files" Style="{StaticResource ShellSection}"/>
@@ -116,6 +118,8 @@
                     </Grid>
                     <TextBlock x:Name="FilesMessage" Style="{StaticResource ShellMutedText}"
                                Foreground="{StaticResource ShellDanger}" Margin="0,8,0,0" Visibility="Collapsed"/>
+                    <!-- W6-4 video flow hook: the filmstrip editor of the video tools (empty for every other page). -->
+                    <ContentControl x:Name="FlowHost" IsTabStop="False"/>
 
                     <StackPanel x:Name="OptionsCard" Margin="0,24,0,0">
                         <TextBlock Text="Options" Style="{StaticResource ShellSection}"/>

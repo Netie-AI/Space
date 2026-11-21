@@ -1,6 +1,7 @@
 using System.Reflection;
 using NetieSpace.Apps.Md;
 using NetieSpace.Apps.Md.WinRt;
+using NetieSpace.Apps.Shell.Panels.Video;
 using NetieSpace.Helpers;
 
 namespace NetieSpace.Apps.Shell;
@@ -38,7 +39,8 @@ public static class AppEntry
                 return false;
 
             case AppLaunchKind.ToolCli:
-                app.Shutdown(RunToolCli(args));
+                // W6-4 video flow hook: --tool vid-flow is the quick edit (not a catalog row), same grammar as every tool.
+                app.Shutdown(VideoFlowCli.Wants(args) ? RunFlowCli(args) : RunToolCli(args));
                 return true;
 
             case AppLaunchKind.Bridge:
@@ -144,6 +146,13 @@ public static class AppEntry
             Console.Error.WriteLine($"BRIDGE_CLI_FAILED {ex.GetType().Name}: {ex.Message}");
             return NetieSpace.Apps.Bridge.BridgeCli.ExitFailed;
         }
+    }
+
+    /// <summary>W6-4: the quick edit's headless run, off the dispatcher thread like the tool CLI.</summary>
+    private static int RunFlowCli(string[] args)
+    {
+        try { Win32Api.AttachConsole(Win32Api.AttachParentProcess); } catch { /* no parent console */ }
+        return Task.Run(() => VideoFlowCli.Run(args)).GetAwaiter().GetResult();
     }
 
     /// <summary>

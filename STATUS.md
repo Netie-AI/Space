@@ -39,6 +39,7 @@
 12. **Peek chrome (S50 wave 5, PR into the integration branch)** -- header is one row, secondary
    actions in a More sheet, Fit never enlarges, tooltips guarded, summary hidden for pictures and
    clips. Verified only by the desktop job screenshots; video pane cause is read from `[video]` log lines.
+13. **Video quick edit (S50 wave 6, W6-4)** -- Trim / Video to GIF / Change speed / Mute / Compress open a filmstrip (drag in/out handles, mute and speed sections, caption, presets with a size estimate: WhatsApp under 16 MB, Reel, YouTube 1080p, GIF 480 px 12 fps). Runs as `vid-flow` (not a catalog row; `--tool vid-flow` headless). `--flow-file/--flow-state` snapshots. Unseen by a person until the CI PNGs are read.
 
 ## Next
 
