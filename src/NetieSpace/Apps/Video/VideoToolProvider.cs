@@ -455,7 +455,11 @@ public sealed partial class VideoToolProvider : IToolProvider
             var a = new List<string> { "-i", input, "-map", "0:v:0" };
             var keep = audio == "keep" && info.HasAudio;
             if (keep) a.AddRange(new[] { "-map", "0:a" });
-            a.AddRange(Vf("setpts=PTS*100/" + speed));
+            // FFmpeg 7.1 marks setpts output as variable rate and keeps every frame; resampling to the
+            // source rate drops (or repeats) frames so 200% really halves the frame count. A no-op on 6.x and 9.x.
+            a.AddRange(info.Fps > 0
+                ? Vf("setpts=PTS*100/" + speed, "fps=" + Num(info.Fps))
+                : Vf("setpts=PTS*100/" + speed));
             if (keep) a.AddRange(new[] { "-af", AtempoChain(speed / 100.0) });
             else a.Add("-an");
             a.AddRange(Encode(IsWebM(input)));

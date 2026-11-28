@@ -129,7 +129,7 @@ class FfmpegNleExportTests(unittest.TestCase):
             )
             scale = (
                 "scale=320:240:force_original_aspect_ratio=decrease,"
-                "pad=320:240:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS"
+                "pad=320:240:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,fps=30,format=yuv420p"
             )
             # Match FfmpegService.XfadeJoinAsync: offset = left duration - 0.5s wipe.
             fc = (

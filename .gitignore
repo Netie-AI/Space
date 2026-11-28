@@ -45,3 +45,4 @@ src/NetieSpace/Assets/pdfjs/__stress/ep-form.pdf
 
 # Local whisper.cpp install (474MB model; fetched per machine, never vendored)
 tools/whisper/
+readiness-report/

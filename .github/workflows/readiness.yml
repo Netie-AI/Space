@@ -1,0 +1,82 @@
+name: Readiness
+
+# Per-tool readiness matrix plus scale checks (tests/NetieSpace.Tests/Readiness*.cs).
+# Every row is a real ToolRunner call on a generated file; reports are uploaded as artifacts.
+# Linux floor is the count measured on 2026-11-28 (59 of 91 tools Ok on Linux); raise it, never lower it.
+# Windows floor 65 is the count measured on run 46130497232 (2026-11-28, before the redact, blur-face and tts recipes).
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: readiness-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  readiness-linux:
+    name: readiness (linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NETIE_READINESS: "1"
+      NETIE_READINESS_FLOOR: "59"
+      NETIE_READINESS_OUT: ${{ github.workspace }}/readiness-report
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+      # setup-ffmpeg cannot read the Linux build's version on ubuntu ("Failed to read version from
+      # readme"), so take the BtbN 9.0 static build: same major as the Windows "release" build.
+      - name: ffmpeg 9.0 (BtbN static)
+        run: |
+          curl -fsSL -o /tmp/ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linux64-gpl-9.0.tar.xz
+          mkdir -p "$RUNNER_TEMP/ffmpeg" && tar -xf /tmp/ff.tar.xz -C "$RUNNER_TEMP/ffmpeg" --strip-components=1
+          echo "$RUNNER_TEMP/ffmpeg/bin" >> "$GITHUB_PATH"
+      - name: ffmpeg version
+        run: ffmpeg -hide_banner -version | head -1
+      - name: readiness matrix and scale checks
+        run: ./scripts/verify/readiness.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readiness-linux
+          path: readiness-report
+          if-no-files-found: warn
+
+  readiness-windows:
+    name: readiness (windows)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      NETIE_READINESS: "1"
+      NETIE_READINESS_FLOOR: "65"
+      NETIE_READINESS_OUT: ${{ github.workspace }}\readiness-report
+      CI: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: readiness matrix and scale checks
+        shell: pwsh
+        run: |
+          dotnet test tests/NetieSpace.Tests/NetieSpace.Tests.csproj -c Debug --nologo `
+            --filter "FullyQualifiedName~NetieSpace.Tests.Readiness" `
+            --logger "console;verbosity=normal" --blame-hang-timeout 10m
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: readiness-windows
+          path: readiness-report
+          if-no-files-found: warn
