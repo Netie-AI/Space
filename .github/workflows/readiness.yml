@@ -3,7 +3,7 @@ name: Readiness
 # Per-tool readiness matrix plus scale checks (tests/NetieSpace.Tests/Readiness*.cs).
 # Every row is a real ToolRunner call on a generated file; reports are uploaded as artifacts.
 # Linux floor is the count measured on 2026-11-28 (59 of 91 tools Ok on Linux); raise it, never lower it.
-# Windows floor is unset until the first measured Windows run sets it.
+# Windows floor 65 is the count measured on run 46130497232 (2026-11-28, before the redact, blur-face and tts recipes).
 
 on:
   pull_request:
@@ -55,6 +55,7 @@ jobs:
     timeout-minutes: 40
     env:
       NETIE_READINESS: "1"
+      NETIE_READINESS_FLOOR: "65"
       NETIE_READINESS_OUT: ${{ github.workspace }}\readiness-report
       CI: "1"
     steps:

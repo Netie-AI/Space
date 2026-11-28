@@ -146,6 +146,9 @@ public sealed class ReadinessMatrixTests
             case "vid-subtitles": return (".mp4 + .srt", new() { Mp4(), Readiness.MakeInput(d, ".srt", 2)! }, O());
             case "vid-compress": return ("noisy .mp4", new() { Readiness.MakeNoisyVideo(d, "noisy.mp4", 4, "640x360") }, O(("quality", "low"), ("height", "360")));
             case "vid-to-gif": return (".mp4", new() { Mp4() }, O());
+            case "pdf-redact": return (".pdf", new() { Pdf() }, O(("regions", "1:50,80,200,40")));
+            case "img-blur-face": return (".png", new() { Png() }, O(("regions", "20,20,80,60")));
+            case "vid-tts": return ("text option", new(), O(("text", "Hello from Netie Space.")));
             case "vid-adjust": return (".mp4", new() { Mp4() }, O(("brightness", "20"), ("contrast", "10")));
             default: return null;
         }
