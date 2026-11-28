@@ -31,10 +31,13 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+      # setup-ffmpeg cannot read the Linux build's version on ubuntu ("Failed to read version from
+      # readme"), so take the BtbN 9.0 static build: same major as the Windows "release" build.
+      - name: ffmpeg 9.0 (BtbN static)
+        run: |
+          curl -fsSL -o /tmp/ff.tar.xz https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n9.0-latest-linux64-gpl-9.0.tar.xz
+          mkdir -p "$RUNNER_TEMP/ffmpeg" && tar -xf /tmp/ff.tar.xz -C "$RUNNER_TEMP/ffmpeg" --strip-components=1
+          echo "$RUNNER_TEMP/ffmpeg/bin" >> "$GITHUB_PATH"
       - name: ffmpeg version
         run: ffmpeg -hide_banner -version | head -1
       - name: readiness matrix and scale checks
