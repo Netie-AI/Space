@@ -14,7 +14,7 @@ public static class FfmpegExportGraph
     {
         var w = width > 0 ? width : 1920;
         var h = height > 0 ? height : 1080;
-        return $"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p,setpts=PTS-STARTPTS";
+        return $"scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS,fps=30,format=yuv420p";
     }
 
     public static double XfadeOffsetSeconds(TimeSpan leftDuration, TimeSpan xfadeDur) =>
